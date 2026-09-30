@@ -325,9 +325,9 @@ for (const p of plan) {
 				if (/401|rejected|permission/i.test(e.message)) {
 					noAlign = true;
 					console.log(
-						'\n  Timing is switched off for this run. The key records speech but may not be allowed' +
-							'\n  to time it: in ElevenLabs, Developers → API keys → edit this key → give it' +
-							'\n  Speech to Text (forced alignment is part of it). Then: npm run voice -- --align --yes\n'
+						'\n  Timing is switched off for this run: ElevenLabs gave its reason above. Keys have a' +
+							'\n  separate "Forced Alignment" permission (Developers → API keys → edit the key).' +
+							'\n  Then: npm run voice -- --align --yes\n'
 					);
 				}
 			}
