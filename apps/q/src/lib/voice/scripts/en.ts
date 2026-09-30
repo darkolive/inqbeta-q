@@ -76,7 +76,7 @@ export default {
 	'uses.calls.d': '[matter-of-fact] Talk person to person. A receipt keeps the facts — who, when, how long — never what was said.',
 	'beta.touch': '[inviting] Stay in touch',
 	'beta.why': '[reassuring] [quietly] Only used to tell you about Q. It goes to Dark Olive’s admin inbox, nowhere else.',
-	'support.title': '[warmly] Keep Q free',
+	'support.title': '[warmly] Keep it free',
 	'support.body': '[sincere] [warmly] Q is free, and it will stay free — no adverts, no investors, nothing sold about you. It is built by Darren Knipe, a working parent, through Dark Olive C-I-C, a small community interest company. If Q is useful to you, or to someone you care for, a contribution keeps it growing and keeps it free for everyone.',
 
 	/* The home page below the fold (29 September). */

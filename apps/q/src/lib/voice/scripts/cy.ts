@@ -50,7 +50,7 @@ export default {
 	'uses.calls.d': '[matter-of-fact] Siaradwch o berson i berson. Mae derbynneb yn cadw’r ffeithiau — pwy, pryd, am ba hyd — byth yr hyn a ddywedwyd.',
 	'beta.touch': '[inviting] Cadw mewn cysylltiad',
 	'beta.why': '[reassuring] [quietly] Dim ond i ddweud wrthych am Q. Mae’n mynd i fewnflwch gweinyddol Dark Olive, i unman arall.',
-	'support.title': '[warmly] Cadw Q am ddim',
+	'support.title': '[warmly] Ei gadw am ddim',
 	'support.body': '[sincere] [warmly] Mae Q am ddim, a bydd yn aros am ddim — dim hysbysebion, dim buddsoddwyr, dim byd amdanoch chi’n cael ei werthu. Fe’i hadeiladir gan Darren Knipe, rhiant sy’n gweithio, drwy Dark Olive C-I-C, cwmni buddiant cymunedol bach. Os yw Q yn ddefnyddiol i chi, neu i rywun rydych chi’n gofalu amdano, mae cyfraniad yn ei helpu i dyfu ac yn ei gadw am ddim i bawb.',
 
 	/* The home page below the fold (29 September). */
