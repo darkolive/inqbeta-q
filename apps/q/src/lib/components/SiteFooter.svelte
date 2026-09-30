@@ -11,6 +11,7 @@
 	import ShareLinks from './ShareLinks.svelte';
 
 	const LINKS = [
+		{ href: '/docs', key: 'footer.docs' },
 		{ href: '/contact', key: 'footer.contact' },
 		{ href: '/legal/privacy', key: 'footer.privacy' },
 		{ href: '/legal/terms', key: 'footer.terms' },

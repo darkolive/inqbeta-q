@@ -25,11 +25,11 @@
  */
 
 /** Pages a person may be on with no keys held and nothing remembered. */
-export const OPEN_PATHS = ['/', '/data', '/user', '/contact', '/legal'];
+export const OPEN_PATHS = ['/', '/data', '/user', '/contact', '/legal', '/docs'];
 
 /** Pages anyone may read, shown with a plain header and the footer rather than the dashboard. */
 export function isPublicPage(path: string): boolean {
-	return path === '/contact' || path === '/legal' || path.startsWith('/legal/');
+	return path === '/contact' || path === '/docs' || path === '/legal' || path.startsWith('/legal/');
 }
 
 /**
