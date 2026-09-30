@@ -4,12 +4,18 @@
 	 * any language's string, so a translation only has to keep the letter Q
 	 * where Q is meant. "QR" and other words that merely start with Q are left
 	 * alone.
+	 *
+	 * With linkOrg, "Dark Olive CIC" (or "Dark Olive") becomes a link to its
+	 * home page. Off by default, because text already inside a link must not
+	 * hold another.
 	 */
 	import QMark from './QMark.svelte';
 
-	let { text }: { text: string } = $props();
+	const DARK_OLIVE = 'https://darkolive.co.uk';
 
-	const parts = $derived(text.split(/\bQ\b/));
+	let { text, linkOrg = false }: { text: string; linkOrg?: boolean } = $props();
+
+	const chunks = $derived(linkOrg ? text.split(/(Dark Olive(?: CIC)?)/) : [text]);
 </script>
 
-{#each parts as part, i (i)}{part}{#if i < parts.length - 1}<QMark />{/if}{/each}
+{#each chunks as chunk, c (c)}{#if linkOrg && c % 2 === 1}<a class="anchor" href={DARK_OLIVE} rel="noopener" target="_blank">{chunk}</a>{:else}{@const parts = chunk.split(/\bQ\b/)}{#each parts as part, i (i)}{part}{#if i < parts.length - 1}<QMark />{/if}{/each}{/if}{/each}

@@ -14,7 +14,7 @@ git commit -s -m "What changed"
 ```
 
 adds the line `Signed-off-by: Your Name <you@example.org>`. There is no
-separate agreement to sign, and nobody — Dark Olive CIC included — gains the
+separate agreement to sign, and nobody — [Dark Olive CIC](https://darkolive.co.uk) included — gains the
 right to relicense your work: it stays under the licence it was given with
 (see [LICENSING.md](LICENSING.md)).
 

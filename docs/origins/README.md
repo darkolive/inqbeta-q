@@ -15,7 +15,7 @@ Some day they feed a proper account of how Q was made and why. Not yet.
 | Document | Written | What it is |
 |---|---|---|
 | [A Community Credit Exchange System](2025-12-community-credit-exchange-white-paper.pdf) | Darren Knipe, 1–4 Dec 2025, v1.0, draft for review, marked Public | The first white paper: a capacity-backed, reserve-anchored credit exchange for a network of CICs. Credits as eligibility tokens; Service Plugins (time, storage, item); triple-replica storage; personal/business mode for tax; trade vs sell; hash-linked double-entry ledger. |
-| [The Network Was Already Here](2026-07-the-network-was-already-here.pdf) | Darren Knipe / Dark Olive CIC, July 2026, discussion draft | A plain-language narrative: rural capacity, the white paper, and the discovery (Workhouse) that receipts, belonging and a history people hold mattered more than credits — which is why inQbeta grew into a universal tool. |
+| [The Network Was Already Here](2026-07-the-network-was-already-here.pdf) | Darren Knipe / [Dark Olive CIC](https://darkolive.co.uk), July 2026, discussion draft | A plain-language narrative: rural capacity, the white paper, and the discovery (Workhouse) that receipts, belonging and a history people hold mattered more than credits — which is why inQbeta grew into a universal tool. |
 
 Not here: the Community Shared Workspace service sheet (Dark Olive CIC's own
 share and membership model). It is Dark Olive's, not Q's, and is kept

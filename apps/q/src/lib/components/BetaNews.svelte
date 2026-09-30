@@ -57,7 +57,7 @@
 				<Icon name="mail" size={20} stroke={2.5} /><span>{t('beta.send')}</span>
 			</button>
 		</form>
-		<p class="text-sm text-surface-700-300" data-read="beta.why"><QText text={t('beta.why')} /></p>
+		<p class="text-sm text-surface-700-300" data-read="beta.why"><QText text={t('beta.why')} linkOrg /></p>
 		{#if stage === 'failed'}<p class="text-sm text-error-600-400" role="alert">{t('beta.error')}</p>{/if}
 	{/if}
 </section>

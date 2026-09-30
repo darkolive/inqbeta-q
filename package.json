@@ -1,7 +1,10 @@
 {
 	"name": "inqbeta-q",
 	"license": "AGPL-3.0-or-later",
-	"author": "Darren Knipe, Dark Olive CIC",
+	"author": {
+		"name": "Darren Knipe, Dark Olive CIC",
+		"url": "https://darkolive.co.uk"
+	},
 	"private": true,
 	"description": "Q — the inQbeta evidence-capture identity: your passkey, your keys, your records.",
 	"packageManager": "pnpm@10.12.1",
@@ -22,5 +25,6 @@
 			"@tailwindcss/oxide",
 			"esbuild"
 		]
-	}
+	},
+	"homepage": "https://inqbeta.com"
 }

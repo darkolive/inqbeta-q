@@ -1,6 +1,6 @@
 # Licensing
 
-Q is open source. **Designed by Darren Knipe, Dark Olive CIC.**
+Q is open source. **Designed by Darren Knipe, [Dark Olive CIC](https://darkolive.co.uk).**
 **Copyright © 2026 Dark Olive CIC**, a community interest company registered in
 England and Wales, which owns Q and is the source of any permission beyond the
 licences below. Darren Knipe asserts his moral right to be identified as the

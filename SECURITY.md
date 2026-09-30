@@ -1,5 +1,7 @@
 # Reporting a security problem
 
+Q is designed by Darren Knipe, [Dark Olive CIC](https://darkolive.co.uk).
+
 Q holds people's keys and records. If you find a way to read, change or forge
 something you should not be able to, please tell us privately first.
 

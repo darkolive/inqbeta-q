@@ -1,7 +1,10 @@
 {
 	"name": "@inqbeta/q-ui",
 	"license": "Apache-2.0",
-	"author": "Darren Knipe, Dark Olive CIC",
+	"author": {
+		"name": "Darren Knipe, Dark Olive CIC",
+		"url": "https://darkolive.co.uk"
+	},
 	"version": "0.1.0",
 	"private": true,
 	"description": "The shared Q interface layer over Skeleton: the language of headings (type roles), named blocks, icons and the components that use them.",
@@ -28,5 +31,6 @@
 		"@fortawesome/free-brands-svg-icons": "^7.3.1",
 		"@fortawesome/free-solid-svg-icons": "^7.3.1",
 		"@inqbeta/q-core": "workspace:*"
-	}
+	},
+	"homepage": "https://inqbeta.com"
 }

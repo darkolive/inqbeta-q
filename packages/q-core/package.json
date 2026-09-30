@@ -1,7 +1,10 @@
 {
 	"name": "@inqbeta/q-core",
 	"license": "Apache-2.0",
-	"author": "Darren Knipe, Dark Olive CIC",
+	"author": {
+		"name": "Darren Knipe, Dark Olive CIC",
+		"url": "https://darkolive.co.uk"
+	},
 	"version": "0.1.0",
 	"private": true,
 	"description": "Q identity: passkey → did:key, sealing to people, the locked folder, links and permissions as UCAN 1.0. Browser WebCrypto only; no dependencies.",
@@ -12,5 +15,6 @@
 	},
 	"scripts": {
 		"test": "node --experimental-strip-types --no-warnings --import ./test/register.mjs --test test/*.test.ts"
-	}
+	},
+	"homepage": "https://inqbeta.com"
 }

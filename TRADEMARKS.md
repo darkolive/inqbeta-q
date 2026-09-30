@@ -3,7 +3,7 @@
 Q's code is free to use under its licences. **Its names are not.** A licence
 for code does not include the right to use anyone's name or marks.
 
-Dark Olive CIC uses these names and marks for Q and itself:
+[Dark Olive CIC](https://darkolive.co.uk) uses these names and marks for Q and itself:
 
 - **inQbeta**
 - **Q**, in its mark (the Q logo)
