@@ -17,6 +17,7 @@
 	import type { IconName } from '@inqbeta/q-ui/icons';
 	import ReceiptStory from '$lib/components/ReceiptStory.svelte';
 	import BetaNews from '$lib/components/BetaNews.svelte';
+	import SupportQ from '$lib/components/SupportQ.svelte';
 	import SecurityStandards from '$lib/components/SecurityStandards.svelte';
 	import Credits from '$lib/components/Credits.svelte';
 
@@ -110,6 +111,9 @@
 
 		<!-- 6. Stay in touch. -->
 		<BetaNews />
+
+		<!-- 7. Keep Q free: the one ask, said once. -->
+		<SupportQ />
 	</section>
 {:else}
 	<!-- Signed in - Dashboard -->

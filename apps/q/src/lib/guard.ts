@@ -25,14 +25,19 @@
  */
 
 /** Pages a person may be on with no keys held and nothing remembered. */
-export const OPEN_PATHS = ['/', '/data', '/user'];
+export const OPEN_PATHS = ['/', '/data', '/user', '/contact', '/legal'];
+
+/** Pages anyone may read, shown with a plain header and the footer rather than the dashboard. */
+export function isPublicPage(path: string): boolean {
+	return path === '/contact' || path === '/legal' || path.startsWith('/legal/');
+}
 
 /**
  * A receipt location is sealed to one passkey and says so itself. It must be
  * reachable by someone who has not signed in — otherwise the link in an email
  * leads to a redirect instead of the receipt.
  */
-export const OPEN_PREFIXES = ['/c/', '/channels/', '/federations/join'];
+export const OPEN_PREFIXES = ['/c/', '/channels/', '/federations/join', '/legal/'];
 
 /*
  * '/federations/join' — an invitation link (ADR-Q-007 §4). Its packet is in the

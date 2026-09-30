@@ -21,6 +21,8 @@
 	import FrontDoor from '$lib/components/FrontDoor.svelte';
 	import BetaBadge from '$lib/components/BetaBadge.svelte';
 	import TestSiteNote from '$lib/components/TestSiteNote.svelte';
+	import SiteFooter from '$lib/components/SiteFooter.svelte';
+	import { isPublicPage } from '$lib/guard';
 	import SearchBar from '$lib/components/SearchBar.svelte';
 	import SideNav from '$lib/components/SideNav.svelte';
 	import LanguageMenu from '$lib/components/LanguageMenu.svelte';
@@ -298,6 +300,25 @@
 	     keys back is always to hand. -->
 	<FrontDoor />
 	{@render children()}
+	<SiteFooter />
+{:else if !identity && !known && isPublicPage(page.url.pathname)}
+	<!-- Contact and the legal pages, for someone not signed in: the mark home,
+	     the same three switches, the page, and the footer. No dashboard nav. -->
+	<header class="border-b border-surface-200-800">
+		<div class="mx-auto flex max-w-5xl items-center justify-between gap-4 px-4 py-4 sm:px-8">
+			<div class="flex items-center gap-3">
+				<a href="/" aria-label="Q — home"><img src="/inqbeta.svg" alt="Q" class="h-10 w-auto" /></a>
+				<BetaBadge />
+			</div>
+			<div class="flex items-center gap-4">
+				<LanguageMenu />
+				<ThemeSwitch />
+				<SpeechSwitch />
+			</div>
+		</div>
+	</header>
+	<main>{@render children()}</main>
+	<SiteFooter />
 {:else if !identity && !known && page.url.pathname === '/keys'}
 	<!-- Signed out, /keys goes home (lib/guard); nothing to show on the way. -->
 	{@render children()}
@@ -410,6 +431,7 @@
 				{/if}
 				{@render children()}
 			</div>
+			<SiteFooter />
 		</main>
 	</div>
 

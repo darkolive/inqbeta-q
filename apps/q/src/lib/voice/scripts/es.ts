@@ -50,6 +50,8 @@ export default {
 	'uses.calls.d': '[matter-of-fact] Habla de persona a persona. Un recibo guarda los hechos — quién, cuándo, cuánto tiempo — nunca lo que se dijo.',
 	'beta.touch': '[inviting] Mantente en contacto',
 	'beta.why': '[reassuring] [quietly] Solo se usa para contarte cosas de Q. Va al buzón de administración de Dark Olive, a ningún otro sitio.',
+	'support.title': '[warmly] Mantener Q gratis',
+	'support.body': '[sincere] [warmly] Q es gratis y lo seguirá siendo: sin anuncios, sin inversores, sin vender nada sobre ti. Lo construye Darren Knipe, un padre que trabaja, a través de Dark Olive C-I-C, una pequeña empresa de interés comunitario. Si Q te resulta útil, a ti o a alguien a quien cuidas, una contribución ayuda a que crezca y a que siga siendo gratis para todos.',
 
 	/* The home page below the fold (29 September). */
 	'sec.title': '[curious] [sincere] ¿Qué tan seguro es?',
