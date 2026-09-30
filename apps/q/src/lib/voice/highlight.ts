@@ -50,7 +50,11 @@ export function wrapWords(el: HTMLElement): { words: Word[]; undo: Undo } {
 			open = [pic];
 			continue;
 		}
-		if (parent?.closest('.sr-only')) continue;
+		/* Text hidden INSIDE the line is not read and not lit. A line that is itself
+		 * inside something hidden (the picture story's other scenes, waiting their
+		 * turn) is still wrapped, so it lights when it is shown. */
+		const hidden = parent?.closest('.sr-only');
+		if (hidden && hidden !== el && el.contains(hidden)) continue;
 
 		const parts = node.data.split(/(\s+)/);
 		if (parts.length === 1 && !parts[0]) continue;
