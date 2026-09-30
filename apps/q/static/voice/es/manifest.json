@@ -1862,19 +1862,15 @@
 			]
 		},
 		"support.title": {
-			"hash": "bc7805d1",
-			"file": "/voice/es/bc7805d1.mp3",
+			"hash": "eb19d367",
+			"file": "/voice/es/eb19d367.mp3",
 			"words": [
 				[
 					0.269,
-					0.72
+					1.04
 				],
 				[
-					1,
-					1.28
-				],
-				[
-					1.406,
+					1.2,
 					2.16
 				]
 			]

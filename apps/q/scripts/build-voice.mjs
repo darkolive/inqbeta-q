@@ -42,13 +42,15 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, rmSync
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { voiceHash, stripTags } from '../src/lib/voice/voice-text.js';
+import { hasCJK, wordsOf } from '../src/lib/voice/words.js';
 import en from '../src/lib/voice/scripts/en.ts';
 import cy from '../src/lib/voice/scripts/cy.ts';
 import fr from '../src/lib/voice/scripts/fr.ts';
 import de from '../src/lib/voice/scripts/de.ts';
 import es from '../src/lib/voice/scripts/es.ts';
+import zh from '../src/lib/voice/scripts/zh.ts';
 
-const SCRIPTS = { en, cy, fr, de, es };
+const SCRIPTS = { en, cy, fr, de, es, zh };
 const OUT = 'static/voice';
 const API = 'https://api.elevenlabs.io';
 const RATE_PER_1K = 0.1;
@@ -225,10 +227,13 @@ function explain(status, body) {
  * each character is spoken. Characters inside [tags] are directions, not
  * words, and are skipped.
  */
-function wordsFrom(alignment) {
+function wordsFrom(alignment, script = '') {
 	const ch = alignment?.characters ?? [];
 	const st = alignment?.character_start_times_seconds ?? [];
 	const en = alignment?.character_end_times_seconds ?? [];
+	/* Chinese has no spaces between words: time each character, then gather
+	 * them into the same words the page counts (voice/words). */
+	if (hasCJK(script)) return cjkWords(ch, st, en, script);
 	const out = [];
 	let cur = null;
 	let tag = false;
@@ -250,6 +255,33 @@ function wordsFrom(alignment) {
 	return out.map(([a, b]) => [r(a), r(b)]);
 }
 
+function cjkWords(ch, st, en, script) {
+	const said = [];
+	let tag = false;
+	for (let i = 0; i < ch.length; i++) {
+		const c = ch[i];
+		if (c === '[') tag = true;
+		if (tag) {
+			if (c === ']') tag = false;
+			continue;
+		}
+		if (!/\s/.test(c)) said.push([st[i], en[i]]);
+	}
+	const words = wordsOf(stripTags(script));
+	const total = words.reduce((n, w) => n + w.length, 0);
+	const r = (n) => Math.round(n * 1000) / 1000;
+	if (!said.length || !total) return [];
+	/* Same characters on both sides: exact. Otherwise share them out in proportion. */
+	const scale = said.length / total;
+	let at = 0;
+	return words.map((w) => {
+		const from = Math.min(said.length - 1, Math.round(at * scale));
+		at += w.length;
+		const to = Math.min(said.length - 1, Math.max(from, Math.round(at * scale) - 1));
+		return [r(said[from][0]), r(said[to][1])];
+	});
+}
+
 async function record(script, lang, retake) {
 	const res = await fetch(`${API}/v1/text-to-speech/${voiceId}/with-timestamps?output_format=${FORMAT}`, {
 		method: 'POST',
@@ -269,7 +301,7 @@ async function record(script, lang, retake) {
 	});
 	if (!res.ok) throw new Error(explain(res.status, await res.text()));
 	const d = await res.json();
-	return { audio: Buffer.from(d.audio_base64, 'base64'), words: wordsFrom(d.alignment) };
+	return { audio: Buffer.from(d.audio_base64, 'base64'), words: wordsFrom(d.alignment, script) };
 }
 
 /*

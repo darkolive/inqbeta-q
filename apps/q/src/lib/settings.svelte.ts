@@ -60,6 +60,7 @@ import { SCRIPTS } from '$lib/voice/scripts';
 import { voiceHash, stripTags } from '$lib/voice/voice-text.js';
 import { language, t as translate } from '$lib/i18n/index.svelte';
 import { wrapWords, light, wordAt, shown, estimate, wordIndexAt, type Word } from '$lib/voice/highlight';
+import { wordsOf, hasCJK } from '$lib/voice/words.js';
 
 const VOICE_CACHE = 'q-voice';
 
@@ -236,7 +237,7 @@ function say(text: string, id: number, words: Word[] = []) {
 		const u = new SpeechSynthesisUtterance(text);
 		u.lang = document.documentElement.lang;
 		/* The browser's voice says where each word starts; light it the same way. */
-		const heard = text.split(/\s+/).filter(Boolean).length;
+		const heard = wordsOf(text).length;
 		u.onboundary = (e) => {
 			if (e.name !== 'word' || id !== run) return;
 			light(words[shown(wordIndexAt(text, e.charIndex), heard, words.length)] ?? null);
@@ -425,9 +426,9 @@ async function start(fromLine = 0, fromWord = 0) {
 			await until(ac, t, id);
 			reading = lines[i].key;
 			reveal(lines[i].el);
-			const all = lines[i].text.split(/\s+/).filter(Boolean);
+			const all = wordsOf(lines[i].text);
 			const h = k > 0 ? heardAt(k, all.length, words.length) : 0;
-			await say(all.slice(h).join(' '), id, words.slice(k));
+			await say(all.slice(h).join(hasCJK(lines[i].text) ? '' : ' '), id, words.slice(k));
 			t = ac.currentTime + GAP;
 		}
 	}

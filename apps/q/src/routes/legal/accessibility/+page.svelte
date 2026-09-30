@@ -12,7 +12,7 @@
 <ul>
 	<li><strong>Read aloud</strong> in a recorded human voice, with each word lit as it is spoken. Click any
 		word to hear from there.</li>
-	<li><strong>Five languages</strong>: English, Welsh, French, German and Spanish.</li>
+	<li><strong>Six languages</strong>: English, Welsh, French, German, Spanish and Simplified Chinese.</li>
 	<li><strong>Light and dark</strong> themes, following your device unless you choose.</li>
 	<li><strong>Reduced motion</strong> is respected: no autoplay, no fades, no gliding scroll.</li>
 	<li><strong>Keyboard</strong>: everything can be reached and used without a mouse, with a skip link at the

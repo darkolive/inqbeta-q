@@ -24,3 +24,13 @@
 		background-color: var(--color-surface-50-950);
 	}
 }
+
+/*
+ * 简体中文. Lexend has no Chinese characters, so name the Chinese fonts each
+ * system reads best (PingFang on Apple, Noto Sans SC on Android and Linux,
+ * Microsoft YaHei on Windows). Latin letters in a Chinese page stay Lexend.
+ */
+[data-theme]:lang(zh) {
+	--typo-base--font-family: 'Lexend', 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans SC', 'Microsoft YaHei', system-ui, sans-serif;
+	--typo-heading--font-family: 'Lexend', 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans SC', 'Microsoft YaHei', system-ui, sans-serif;
+}

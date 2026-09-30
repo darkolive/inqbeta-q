@@ -15,6 +15,7 @@ import fr from './fr';
 import de from './de';
 import es from './es';
 import cy from './cy';
+import zh from './zh';
 
 /** In the order the menu shows them, each named in its own language. */
 export const LANGS = [
@@ -22,13 +23,15 @@ export const LANGS = [
 	{ code: 'cy', name: 'Cymraeg', html: 'cy' },
 	{ code: 'fr', name: 'Français', html: 'fr' },
 	{ code: 'de', name: 'Deutsch', html: 'de' },
-	{ code: 'es', name: 'Español', html: 'es' }
+	{ code: 'es', name: 'Español', html: 'es' },
+	/* Simplified Chinese, in thanks to MiniMax and the Chinese open-source community (1 October 2026). */
+	{ code: 'zh', name: '简体中文', html: 'zh-CN' }
 ] as const;
 
 export type Lang = (typeof LANGS)[number]['code'];
 export type { Key };
 
-const BOOKS: Record<Lang, Book> = { en, cy, fr, de, es };
+const BOOKS: Record<Lang, Book> = { en, cy, fr, de, es, zh };
 const known = (v: unknown): v is Lang => LANGS.some((l) => l.code === v);
 
 let current = $state<Lang>('en');
@@ -60,7 +63,12 @@ export const language = {
 			saved = null;
 		}
 		if (known(saved)) return show(saved);
-		const asked = (navigator.languages ?? [navigator.language]).map((x) => x.slice(0, 2).toLowerCase()).find(known);
+		/* Chinese in Traditional script (Taiwan, Hong Kong, Macau) is not offered Simplified unasked. */
+		const traditional = (x: string) => /^zh-(tw|hk|mo|hant)/i.test(x);
+		const asked = (navigator.languages ?? [navigator.language])
+			.filter((x) => !traditional(x))
+			.map((x) => x.slice(0, 2).toLowerCase())
+			.find(known);
 		show(asked ?? 'en');
 	}
 };

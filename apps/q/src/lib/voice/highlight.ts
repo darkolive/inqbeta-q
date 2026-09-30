@@ -13,6 +13,8 @@
  * visible.
  */
 
+import { hasCJK, splitRun, wordsOf } from './words.js';
+
 /** Written out whole so Tailwind finds them in the source. */
 const BASE = ['rounded-base', 'transition-colors', 'duration-300', 'motion-reduce:transition-none', 'box-decoration-clone'];
 const NOW = ['preset-filled-secondary-50-950'];
@@ -68,12 +70,18 @@ export function wrapWords(el: HTMLElement): { words: Word[]; undo: Undo } {
 				frag.append(t);
 				made.push(t);
 			} else {
-				const span = document.createElement('span');
-				span.className = [...BASE, ...ROOM].join(' ');
-				span.textContent = part;
-				frag.append(span);
-				made.push(span);
-				(open ??= []).push(span);
+				/* Chinese has no spaces: its words come from the segmenter (voice/words). */
+				const pieces = hasCJK(part) ? splitRun(part) : [part];
+				pieces.forEach((piece) => {
+					const span = document.createElement('span');
+					span.className = [...BASE, ...ROOM].join(' ');
+					span.textContent = piece;
+					frag.append(span);
+					made.push(span);
+					/* Each Chinese word stands alone; a Latin run may continue a word across elements. */
+					if (hasCJK(part)) close();
+					(open ??= []).push(span);
+				});
 			}
 		}
 		node.replaceWith(frag);
@@ -123,7 +131,7 @@ export function shown(i: number, heard: number, onPage: number): number {
  * follow, until real timings are made (npm run voice -- --align).
  */
 export function estimate(text: string, seconds: number): [number, number][] {
-	const words = text.split(/\s+/).filter(Boolean);
+	const words = wordsOf(text);
 	const weight = words.map((w) => w.length + (/[.!?]$/.test(w) ? 6 : /[,;:—)]$/.test(w) ? 3 : 1));
 	const total = weight.reduce((a, b) => a + b, 0) || 1;
 	let t = 0;
@@ -137,5 +145,5 @@ export function estimate(text: string, seconds: number): [number, number][] {
 
 /** How many words come before character `c` of `text` (for the browser voice's boundaries). */
 export function wordIndexAt(text: string, c: number): number {
-	return text.slice(0, c).split(/\s+/).filter(Boolean).length;
+	return wordsOf(text.slice(0, c)).length;
 }
