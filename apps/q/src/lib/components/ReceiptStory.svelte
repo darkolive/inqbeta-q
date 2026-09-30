@@ -6,7 +6,9 @@
 	 * the proof holds.
 	 *
 	 * Six scenes, one line each. Plays on its own once it is on screen, every
-	 * 5.5 seconds, and stops at the end — it does not loop at anyone. Pauses
+	 * 5.5 seconds, and stops at the end — it does not loop at anyone. With read
+	 * aloud on it waits for the voice instead, turning to each scene as its
+	 * words are read. Pauses
 	 * while the pointer or keyboard focus is on it. Everyone can step through
 	 * by hand. Anyone who asked for less motion gets no autoplay and no
 	 * movement: the scenes simply change when they press Next.
@@ -18,6 +20,7 @@
 	 */
 	import { Icon } from '@inqbeta/q-ui';
 	import { t, type Key } from '$lib/i18n/index.svelte';
+	import { speech } from '$lib/settings.svelte';
 
 	const SCENES = 6;
 	const EVERY_MS = 5500;
@@ -35,7 +38,8 @@
 		if (!root) return;
 		const seen = new IntersectionObserver(
 			([e]) => {
-				if (e.isIntersecting && !started && !still()) {
+				/* With read aloud on, the voice turns the scenes instead (below). */
+				if (e.isIntersecting && !started && !still() && !speech.on) {
 					started = true;
 					playing = true;
 				}
@@ -54,6 +58,19 @@
 			else playing = false;
 		}, EVERY_MS);
 		return () => clearInterval(tick);
+	});
+
+	/*
+	 * Read aloud leads: no scene changes on its own while the voice is reading,
+	 * and each scene appears as the voice reaches its words — so the story never
+	 * runs ahead of the line above it being read.
+	 */
+	$effect(() => {
+		if (speech.on) playing = false;
+	});
+	$effect(() => {
+		const n = /^story\.(\d+)\./.exec(speech.reading ?? '')?.[1];
+		if (n) scene = Number(n);
 	});
 
 	function go(n: number) {

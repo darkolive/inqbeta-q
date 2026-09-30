@@ -69,9 +69,9 @@ type Manifest = {
 	/** words: each word's [start, end] in the file, when the recording has been aligned. */
 	items: Record<string, { hash: string; file: string; words?: [number, number][] }>;
 };
-type Line = { el: HTMLElement; text: string; file?: string; times?: [number, number][] };
+type Line = { key: string; el: HTMLElement; text: string; file?: string; times?: [number, number][] };
 /** A line on the clock: when it starts and ends, where its trimmed audio began in the file, and its words. */
-type Play = { at: number; end: number; offset: number; times: [number, number][]; words: Word[] };
+type Play = { key: string; at: number; end: number; offset: number; times: [number, number][]; words: Word[] };
 
 /** The breath between one line and the next, in seconds. */
 const GAP = 0.35;
@@ -96,6 +96,8 @@ let recorded = $state<string | null>(null);
  * read in a robot voice from top to bottom — it says so instead.
  */
 let coverage = $state<'full' | 'partial' | 'none' | null>(null);
+/** The line being read now (its data-read key), so a part of the page can keep in step — the picture story turns to the scene being told. */
+let reading = $state<string | null>(null);
 let coverageTimer: ReturnType<typeof setTimeout> | undefined;
 
 let run = 0;
@@ -251,6 +253,7 @@ let unwrap: (() => void) | null = null;
 function stop() {
 	run++;
 	light(null);
+	reading = null;
 	unwrap?.();
 	unwrap = null;
 	/* Closing the context silences everything scheduled on it at once. */
@@ -285,7 +288,7 @@ async function start() {
 		const script = scripts[key];
 		const entry = m?.items[key];
 		const good = !!(script && entry && m?.voice && entry.hash === voiceHash(m.model, m.voice.id, script));
-		return { el, text: script ? stripTags(script) : el.innerText.trim(), file: good ? entry!.file : undefined, times: good ? entry!.words : undefined };
+		return { key, el, text: script ? stripTags(script) : el.innerText.trim(), file: good ? entry!.file : undefined, times: good ? entry!.words : undefined };
 	});
 	if (!lines.length) {
 		/* Nothing here to read. Say so, switch off, and let the words fade. */
@@ -307,7 +310,10 @@ async function start() {
 		if (id !== run) return;
 		const now = ac.currentTime;
 		const p = plays.find((x) => x.at <= now && now < x.end);
-		if (p) light(p.words[shown(wordAt(p.times, now - p.at + p.offset), p.times.length, p.words.length)] ?? null);
+		if (p) {
+			if (reading !== p.key) reading = p.key;
+			light(p.words[shown(wordAt(p.times, now - p.at + p.offset), p.times.length, p.words.length)] ?? null);
+		}
 		else if (plays.length && !(typeof speechSynthesis !== 'undefined' && speechSynthesis.speaking)) light(null);
 		requestAnimationFrame(follow);
 	};
@@ -327,11 +333,12 @@ async function start() {
 			const end = schedule(ac, got.b, at);
 			/* Real timings when the recording has been aligned; else an estimate over its length. */
 			const times = lines[i].times ?? estimate(lines[i].text, got.b.duration);
-			plays.push({ at, end, offset: lines[i].times ? got.offset : 0, times, words: wrapped[i].words });
+			plays.push({ key: lines[i].key, at, end, offset: lines[i].times ? got.offset : 0, times, words: wrapped[i].words });
 			t = end + GAP;
 		} else {
 			/* No recording: the browser's voice, in turn, once the one before has finished. */
 			await until(ac, t, id);
+			reading = lines[i].key;
 			await say(lines[i].text, id, wrapped[i].words);
 			t = ac.currentTime + GAP;
 		}
@@ -354,6 +361,10 @@ export const speech = {
 	},
 	get recorded() {
 		return recorded;
+	},
+	/** The data-read key of the line being read, or null. */
+	get reading() {
+		return reading;
 	},
 	get available() {
 		return typeof window !== 'undefined';
