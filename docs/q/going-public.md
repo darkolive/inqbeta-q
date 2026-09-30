@@ -10,7 +10,7 @@ Decided 30 September 2026: Q goes public as **github.com/darkolive/inqbeta-q**,
 fresh history, under Dark Olive's GitHub account. (An `inqbeta` organisation
 was the first choice, so Q could be handed to a federation by transferring
 it; that name is taken on GitHub. A single repo can be transferred just as
-well when the time comes.) The same address the home page has always linked to. The Dark Olive site becomes **darkolive/darkolive-site**, private.
+well when the time comes.) The same address the home page has always linked to. The Dark Olive site becomes **darkolive/darkolive**, private.
 The old combined repo stays private and is archived at the end.
 
 Why not "inqbeta-browser": the repo holds more than the browser app — the
@@ -52,7 +52,9 @@ If anything fails here, stop and bring the output back.
    Vercel follows the rename, so nothing goes down.)
 6. **Create a new `darkolive/inqbeta-q`**: **Public**, *empty* (no README,
    licence or .gitignore).
-7. **Create `darkolive/darkolive-site`**: **Private**, empty.
+7. **The site goes to the existing `darkolive/darkolive`** (private), replacing
+   its old history with the fresh one — Darren's call, 30 September. The old
+   history is still inside `inqbeta-q-archive`.
 8. **Push**:
    ```bash
    cd ~/github/q
@@ -60,8 +62,8 @@ If anything fails here, stop and bring the output back.
    git push -u origin main test
 
    cd ~/github/darkolive-site
-   git remote add origin git@github.com:darkolive/darkolive-site.git
-   git push -u origin main
+   git remote add origin git@github.com:darkolive/darkolive.git
+   git push --force -u origin main
    ```
 9. **On darkolive/inqbeta-q → Settings**:
    - *Code security*: turn on **Private vulnerability reporting**, **Secret
@@ -78,7 +80,7 @@ If anything fails here, stop and bring the output back.
     the new `darkolive/inqbeta-q`.
     Root directory stays `apps/q`; production branch `main`; inqbeta.dev stays
     on branch `test`. Environment variables and domains stay as they are.
-11. **The Dark Olive project** → connect `darkolive/darkolive-site`; root
+11. **The Dark Olive project** → connect `darkolive/darkolive`; root
     directory **blank** (the top folder); leave install and build commands on
     their defaults.
 12. Deploy both; open inqbeta.com, inqbeta.dev and the Dark Olive preview.
