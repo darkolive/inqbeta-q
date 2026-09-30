@@ -1,0 +1,25 @@
+{
+	"name": "inqbeta-q",
+	"license": "AGPL-3.0-or-later",
+	"private": true,
+	"description": "Q — the inQbeta evidence-capture identity: your passkey, your keys, your records.",
+	"packageManager": "pnpm@10.12.1",
+	"scripts": {
+		"dev": "node scripts/need-install.mjs && turbo run dev",
+		"dev:q": "node scripts/need-install.mjs && turbo run dev --filter=@inqbeta/q",
+		"build": "node scripts/need-install.mjs && turbo run build",
+		"preview": "node scripts/need-install.mjs && turbo run preview",
+		"check": "node scripts/need-install.mjs && turbo run check",
+		"test": "node scripts/need-install.mjs && turbo run test",
+		"stop": "node scripts/stop.mjs"
+	},
+	"devDependencies": {
+		"turbo": "^2.5.0"
+	},
+	"pnpm": {
+		"onlyBuiltDependencies": [
+			"@tailwindcss/oxide",
+			"esbuild"
+		]
+	}
+}

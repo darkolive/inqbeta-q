@@ -1,0 +1,19 @@
+# inQbeta node — day one: the post office only (ADR-Q-010).
+# Media, Dgraph, iroh relay and Nebula join later (docs/q/home-node.md).
+name: inqbeta-node
+
+networks:
+  node: {}            # the node's own services; media never joins it
+
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2   # pin to the digest after the first pull (see node/README.md)
+    restart: unless-stopped
+    networks: [node]
+    ports:
+      - "1883:1883"   # MQTT — home network only until the tunnel is decided
+      - "9001:9001"   # MQTT over WebSockets — what browsers and Q use
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log

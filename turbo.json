@@ -1,0 +1,50 @@
+{
+	"$schema": "https://turbo.build/schema.json",
+	"ui": "tui",
+	"tasks": {
+		"dev": {
+			"cache": false,
+			"persistent": true
+		},
+		"build": {
+			"dependsOn": [
+				"^build"
+			],
+			"outputs": [
+				".svelte-kit/**",
+				".vercel/output/**",
+				"build/**",
+				"dist/**"
+			],
+			"passThroughEnv": [
+				"RESEND_API_KEY",
+				"Q_SERVICE_SEED",
+				"Q_OTP_SECRET",
+				"GOOGLE_CLIENT_ID",
+				"GOOGLE_CLIENT_SECRET",
+				"CF_TURN_KEY_ID",
+				"CF_TURN_KEY_TOKEN",
+				"ELEVENLABS_API_KEY",
+				"AI_GATEWAY_API_KEY",
+				"PUBLIC_Q_PASSKEY_DOMAIN"
+			]
+		},
+		"preview": {
+			"dependsOn": [
+				"build"
+			],
+			"cache": false,
+			"persistent": true
+		},
+		"check": {
+			"dependsOn": [
+				"^build"
+			]
+		},
+		"test": {
+			"dependsOn": [
+				"^build"
+			]
+		}
+	}
+}

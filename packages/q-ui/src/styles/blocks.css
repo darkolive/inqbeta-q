@@ -1,0 +1,324 @@
+/*
+ * Named blocks — the shared layer over Skeleton's tokens.
+ *
+ * Lifted from Dark Olive (apps/darkolive/src/lib/styles/blocks.css) on
+ * 2026-09-16 so every Q surface and every federation's features use the same
+ * shapes. Dark Olive still carries its own copy until it moves over.
+ *
+ * Darren, after seeing a returned review render badly:
+ *
+ *   > "This is where I'm thinking we've got issues… layout inconsistency. What
+ *   > we've got with Skeleton is token level of changes, and those changes can
+ *   > apply to classes. This is where we create classes that follow the Dark
+ *   > Olive brand theme structure. Those classes are things like the dashboard,
+ *   > the header, the menu, the blog header. And then when we're generating
+ *   > outputs we can build into it whether it's something that fits in the
+ *   > dashboard or a main page — because these are all essentially components."
+ *
+ * He is right about the cause. Every panel in the course builder was written by
+ * hand, which means eleven panels and eleven slightly different opinions about
+ * padding — and a generated block has no way to say "I am a panel" at all. A
+ * token gives you a colour. It cannot give you a *shape*, and shape is what was
+ * drifting.
+ *
+ * THE RULE. A block class says WHAT SOMETHING IS, never what it looks like.
+ * `.panel` and `.panel-warn` are things; `.rounded-border-grey-box` is a
+ * description, and a description has to be edited everywhere the day the design
+ * changes. If a name could survive a redesign, it is the right name.
+ *
+ * All built on Skeleton's paired tokens, so light and dark follow for free and
+ * nothing here ever needs a `dark:` variant.
+ */
+
+/* ------------------------------------------------------------------ *
+ * Panels — the surfaces things sit on
+ * ------------------------------------------------------------------ */
+
+/* The standard container. Something with its own identity on the page. */
+@utility panel {
+	border-radius: var(--radius-container);
+	border: 1px solid var(--color-surface-200-800);
+	background-color: var(--color-surface-100-900);
+	padding: --spacing(5);
+}
+
+/* Lighter, for things nested inside a panel — a row in a list of rows. */
+@utility panel-quiet {
+	border-radius: var(--radius-container);
+	border: 1px solid var(--color-surface-200-800);
+	background-color: var(--color-surface-50-950);
+	padding: --spacing(4);
+}
+
+/*
+ * The three states, and they are deliberately only three.
+ *
+ * A palette of eight severities is a palette nobody can tell apart at a glance,
+ * and colour is never the message here — each of these carries words that say
+ * the same thing, so the tint is confirmation rather than information.
+ */
+@utility panel-note {
+	border-radius: var(--radius-container);
+	border: 1px solid var(--color-primary-600-400);
+	background-color: color-mix(in oklab, var(--color-primary-500) 5%, transparent);
+	padding: --spacing(4) --spacing(5);
+}
+
+@utility panel-warn {
+	border-radius: var(--radius-container);
+	border: 1px solid var(--color-warning-600-400);
+	background-color: color-mix(in oklab, var(--color-warning-500) 5%, transparent);
+	padding: --spacing(4) --spacing(5);
+}
+
+@utility panel-bad {
+	border-radius: var(--radius-container);
+	border: 1px solid var(--color-error-600-400);
+	background-color: color-mix(in oklab, var(--color-error-500) 5%, transparent);
+	padding: --spacing(4) --spacing(5);
+}
+
+/* ------------------------------------------------------------------ *
+ * Reading — how a record lays out
+ * ------------------------------------------------------------------ */
+
+/*
+ * A label and its value, side by side above a phone and stacked below it.
+ *
+ * The label column is fixed so a column of them lines up. Ragged labels are the
+ * single thing that made the returned review look, in Darren's word, clunky:
+ * the eye cannot scan a list whose left edge moves.
+ */
+@utility field-row {
+	display: grid;
+	grid-template-columns: 1fr;
+	gap: 0 --spacing(6);
+	padding-block: --spacing(1);
+
+	& > dt,
+	& > .field-label {
+		color: var(--color-surface-600-400);
+	}
+	& > dd,
+	& > .field-value {
+		color: var(--color-surface-950-50);
+		margin: 0;
+	}
+
+	@media (width >= 40rem) {
+		grid-template-columns: 14rem 1fr;
+	}
+}
+
+/* A group of them, with one rhythm rather than per-row margins. */
+@utility field-list {
+	display: flex;
+	flex-direction: column;
+	gap: --spacing(1);
+	margin: 0;
+}
+
+/*
+ * Opaque strings — hashes, keys, signatures. Monospaced and quieter, because
+ * they are there to be compared and copied, never read.
+ */
+@utility token-value {
+	font-family: var(--font-mono, ui-monospace, monospace);
+	font-size: 0.8125rem;
+	word-break: break-all;
+}
+
+/*
+ * Tabular data. Its own scroller, always: a wide table must never be the reason
+ * a whole page scrolls sideways on a phone.
+ */
+@utility data-table-wrap {
+	overflow-x: auto;
+	margin-top: --spacing(2);
+}
+
+@utility data-table {
+	width: 100%;
+	font-size: 0.875rem;
+	border-collapse: collapse;
+
+	& th {
+		text-align: left;
+		font-weight: 400;
+		color: var(--color-surface-600-400);
+		padding: --spacing(2) --spacing(4) --spacing(2) 0;
+		border-bottom: 1px solid var(--color-surface-200-800);
+	}
+	& td {
+		vertical-align: top;
+		color: var(--color-surface-950-50);
+		padding: --spacing(2) --spacing(4) --spacing(2) 0;
+		border-bottom: 1px solid var(--color-surface-200-800);
+	}
+	& tr:last-child td {
+		border-bottom: 0;
+	}
+}
+
+/* ------------------------------------------------------------------ *
+ * Rhythm
+ * ------------------------------------------------------------------ */
+
+/*
+ * Vertical spacing set once, by the container, rather than by every child
+ * guessing. This is the actual cure for layout drift: a child that sets its own
+ * top margin is a child that disagrees with its siblings eventually.
+ */
+@utility stack {
+	display: flex;
+	flex-direction: column;
+	gap: --spacing(5);
+}
+
+@utility stack-tight {
+	display: flex;
+	flex-direction: column;
+	gap: --spacing(3);
+}
+
+/* A heading and its one-line explanation, as one unit. */
+@utility block-head {
+	& > :first-child {
+		color: var(--color-surface-950-50);
+	}
+	& > :first-child + p {
+		margin-top: --spacing(2);
+		color: var(--color-surface-900-100);
+	}
+}
+
+/* The quiet line under a control: what it does, what it costs, what happens
+ * next. Used constantly and previously written out by hand every time. */
+@utility hint {
+	font-size: 0.875rem;
+	color: var(--color-surface-600-400);
+}
+
+/* A row of buttons that wraps rather than overflowing. */
+@utility actions {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: --spacing(3);
+	margin-top: --spacing(5);
+}
+
+/*
+ * The builder page.
+ *
+ * A frame the height of the window, so the conversation stays still and the
+ * steps stay where they were put. `dvh` rather than `vh` because on a phone
+ * `vh` measures the viewport as if the browser chrome were not there, which
+ * puts the bottom of the frame — where the steps are — underneath the address
+ * bar. min-h-0 on the child is the flexbox rule everyone rediscovers: without
+ * it a flex item refuses to shrink below its content and scrolls the page
+ * instead of itself.
+ */
+.builder-page {
+	display: flex;
+	flex-direction: column;
+	/*
+	 * `flex: 1` inside a main that has been told to fill, NOT `100dvh`.
+	 *
+	 * 100dvh was wrong here: the site header sits above this, so a frame the
+	 * full height of the window is the window plus a header, and the page
+	 * scrolls by exactly the height of the header — the one scroll this layout
+	 * exists to remove. Taking the room that is left, instead of all of it,
+	 * needs no measuring and cannot drift when the header changes.
+	 */
+	flex: 1;
+	max-width: 56rem;
+	margin-inline: auto;
+	padding: 1rem 1rem 0;
+	overflow: hidden;
+}
+
+@media (min-width: 640px) {
+	.builder-page {
+		padding: 1.5rem 1.5rem 0;
+	}
+}
+
+.builder-page > * {
+	min-height: 0;
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+}
+
+/*
+ * The frame takes the room left under the header and no more.
+ *
+ * `h-screen` on the layout wrapper plus `overflow: hidden` was clipping the
+ * sticky site header clean off the top of the page — the whole Dark Olive
+ * identity, gone, to save one scrollbar. Not a trade worth making.
+ */
+.builder-page {
+	min-height: 0;
+}
+
+/*
+ * The builder's three bands.
+ *
+ * Only the middle one moves. The chain of min-height:0 down every level is what
+ * makes that true: a flex item's default min-height is auto, meaning "never
+ * smaller than my content", so a single missing one anywhere in the chain pushes
+ * the overflow up to the page and the whole thing scrolls as one — which is the
+ * behaviour being replaced.
+ */
+.builder-frame {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-height: 0;
+}
+
+.builder-top {
+	flex: none;
+}
+
+/* The Steps root. Holds the talk band and the numbers under it. */
+.builder-steps {
+	display: flex;
+	flex-direction: column;
+	flex: 1;
+	min-height: 0;
+	margin-top: 0.75rem;
+}
+
+/*
+ * The dialogue box. The conversation lives here and this is the only thing on
+ * the page that scrolls.
+ */
+.builder-talk {
+	flex: 1;
+	min-height: 0;
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	/* Paired tokens, like every other block here — light and dark follow for
+	 * free and this never needs a `dark:` variant. */
+	border: 1px solid var(--color-surface-200-800);
+	border-radius: var(--radius-container, 0.5rem);
+	background-color: var(--color-surface-50-950);
+	padding: 1.25rem;
+}
+
+@media (min-width: 640px) {
+	.builder-talk {
+		padding: 1.75rem;
+	}
+}
+
+/* The five numbers, underneath. */
+.builder-count {
+	flex: none;
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.75rem 0.25rem;
+}

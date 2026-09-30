@@ -1,0 +1,31 @@
+{
+	"name": "@inqbeta/q-ui",
+	"license": "Apache-2.0",
+	"version": "0.1.0",
+	"private": true,
+	"description": "The shared Q interface layer over Skeleton: the language of headings (type roles), named blocks, icons and the components that use them.",
+	"type": "module",
+	"exports": {
+		".": "./src/index.ts",
+		"./styles.css": {
+			"style": "./src/styles/q-ui.css",
+			"default": "./src/styles/q-ui.css"
+		},
+		"./components/*": "./src/components/*",
+		"./*": "./src/*.ts"
+	},
+	"peerDependencies": {
+		"@skeletonlabs/skeleton": "^5.0.1",
+		"svelte": "^5.0.0"
+	},
+	"devDependencies": {
+		"@skeletonlabs/skeleton": "^5.0.1",
+		"svelte": "^5.0.0"
+	},
+	"dependencies": {
+		"@fortawesome/fontawesome-svg-core": "^7.3.1",
+		"@fortawesome/free-brands-svg-icons": "^7.3.1",
+		"@fortawesome/free-solid-svg-icons": "^7.3.1",
+		"@inqbeta/q-core": "workspace:*"
+	}
+}

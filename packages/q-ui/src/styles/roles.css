@@ -1,0 +1,106 @@
+/*
+ * THE LANGUAGE OF HEADINGS — Q's type roles.
+ *
+ * Darren, 2026-09-16: "there needs a language of headings. This is going to
+ * help both audio descriptors as well as CSS styling… looking at courses, the
+ * title and then the description… all titles are heading five token."
+ *
+ * A role says WHAT a piece of text IS — a title, a description, a label — never
+ * how big it is. Each role is bound to exactly one Skeleton type token, HERE and
+ * nowhere else. Changing how every title looks is changing one line.
+ *
+ * Two things are kept apart on purpose:
+ *   the LOOK   — the role (this file): `role-title` looks like Skeleton's h5
+ *   the LEVEL  — the h1–h6 element, which follows the page's outline and is
+ *                chosen by <Heading> from where it sits, so a screen reader's
+ *                list of headings always makes sense
+ * The same role is written into `data-role`, which is what speech reads
+ * (roles.ts): "Title: Stewarding a Village Carnival".
+ *
+ * Built on Skeleton's own utilities and paired tokens, so light and dark follow
+ * without a `dark:` anywhere.
+ */
+
+/* ---- headings: one Skeleton heading token each ---- */
+
+/* The one heading a page has. */
+@utility role-page-title {
+	@apply h3;
+}
+
+/* A part of a page: "Your folder", "Recent activity". */
+@utility role-section-title {
+	@apply h4;
+}
+
+/* The name of a thing: a course, a federation, a file, a device. */
+@utility role-title {
+	@apply h5;
+}
+
+/* A thing's second line of name: a unit code, a federation's purpose. */
+@utility role-subtitle {
+	@apply h6;
+}
+
+/* ---- text ---- */
+
+/* What a thing is about, in sentences. */
+@utility role-description {
+	color: var(--color-surface-900-100);
+	font-size: var(--text-base);
+	line-height: 1.6;
+	text-wrap: pretty;
+}
+
+/* The opening sentence of a page, a little larger. */
+@utility role-lead {
+	color: var(--color-surface-900-100);
+	font-size: var(--text-lg);
+	line-height: 1.55;
+	text-wrap: pretty;
+}
+
+/* Who, when, how many — the small print about a thing. */
+@utility role-meta {
+	color: var(--color-surface-600-400);
+	font-size: var(--text-sm);
+}
+
+/* The name of a field. */
+@utility role-label {
+	color: var(--color-surface-700-300);
+	font-size: var(--text-sm);
+	font-weight: 500;
+}
+
+/* The content of a field. */
+@utility role-value {
+	color: var(--color-surface-950-50);
+	font-size: var(--text-base);
+}
+
+/* A number that is the point of a tile: 12 files, 3 devices. */
+@utility role-count {
+	color: var(--color-surface-950-50);
+	font-size: var(--text-3xl);
+	line-height: 1;
+	font-weight: var(--typo-heading--font-weight, 600);
+	font-variant-numeric: tabular-nums;
+}
+
+/* A state: Locked, Ready, Needs you. Always words, colour only confirms. */
+@utility role-status {
+	font-size: var(--text-xs);
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+}
+
+/* A DID, a hash, a key — there to be compared, not read. */
+@utility role-token {
+	font-family: var(--font-mono);
+	font-size: var(--text-xs);
+	overflow-wrap: anywhere;
+	color: var(--color-surface-900-100);
+}

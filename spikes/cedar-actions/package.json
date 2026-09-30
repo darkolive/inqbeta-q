@@ -1,0 +1,17 @@
+{
+  "name": "cedar-actions",
+  "version": "1.0.0",
+  "description": "Spike for ADR-Q-009: actions as Cedar policies",
+  "main": "index.js",
+  "scripts": {
+    "spike": "node run.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@cedar-policy/cedar-wasm": "^4.13.0"
+  },
+  "private": true
+}

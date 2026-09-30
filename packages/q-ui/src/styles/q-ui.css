@@ -1,0 +1,13 @@
+/*
+ * Everything @inqbeta/q-ui adds to a Skeleton app. Import it AFTER Skeleton and
+ * the theme, so the roles can build on Skeleton's h1–h6 utilities:
+ *
+ *   @import 'tailwindcss';
+ *   @import '@skeletonlabs/skeleton';
+ *   @import '@skeletonlabs/skeleton-svelte';
+ *   @import '@skeletonlabs/skeleton/themes/…';
+ *   @import '@inqbeta/q-ui/styles.css';
+ *   @source '../node_modules/@inqbeta/q-ui/src';
+ */
+@import './roles.css';
+@import './blocks.css';

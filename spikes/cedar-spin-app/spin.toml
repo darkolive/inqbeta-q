@@ -1,0 +1,20 @@
+#:schema https://schemas.spinframework.dev/spin/manifest-v2/latest.json
+
+spin_manifest_version = 2
+
+[application]
+name = "cedar-spin-app"
+version = "0.1.0"
+authors = ["Darren Knipe <darren@darkolive.co.uk>"]
+description = ""
+
+[[trigger.http]]
+route = "/..."
+component = "cedar-spin-app"
+
+[component.cedar-spin-app]
+source = "target/wasm32-wasip2/release/cedar_spin_app.wasm"
+allowed_outbound_hosts = []
+[component.cedar-spin-app.build]
+command = "cargo build --target wasm32-wasip2 --release"
+watch = ["src/**/*.rs", "Cargo.toml"]

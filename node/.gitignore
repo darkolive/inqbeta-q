@@ -1,0 +1,5 @@
+mosquitto/config/passwd
+mosquitto/data/*
+mosquitto/log/*
+!mosquitto/data/.keep
+!mosquitto/log/.keep

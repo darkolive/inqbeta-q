@@ -1,0 +1,42 @@
+{
+	"about": "money.spend cases, shared by the TypeScript tests and the Rust cross-check (spikes/cedar-rust). 'core' and 'club' are the expected decisions for Q core alone and for core + the camping club's forbid.",
+	"principal": { "type": "Person", "id": "ann" },
+	"resource": { "type": "Ledger", "id": "club-ledger" },
+	"base": {
+		"signers": [{ "__entity": { "type": "Person", "id": "ann" } }, { "__entity": { "type": "Person", "id": "bob" } }],
+		"distinctSignerCount": 2,
+		"spendMandateHolders": [
+			{ "__entity": { "type": "Person", "id": "ann" } },
+			{ "__entity": { "type": "Person", "id": "bob" } },
+			{ "__entity": { "type": "Person", "id": "cat" } }
+		],
+		"payee": { "__entity": { "type": "Person", "id": "tent-hire-ltd" } },
+		"amountPence": 15000,
+		"budgetLineRemainingPence": 50000,
+		"thresholdPence": 25000,
+		"citesBudgetDecision": false,
+		"citesMembersVote": false,
+		"approvedByAI": false,
+		"datedBeforePrevious": false
+	},
+	"cases": [
+		{ "name": "two mandate-holders, £150", "change": {}, "core": "allow", "club": "allow" },
+		{ "name": "only one signer", "change": { "signers": [{ "__entity": { "type": "Person", "id": "ann" } }], "distinctSignerCount": 1 }, "core": "deny", "club": "deny" },
+		{ "name": "signer without mandate", "change": { "signers": [{ "__entity": { "type": "Person", "id": "ann" } }, { "__entity": { "type": "Person", "id": "dan" } }] }, "core": "deny", "club": "deny" },
+		{
+			"name": "payee signs",
+			"change": {
+				"signers": [{ "__entity": { "type": "Person", "id": "ann" } }, { "__entity": { "type": "Person", "id": "tent-hire-ltd" } }],
+				"spendMandateHolders": [{ "__entity": { "type": "Person", "id": "ann" } }, { "__entity": { "type": "Person", "id": "tent-hire-ltd" } }]
+			},
+			"core": "deny",
+			"club": "deny"
+		},
+		{ "name": "over budget line", "change": { "amountPence": 60000 }, "core": "deny", "club": "deny" },
+		{ "name": "£300, no decision cited", "change": { "amountPence": 30000 }, "core": "deny", "club": "deny" },
+		{ "name": "£300, decision cited", "change": { "amountPence": 30000, "citesBudgetDecision": true }, "core": "allow", "club": "deny" },
+		{ "name": "£300, decision + members vote", "change": { "amountPence": 30000, "citesBudgetDecision": true, "citesMembersVote": true }, "core": "allow", "club": "allow" },
+		{ "name": "AI approved", "change": { "approvedByAI": true }, "core": "deny", "club": "deny" },
+		{ "name": "backdated", "change": { "datedBeforePrevious": true }, "core": "deny", "club": "deny" }
+	]
+}

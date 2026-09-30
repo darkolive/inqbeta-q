@@ -1,0 +1,26 @@
+/*
+ * Q is styled entirely with Skeleton (decided 2026-09-16: "all using Skeleton
+ * components… standardization going all the way through"), plus @inqbeta/q-ui:
+ * the language of headings (type roles) and the named blocks.
+ *
+ * Theme: Dark Olive brand colors (olive + orange), matching inQbeta portal.
+ * Light and dark follow the device.
+ */
+@import 'tailwindcss';
+
+/* Enable Tailwind's dark mode via class - must come before skeleton imports */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@import '@skeletonlabs/skeleton';
+@import '@skeletonlabs/skeleton-svelte';
+@import './skeleton-theme.css';
+@import '@inqbeta/q-ui/styles.css';
+
+/* Tailwind must read q-ui's components to generate the classes they use. */
+@source '../../../packages/q-ui/src';
+
+@layer base {
+	body {
+		background-color: var(--color-surface-50-950);
+	}
+}

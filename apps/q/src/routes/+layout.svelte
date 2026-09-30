@@ -1,0 +1,424 @@
+<script lang="ts">
+	/*
+	 * Q's shell — Reimagined with Skeleton UI
+	 *
+	 * Layout: AppBar (header) + Navigation (sidebar/bar) + Main content
+	 * - Desktop: Sidebar navigation (left) + content (right)
+	 * - Mobile: Bottom bar navigation + full-width content
+	 */
+	import '../app.css';
+	import { onMount } from 'svelte';
+	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
+	import { Navigation, Dialog, Portal } from '@skeletonlabs/skeleton-svelte';
+	import { Icon, FaIcon, Status, type IconName } from '@inqbeta/q-ui';
+	import { watch, remembered, resumeSession, type Identity } from '@inqbeta/q-core/passkey';
+	import { watchFolder } from '@inqbeta/q-core/folder';
+	import { startBackgroundSync, stopBackgroundSync } from '@inqbeta/q-core/offline-queue';
+	import { theme } from '$lib/settings.svelte';
+	import ThemeSwitch from '$lib/components/ThemeSwitch.svelte';
+	import SpeechSwitch from '$lib/components/SpeechSwitch.svelte';
+	import FrontDoor from '$lib/components/FrontDoor.svelte';
+	import SearchBar from '$lib/components/SearchBar.svelte';
+	import SideNav from '$lib/components/SideNav.svelte';
+	import LanguageMenu from '$lib/components/LanguageMenu.svelte';
+	import BackupNeeded from '$lib/components/BackupNeeded.svelte';
+	import SpeechNote from '$lib/components/SpeechNote.svelte';
+	import Resume from '$lib/components/Resume.svelte';
+	import { whereTo } from '$lib/guard';
+	import { language } from '$lib/i18n/index.svelte';
+	import { thisBrowser } from '@inqbeta/q-core/browser';
+	import { watchLedger, refreshLedger, type Ledger } from '$lib/ledger';
+	import { startAutoSync } from '$lib/autosync';
+	import { warmWhenIdle, sleepEngine } from '$lib/actions/engine';
+	import { ABOUT_YOU } from '$lib/questions/about-you';
+	import { answeringOf, answersFrom } from '$lib/answers';
+	import type { AnswerSet } from '@inqbeta/q-core/questions';
+
+	// Notifications state
+	let notificationsOpen = $state(false);
+	let unreadCount = $state(0);
+	const notifications = $state<{ id: string; type: string; message: string; time: Date; read: boolean }[]>([]);
+
+	// Fetch notifications from API
+	async function fetchNotifications() {
+		if (!identity?.did) return;
+		try {
+			const res = await fetch(`/api/notifications?did=${encodeURIComponent(identity.did)}`);
+			const data = await res.json();
+			if (data.notifications) {
+				notifications.length = 0;
+				notifications.push(...data.notifications.map((n: any) => ({
+					...n,
+					time: new Date(n.time)
+				})));
+				unreadCount = data.unreadCount || 0;
+			}
+		} catch (e) {
+			console.error('Failed to fetch notifications:', e);
+		}
+	}
+
+	// Watch for identity changes to fetch notifications
+	/* Polled only while the tab is visible and online: a hidden tab asking a
+	 * server every 30 seconds is battery, network and log noise for nothing.
+	 * Coming back to the tab fetches at once. */
+	$effect(() => {
+		if (!identity?.did) return;
+		const tick = () => {
+			if (document.visibilityState === 'visible' && navigator.onLine) void fetchNotifications();
+		};
+		tick();
+		const interval = setInterval(tick, 30000);
+		document.addEventListener('visibilitychange', tick);
+		return () => {
+			clearInterval(interval);
+			document.removeEventListener('visibilitychange', tick);
+		};
+	});
+
+	function addNotification(type: string, message: string) {
+		const notif = {
+			id: crypto.randomUUID(),
+			type,
+			message,
+			time: new Date(),
+			read: false
+		};
+		notifications.unshift(notif);
+		unreadCount++;
+	}
+
+	function markAllRead() {
+		notifications.forEach(n => n.read = true);
+		unreadCount = 0;
+		// Also mark on server
+		if (identity?.did) {
+			fetch(`/api/notifications?did=${encodeURIComponent(identity.did)}&id=`, {
+				method: 'PATCH'
+			}).catch(console.error);
+		}
+	}
+
+	async function toggleNotifications() {
+		notificationsOpen = !notificationsOpen;
+		if (notificationsOpen) {
+			await fetchNotifications();
+		}
+	}
+
+	let { children } = $props();
+
+	let identity = $state<Identity | null>(null);
+	/* The public DID kept from last time, when the keys are not in this tab. */
+	let known = $state<string | null>(null);
+	/* Set once the passkey module has answered, so the guard never acts on a guess. */
+	let answered = $state(false);
+
+	/* Start watching the folder at once — and notice when it is ready, because
+	 * a channel cannot be written down before there is somewhere to write it. */
+	/* Said in the header as well as at the door: a reader stays a reader on every
+	 * page, and finding that out only when a save fails is too late. */
+	let can = $state({ keep: true, read: true, backup: false, says: '', fix: '' });
+	$effect(() => {
+		can = thisBrowser();
+	});
+
+	let folderReady = $state(false);
+	$effect(() => watchFolder((s) => (folderReady = s.kind === 'ready')));
+
+	/* A refresh or a new tab carries on as whoever was signed in here, for 30
+	 * quiet minutes (passkey.ts, Darren 2026-09-25). Once, on load. */
+	let resumed = false;
+	$effect(() => {
+		if (resumed) return;
+		resumed = true;
+		void resumeSession();
+	});
+
+	/* Every channel kept level in the background while signed in (lib/autosync.ts). */
+	$effect(() => {
+		if (!identity || !folderReady) return;
+		return startAutoSync(() => void refreshLedger());
+	});
+
+
+	/*
+	 * `signOut()` clears the remembered DID along with everything else that
+	 * belonged to the person, so `remembered()` is already null by the time this
+	 * runs. There used to be a sessionStorage flag here saying "ignore what you
+	 * remember, we just signed out" — it was covering for a sign-out that did
+	 * not clear, and it was fragile besides: it was consumed by whichever
+	 * notification arrived first, which need not have been the one that mattered.
+	 */
+	$effect(() =>
+		watch((id) => {
+			identity = id;
+			known = id?.did ?? remembered();
+			answered = true;
+			if (id) startBackgroundSync(5 * 60 * 1000);
+			else stopBackgroundSync();
+			/* Signing in wakes the rule engine, so it is ready before anyone acts;
+			 * signing out puts it to sleep (lib/actions/engine.ts, ADR-Q-009). */
+			if (id) warmWhenIdle();
+			else sleepEngine();
+		})
+	);
+
+	/*
+	 * Where you may be without keys in this tab.
+	 *
+	 * The keys live in memory for the life of the tab — that is the design, not
+	 * a fault — so a reload always arrives here with nothing held. Sending
+	 * someone away at that moment is what made the dashboard look like it had
+	 * forgotten them: the touch that brings the keys back is on the page they
+	 * were just thrown off.
+	 *
+	 * So: a remembered DID is not signed out, it is one touch away, and it
+	 * stays put. Only a browser with nothing remembered is sent to sign in.
+	 *
+	 * This reads page.url.pathname, so it runs again on every navigation
+	 * rather than only on the first subscribe.
+	 */
+
+	/*
+	 * The first thing after the passkey.
+	 *
+	 * Signing in makes a DID and nothing else — an identity with nothing said
+	 * under it. Q's first question set is what turns that into a graph, so it is
+	 * offered here rather than buried, once there is a folder to write it into.
+	 *
+	 * Offered, not forced: it is a link, it can be ignored for ever, and nothing
+	 * else waits on it.
+	 */
+	let ledger = $state<Ledger | null>(null);
+	let askedAlready = $state<boolean | null>(null);
+	$effect(() => watchLedger((l) => (ledger = l)));
+
+	$effect(() => {
+		if (!identity || !folderReady || ledger?.state !== 'ready') return;
+		const found = ledger.found.filter((f) => f.kind === 'answers');
+		void Promise.all(found.map((f) => answersFrom(f.item)))
+			.then((list) => answeringOf(ABOUT_YOU, list.filter((a): a is AnswerSet => !!a)))
+			.then((a) => (askedAlready = !!a));
+	});
+
+	const offerQuestions = $derived(
+		!!identity &&
+			folderReady &&
+			/* Never invite somebody to answer questions this browser cannot keep
+			 * the answers to. */
+			can.keep &&
+			askedAlready === false &&
+			!page.url.pathname.startsWith('/questions')
+	);
+
+	/*
+	 * The rules live in $lib/guard.ts, as a function with no browser in it, so
+	 * they can be walked route by route in a test. This effect is only the part
+	 * that needs a browser — it has gone wrong twice while it was all one thing.
+	 */
+	$effect(() => {
+		const to = whereTo(page.url.pathname, {
+			answered,
+			signedIn: !!identity,
+			/* Read fresh, not off reactive state: signing out clears it, and the
+			 * guard must see that in the same tick. */
+			remembered: !!(identity?.did ?? remembered())
+		});
+		if (to) void goto(to);
+	});
+
+	/*
+	 * There was a second guard here sending a signed-in person off /keys, on the
+	 * grounds that it is "just the sign-in page". It is not: it is where your
+	 * keys, your linked devices and your folder live, and it is the one page you
+	 * would visit ON PURPOSE while signed in.
+	 *
+	 * It also made signing out impossible. The sign-out button lived inside
+	 * SignIn, every other page renders SignIn only when signed OUT, and this
+	 * guard closed the one door left. No way in, no way out.
+	 *
+	 * Redirecting after signing in is SignIn's own job, which it already does.
+	 */
+
+	/* Light or dark, and the language: remembered choices, else the device's. */
+	onMount(() => {
+		theme.start();
+		language.start();
+	});
+
+
+	type Link = { href: string; label: string; icon: IconName };
+
+	/* The side menu folded to icons, or open. Remembered in this browser. */
+	let folded = $state(false);
+	$effect(() => {
+		try {
+			folded = localStorage.getItem('q-nav-folded') === 'yes';
+		} catch {
+			/* open by default */
+		}
+	});
+	$effect(() => {
+		const f = folded;
+		try {
+			localStorage.setItem('q-nav-folded', f ? 'yes' : 'no');
+		} catch {
+			/* not remembered, which is fine */
+		}
+	});
+	const navLayout = $derived(folded ? 'rail' : 'sidebar');
+
+	// Mobile bottom bar navigation
+	const barLinks: Link[] = [
+		{ href: '/', label: 'Overview', icon: 'overview' },
+		{ href: '/keys', label: 'Keys', icon: 'keys' },
+		{ href: '/data', label: 'Files', icon: 'files' },
+		{ href: '/network', label: 'Network', icon: 'network' },
+		{ href: '/devices', label: 'Devices', icon: 'devices' }
+	];
+
+	const isHere = (href: string) =>
+		href === '/' ? page.url.pathname === '/' : page.url.pathname === href || page.url.pathname.startsWith(href + '/');
+</script>
+
+<svelte:head>
+	<meta name="robots" content="noindex" />
+</svelte:head>
+
+{#if !identity && !known && page.url.pathname === '/'}
+	<!-- The home page, signed out: the app bar is the sign-in (FrontDoor), and
+	     the page below it starts with the arrow. No nav until you are in.
+	     A remembered DID gets the shell instead, so the touch that brings the
+	     keys back is always to hand. -->
+	<FrontDoor />
+	{@render children()}
+{:else if !identity && !known && page.url.pathname === '/keys'}
+	<!-- Signed out, /keys goes home (lib/guard); nothing to show on the way. -->
+	{@render children()}
+{:else}
+	<!-- App layout - full header, sidebar, navigation -->
+
+<!-- Section 1: Header (full width, sticky) -->
+<header class="sticky top-0 z-40 border-b border-surface-200-800/70 bg-surface-50-950/90 backdrop-blur">
+	<!-- Header container: margin = 50% of sidebar when open, centered when collapsed -->
+	<div class="relative flex items-center justify-between {navLayout === 'sidebar' ? 'mx-24 py-4' : 'mx-auto max-w-5xl px-6 py-4'}">
+		<!-- Under the switches, only when this page is missing audio (lib/settings: coverage). -->
+		<div class="absolute right-0 top-full mt-2"><SpeechNote /></div>
+		<!-- Logo + Terminal Icon -->
+		<a href="/" class="flex items-end gap-1.5" aria-label="Q Overview">
+			<img src="/inqbeta.svg" alt="Q" class="h-10 sm:h-11 w-auto object-contain" />
+			<FaIcon name="terminal" size="lg" animation="beat-fade" speed="slow" class="text-surface-700-300 h-5 sm:h-5 mb-2" />
+		</a>
+		
+		<!-- Search Bar -->
+		<SearchBar />
+
+		<!--
+			The trail is the front door's (FrontDoor): language, light/dark, read
+			aloud — the same controls in the same corner, signed in or out — with
+			the notifications bell ahead of them. Signing out is on Keys.
+		-->
+		<div class="flex items-center gap-4">
+			<!-- Backup nudge: only when something new has gone five minutes uncarried. -->
+			<BackupNeeded />
+			<!-- Notifications: no background, the brand orange bell, as tall as the switches.
+			     `btn` for the same side padding as the language button, so the three sit evenly. -->
+			<button
+				type="button"
+				aria-label="Notifications"
+				onclick={toggleNotifications}
+				class="btn py-0 relative text-secondary-500 cursor-pointer
+					focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary-500"
+			>
+				<Icon name="bell" class="size-7" stroke={2} />
+				{#if unreadCount > 0}
+					<span class="absolute -right-2 -top-2 badge-icon preset-filled-error-500 text-xs">
+						{unreadCount > 9 ? '9+' : unreadCount}
+					</span>
+				{/if}
+			</button>
+
+			<LanguageMenu />
+			<ThemeSwitch />
+			<SpeechSwitch />
+		</div>
+	</div>
+</header>
+
+<!-- Notifications Dropdown -->
+{#if notificationsOpen}
+	<div class="fixed inset-0 z-50" onclick={toggleNotifications} onkeydown={(e) => e.key === 'Escape' && (notificationsOpen = false)} role="button" tabindex="0" aria-label="Close notifications"></div>
+	<div class="fixed right-4 top-16 z-50 w-80 max-h-96 overflow-y-auto rounded-container border bg-surface-50-950 shadow-xl">
+		<div class="flex items-center justify-between border-b border-surface-200-800 p-3">
+			<h3 class="font-semibold">Notifications</h3>
+			<button type="button" class="text-sm text-primary-500" onclick={markAllRead}>Mark all read</button>
+		</div>
+		{#if notifications.length === 0}
+			<div class="p-4 text-center text-sm opacity-60">No notifications</div>
+		{:else}
+			<ul class="divide-y divide-surface-200-800">
+				{#each notifications as notif (notif.id)}
+					<li class="p-3 hover:bg-surface-100-900 {notif.read ? 'opacity-60' : ''}">
+						<p class="text-sm">{notif.message}</p>
+						<p class="text-xs opacity-60">{notif.time.toLocaleTimeString()}</p>
+					</li>
+				{/each}
+			</ul>
+		{/if}
+	</div>
+{/if}
+
+<!-- Section 2: Navigation + Content -->
+<div class="grid min-h-0 md:grid-cols-[auto_1fr]">
+		<!-- Desktop: sections, then plugins; folds to one icon per group (lib/nav.ts). -->
+		<SideNav bind:folded />
+
+		<!-- Main Content -->
+		<main class="min-h-0 overflow-y-auto bg-surface-50-950">
+			<div class="mx-auto max-w-5xl p-4 md:p-8">
+				{#if !identity && known}
+					<Resume did={known} />
+				{/if}
+				{#if !can.keep}
+					<!-- Only a browser with nowhere at all to write lands here now. -->
+					<div class="card preset-tonal-warning mb-6 p-4" role="status">
+						<p class="font-medium">Reading only — this browser has nowhere to save</p>
+						<p class="text-sm mt-1">{can.says}</p>
+						{#if can.fix}<p class="text-sm mt-1">{can.fix}</p>{/if}
+					</div>
+				{/if}
+				{#if offerQuestions}
+					<div class="card preset-outlined-primary-500 mb-6 flex flex-wrap items-center gap-4 p-4">
+						<div class="min-w-48 flex-1">
+							<p class="font-medium">Your identity has nothing said under it yet</p>
+							<p class="text-sm opacity-70">
+								Signing in made your DID. Answering Q's first questions is what turns it into
+								a graph of your own — kept in your folder, and yours to say what it is for.
+							</p>
+						</div>
+						<a class="btn preset-filled-primary-500" href="/questions">Have a look</a>
+					</div>
+				{/if}
+				{@render children()}
+			</div>
+		</main>
+	</div>
+
+	<!-- Mobile Bottom Bar Navigation -->
+	<Navigation layout="bar" class="border-t border-surface-200-800 md:hidden" aria-label="Q">
+		<Navigation.Menu class="grid grid-cols-5">
+			{#each barLinks as link (link.href)}
+				<Navigation.TriggerAnchor
+					href={link.href}
+					aria-current={isHere(link.href) ? 'page' : undefined}
+					class={isHere(link.href) ? 'preset-tonal-primary' : ''}
+				>
+					<Icon name={link.icon} />
+<Navigation.TriggerText>{link.label}</Navigation.TriggerText>
+			</Navigation.TriggerAnchor>
+		{/each}
+	</Navigation.Menu>
+</Navigation>
+{/if}

@@ -1,0 +1,9 @@
+{
+	"darkolive.co.uk": {
+		"dir": "../../../darkolive-site/src/content/pages",
+		"manifest": "../../../darkolive-site/src/lib/image-manifest.json",
+		"static": "../../../darkolive-site/static",
+		"preview": "http://localhost:5173",
+		"routes": { "projects": "/our-work/", "posts": "/blog/" }
+	}
+}

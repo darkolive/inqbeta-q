@@ -1,0 +1,281 @@
+{
+	"model": "eleven_v3",
+	"voice": {
+		"id": "pFZP5JQG7iQjIQuC4Bku",
+		"name": "Darren's voice"
+	},
+	"items": {
+		"signin.title": {
+			"hash": "4a6f3cef",
+			"file": "/voice/en/4a6f3cef.mp3"
+		},
+		"signin.line": {
+			"hash": "ac39eea9",
+			"file": "/voice/en/ac39eea9-1tk26us.mp3"
+		},
+		"signin.where": {
+			"hash": "61266b0b",
+			"file": "/voice/en/61266b0b-1tk26us.mp3"
+		},
+		"place.device": {
+			"hash": "ef7f77e1",
+			"file": "/voice/en/ef7f77e1.mp3"
+		},
+		"place.key": {
+			"hash": "c0072f18",
+			"file": "/voice/en/c0072f18.mp3"
+		},
+		"place.phone": {
+			"hash": "a80f6a27",
+			"file": "/voice/en/a80f6a27.mp3"
+		},
+		"place.thisPhone": {
+			"hash": "a4094f89",
+			"file": "/voice/en/a4094f89.mp3"
+		},
+		"place.device.hint": {
+			"hash": "67cd2fe6",
+			"file": "/voice/en/67cd2fe6-1tk26us.mp3"
+		},
+		"place.key.hint": {
+			"hash": "ee181543",
+			"file": "/voice/en/ee181543-1tjk9ki.mp3"
+		},
+		"place.phone.hint": {
+			"hash": "9d1c58a4",
+			"file": "/voice/en/9d1c58a4-1tk26us.mp3"
+		},
+		"place.thisPhone.hint": {
+			"hash": "b51aa348",
+			"file": "/voice/en/b51aa348.mp3"
+		},
+		"home.nothingStored": {
+			"hash": "9e68976a",
+			"file": "/voice/en/9e68976a-1tk26us.mp3"
+		},
+		"home.whatQIs": {
+			"hash": "a4eed8fa",
+			"file": "/voice/en/a4eed8fa-1tk26us.mp3"
+		},
+		"home.intro.lead": {
+			"hash": "2d5ff20e",
+			"file": "/voice/en/2d5ff20e.mp3"
+		},
+		"home.intro.body": {
+			"hash": "737dfaac",
+			"file": "/voice/en/737dfaac.mp3"
+		},
+		"story.1.t": {
+			"hash": "02d3b629",
+			"file": "/voice/en/02d3b629.mp3"
+		},
+		"story.1.d": {
+			"hash": "f4df4d94",
+			"file": "/voice/en/f4df4d94.mp3"
+		},
+		"story.2.t": {
+			"hash": "c5555900",
+			"file": "/voice/en/c5555900.mp3"
+		},
+		"story.2.d": {
+			"hash": "cde0a1c3",
+			"file": "/voice/en/cde0a1c3.mp3"
+		},
+		"story.3.t": {
+			"hash": "cc64b3a0",
+			"file": "/voice/en/cc64b3a0.mp3"
+		},
+		"story.3.d": {
+			"hash": "e7b5deeb",
+			"file": "/voice/en/e7b5deeb.mp3"
+		},
+		"story.4.t": {
+			"hash": "3b738d0c",
+			"file": "/voice/en/3b738d0c.mp3"
+		},
+		"story.4.d": {
+			"hash": "cfa1fc01",
+			"file": "/voice/en/cfa1fc01.mp3"
+		},
+		"story.5.t": {
+			"hash": "3606636c",
+			"file": "/voice/en/3606636c.mp3"
+		},
+		"story.5.d": {
+			"hash": "ab599cc1",
+			"file": "/voice/en/ab599cc1.mp3"
+		},
+		"story.6.t": {
+			"hash": "a0565d4d",
+			"file": "/voice/en/a0565d4d.mp3"
+		},
+		"story.6.d": {
+			"hash": "f82c21bc",
+			"file": "/voice/en/f82c21bc.mp3"
+		},
+		"uses.title": {
+			"hash": "221edcb0",
+			"file": "/voice/en/221edcb0.mp3"
+		},
+		"uses.learning.t": {
+			"hash": "e4687220",
+			"file": "/voice/en/e4687220.mp3"
+		},
+		"uses.learning.d": {
+			"hash": "db025883",
+			"file": "/voice/en/db025883.mp3"
+		},
+		"uses.clubs.t": {
+			"hash": "535e07d9",
+			"file": "/voice/en/535e07d9.mp3"
+		},
+		"uses.clubs.d": {
+			"hash": "69be97cd",
+			"file": "/voice/en/69be97cd.mp3"
+		},
+		"uses.site.t": {
+			"hash": "75e73b03",
+			"file": "/voice/en/75e73b03.mp3"
+		},
+		"uses.site.d": {
+			"hash": "e31a0ee9",
+			"file": "/voice/en/e31a0ee9.mp3"
+		},
+		"uses.work.t": {
+			"hash": "798229b8",
+			"file": "/voice/en/798229b8.mp3"
+		},
+		"uses.work.d": {
+			"hash": "60a494cc",
+			"file": "/voice/en/60a494cc.mp3"
+		},
+		"uses.festival.t": {
+			"hash": "7eb8ecab",
+			"file": "/voice/en/7eb8ecab.mp3"
+		},
+		"uses.festival.d": {
+			"hash": "4b071d90",
+			"file": "/voice/en/4b071d90.mp3"
+		},
+		"uses.calls.t": {
+			"hash": "0934268d",
+			"file": "/voice/en/0934268d.mp3"
+		},
+		"uses.calls.d": {
+			"hash": "6ee74958",
+			"file": "/voice/en/6ee74958.mp3"
+		},
+		"beta.touch": {
+			"hash": "e7c5e8ff",
+			"file": "/voice/en/e7c5e8ff.mp3"
+		},
+		"beta.why": {
+			"hash": "0d64b585",
+			"file": "/voice/en/0d64b585.mp3"
+		},
+		"sec.title": {
+			"hash": "65cbbbb9",
+			"file": "/voice/en/65cbbbb9.mp3"
+		},
+		"sec.lead": {
+			"hash": "13eca470",
+			"file": "/voice/en/13eca470.mp3"
+		},
+		"sec.honest": {
+			"hash": "e963cefe",
+			"file": "/voice/en/e963cefe.mp3"
+		},
+		"sec.phish.t": {
+			"hash": "b45a442c",
+			"file": "/voice/en/b45a442c.mp3"
+		},
+		"sec.phish.d": {
+			"hash": "00a91cac",
+			"file": "/voice/en/00a91cac.mp3"
+		},
+		"sec.nothing.t": {
+			"hash": "8b9d0523",
+			"file": "/voice/en/8b9d0523.mp3"
+		},
+		"sec.nothing.d": {
+			"hash": "c27b736d",
+			"file": "/voice/en/c27b736d.mp3"
+		},
+		"sec.did.t": {
+			"hash": "459531a5",
+			"file": "/voice/en/459531a5.mp3"
+		},
+		"sec.did.d": {
+			"hash": "ce911852",
+			"file": "/voice/en/ce911852.mp3"
+		},
+		"sec.lock.t": {
+			"hash": "9fd52eb8",
+			"file": "/voice/en/9fd52eb8.mp3"
+		},
+		"sec.lock.d": {
+			"hash": "16c88930",
+			"file": "/voice/en/16c88930.mp3"
+		},
+		"sec.tamper.t": {
+			"hash": "022485f6",
+			"file": "/voice/en/022485f6.mp3"
+		},
+		"sec.tamper.d": {
+			"hash": "e4c28073",
+			"file": "/voice/en/e4c28073.mp3"
+		},
+		"sec.ucan.t": {
+			"hash": "0e11d736",
+			"file": "/voice/en/0e11d736.mp3"
+		},
+		"sec.ucan.d": {
+			"hash": "19d453f1",
+			"file": "/voice/en/19d453f1.mp3"
+		},
+		"sec.cedar.t": {
+			"hash": "3e097c0d",
+			"file": "/voice/en/3e097c0d.mp3"
+		},
+		"sec.cedar.d": {
+			"hash": "2ec1ff87",
+			"file": "/voice/en/2ec1ff87.mp3"
+		},
+		"sec.leave.t": {
+			"hash": "6163946b",
+			"file": "/voice/en/6163946b.mp3"
+		},
+		"sec.leave.d": {
+			"hash": "30f794f1",
+			"file": "/voice/en/30f794f1.mp3"
+		},
+		"love.title": {
+			"hash": "b6a6e494",
+			"file": "/voice/en/b6a6e494.mp3"
+		},
+		"love.line": {
+			"hash": "63589d6d",
+			"file": "/voice/en/63589d6d.mp3"
+		},
+		"thanks.title": {
+			"hash": "504a190a",
+			"file": "/voice/en/504a190a.mp3"
+		},
+		"thanks.ai": {
+			"hash": "a3de0c54",
+			"file": "/voice/en/a3de0c54.mp3"
+		},
+		"thanks.community": {
+			"hash": "49da7415",
+			"file": "/voice/en/49da7415.mp3"
+		},
+		"love.source": {
+			"hash": "89f0005d",
+			"file": "/voice/en/89f0005d.mp3"
+		},
+		"thanks.referral": {
+			"hash": "0326315f",
+			"file": "/voice/en/0326315f.mp3"
+		}
+	}
+}

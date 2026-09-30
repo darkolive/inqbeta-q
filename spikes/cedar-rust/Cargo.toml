@@ -1,0 +1,20 @@
+[package]
+name = "cedar-rust"
+version = "0.1.0"
+edition = "2021"
+description = "ADR-Q-009 spike: the same action definitions, decided by Cedar in Rust, must give exactly the answers the WASM build gives in Q."
+publish = false
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "cross-check"
+path = "src/main.rs"
+
+[dependencies]
+# Must be the same Cedar version the actions were written for (engine.cedar).
+cedar-policy = "=4.13.0"
+serde_json = "1"
+sha2 = "0.10"
+base64 = "0.22"

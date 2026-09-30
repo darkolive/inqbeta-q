@@ -1,0 +1,8 @@
+# inQbeta post office — who may do what (ADR-Q-010 §4).
+# %u is the signed-in inbox id. Nothing else is granted, including $SYS.
+
+# You may read your own inbox, and only your own.
+pattern read q/in/%u
+
+# Anyone signed in may post into any inbox (one level: q/in/<inbox-id>).
+pattern write q/in/+

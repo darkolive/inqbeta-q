@@ -1,0 +1,29 @@
+// Spike: the money.spend action as a Cedar schema.
+// Not run yet — see README.md.
+//
+// Cedar cannot count, loop or look anything up. That is why it is fast and
+// analysable. So every fact that needs the chain (how many *different* people
+// signed, what is left on the budget line) is gathered by Q's verifier first
+// and handed in as context. The engine decides; the kernel gathers facts.
+
+entity Person;
+entity Federation;
+entity Ledger in [Federation];
+
+action "money.spend" appliesTo {
+  principal: [Person],     // who is submitting the receipt
+  resource: [Ledger],      // the federation's money ledger
+  context: {
+    signers: Set<Person>,              // after worlds linked to one person are merged
+    distinctSignerCount: Long,         // counted by the verifier
+    spendMandateHolders: Set<Person>,  // live spend mandates at the receipt's time
+    payee: Person,
+    amountPence: Long,
+    budgetLineRemainingPence: Long,
+    thresholdPence: Long,              // the federation's "needs a decision above" figure
+    citesBudgetDecision: Bool,
+    citesMembersVote: Bool,
+    approvedByAI: Bool,
+    datedBeforePrevious: Bool,
+  }
+};

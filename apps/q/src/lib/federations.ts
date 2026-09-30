@@ -1,0 +1,416 @@
+/*
+ * Federations, in and out of the vault. The rules are q-core/federations.ts
+ * (ADR-Q-007); the check is the federation.found action (q-actions, ADR-Q-009).
+ *
+ *   federations/drafts/<draft id>.json   a draft — working state, yours alone,
+ *                                        saved as often as you like. Each save
+ *                                        replaces the last copy.
+ *   federations/<federation>.json        a founded federation: the two-signature
+ *                                        founding, the manifest, your joining as
+ *                                        member one, the caretaker grant, and
+ *                                        the federation key sealed to you.
+ *
+ * A draft becomes a federation only through foundFromDraft, and only if the
+ * rule engine says the founding keeps federation.found's rules. The draft is
+ * then marked with what it became and stops being listed.
+ */
+import { seal } from '@inqbeta/q-core/seal';
+import { signerFor, type Identity } from '@inqbeta/q-core/passkey';
+import { deleteItem, readItem, saveLocked, type FolderItem } from '@inqbeta/q-core/folder';
+import { folderStore } from '@inqbeta/q-core/ucan/index';
+import { b64url } from '@inqbeta/q-core/canonical';
+import type { SealedToPeople } from '@inqbeta/q-core/seal';
+import {
+	foundFederation,
+	isFederationDraft,
+	type FederationDraft,
+	type FederationFounding,
+	type FederationManifest,
+	type Joined
+} from '@inqbeta/q-core/federations';
+import { foundingFacts } from '@inqbeta/q-actions/core/federation-found';
+import { actionHash, decide } from '$lib/actions/engine';
+import {
+	acceptRequest,
+	checkMembership,
+	joinFrom,
+	leave as leaveReceipt,
+	makeInvitation,
+	openFederationKey,
+	pack,
+	remove as removeReceipt,
+	suspend as suspendReceipt,
+	lift as liftReceipt,
+	checkRemoved,
+	checkSuspended,
+	checkLifted,
+	openMemberCard,
+	type JoinChoices,
+	type MemberCard,
+	type Invitation,
+	type Joining,
+	type Left,
+	type Lifted,
+	type Notice,
+	type Removed,
+	type Suspended
+} from '@inqbeta/q-core/membership';
+import { joinFacts, leaveFacts, removeFacts, suspendFacts } from '@inqbeta/q-actions/core/federation-membership';
+
+export const FEDERATION_RECORD_SCHEMA = 'inqbeta.federation-record/1';
+
+export interface FederationRecord {
+	schema: typeof FEDERATION_RECORD_SCHEMA;
+	source: 'inqbeta:q/federation';
+	founding: FederationFounding;
+	manifest: FederationManifest;
+	/** The founder's joining — member one. */
+	joined: Joined;
+	/** The federation key's seed, sealed to the founder. */
+	sealedKey: SealedToPeople;
+	/** The caretaker grant, UCAN bytes, base64url. */
+	grant: string;
+	/** When the caretaker mandate ends, unix seconds. */
+	caretakerUntil: number;
+	/** What the rule engine said when it was founded. */
+	checked: { action: string; rules: string[] };
+}
+
+export function isFederationRecord(x: unknown): x is FederationRecord {
+	const r = x as FederationRecord;
+	return !!r && r.schema === FEDERATION_RECORD_SCHEMA && !!r.founding && !!r.manifest && !!r.joined;
+}
+
+type Outcome<T> = ({ ok: true } & T) | { ok: false; says: string };
+
+/** Save a draft. Replaces the copy it was opened from, if one is given. */
+export async function saveDraft(draft: FederationDraft, previous?: FolderItem | null): Promise<Outcome<{ draft: FederationDraft }>> {
+	try {
+		const saved = { ...draft, updated: new Date().toISOString() };
+		const signed = await seal(saved);
+		await saveLocked('federations/drafts', `${saved.id}.json`, JSON.stringify(signed, null, 2), 'application/json');
+		/* A draft is working state, not a receipt: the older copy goes. */
+		if (previous) await deleteItem(previous).catch(() => {});
+		return { ok: true, draft: saved };
+	} catch (e) {
+		return { ok: false, says: e instanceof Error ? e.message : String(e) };
+	}
+}
+
+export async function draftFrom(item: FolderItem): Promise<FederationDraft | null> {
+	try {
+		const json = JSON.parse(new TextDecoder().decode((await readItem(item)).data)) as { content?: unknown };
+		const content = json?.content ?? json;
+		return isFederationDraft(content) ? content : null;
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Found a federation from a draft. Signs with the passkey held in this tab,
+ * asks the rule engine, and keeps it only if the founding holds.
+ */
+export async function foundFromDraft(
+	identity: Identity,
+	draft: FederationDraft,
+	draftItem?: FolderItem | null
+): Promise<Outcome<{ record: FederationRecord }> | { ok: false; says: string; rules: string[] }> {
+	try {
+		const founded = await foundFederation(signerFor(identity), draft);
+		const action = await actionHash('federation.found');
+		const decision = await decide(action, {
+			principal: { type: 'Person', id: identity.did },
+			resource: { type: 'Federation', id: founded.founding.federation },
+			facts: await foundingFacts(founded)
+		});
+		if (!decision.holds) return { ok: false, says: decision.because.join(' '), rules: decision.rules };
+
+		const record: FederationRecord = {
+			schema: FEDERATION_RECORD_SCHEMA,
+			source: 'inqbeta:q/federation',
+			founding: founded.founding,
+			manifest: founded.manifest,
+			joined: founded.joined,
+			sealedKey: founded.sealedKey,
+			grant: b64url(founded.grant.bytes),
+			caretakerUntil: founded.caretakerUntil,
+			checked: { action, rules: decision.rules }
+		};
+		const signed = await seal(record);
+		await saveLocked('federations', `${founded.founding.federation.slice(-16)}.json`, JSON.stringify(signed, null, 2), 'application/json');
+		await folderStore.put(founded.grant).catch(() => {
+			/* The record carries the grant as well; the token store is a convenience. */
+		});
+		await saveDraft({ ...draft, foundedAs: founded.founding.federation }, draftItem);
+		return { ok: true, record };
+	} catch (e) {
+		return { ok: false, says: e instanceof Error ? e.message : String(e) };
+	}
+}
+
+/* ---- Membership (ADR-Q-007 §4): inviting, joining, leaving, removal. ---- */
+
+
+/** Your own membership of someone's federation, kept in your vault. Each change is saved anew; the newest wins. */
+export const MEMBERSHIP_RECORD_SCHEMA = 'inqbeta.membership-record/1';
+export interface MembershipRecord {
+	schema: typeof MEMBERSHIP_RECORD_SCHEMA;
+	source: 'inqbeta:q/membership';
+	founding: FederationFounding;
+	manifest: FederationManifest;
+	joining: Joining;
+	/** Your own copy of the card you sent, if you chose to be known. */
+	card?: MemberCard;
+	left?: Left;
+	/* Decisions the caretaker sent you, kept once you opened their link. */
+	removed?: Removed;
+	suspended?: Suspended;
+	lifted?: Lifted;
+	at: string;
+}
+export function isMembershipRecord(x: unknown): x is MembershipRecord {
+	const r = x as MembershipRecord;
+	return !!r && r.schema === MEMBERSHIP_RECORD_SCHEMA && !!r.joining && !!r.founding;
+}
+
+/** A member of a federation you look after, kept in the caretaker's vault. */
+export const MEMBER_RECORD_SCHEMA = 'inqbeta.member-record/1';
+export interface MemberRecord {
+	schema: typeof MEMBER_RECORD_SCHEMA;
+	source: 'inqbeta:q/member';
+	federation: string;
+	/** Their name, if they chose to be known by it — from their card, or a note you added. */
+	called?: string;
+	/** Their picture, if they chose to share one. */
+	picture?: string;
+	joining: Joining;
+	removed?: Removed;
+	suspended?: Suspended;
+	lifted?: Lifted;
+	at: string;
+}
+export function isMemberRecord(x: unknown): x is MemberRecord {
+	const r = x as MemberRecord;
+	return !!r && r.schema === MEMBER_RECORD_SCHEMA && !!r.joining && typeof r.federation === 'string';
+}
+
+const short = (did: string) => did.slice(-16);
+
+async function keep(path: string, name: string, body: object) {
+	const signed = await seal(body);
+	await saveLocked(path, name, JSON.stringify(signed, null, 2), 'application/json');
+}
+
+async function check(id: string, identity: Identity, federation: string, facts: Record<string, unknown>) {
+	const decision = await decide(await actionHash(id), {
+		principal: { type: 'Person', id: identity.did },
+		resource: { type: 'Federation', id: federation },
+		facts
+	});
+	return decision;
+}
+
+/** The link that carries a packet: /federations/join#… — the fragment never reaches a server. */
+export function linkFor(packed: string): string {
+	return `${location.origin}/federations/join#${packed}`;
+}
+
+/** Invite someone to a federation you look after. Opens the federation key with your passkey. */
+export async function invite(
+	identity: Identity,
+	record: FederationRecord,
+	o: { for?: string; days?: number } = {}
+): Promise<Outcome<{ link: string; invitation: Invitation }>> {
+	try {
+		const key = await openFederationKey(record.sealedKey, identity);
+		const invitation = await makeInvitation(signerFor(key), record.founding, record.manifest, o);
+		return { ok: true, invitation, link: linkFor(await pack(invitation)) };
+	} catch (e) {
+		return { ok: false, says: e instanceof Error ? e.message : String(e) };
+	}
+}
+
+/**
+ * Join from an invitation: you sign the agreement. Returns whether you are a
+ * member now or waiting, and the link to send the caretaker so they know.
+ */
+export async function joinFromInvitation(
+	identity: Identity,
+	invitation: Invitation,
+	choices: Omit<JoinChoices, 'now'> = {}
+): Promise<Outcome<{ state: 'member' | 'waiting'; link: string }> | { ok: false; says: string; rules: string[] }> {
+	try {
+		const joining = await joinFrom(signerFor(identity), invitation, choices);
+		const knownAs = joining.knownAs ?? 'anonymous';
+		const card: MemberCard | null =
+			knownAs === 'anonymous'
+				? null
+				: { schema: 'inqbeta.member-card/1', name: choices.card?.name?.trim(), ...(knownAs === 'name-and-picture' && choices.card?.picture ? { picture: choices.card.picture } : {}) };
+		const m = await checkMembership(joining);
+		/* A request is checked by the caretaker when they accept it; a joining complete now is checked now. */
+		const d = await check('federation.join', identity, joining.federation, await joinFacts(joining, invitation.founding, invitation.manifest, card));
+		if (m.state === 'member' && !d.holds) return { ok: false, says: d.because.join(' '), rules: d.rules };
+		if (m.state === 'waiting') {
+			const notOffer = d.rules.filter((r) => r !== 'federation.join/may/join');
+			if (notOffer.length) return { ok: false, says: d.because.filter((_, i) => d.rules[i] !== 'federation.join/may/join').join(' '), rules: notOffer };
+		}
+		const record: MembershipRecord = {
+			schema: MEMBERSHIP_RECORD_SCHEMA,
+			source: 'inqbeta:q/membership',
+			founding: invitation.founding,
+			manifest: invitation.manifest,
+			joining,
+			...(card ? { card } : {}),
+			at: joining.at
+		};
+		await keep('federations/memberships', `${short(joining.federation)}.json`, record);
+		return { ok: true, state: m.state === 'member' ? 'member' : 'waiting', link: linkFor(await pack(joining)) };
+	} catch (e) {
+		return { ok: false, says: e instanceof Error ? e.message : String(e) };
+	}
+}
+
+/**
+ * A joining arrives at the caretaker. A request is countersigned; one already
+ * complete is simply recorded. Returns the link back to the member when there
+ * is something for them to take home.
+ */
+export async function receiveJoining(
+	identity: Identity,
+	record: FederationRecord,
+	joining: Joining,
+	called?: string
+): Promise<Outcome<{ link?: string; accepted: boolean }> | { ok: false; says: string; rules: string[] }> {
+	try {
+		if (joining.federation !== record.founding.federation) return { ok: false, says: 'This is for a different federation.' };
+		let final = joining;
+		let accepted = false;
+		const key = await openFederationKey(record.sealedKey, identity);
+		/* Their card, opened with the federation key and checked against what they signed. */
+		const card = joining.knownAs && joining.knownAs !== 'anonymous' ? await openMemberCard(joining, key) : null;
+		if ((await checkMembership(joining)).state === 'waiting') {
+			final = await acceptRequest(signerFor(key), joining, record.founding.manifest);
+			accepted = true;
+		}
+		const d = await check('federation.join', identity, record.founding.federation, await joinFacts(final, record.founding, record.manifest, joining.knownAs ? card : undefined));
+		if (!d.holds) return { ok: false, says: d.because.join(' '), rules: d.rules };
+		const name = card?.name ?? called?.trim();
+		const member: MemberRecord = {
+			schema: MEMBER_RECORD_SCHEMA,
+			source: 'inqbeta:q/member',
+			federation: record.founding.federation,
+			...(name ? { called: name } : {}),
+			...(card?.picture ? { picture: card.picture } : {}),
+			joining: final,
+			at: new Date().toISOString()
+		};
+		await keep('federations/members', `${short(final.federation)}-${short(final.member)}.json`, member);
+		return { ok: true, accepted, ...(accepted ? { link: linkFor(await pack(final)) } : {}) };
+	} catch (e) {
+		return { ok: false, says: e instanceof Error ? e.message : String(e) };
+	}
+}
+
+/** The caretaker's countersignature comes home to the member. */
+export async function takeHome(mine: MembershipRecord, accepted: Joining): Promise<Outcome<{}>> {
+	if (accepted.federation !== mine.joining.federation || accepted.member !== mine.joining.member)
+		return { ok: false, says: 'This acceptance is for a different membership.' };
+	const m = await checkMembership(accepted);
+	if (m.state !== 'member') return { ok: false, says: m.says };
+	await keep('federations/memberships', `${short(accepted.federation)}.json`, { ...mine, joining: accepted, at: new Date().toISOString() });
+	return { ok: true };
+}
+
+/** Leave. Only you sign; nobody is asked. */
+export async function leaveFederation(identity: Identity, mine: MembershipRecord): Promise<Outcome<{}> | { ok: false; says: string; rules: string[] }> {
+	try {
+		const left = await leaveReceipt(signerFor(identity), mine.joining);
+		const d = await check('federation.leave', identity, mine.joining.federation, await leaveFacts(left, mine.joining));
+		if (!d.holds) return { ok: false, says: d.because.join(' '), rules: d.rules };
+		await keep('federations/memberships', `${short(mine.joining.federation)}.json`, { ...mine, left, at: left.at });
+		return { ok: true };
+	} catch (e) {
+		return { ok: false, says: e instanceof Error ? e.message : String(e) };
+	}
+}
+
+/** Remove a member of a federation you look after, citing the clause. */
+export async function removeMember(
+	identity: Identity,
+	record: FederationRecord,
+	member: MemberRecord,
+	o: { clause: string; says: string }
+): Promise<Outcome<{ link: string }> | { ok: false; says: string; rules: string[] }> {
+	try {
+		const key = await openFederationKey(record.sealedKey, identity);
+		const removed = await removeReceipt(signerFor(key), { federation: record.founding.federation, member: member.joining.member, ...o });
+		const d = await check('federation.remove', identity, record.founding.federation, await removeFacts(removed, member.joining));
+		if (!d.holds) return { ok: false, says: d.because.join(' '), rules: d.rules };
+		await keep('federations/members', `${short(member.federation)}-${short(member.joining.member)}.json`, { ...member, removed, at: removed.at });
+		return { ok: true, link: linkFor(await pack(removed)) };
+	} catch (e) {
+		return { ok: false, says: e instanceof Error ? e.message : String(e) };
+	}
+}
+
+/** Suspend a member until a date, citing the clause. Returns the link to send them. */
+export async function suspendMember(
+	identity: Identity,
+	record: FederationRecord,
+	member: MemberRecord,
+	o: { clause: string; says: string; until: Date }
+): Promise<Outcome<{ link: string }> | { ok: false; says: string; rules: string[] }> {
+	try {
+		const key = await openFederationKey(record.sealedKey, identity);
+		const suspended = await suspendReceipt(signerFor(key), { federation: record.founding.federation, member: member.joining.member, ...o });
+		const d = await check('federation.suspend', identity, record.founding.federation, await suspendFacts(suspended, member.joining));
+		if (!d.holds) return { ok: false, says: d.because.join(' '), rules: d.rules };
+		const { lifted: _l, ...rest } = member;
+		await keep('federations/members', `${short(member.federation)}-${short(member.joining.member)}.json`, { ...rest, suspended, at: suspended.at });
+		return { ok: true, link: linkFor(await pack(suspended)) };
+	} catch (e) {
+		return { ok: false, says: e instanceof Error ? e.message : String(e) };
+	}
+}
+
+/** End a suspension early. Returns the link to send them. */
+export async function liftSuspension(identity: Identity, record: FederationRecord, member: MemberRecord, says: string): Promise<Outcome<{ link: string }>> {
+	try {
+		if (!member.suspended) return { ok: false, says: 'They are not suspended.' };
+		const key = await openFederationKey(record.sealedKey, identity);
+		const lifted = await liftReceipt(signerFor(key), member.suspended, says);
+		await keep('federations/members', `${short(member.federation)}-${short(member.joining.member)}.json`, { ...member, lifted, at: lifted.at });
+		return { ok: true, link: linkFor(await pack(lifted)) };
+	} catch (e) {
+		return { ok: false, says: e instanceof Error ? e.message : String(e) };
+	}
+}
+
+/** A decision about you arrives from the caretaker: check it, and keep it with your membership. */
+export async function receiveNotice(mine: MembershipRecord, notice: Notice): Promise<Outcome<{}>> {
+	if (notice.federation !== mine.joining.federation || notice.member !== mine.joining.member)
+		return { ok: false, says: 'This is about a different membership.' };
+	const c =
+		notice.schema === 'inqbeta.federation-removed/1'
+			? await checkRemoved(notice)
+			: notice.schema === 'inqbeta.federation-suspended/1'
+				? await checkSuspended(notice)
+				: await checkLifted(notice, mine.suspended);
+	if (!c.ok) return { ok: false, says: c.says };
+	const field = notice.event === 'federation.removed' ? 'removed' : notice.event === 'federation.suspended' ? 'suspended' : 'lifted';
+	const next: MembershipRecord = { ...mine, [field]: notice, at: new Date().toISOString() };
+	if (field === 'suspended') delete next.lifted;
+	await keep('federations/memberships', `${short(mine.joining.federation)}.json`, next);
+	return { ok: true };
+}
+
+/** Read any of Q's federation records back out of a folder item. */
+export async function recordFrom(item: FolderItem): Promise<unknown> {
+	try {
+		const json = JSON.parse(new TextDecoder().decode((await readItem(item)).data)) as { content?: unknown };
+		return json?.content ?? json;
+	} catch {
+		return null;
+	}
+}

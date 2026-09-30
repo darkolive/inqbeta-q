@@ -1,0 +1,39 @@
+Q — inQbeta
+Copyright © 2026 Dark Olive CIC
+
+This product is licensed as set out in LICENSING.md.
+
+NOT COVERED BY THE OPEN LICENCES
+--------------------------------
+
+The following are in this repository so that Q works as published. They are
+NOT licensed under the AGPL, Apache or Creative Commons licences, and no
+permission to reuse them is given:
+
+1. Voice recordings — apps/q/static/voice/**
+   Recordings of Darren Knipe's voice (a cloned voice, generated with
+   ElevenLabs). Copyright © 2026 Darren Knipe. All rights reserved. Do not
+   reuse, redistribute, or use them to train or clone a voice. A fork should
+   generate its own recordings with scripts/build-voice.mjs and its own voice,
+   or turn read-aloud off. The scripts and the voice text are covered by the
+   AGPL; the recordings are not.
+
+2. Names and marks — "inQbeta", "Q" in its mark, "Dark Olive", and the logos
+   and icons that carry them (apps/q/static/inqbeta.svg, favicon.svg, icons/,
+   the QMark component's artwork). See TRADEMARKS.md.
+
+3. Other projects' logos — apps/q/src/lib/credits/*.svg
+   From Simple Icons (CC0 1.0). The marks remain their owners' trademarks and
+   are shown only to credit those projects.
+
+THIRD-PARTY ATTRIBUTION
+-----------------------
+
+- Font Awesome Free icons — CC BY 4.0 (icons), MIT (code). https://fontawesome.com
+- Lucide icons — ISC. https://lucide.dev
+- Lexend typeface — SIL Open Font License 1.1.
+- Simple Icons — CC0 1.0. https://simpleicons.org
+- Cedar — Apache-2.0. https://www.cedarpolicy.com
+- Svelte, SvelteKit, Skeleton, Tailwind CSS, Zag.js — MIT.
+
+Each dependency's own licence is in its package under node_modules.

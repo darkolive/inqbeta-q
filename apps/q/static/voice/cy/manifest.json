@@ -1,0 +1,281 @@
+{
+	"model": "eleven_v3",
+	"voice": {
+		"id": "pFZP5JQG7iQjIQuC4Bku",
+		"name": "Darren's voice"
+	},
+	"items": {
+		"signin.title": {
+			"hash": "311b9bf4",
+			"file": "/voice/cy/311b9bf4-1tjk9ki.mp3"
+		},
+		"signin.line": {
+			"hash": "3b092706",
+			"file": "/voice/cy/3b092706.mp3"
+		},
+		"signin.where": {
+			"hash": "4ab27a08",
+			"file": "/voice/cy/4ab27a08-1tjk9ki.mp3"
+		},
+		"place.device": {
+			"hash": "59f63dfb",
+			"file": "/voice/cy/59f63dfb.mp3"
+		},
+		"place.key": {
+			"hash": "f8eab585",
+			"file": "/voice/cy/f8eab585.mp3"
+		},
+		"place.phone": {
+			"hash": "33349cc4",
+			"file": "/voice/cy/33349cc4.mp3"
+		},
+		"place.thisPhone": {
+			"hash": "2b5fba57",
+			"file": "/voice/cy/2b5fba57.mp3"
+		},
+		"place.device.hint": {
+			"hash": "4348709e",
+			"file": "/voice/cy/4348709e.mp3"
+		},
+		"place.key.hint": {
+			"hash": "bcc745de",
+			"file": "/voice/cy/bcc745de.mp3"
+		},
+		"place.phone.hint": {
+			"hash": "29513e1b",
+			"file": "/voice/cy/29513e1b.mp3"
+		},
+		"place.thisPhone.hint": {
+			"hash": "2ef64b9f",
+			"file": "/voice/cy/2ef64b9f-1tjk9ki.mp3"
+		},
+		"home.nothingStored": {
+			"hash": "f2102c77",
+			"file": "/voice/cy/f2102c77.mp3"
+		},
+		"home.whatQIs": {
+			"hash": "dab7ea3f",
+			"file": "/voice/cy/dab7ea3f-1tk26us.mp3"
+		},
+		"home.intro.lead": {
+			"hash": "2077dc22",
+			"file": "/voice/cy/2077dc22.mp3"
+		},
+		"home.intro.body": {
+			"hash": "b74e5d38",
+			"file": "/voice/cy/b74e5d38.mp3"
+		},
+		"story.1.t": {
+			"hash": "51a78373",
+			"file": "/voice/cy/51a78373.mp3"
+		},
+		"story.1.d": {
+			"hash": "63d89cd4",
+			"file": "/voice/cy/63d89cd4.mp3"
+		},
+		"story.2.t": {
+			"hash": "b1b9881e",
+			"file": "/voice/cy/b1b9881e.mp3"
+		},
+		"story.2.d": {
+			"hash": "9f60abef",
+			"file": "/voice/cy/9f60abef.mp3"
+		},
+		"story.3.t": {
+			"hash": "8e2e4aac",
+			"file": "/voice/cy/8e2e4aac.mp3"
+		},
+		"story.3.d": {
+			"hash": "508cc09d",
+			"file": "/voice/cy/508cc09d.mp3"
+		},
+		"story.4.t": {
+			"hash": "73792ac5",
+			"file": "/voice/cy/73792ac5.mp3"
+		},
+		"story.4.d": {
+			"hash": "48e0b899",
+			"file": "/voice/cy/48e0b899.mp3"
+		},
+		"story.5.t": {
+			"hash": "d7363d63",
+			"file": "/voice/cy/d7363d63.mp3"
+		},
+		"story.5.d": {
+			"hash": "b0f7a91b",
+			"file": "/voice/cy/b0f7a91b.mp3"
+		},
+		"story.6.t": {
+			"hash": "5af97dec",
+			"file": "/voice/cy/5af97dec.mp3"
+		},
+		"story.6.d": {
+			"hash": "8674e623",
+			"file": "/voice/cy/8674e623.mp3"
+		},
+		"uses.title": {
+			"hash": "2e6a6869",
+			"file": "/voice/cy/2e6a6869.mp3"
+		},
+		"uses.learning.t": {
+			"hash": "affc6722",
+			"file": "/voice/cy/affc6722.mp3"
+		},
+		"uses.learning.d": {
+			"hash": "746b6648",
+			"file": "/voice/cy/746b6648.mp3"
+		},
+		"uses.clubs.t": {
+			"hash": "21f10101",
+			"file": "/voice/cy/21f10101.mp3"
+		},
+		"uses.clubs.d": {
+			"hash": "13226825",
+			"file": "/voice/cy/13226825.mp3"
+		},
+		"uses.site.t": {
+			"hash": "bcfb7914",
+			"file": "/voice/cy/bcfb7914.mp3"
+		},
+		"uses.site.d": {
+			"hash": "024b27bf",
+			"file": "/voice/cy/024b27bf.mp3"
+		},
+		"uses.work.t": {
+			"hash": "a841a8bd",
+			"file": "/voice/cy/a841a8bd.mp3"
+		},
+		"uses.work.d": {
+			"hash": "3ee13e5a",
+			"file": "/voice/cy/3ee13e5a.mp3"
+		},
+		"uses.festival.t": {
+			"hash": "53bd46e5",
+			"file": "/voice/cy/53bd46e5.mp3"
+		},
+		"uses.festival.d": {
+			"hash": "05da0a75",
+			"file": "/voice/cy/05da0a75.mp3"
+		},
+		"uses.calls.t": {
+			"hash": "c66730b5",
+			"file": "/voice/cy/c66730b5.mp3"
+		},
+		"uses.calls.d": {
+			"hash": "ecb418ee",
+			"file": "/voice/cy/ecb418ee.mp3"
+		},
+		"beta.touch": {
+			"hash": "5ba0c7f2",
+			"file": "/voice/cy/5ba0c7f2.mp3"
+		},
+		"beta.why": {
+			"hash": "9e95952e",
+			"file": "/voice/cy/9e95952e.mp3"
+		},
+		"sec.title": {
+			"hash": "20f687c6",
+			"file": "/voice/cy/20f687c6.mp3"
+		},
+		"sec.lead": {
+			"hash": "8e0d0930",
+			"file": "/voice/cy/8e0d0930.mp3"
+		},
+		"sec.honest": {
+			"hash": "25009e1d",
+			"file": "/voice/cy/25009e1d.mp3"
+		},
+		"sec.phish.t": {
+			"hash": "617a7090",
+			"file": "/voice/cy/617a7090.mp3"
+		},
+		"sec.phish.d": {
+			"hash": "c1870c07",
+			"file": "/voice/cy/c1870c07.mp3"
+		},
+		"sec.nothing.t": {
+			"hash": "c8925d8d",
+			"file": "/voice/cy/c8925d8d.mp3"
+		},
+		"sec.nothing.d": {
+			"hash": "d6386584",
+			"file": "/voice/cy/d6386584.mp3"
+		},
+		"sec.did.t": {
+			"hash": "726e1707",
+			"file": "/voice/cy/726e1707.mp3"
+		},
+		"sec.did.d": {
+			"hash": "37ca9a76",
+			"file": "/voice/cy/37ca9a76.mp3"
+		},
+		"sec.lock.t": {
+			"hash": "a8af8bc6",
+			"file": "/voice/cy/a8af8bc6.mp3"
+		},
+		"sec.lock.d": {
+			"hash": "7c56607b",
+			"file": "/voice/cy/7c56607b.mp3"
+		},
+		"sec.tamper.t": {
+			"hash": "6fdb83b0",
+			"file": "/voice/cy/6fdb83b0.mp3"
+		},
+		"sec.tamper.d": {
+			"hash": "bfb6ce80",
+			"file": "/voice/cy/bfb6ce80.mp3"
+		},
+		"sec.ucan.t": {
+			"hash": "71474d39",
+			"file": "/voice/cy/71474d39.mp3"
+		},
+		"sec.ucan.d": {
+			"hash": "71732501",
+			"file": "/voice/cy/71732501.mp3"
+		},
+		"sec.cedar.t": {
+			"hash": "4376f0b3",
+			"file": "/voice/cy/4376f0b3.mp3"
+		},
+		"sec.cedar.d": {
+			"hash": "ee005e0f",
+			"file": "/voice/cy/ee005e0f.mp3"
+		},
+		"sec.leave.t": {
+			"hash": "f303c12e",
+			"file": "/voice/cy/f303c12e.mp3"
+		},
+		"sec.leave.d": {
+			"hash": "c2ccadd3",
+			"file": "/voice/cy/c2ccadd3.mp3"
+		},
+		"love.title": {
+			"hash": "f66e0104",
+			"file": "/voice/cy/f66e0104.mp3"
+		},
+		"love.line": {
+			"hash": "f475ff7f",
+			"file": "/voice/cy/f475ff7f.mp3"
+		},
+		"thanks.title": {
+			"hash": "85278269",
+			"file": "/voice/cy/85278269.mp3"
+		},
+		"thanks.ai": {
+			"hash": "0a17eb8b",
+			"file": "/voice/cy/0a17eb8b.mp3"
+		},
+		"thanks.community": {
+			"hash": "1abb5ae7",
+			"file": "/voice/cy/1abb5ae7.mp3"
+		},
+		"love.source": {
+			"hash": "bf6dfa49",
+			"file": "/voice/cy/bf6dfa49.mp3"
+		},
+		"thanks.referral": {
+			"hash": "4519ee16",
+			"file": "/voice/cy/4519ee16.mp3"
+		}
+	}
+}

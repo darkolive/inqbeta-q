@@ -1,0 +1,803 @@
+{
+	"about": "Exported by packages/q-actions/scripts/export-actions.ts. Do not edit; re-export.",
+	"cedar": "4.13.0",
+	"principal": {
+		"type": "Person",
+		"id": "ann"
+	},
+	"resource": {
+		"type": "Ledger",
+		"id": "club-ledger"
+	},
+	"chains": {
+		"core": {
+			"hash": "action:sha256:gBpEBqPPo9Q5iSmf7gBy4h48ZOSbu4L7IuguT473dg8",
+			"chain": [
+				{
+					"schema": "inqbeta.action/1",
+					"id": "money.spend",
+					"version": "1.0.0",
+					"by": "q:core",
+					"says": "Money leaves a federation to pay someone.",
+					"engine": {
+						"cedar": "4.13.0"
+					},
+					"facts": "entity Person;\nentity Federation;\nentity Ledger in [Federation];\n\naction \"money.spend\" appliesTo {\n  principal: [Person],\n  resource: [Ledger],\n  context: {\n    signers: Set<Person>,\n    distinctSignerCount: Long,\n    spendMandateHolders: Set<Person>,\n    payee: Person,\n    amountPence: Long,\n    budgetLineRemainingPence: Long,\n    thresholdPence: Long,\n    citesBudgetDecision: Bool,\n    citesMembersVote: Bool,\n    approvedByAI: Bool,\n    datedBeforePrevious: Bool,\n  }\n};",
+					"rules": {
+						"money.spend/may/record": {
+							"kind": "may",
+							"says": "Record money leaving the federation, signed by holders of a live spend mandate",
+							"checked": "enforced",
+							"policy": "@id(\"money.spend/may/record\")\npermit (principal, action == Action::\"money.spend\", resource)\nwhen { context.spendMandateHolders.containsAll(context.signers) };"
+						},
+						"money.spend/must/two-signers": {
+							"kind": "must",
+							"says": "Be signed by two different people",
+							"checked": "enforced",
+							"policy": "@id(\"money.spend/must/two-signers\")\nforbid (principal, action == Action::\"money.spend\", resource)\nwhen { context.distinctSignerCount < 2 };"
+						},
+						"money.spend/must/cite-decision-over-threshold": {
+							"kind": "must",
+							"says": "Cite the budget decision when above the federation's threshold",
+							"checked": "enforced",
+							"policy": "@id(\"money.spend/must/cite-decision-over-threshold\")\nforbid (principal, action == Action::\"money.spend\", resource)\nwhen { context.amountPence > context.thresholdPence && !context.citesBudgetDecision };"
+						},
+						"money.spend/must/publish-accounts": {
+							"kind": "must",
+							"says": "Appear in accounts published to members within 30 days of the year end",
+							"checked": "declared"
+						},
+						"money.spend/cannot/payee-signs": {
+							"kind": "cannot",
+							"says": "Be signed by the person being paid",
+							"checked": "enforced",
+							"policy": "@id(\"money.spend/cannot/payee-signs\")\nforbid (principal, action == Action::\"money.spend\", resource)\nwhen { context.signers.contains(context.payee) };"
+						},
+						"money.spend/cannot/exceed-budget-line": {
+							"kind": "cannot",
+							"says": "Spend more than is left on the budget line",
+							"checked": "enforced",
+							"policy": "@id(\"money.spend/cannot/exceed-budget-line\")\nforbid (principal, action == Action::\"money.spend\", resource)\nwhen { context.amountPence > context.budgetLineRemainingPence };"
+						},
+						"money.spend/cannot/ai-approval": {
+							"kind": "cannot",
+							"says": "Be approved by an AI",
+							"checked": "enforced",
+							"policy": "@id(\"money.spend/cannot/ai-approval\")\nforbid (principal, action == Action::\"money.spend\", resource)\nwhen { context.approvedByAI };"
+						},
+						"money.spend/cannot/backdate": {
+							"kind": "cannot",
+							"says": "Be dated earlier than the receipt it follows",
+							"checked": "enforced",
+							"policy": "@id(\"money.spend/cannot/backdate\")\nforbid (principal, action == Action::\"money.spend\", resource)\nwhen { context.datedBeforePrevious };"
+						}
+					}
+				}
+			]
+		},
+		"club": {
+			"hash": "action:sha256:feLGaq71JJJibKsnQf1U3gs8TKKgr70ddk97-gKGSGI",
+			"chain": [
+				{
+					"schema": "inqbeta.action/1",
+					"id": "money.spend",
+					"version": "1.0.0",
+					"by": "q:core",
+					"says": "Money leaves a federation to pay someone.",
+					"engine": {
+						"cedar": "4.13.0"
+					},
+					"facts": "entity Person;\nentity Federation;\nentity Ledger in [Federation];\n\naction \"money.spend\" appliesTo {\n  principal: [Person],\n  resource: [Ledger],\n  context: {\n    signers: Set<Person>,\n    distinctSignerCount: Long,\n    spendMandateHolders: Set<Person>,\n    payee: Person,\n    amountPence: Long,\n    budgetLineRemainingPence: Long,\n    thresholdPence: Long,\n    citesBudgetDecision: Bool,\n    citesMembersVote: Bool,\n    approvedByAI: Bool,\n    datedBeforePrevious: Bool,\n  }\n};",
+					"rules": {
+						"money.spend/may/record": {
+							"kind": "may",
+							"says": "Record money leaving the federation, signed by holders of a live spend mandate",
+							"checked": "enforced",
+							"policy": "@id(\"money.spend/may/record\")\npermit (principal, action == Action::\"money.spend\", resource)\nwhen { context.spendMandateHolders.containsAll(context.signers) };"
+						},
+						"money.spend/must/two-signers": {
+							"kind": "must",
+							"says": "Be signed by two different people",
+							"checked": "enforced",
+							"policy": "@id(\"money.spend/must/two-signers\")\nforbid (principal, action == Action::\"money.spend\", resource)\nwhen { context.distinctSignerCount < 2 };"
+						},
+						"money.spend/must/cite-decision-over-threshold": {
+							"kind": "must",
+							"says": "Cite the budget decision when above the federation's threshold",
+							"checked": "enforced",
+							"policy": "@id(\"money.spend/must/cite-decision-over-threshold\")\nforbid (principal, action == Action::\"money.spend\", resource)\nwhen { context.amountPence > context.thresholdPence && !context.citesBudgetDecision };"
+						},
+						"money.spend/must/publish-accounts": {
+							"kind": "must",
+							"says": "Appear in accounts published to members within 30 days of the year end",
+							"checked": "declared"
+						},
+						"money.spend/cannot/payee-signs": {
+							"kind": "cannot",
+							"says": "Be signed by the person being paid",
+							"checked": "enforced",
+							"policy": "@id(\"money.spend/cannot/payee-signs\")\nforbid (principal, action == Action::\"money.spend\", resource)\nwhen { context.signers.contains(context.payee) };"
+						},
+						"money.spend/cannot/exceed-budget-line": {
+							"kind": "cannot",
+							"says": "Spend more than is left on the budget line",
+							"checked": "enforced",
+							"policy": "@id(\"money.spend/cannot/exceed-budget-line\")\nforbid (principal, action == Action::\"money.spend\", resource)\nwhen { context.amountPence > context.budgetLineRemainingPence };"
+						},
+						"money.spend/cannot/ai-approval": {
+							"kind": "cannot",
+							"says": "Be approved by an AI",
+							"checked": "enforced",
+							"policy": "@id(\"money.spend/cannot/ai-approval\")\nforbid (principal, action == Action::\"money.spend\", resource)\nwhen { context.approvedByAI };"
+						},
+						"money.spend/cannot/backdate": {
+							"kind": "cannot",
+							"says": "Be dated earlier than the receipt it follows",
+							"checked": "enforced",
+							"policy": "@id(\"money.spend/cannot/backdate\")\nforbid (principal, action == Action::\"money.spend\", resource)\nwhen { context.datedBeforePrevious };"
+						}
+					}
+				},
+				{
+					"schema": "inqbeta.action/1",
+					"id": "money.spend",
+					"version": "1.0.0",
+					"by": "did:key:z6MkCampingClubExample",
+					"says": "The camping club pays for things; anything over £200 also needs a members’ vote.",
+					"parent": "action:sha256:gBpEBqPPo9Q5iSmf7gBy4h48ZOSbu4L7IuguT473dg8",
+					"engine": {
+						"cedar": "4.13.0"
+					},
+					"rules": {
+						"camping-club/money.spend/cannot/over-200-without-vote": {
+							"kind": "cannot",
+							"says": "Spend over £200 without citing a members’ vote",
+							"checked": "enforced",
+							"policy": "@id(\"camping-club/money.spend/cannot/over-200-without-vote\")\nforbid (principal, action == Action::\"money.spend\", resource)\nwhen { context.amountPence > 20000 && !context.citesMembersVote };"
+						}
+					}
+				}
+			]
+		}
+	},
+	"expected": [
+		{
+			"name": "two mandate-holders, £150",
+			"facts": {
+				"signers": [
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "ann"
+						}
+					},
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "bob"
+						}
+					}
+				],
+				"distinctSignerCount": 2,
+				"spendMandateHolders": [
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "ann"
+						}
+					},
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "bob"
+						}
+					},
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "cat"
+						}
+					}
+				],
+				"payee": {
+					"__entity": {
+						"type": "Person",
+						"id": "tent-hire-ltd"
+					}
+				},
+				"amountPence": 15000,
+				"budgetLineRemainingPence": 50000,
+				"thresholdPence": 25000,
+				"citesBudgetDecision": false,
+				"citesMembersVote": false,
+				"approvedByAI": false,
+				"datedBeforePrevious": false
+			},
+			"core": {
+				"holds": true,
+				"rules": [
+					"money.spend/may/record"
+				]
+			},
+			"club": {
+				"holds": true,
+				"rules": [
+					"money.spend/may/record"
+				]
+			}
+		},
+		{
+			"name": "only one signer",
+			"facts": {
+				"signers": [
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "ann"
+						}
+					}
+				],
+				"distinctSignerCount": 1,
+				"spendMandateHolders": [
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "ann"
+						}
+					},
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "bob"
+						}
+					},
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "cat"
+						}
+					}
+				],
+				"payee": {
+					"__entity": {
+						"type": "Person",
+						"id": "tent-hire-ltd"
+					}
+				},
+				"amountPence": 15000,
+				"budgetLineRemainingPence": 50000,
+				"thresholdPence": 25000,
+				"citesBudgetDecision": false,
+				"citesMembersVote": false,
+				"approvedByAI": false,
+				"datedBeforePrevious": false
+			},
+			"core": {
+				"holds": false,
+				"rules": [
+					"money.spend/must/two-signers"
+				]
+			},
+			"club": {
+				"holds": false,
+				"rules": [
+					"money.spend/must/two-signers"
+				]
+			}
+		},
+		{
+			"name": "signer without mandate",
+			"facts": {
+				"signers": [
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "ann"
+						}
+					},
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "dan"
+						}
+					}
+				],
+				"distinctSignerCount": 2,
+				"spendMandateHolders": [
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "ann"
+						}
+					},
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "bob"
+						}
+					},
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "cat"
+						}
+					}
+				],
+				"payee": {
+					"__entity": {
+						"type": "Person",
+						"id": "tent-hire-ltd"
+					}
+				},
+				"amountPence": 15000,
+				"budgetLineRemainingPence": 50000,
+				"thresholdPence": 25000,
+				"citesBudgetDecision": false,
+				"citesMembersVote": false,
+				"approvedByAI": false,
+				"datedBeforePrevious": false
+			},
+			"core": {
+				"holds": false,
+				"rules": []
+			},
+			"club": {
+				"holds": false,
+				"rules": []
+			}
+		},
+		{
+			"name": "payee signs",
+			"facts": {
+				"signers": [
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "ann"
+						}
+					},
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "tent-hire-ltd"
+						}
+					}
+				],
+				"distinctSignerCount": 2,
+				"spendMandateHolders": [
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "ann"
+						}
+					},
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "tent-hire-ltd"
+						}
+					}
+				],
+				"payee": {
+					"__entity": {
+						"type": "Person",
+						"id": "tent-hire-ltd"
+					}
+				},
+				"amountPence": 15000,
+				"budgetLineRemainingPence": 50000,
+				"thresholdPence": 25000,
+				"citesBudgetDecision": false,
+				"citesMembersVote": false,
+				"approvedByAI": false,
+				"datedBeforePrevious": false
+			},
+			"core": {
+				"holds": false,
+				"rules": [
+					"money.spend/cannot/payee-signs"
+				]
+			},
+			"club": {
+				"holds": false,
+				"rules": [
+					"money.spend/cannot/payee-signs"
+				]
+			}
+		},
+		{
+			"name": "over budget line",
+			"facts": {
+				"signers": [
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "ann"
+						}
+					},
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "bob"
+						}
+					}
+				],
+				"distinctSignerCount": 2,
+				"spendMandateHolders": [
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "ann"
+						}
+					},
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "bob"
+						}
+					},
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "cat"
+						}
+					}
+				],
+				"payee": {
+					"__entity": {
+						"type": "Person",
+						"id": "tent-hire-ltd"
+					}
+				},
+				"amountPence": 60000,
+				"budgetLineRemainingPence": 50000,
+				"thresholdPence": 25000,
+				"citesBudgetDecision": false,
+				"citesMembersVote": false,
+				"approvedByAI": false,
+				"datedBeforePrevious": false
+			},
+			"core": {
+				"holds": false,
+				"rules": [
+					"money.spend/cannot/exceed-budget-line",
+					"money.spend/must/cite-decision-over-threshold"
+				]
+			},
+			"club": {
+				"holds": false,
+				"rules": [
+					"camping-club/money.spend/cannot/over-200-without-vote",
+					"money.spend/cannot/exceed-budget-line",
+					"money.spend/must/cite-decision-over-threshold"
+				]
+			}
+		},
+		{
+			"name": "£300, no decision cited",
+			"facts": {
+				"signers": [
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "ann"
+						}
+					},
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "bob"
+						}
+					}
+				],
+				"distinctSignerCount": 2,
+				"spendMandateHolders": [
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "ann"
+						}
+					},
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "bob"
+						}
+					},
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "cat"
+						}
+					}
+				],
+				"payee": {
+					"__entity": {
+						"type": "Person",
+						"id": "tent-hire-ltd"
+					}
+				},
+				"amountPence": 30000,
+				"budgetLineRemainingPence": 50000,
+				"thresholdPence": 25000,
+				"citesBudgetDecision": false,
+				"citesMembersVote": false,
+				"approvedByAI": false,
+				"datedBeforePrevious": false
+			},
+			"core": {
+				"holds": false,
+				"rules": [
+					"money.spend/must/cite-decision-over-threshold"
+				]
+			},
+			"club": {
+				"holds": false,
+				"rules": [
+					"camping-club/money.spend/cannot/over-200-without-vote",
+					"money.spend/must/cite-decision-over-threshold"
+				]
+			}
+		},
+		{
+			"name": "£300, decision cited",
+			"facts": {
+				"signers": [
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "ann"
+						}
+					},
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "bob"
+						}
+					}
+				],
+				"distinctSignerCount": 2,
+				"spendMandateHolders": [
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "ann"
+						}
+					},
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "bob"
+						}
+					},
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "cat"
+						}
+					}
+				],
+				"payee": {
+					"__entity": {
+						"type": "Person",
+						"id": "tent-hire-ltd"
+					}
+				},
+				"amountPence": 30000,
+				"budgetLineRemainingPence": 50000,
+				"thresholdPence": 25000,
+				"citesBudgetDecision": true,
+				"citesMembersVote": false,
+				"approvedByAI": false,
+				"datedBeforePrevious": false
+			},
+			"core": {
+				"holds": true,
+				"rules": [
+					"money.spend/may/record"
+				]
+			},
+			"club": {
+				"holds": false,
+				"rules": [
+					"camping-club/money.spend/cannot/over-200-without-vote"
+				]
+			}
+		},
+		{
+			"name": "£300, decision + members vote",
+			"facts": {
+				"signers": [
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "ann"
+						}
+					},
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "bob"
+						}
+					}
+				],
+				"distinctSignerCount": 2,
+				"spendMandateHolders": [
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "ann"
+						}
+					},
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "bob"
+						}
+					},
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "cat"
+						}
+					}
+				],
+				"payee": {
+					"__entity": {
+						"type": "Person",
+						"id": "tent-hire-ltd"
+					}
+				},
+				"amountPence": 30000,
+				"budgetLineRemainingPence": 50000,
+				"thresholdPence": 25000,
+				"citesBudgetDecision": true,
+				"citesMembersVote": true,
+				"approvedByAI": false,
+				"datedBeforePrevious": false
+			},
+			"core": {
+				"holds": true,
+				"rules": [
+					"money.spend/may/record"
+				]
+			},
+			"club": {
+				"holds": true,
+				"rules": [
+					"money.spend/may/record"
+				]
+			}
+		},
+		{
+			"name": "AI approved",
+			"facts": {
+				"signers": [
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "ann"
+						}
+					},
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "bob"
+						}
+					}
+				],
+				"distinctSignerCount": 2,
+				"spendMandateHolders": [
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "ann"
+						}
+					},
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "bob"
+						}
+					},
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "cat"
+						}
+					}
+				],
+				"payee": {
+					"__entity": {
+						"type": "Person",
+						"id": "tent-hire-ltd"
+					}
+				},
+				"amountPence": 15000,
+				"budgetLineRemainingPence": 50000,
+				"thresholdPence": 25000,
+				"citesBudgetDecision": false,
+				"citesMembersVote": false,
+				"approvedByAI": true,
+				"datedBeforePrevious": false
+			},
+			"core": {
+				"holds": false,
+				"rules": [
+					"money.spend/cannot/ai-approval"
+				]
+			},
+			"club": {
+				"holds": false,
+				"rules": [
+					"money.spend/cannot/ai-approval"
+				]
+			}
+		},
+		{
+			"name": "backdated",
+			"facts": {
+				"signers": [
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "ann"
+						}
+					},
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "bob"
+						}
+					}
+				],
+				"distinctSignerCount": 2,
+				"spendMandateHolders": [
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "ann"
+						}
+					},
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "bob"
+						}
+					},
+					{
+						"__entity": {
+							"type": "Person",
+							"id": "cat"
+						}
+					}
+				],
+				"payee": {
+					"__entity": {
+						"type": "Person",
+						"id": "tent-hire-ltd"
+					}
+				},
+				"amountPence": 15000,
+				"budgetLineRemainingPence": 50000,
+				"thresholdPence": 25000,
+				"citesBudgetDecision": false,
+				"citesMembersVote": false,
+				"approvedByAI": false,
+				"datedBeforePrevious": true
+			},
+			"core": {
+				"holds": false,
+				"rules": [
+					"money.spend/cannot/backdate"
+				]
+			},
+			"club": {
+				"holds": false,
+				"rules": [
+					"money.spend/cannot/backdate"
+				]
+			}
+		}
+	]
+}

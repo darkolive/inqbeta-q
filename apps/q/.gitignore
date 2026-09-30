@@ -1,0 +1,10 @@
+node_modules
+/.svelte-kit
+/build
+/.vercel
+.env
+.env.*
+!.env.example
+
+# Folders on your own disk that Write may edit (see local-sites.example.json)
+local-sites.json
