@@ -23,7 +23,7 @@
 	);
 
 	const p = $derived(read.pointer);
-	const state = $derived(here ? comparePointer(p, here) : 'none');
+	const standing = $derived(here ? comparePointer(p, here) : 'none');
 	const when = $derived(
 		p ? new Date(p.at).toLocaleString(undefined, { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''
 	);
@@ -31,23 +31,23 @@
 
 {#if p}
 	<div
-		class="card p-4 flex items-start gap-3 {state === 'behind' ? 'preset-tonal-warning' : 'preset-tonal'}"
+		class="card p-4 flex items-start gap-3 {standing === 'behind' ? 'preset-tonal-warning' : 'preset-tonal'}"
 		role="status"
 		aria-live="polite"
 	>
-		<Icon name="key" class="size-6 shrink-0 {state === 'behind' ? 'text-warning-500' : 'text-primary-600-400'}" stroke={2} />
+		<Icon name="key" class="size-6 shrink-0 {standing === 'behind' ? 'text-warning-500' : 'text-primary-600-400'}" stroke={2} />
 		<div class="text-sm space-y-1">
 			<p class="font-semibold">
 				Your passkey noted your vault {when}, from {p.from}{p.copies.length ? ` — copies in ${p.copies.join(', ')}` : ''}.
 			</p>
-			{#if state === 'same'}
+			{#if standing === 'same'}
 				<p>This copy is that one: the same {p.files} files.</p>
-			{:else if state === 'behind'}
+			{:else if standing === 'behind'}
 				<p>
 					This copy is behind it. The newer one is {p.copies.length ? `in ${p.copies.join(' or ')}` : `on ${p.from}`} —
 					open that first, so nothing is worked on twice.
 				</p>
-			{:else if state === 'ahead'}
+			{:else if standing === 'ahead'}
 				<p>This copy has changes since then. Sync or sign out to note them.</p>
 			{/if}
 		</div>

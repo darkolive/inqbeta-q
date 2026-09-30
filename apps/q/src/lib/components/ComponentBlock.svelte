@@ -13,7 +13,7 @@
 
 	const manifest = $derived(findComponent(pin));
 	const Code = $derived(manifest ? CODE[manifest.id] : undefined);
-	const props = $derived(
+	const codeProps = $derived(
 		manifest
 			? Object.fromEntries(
 					manifest.settings.questions
@@ -25,7 +25,7 @@
 </script>
 
 {#if Code}
-	<Code {...props} />
+	<Code {...codeProps} />
 {:else}
 	<p class="card preset-tonal-warning p-4" role="status">
 		There is no component “{pin}” here. It may be a newer version than this copy of Q has.

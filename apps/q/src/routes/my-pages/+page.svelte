@@ -298,7 +298,7 @@
 
 							{#if editing === b.id}
 								<!-- Pictures are chosen from the vault below, never typed as an address. -->
-								<AskSet set={b.kind === 'image' || b.kind === 'hero' ? { ...SETTINGS[b.kind], questions: SETTINGS[b.kind].questions.filter((q) => q.id !== 'q:block/at') } : settingsFor({ ...b, settings: { ...b.settings, ...draft } })} bind:values={draft} />
+								<AskSet set={b.kind === 'image' || b.kind === 'hero' ? { ...SETTINGS[b.kind], questions: SETTINGS[b.kind].questions.filter((q) => q.id !== 'q:block/at') } : settingsFor({ ...b, settings: { ...b.settings, ...(draft as NonNullable<typeof b.settings>) } })} bind:values={draft} />
 								{#if b.kind === 'image' || b.kind === 'hero'}
 									<PicturePicker {pictures} urls={pictureUrls} bind:value={draft['q:block/at']} added={() => void refreshLedger()} />
 								{/if}
