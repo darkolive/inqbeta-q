@@ -9,6 +9,7 @@ export default {
 	'voice.disclosure': 'Vorgelesen von einer synthetischen Version von Darrens Stimme.',
 	'speech.none': 'Entschuldigung — diese Seite hat noch keinen Ton.',
 	'speech.partial': 'Nur ein Teil dieser Seite hat schon Ton — der Rest wird mit der Stimme deines Browsers gelesen.',
+	'speech.fromHere': 'Ab hier vorlesen',
 
 	'frontdoor.skip': 'Zum Inhalt springen',
 

@@ -9,6 +9,7 @@ export default {
 	'voice.disclosure': 'Yn cael ei ddarllen gan fersiwn synthetig o lais Darren.',
 	'speech.none': 'Mae’n ddrwg gennym — does dim sain ar y dudalen hon eto.',
 	'speech.partial': 'Dim ond rhan o’r dudalen hon sydd â sain eto — mae’r gweddill yn cael ei ddarllen gan lais eich porwr.',
+	'speech.fromHere': 'Darllen o’r fan hon',
 
 	'frontdoor.skip': 'Neidio i’r cynnwys',
 

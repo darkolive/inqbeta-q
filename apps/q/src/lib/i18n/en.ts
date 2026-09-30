@@ -13,6 +13,7 @@ const en = {
 	'voice.disclosure': 'Read in a synthesised version of Darren’s voice.',
 	'speech.none': 'Sorry — this page has no audio yet.',
 	'speech.partial': 'Only part of this page has audio yet — the rest is read in your browser’s voice.',
+	'speech.fromHere': 'Read from here',
 
 	'frontdoor.skip': 'Skip to content',
 

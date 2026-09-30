@@ -58,7 +58,7 @@ export const theme = {
  */
 import { SCRIPTS } from '$lib/voice/scripts';
 import { voiceHash, stripTags } from '$lib/voice/voice-text.js';
-import { language } from '$lib/i18n/index.svelte';
+import { language, t as translate } from '$lib/i18n/index.svelte';
 import { wrapWords, light, wordAt, shown, estimate, wordIndexAt, type Word } from '$lib/voice/highlight';
 
 const VOICE_CACHE = 'q-voice';
@@ -71,7 +71,7 @@ type Manifest = {
 };
 type Line = { key: string; el: HTMLElement; text: string; file?: string; times?: [number, number][] };
 /** A line on the clock: when it starts and ends, where its trimmed audio began in the file, and its words. */
-type Play = { key: string; at: number; end: number; offset: number; times: [number, number][]; words: Word[] };
+type Play = { key: string; el: HTMLElement; at: number; end: number; offset: number; times: [number, number][]; words: Word[] };
 
 /** The breath between one line and the next, in seconds. */
 const GAP = 0.35;
@@ -98,6 +98,8 @@ let recorded = $state<string | null>(null);
 let coverage = $state<'full' | 'partial' | 'none' | null>(null);
 /** The line being read now (its data-read key), so a part of the page can keep in step — the picture story turns to the scene being told. */
 let reading = $state<string | null>(null);
+/** Whether the page scrolls to keep the line being read in view (until the reader scrolls). */
+let following = true;
 let coverageTimer: ReturnType<typeof setTimeout> | undefined;
 
 let run = 0;
@@ -205,18 +207,18 @@ async function prune(lang: string, m: Manifest) {
 	}
 }
 
-/** Put one line on the clock at `at`, faded in and out; returns when it ends. */
-function schedule(ac: AudioContext, b: AudioBuffer, at: number): number {
+/** Put one line on the clock at `at` (from `from` seconds into it), faded in and out; returns when it ends. */
+function schedule(ac: AudioContext, b: AudioBuffer, at: number, from = 0): number {
 	const src = ac.createBufferSource();
 	const gain = ac.createGain();
 	src.buffer = b;
 	src.connect(gain).connect(ac.destination);
-	const end = at + b.duration;
+	const end = at + b.duration - from;
 	gain.gain.setValueAtTime(0, at);
 	gain.gain.linearRampToValueAtTime(1, at + FADE_IN);
 	gain.gain.setValueAtTime(1, Math.max(at + FADE_IN, end - FADE_OUT));
 	gain.gain.linearRampToValueAtTime(0, end);
-	src.start(at);
+	src.start(at, from);
 	return end;
 }
 
@@ -247,8 +249,18 @@ function say(text: string, id: number, words: Word[] = []) {
 	});
 }
 
-/** Puts the page's words back as they were (see voice/highlight). */
+/** Puts the page's words back as they were (see voice/highlight), and takes the listeners away. */
 let unwrap: (() => void) | null = null;
+
+/** Which heard word a word on the page is (the inverse of `shown`). */
+function heardAt(k: number, heard: number, onPage: number): number {
+	if (heard <= 0) return 0;
+	if (heard === onPage || onPage <= 1) return Math.min(k, heard - 1);
+	return Math.min(heard - 1, Math.round((k * (heard - 1)) / (onPage - 1)));
+}
+
+/* While reading, every readable line shows it can be clicked: a light tint under the pointer. */
+const LINE = ['cursor-pointer', 'rounded-base', 'transition-colors', 'hover:preset-tonal-surface'];
 
 function stop() {
 	run++;
@@ -267,7 +279,13 @@ function stop() {
 	coverage = null;
 }
 
-async function start() {
+/*
+ * Read aloud, from the top — or from line `fromLine`, word `fromWord`, when a
+ * word on the page is clicked while reading (Dark Olive's "click to hear":
+ * scroll anywhere and listen from there). The page follows the voice, scrolling
+ * the line being read into view, until the reader scrolls for themselves.
+ */
+async function start(fromLine = 0, fromWord = 0) {
 	stop();
 	const id = run;
 	speaking = true;
@@ -302,7 +320,65 @@ async function start() {
 
 	/* Every word wrapped so it can be lit; put back when reading stops. */
 	const wrapped = lines.map((l) => wrapWords(l.el));
-	unwrap = () => wrapped.forEach((w) => w.undo());
+	const titles = lines.map((l) => l.el.getAttribute('title'));
+	for (const l of lines) {
+		l.el.classList.add(...LINE);
+		if (!l.el.title) l.el.title = translate('speech.fromHere');
+	}
+
+	/* Click a word: read from there. Links, buttons and fields keep their own clicks. */
+	const click = (e: MouseEvent) => {
+		const target = e.target as Element | null;
+		if (!target || target.closest('a, button, input, textarea, select, label, summary')) return;
+		const lineEl = target.closest('[data-read]');
+		const i = lines.findIndex((l) => l.el === lineEl);
+		if (i === -1) return;
+		const k = wrapped[i].words.findIndex((w) => w.some((x) => x === target || x.contains(target)));
+		following = true;
+		void start(i, Math.max(0, k));
+	};
+	/* The moment the reader scrolls, stop moving the page under them. */
+	const yieldScroll = () => (following = false);
+	const keys = (e: KeyboardEvent) => {
+		if (['ArrowDown', 'ArrowUp', 'PageDown', 'PageUp', 'Home', 'End', ' '].includes(e.key)) following = false;
+	};
+	/* A page nobody can see should not be talking: pause while hidden, carry on when back. */
+	const seen = () => {
+		if (document.hidden) {
+			void ac.suspend();
+			if (typeof speechSynthesis !== 'undefined') speechSynthesis.pause();
+		} else {
+			void ac.resume();
+			if (typeof speechSynthesis !== 'undefined') speechSynthesis.resume();
+		}
+	};
+	document.addEventListener('click', click);
+	addEventListener('wheel', yieldScroll, { passive: true });
+	addEventListener('touchmove', yieldScroll, { passive: true });
+	addEventListener('keydown', keys);
+	document.addEventListener('visibilitychange', seen);
+
+	unwrap = () => {
+		wrapped.forEach((w) => w.undo());
+		lines.forEach((l, i) => {
+			l.el.classList.remove(...LINE);
+			if (titles[i] === null) l.el.removeAttribute('title');
+			else l.el.title = titles[i]!;
+		});
+		document.removeEventListener('click', click);
+		removeEventListener('wheel', yieldScroll);
+		removeEventListener('touchmove', yieldScroll);
+		removeEventListener('keydown', keys);
+		document.removeEventListener('visibilitychange', seen);
+	};
+
+	/* Bring the line being read into view, gently, unless the reader has taken over. */
+	const reveal = (el: HTMLElement) => {
+		if (!following) return;
+		const r = el.getBoundingClientRect();
+		if (r.top >= 80 && r.bottom <= innerHeight - 40) return;
+		el.scrollIntoView({ block: 'center', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+	};
 
 	/* One loop follows the clock and lights the word being said. */
 	const plays: Play[] = [];
@@ -311,7 +387,10 @@ async function start() {
 		const now = ac.currentTime;
 		const p = plays.find((x) => x.at <= now && now < x.end);
 		if (p) {
-			if (reading !== p.key) reading = p.key;
+			if (reading !== p.key) {
+				reading = p.key;
+				reveal(p.el);
+			}
 			light(p.words[shown(wordAt(p.times, now - p.at + p.offset), p.times.length, p.words.length)] ?? null);
 		}
 		else if (plays.length && !(typeof speechSynthesis !== 'undefined' && speechSynthesis.speaking)) light(null);
@@ -319,27 +398,36 @@ async function start() {
 	};
 	requestAnimationFrame(follow);
 
-	/* Every recording fetched and decoded at once; each line waits only for its own. */
-	const ready = lines.map((l) => (l.file ? buffer(l.file, ac) : Promise.resolve(null)));
+	/* Every recording from here on fetched and decoded at once; each line waits only for its own. */
+	const ready = lines.map((l, i) => (i >= fromLine && l.file ? buffer(l.file, ac) : Promise.resolve(null)));
 	if (lines.some((l) => l.file)) recorded = m?.voice?.name ?? null;
 
 	let t = ac.currentTime;
-	for (let i = 0; i < lines.length; i++) {
+	for (let i = fromLine; i < lines.length; i++) {
 		const got = await ready[i];
 		if (id !== run) return;
-		if (i === 0) fetching = false;
+		if (i === fromLine) fetching = false;
+		const words = wrapped[i].words;
+		/* Starting part-way through this line: from the clicked word. */
+		const k = i === fromLine ? fromWord : 0;
 		if (got) {
 			const at = Math.max(t, ac.currentTime + 0.02);
-			const end = schedule(ac, got.b, at);
 			/* Real timings when the recording has been aligned; else an estimate over its length. */
+			const real = !!lines[i].times;
 			const times = lines[i].times ?? estimate(lines[i].text, got.b.duration);
-			plays.push({ key: lines[i].key, at, end, offset: lines[i].times ? got.offset : 0, times, words: wrapped[i].words });
+			const base = real ? got.offset : 0;
+			const from = k > 0 ? Math.max(0, (times[heardAt(k, times.length, words.length)]?.[0] ?? 0) - base - 0.05) : 0;
+			const end = schedule(ac, got.b, at, Math.min(from, got.b.duration - 0.1));
+			plays.push({ key: lines[i].key, el: lines[i].el, at, end, offset: base + from, times, words });
 			t = end + GAP;
 		} else {
 			/* No recording: the browser's voice, in turn, once the one before has finished. */
 			await until(ac, t, id);
 			reading = lines[i].key;
-			await say(lines[i].text, id, wrapped[i].words);
+			reveal(lines[i].el);
+			const all = lines[i].text.split(/\s+/).filter(Boolean);
+			const h = k > 0 ? heardAt(k, all.length, words.length) : 0;
+			await say(all.slice(h).join(' '), id, words.slice(k));
 			t = ac.currentTime + GAP;
 		}
 	}
@@ -370,7 +458,10 @@ export const speech = {
 		return typeof window !== 'undefined';
 	},
 	set(on: boolean) {
-		if (on) void start();
+		if (on) {
+			following = true;
+			void start();
+		}
 		else stop();
 	}
 };

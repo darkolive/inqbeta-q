@@ -9,6 +9,7 @@ export default {
 	'voice.disclosure': 'Lu par une version synthétisée de la voix de Darren.',
 	'speech.none': 'Désolé — cette page n’a pas encore d’audio.',
 	'speech.partial': 'Une partie seulement de cette page a de l’audio — le reste est lu par la voix de votre navigateur.',
+	'speech.fromHere': 'Lire à partir d’ici',
 
 	'frontdoor.skip': 'Aller au contenu',
 
