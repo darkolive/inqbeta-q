@@ -20,7 +20,7 @@
 	import { Icon, FaIcon } from '@inqbeta/q-ui';
 
 	/* Where the code is, for anyone to inspect. */
-	const REPO = 'https://github.com/inqbeta/q';
+	const REPO = 'https://github.com/darkolive/inqbeta-q';
 
 	/* `id` names its logo, if there is one: src/lib/credits/<id>.svg (npm run credit-logos). */
 	/*

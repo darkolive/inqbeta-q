@@ -40,7 +40,7 @@ docker run --rm hello-world        # proves it works
 ## 3. Get the node files
 
 ```sh
-git clone https://github.com/inqbeta/q.git   # or copy the node/ folder across
+git clone https://github.com/darkolive/inqbeta-q.git   # or copy the node/ folder across
 cd inqbeta-q/node
 sudo chown -R 1883:1883 mosquitto/data mosquitto/log   # Mosquitto runs as uid 1883
 ```

@@ -6,10 +6,11 @@ updated: 2026-09-30
 
 # Going public — the steps, in order
 
-Decided 30 September 2026: Q goes public as **github.com/inqbeta/q**, under a
-GitHub organisation called **inqbeta** owned by Dark Olive CIC, so it can one
-day be handed to a Q federation by transferring the organisation. Fresh
-history. The Dark Olive site becomes **darkolive/darkolive-site**, private.
+Decided 30 September 2026: Q goes public as **github.com/darkolive/inqbeta-q**,
+fresh history, under Dark Olive's GitHub account. (An `inqbeta` organisation
+was the first choice, so Q could be handed to a federation by transferring
+it; that name is taken on GitHub. A single repo can be transferred just as
+well when the time comes.) The same address the home page has always linked to. The Dark Olive site becomes **darkolive/darkolive-site**, private.
 The old combined repo stays private and is archived at the end.
 
 Why not "inqbeta-browser": the repo holds more than the browser app — the
@@ -46,23 +47,23 @@ If anything fails here, stop and bring the output back.
 
 ## On GitHub
 
-5. **Create the organisation**: github.com → your avatar → *Your organizations*
-   → *New organization* → Free → name **inqbeta**, owned by a business: Dark
-   Olive CIC. (If the name is taken, stop — the link in the app needs changing.)
-6. **Create `inqbeta/q`**: New repository, **Public**, *empty* (no README,
+5. **Move the old repo out of the way**: `darkolive/inqbeta-q` → Settings →
+   rename to **inqbeta-q-archive**. (It stays private with its full history.
+   Vercel follows the rename, so nothing goes down.)
+6. **Create a new `darkolive/inqbeta-q`**: **Public**, *empty* (no README,
    licence or .gitignore).
 7. **Create `darkolive/darkolive-site`**: **Private**, empty.
 8. **Push**:
    ```bash
    cd ~/github/q
-   git remote add origin git@github.com:inqbeta/q.git
+   git remote add origin git@github.com:darkolive/inqbeta-q.git
    git push -u origin main test
 
    cd ~/github/darkolive-site
    git remote add origin git@github.com:darkolive/darkolive-site.git
    git push -u origin main
    ```
-9. **On inqbeta/q → Settings**:
+9. **On darkolive/inqbeta-q → Settings**:
    - *Code security*: turn on **Private vulnerability reporting**, **Secret
      scanning** and **Push protection**.
    - *Branches*: protect `main` (require a pull request) — optional while it's
@@ -74,7 +75,7 @@ If anything fails here, stop and bring the output back.
 ## On Vercel
 
 10. **The Q project** → Settings → Git → *Disconnect*, then *Connect* →
-    `inqbeta/q` (let the Vercel GitHub app into the inqbeta organisation).
+    the new `darkolive/inqbeta-q`.
     Root directory stays `apps/q`; production branch `main`; inqbeta.dev stays
     on branch `test`. Environment variables and domains stay as they are.
 11. **The Dark Olive project** → connect `darkolive/darkolive-site`; root
@@ -85,8 +86,8 @@ If anything fails here, stop and bring the output back.
 
 ## Afterwards
 
-13. **Archive the old repo**: `darkolive/inqbeta-q` → Settings → *Archive
-    this repository*. It stays private, read-only, with the full history.
+13. **Archive the old repo**: `darkolive/inqbeta-q-archive` → Settings →
+    *Archive this repository*. It stays private, read-only, with the full history.
 14. **Work from the new folders**: `~/github/q` for Q, `~/github/darkolive-site`
     for the site. Connect `~/github/q` to Claude sessions instead of
     `~/inqbeta-q`. For Write to reach the site locally, copy

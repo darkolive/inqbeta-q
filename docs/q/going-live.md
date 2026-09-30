@@ -40,7 +40,7 @@ Namecheap, for both:
 
 ## 2. Vercel project
 
-vercel.com → Add New → Project → import GitHub `inqbeta/q`.
+vercel.com → Add New → Project → import GitHub `darkolive/inqbeta-q`.
 
 - **Root Directory:** `apps/q` (leave "include files outside the root" on —
   Q uses `packages/q-core` and `packages/q-ui`).

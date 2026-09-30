@@ -101,7 +101,7 @@ different licences, different audiences and different histories.
 
 | Repo | Public? | Holds |
 |---|---|---|
-| **`inqbeta/q`** (new, fresh history) | Public | `packages/q-core`, `packages/q-ui`, `packages/q-actions`, `apps/q`, `node/`, `spikes/`, Q's docs (`docs/q`, `docs/decisions`, `docs/identity`) |
+| **`darkolive/inqbeta-q`** (new, fresh history) | Public | `packages/q-core`, `packages/q-ui`, `packages/q-actions`, `apps/q`, `node/`, `spikes/`, Q's docs (`docs/q`, `docs/decisions`, `docs/identity`) |
 | **`darkolive/darkolive-site`** (this repo, renamed) | **Private** | `apps/darkolive`: content, photographs, `_masters`, `archive`, `rescued`, `_plans`, the SQL dumps (or delete those), its audio |
 
 The site then uses Q's packages as a dependency, like any other adopter —
