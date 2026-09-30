@@ -59,15 +59,19 @@ export const theme = {
 import { SCRIPTS } from '$lib/voice/scripts';
 import { voiceHash, stripTags } from '$lib/voice/voice-text.js';
 import { language } from '$lib/i18n/index.svelte';
+import { wrapWords, light, wordAt, shown, estimate, wordIndexAt, type Word } from '$lib/voice/highlight';
 
 const VOICE_CACHE = 'q-voice';
 
 type Manifest = {
 	model: string;
 	voice: { id: string; name: string } | null;
-	items: Record<string, { hash: string; file: string }>;
+	/** words: each word's [start, end] in the file, when the recording has been aligned. */
+	items: Record<string, { hash: string; file: string; words?: [number, number][] }>;
 };
-type Line = { text: string; file?: string };
+type Line = { el: HTMLElement; text: string; file?: string; times?: [number, number][] };
+/** A line on the clock: when it starts and ends, where its trimmed audio began in the file, and its words. */
+type Play = { at: number; end: number; offset: number; times: [number, number][]; words: Word[] };
 
 /** The breath between one line and the next, in seconds. */
 const GAP = 0.35;
@@ -171,8 +175,8 @@ function voiced(data: Float32Array, rate: number): [number, number] {
 	return [Math.max(0, a * step - pad), Math.min(data.length - 1, (z + 1) * step + pad)];
 }
 
-/** Decoded and trimmed to the voice: no ragged silence at either end. */
-async function buffer(file: string, ac: AudioContext): Promise<AudioBuffer | null> {
+/** Decoded and trimmed to the voice: no ragged silence at either end. `offset`: seconds trimmed from the front. */
+async function buffer(file: string, ac: AudioContext): Promise<{ b: AudioBuffer; offset: number } | null> {
 	const raw = await bytes(file);
 	if (!raw) return null;
 	let b: AudioBuffer;
@@ -184,7 +188,7 @@ async function buffer(file: string, ac: AudioContext): Promise<AudioBuffer | nul
 	const [first, last] = voiced(b.getChannelData(0), b.sampleRate);
 	const out = ac.createBuffer(b.numberOfChannels, last - first + 1, b.sampleRate);
 	for (let c = 0; c < b.numberOfChannels; c++) out.copyToChannel(b.getChannelData(c).subarray(first, last + 1), c);
-	return out;
+	return { b: out, offset: first / b.sampleRate };
 }
 
 /* Recordings a manifest no longer names are removed, so the cache holds only
@@ -222,18 +226,33 @@ function until(ac: AudioContext, t: number, id: number) {
 	});
 }
 
-function say(text: string, id: number) {
+function say(text: string, id: number, words: Word[] = []) {
 	return new Promise<void>((done) => {
 		if (id !== run || !('speechSynthesis' in window) || !text) return done();
 		const u = new SpeechSynthesisUtterance(text);
 		u.lang = document.documentElement.lang;
-		u.onend = u.onerror = () => done();
+		/* The browser's voice says where each word starts; light it the same way. */
+		const heard = text.split(/\s+/).filter(Boolean).length;
+		u.onboundary = (e) => {
+			if (e.name !== 'word' || id !== run) return;
+			light(words[shown(wordIndexAt(text, e.charIndex), heard, words.length)] ?? null);
+		};
+		u.onend = u.onerror = () => {
+			light(null);
+			done();
+		};
 		speechSynthesis.speak(u);
 	});
 }
 
+/** Puts the page's words back as they were (see voice/highlight). */
+let unwrap: (() => void) | null = null;
+
 function stop() {
 	run++;
+	light(null);
+	unwrap?.();
+	unwrap = null;
 	/* Closing the context silences everything scheduled on it at once. */
 	void ctx?.close().catch(() => {});
 	ctx = null;
@@ -266,7 +285,7 @@ async function start() {
 		const script = scripts[key];
 		const entry = m?.items[key];
 		const good = !!(script && entry && m?.voice && entry.hash === voiceHash(m.model, m.voice.id, script));
-		return { text: script ? stripTags(script) : el.innerText.trim(), file: good ? entry!.file : undefined };
+		return { el, text: script ? stripTags(script) : el.innerText.trim(), file: good ? entry!.file : undefined, times: good ? entry!.words : undefined };
 	});
 	if (!lines.length) {
 		/* Nothing here to read. Say so, switch off, and let the words fade. */
@@ -278,21 +297,42 @@ async function start() {
 	coverage = lines.every((l) => l.file) ? 'full' : 'partial';
 	if (m) void prune(lang, m);
 
+	/* Every word wrapped so it can be lit; put back when reading stops. */
+	const wrapped = lines.map((l) => wrapWords(l.el));
+	unwrap = () => wrapped.forEach((w) => w.undo());
+
+	/* One loop follows the clock and lights the word being said. */
+	const plays: Play[] = [];
+	const follow = () => {
+		if (id !== run) return;
+		const now = ac.currentTime;
+		const p = plays.find((x) => x.at <= now && now < x.end);
+		if (p) light(p.words[shown(wordAt(p.times, now - p.at + p.offset), p.times.length, p.words.length)] ?? null);
+		else if (plays.length && !(typeof speechSynthesis !== 'undefined' && speechSynthesis.speaking)) light(null);
+		requestAnimationFrame(follow);
+	};
+	requestAnimationFrame(follow);
+
 	/* Every recording fetched and decoded at once; each line waits only for its own. */
 	const ready = lines.map((l) => (l.file ? buffer(l.file, ac) : Promise.resolve(null)));
 	if (lines.some((l) => l.file)) recorded = m?.voice?.name ?? null;
 
 	let t = ac.currentTime;
 	for (let i = 0; i < lines.length; i++) {
-		const b = await ready[i];
+		const got = await ready[i];
 		if (id !== run) return;
 		if (i === 0) fetching = false;
-		if (b) {
-			t = schedule(ac, b, Math.max(t, ac.currentTime + 0.02)) + GAP;
+		if (got) {
+			const at = Math.max(t, ac.currentTime + 0.02);
+			const end = schedule(ac, got.b, at);
+			/* Real timings when the recording has been aligned; else an estimate over its length. */
+			const times = lines[i].times ?? estimate(lines[i].text, got.b.duration);
+			plays.push({ at, end, offset: lines[i].times ? got.offset : 0, times, words: wrapped[i].words });
+			t = end + GAP;
 		} else {
 			/* No recording: the browser's voice, in turn, once the one before has finished. */
 			await until(ac, t, id);
-			await say(lines[i].text, id);
+			await say(lines[i].text, id, wrapped[i].words);
 			t = ac.currentTime + GAP;
 		}
 	}

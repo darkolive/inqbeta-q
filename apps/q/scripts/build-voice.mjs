@@ -21,12 +21,20 @@
  *   npm run voice -- --clipped --yes   re-record just those (new take, extra breath)
  *   npm run voice -- --redo en:place.key.hint,cy:signin.title --yes
  *                                      re-take named lines — no ffmpeg needed
+ *   npm run voice -- --align --yes     time every word of recordings that have no
+ *                                      timings yet, so the page can light each word
+ *                                      as it is said (ElevenLabs forced alignment,
+ *                                      billed like speech-to-text: by audio length)
+ *
+ * New recordings are timed as they are made. Timings are kept with the file
+ * they belong to and never re-bought while the file is unchanged.
  *
  * Money leaves the account only with --yes.
  *
  * Output (served from the site, cached in the browser when read aloud is on):
  *   static/voice/<lang>/<hash>.mp3
- *   static/voice/<lang>/manifest.json   { model, voice, items: { key: { hash, file } } }
+ *   static/voice/<lang>/manifest.json   { model, voice, items: { key: { hash, file, words? } } }
+ *     words: each spoken word's [start, end] in seconds, from the start of the file
  */
 import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
@@ -62,6 +70,7 @@ const FORCE = has('force');
 const ONLY = arg('only');
 const CLIPPED = has('clipped');
 /* --redo lang:key,lang:key — re-take exactly these, however they sound. */
+const ALIGN = has('align');
 const REDO = new Set((arg('redo') ?? '').split(',').map((x) => x.trim()).filter(Boolean));
 const RETAKING = CLIPPED || REDO.size > 0;
 /* A fixed seed gives the same take every time; a re-take needs a new one. */
@@ -162,7 +171,9 @@ const plan = langs.map((lang) => {
 		if (have && (REDO.has(`${lang}:${k}`) || (CLIPPED && clipped(file)))) have = false;
 		const retake = RETAKING && !have && existsSync(file);
 		/* A re-take is written under a new name: same hash, new take. */
-		return { key: k, script, hash, file: retake ? join(dir, `${hash}-${SEED.toString(36)}.mp3`) : file, old: file, have, retake };
+		/* Timings belong to one file: kept while that file is, dropped with it. */
+		const words = have && prev[k]?.file?.split('/').pop() === kept ? prev[k].words : undefined;
+		return { key: k, script, hash, file: retake ? join(dir, `${hash}-${SEED.toString(36)}.mp3`) : file, old: file, have, retake, words };
 	});
 	return { lang, dir, items };
 });
@@ -177,6 +188,12 @@ for (const p of plan) {
 	if (RETAKING) for (const i of p.items.filter((x) => x.retake)) console.log(`         re-take: ${i.key}`);
 }
 console.log(`  ${missing.length} lines to record — ${chars.toLocaleString()} characters, about $${((chars / 1000) * RATE_PER_1K).toFixed(2)}`);
+const untimed = plan.flatMap((p) => p.items.filter((i) => i.have && !i.words));
+if (untimed.length) {
+	/* About 14 characters a second when spoken — only to say roughly how much audio. */
+	const secs = untimed.reduce((n, i) => n + stripTags(i.script).length / 14, 0);
+	console.log(`  ${untimed.length} recordings have no word timings (about ${Math.ceil(secs / 60)} min of audio)${ALIGN ? '' : ' — add --align to time them'}`);
+}
 
 if (!DRY && !GO) {
 	console.log('\n  Nothing was recorded and nothing was spent.');
@@ -221,7 +238,24 @@ async function record(script, lang, retake) {
 	return Buffer.from(await res.arrayBuffer());
 }
 
+/*
+ * Word timings for a recording: ElevenLabs forced alignment, given the file
+ * and the words it says (the tags taken out — they are directions, not words).
+ * Returns each word's [start, end], rounded to the millisecond.
+ */
+async function align(file, script) {
+	const form = new FormData();
+	form.append('file', new Blob([readFileSync(file)], { type: 'audio/mpeg' }), file.split('/').pop());
+	form.append('text', stripTags(script));
+	const res = await fetch(`${API}/v1/forced-alignment`, { method: 'POST', headers: { 'xi-api-key': key }, body: form });
+	if (!res.ok) throw new Error(explain(res.status, await res.text()));
+	const d = await res.json();
+	const r = (n) => Math.round(n * 1000) / 1000;
+	return (d.words ?? []).filter((w) => w.text?.trim()).map((w) => [r(w.start), r(w.end)]);
+}
+
 let spent = 0;
+let timed = 0;
 for (const p of plan) {
 	mkdirSync(p.dir, { recursive: true });
 	const items = {};
@@ -232,6 +266,8 @@ for (const p of plan) {
 				writeFileSync(i.file, await record(i.script, p.lang, i.retake));
 				spent += i.script.length;
 				i.have = true;
+				i.words = undefined;
+				i.fresh = true;
 				console.log('ok');
 			} catch (e) {
 				console.log(`FAILED — ${e.message}`);
@@ -239,9 +275,20 @@ for (const p of plan) {
 				if (i.retake) Object.assign(i, { file: i.old, have: true });
 			}
 		}
+		/* New recordings are always timed; older ones when --align asks. */
+		if (!DRY && GO && i.have && !i.words && (ALIGN || i.fresh)) {
+			process.stdout.write(`  ${p.lang} ${i.key} timing words … `);
+			try {
+				i.words = await align(i.file, i.script);
+				timed++;
+				console.log(`${i.words.length} words`);
+			} catch (e) {
+				console.log(`FAILED — ${e.message} (the page estimates instead)`);
+			}
+		}
 		/* Only lines with audio go in the manifest; the rest are read by the
 		 * browser's own voice from the words on screen. */
-		if (!DRY && i.have) items[i.key] = { hash: i.hash, file: `/voice/${p.lang}/${i.file.split('/').pop()}` };
+		if (!DRY && i.have) items[i.key] = { hash: i.hash, file: `/voice/${p.lang}/${i.file.split('/').pop()}`, ...(i.words ? { words: i.words } : {}) };
 	}
 	writeFileSync(
 		join(p.dir, 'manifest.json'),
@@ -263,5 +310,5 @@ for (const p of plan) {
 console.log(
 	DRY
 		? `\n  Dry run: empty manifests written, nothing recorded, nothing spent.\n  With read aloud on, every line falls back to the browser's voice.\n  (${plan.reduce((n, p) => n + p.items.length, 0)} lines checked; e.g. "${stripTags(plan[0].items[0]?.script ?? '')}")\n`
-		: `\n  Recorded ${spent.toLocaleString()} characters, about $${((spent / 1000) * RATE_PER_1K).toFixed(2)}.\n`
+		: `\n  Recorded ${spent.toLocaleString()} characters, about $${((spent / 1000) * RATE_PER_1K).toFixed(2)}.${timed ? ` Timed the words of ${timed} recordings.` : ''}\n`
 );
