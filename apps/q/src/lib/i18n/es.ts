@@ -190,6 +190,7 @@ export default {
 	'support.body': 'Q es gratis y lo seguirá siendo: sin anuncios, sin inversores, sin vender nada sobre ti. Lo construye Darren Knipe, un padre que trabaja, a través de Dark Olive CIC, una pequeña empresa de interés comunitario. Si Q te resulta útil, a ti o a alguien a quien cuidas, una contribución ayuda a que crezca y a que siga siendo gratis para todos.',
 	'support.button': 'Apoyar Q',
 	'support.soon': 'Las contribuciones abren pronto',
+	'support.sponsor': 'Patrocínanos en GitHub',
 	'support.note': 'Las contribuciones van a Dark Olive CIC. Es una empresa de interés comunitario, no una organización benéfica, así que no desgravan.',
 	'contact.title': 'Contacto',
 	'contact.lead': '¿Una pregunta, un problema, una idea? Escríbenos aquí. Va al buzón de administración de Dark Olive y no se guarda en ningún otro sitio.',

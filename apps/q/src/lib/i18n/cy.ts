@@ -190,6 +190,7 @@ export default {
 	'support.body': 'Mae Q am ddim, a bydd yn aros am ddim — dim hysbysebion, dim buddsoddwyr, dim byd amdanoch chi’n cael ei werthu. Fe’i hadeiladir gan Darren Knipe, rhiant sy’n gweithio, drwy Dark Olive CIC, cwmni buddiant cymunedol bach. Os yw Q yn ddefnyddiol i chi, neu i rywun rydych chi’n gofalu amdano, mae cyfraniad yn ei helpu i dyfu ac yn ei gadw am ddim i bawb.',
 	'support.button': 'Cefnogi Q',
 	'support.soon': 'Bydd cyfraniadau’n agor cyn hir',
+	'support.sponsor': 'Noddi ni ar GitHub',
 	'support.note': 'Mae cyfraniadau’n mynd i Dark Olive CIC. Cwmni buddiant cymunedol ydyw, nid elusen, felly nid oes rhyddhad treth na Chymorth Rhodd.',
 	'contact.title': 'Cysylltu â ni',
 	'contact.lead': 'Cwestiwn, problem, syniad? Ysgrifennwch atom yma. Mae’n mynd i fewnflwch gweinyddol Dark Olive ac nid yw’n cael ei gadw yn unman arall.',

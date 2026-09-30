@@ -194,6 +194,7 @@ const en = {
 	'support.body': 'Q is free, and it will stay free — no adverts, no investors, nothing sold about you. It is built by Darren Knipe, a working parent, through Dark Olive CIC, a small community interest company. If Q is useful to you, or to someone you care for, a contribution keeps it growing and keeps it free for everyone.',
 	'support.button': 'Support Q',
 	'support.soon': 'Contributions open soon',
+	'support.sponsor': 'Sponsor us on GitHub',
 	'support.note': 'Contributions go to Dark Olive CIC. It is a community interest company, not a charity, so they are not tax-deductible and there is no Gift Aid.',
 	'contact.title': 'Contact us',
 	'contact.lead': 'A question, a problem, an idea? Write to us here. It goes to Dark Olive’s admin inbox and is not kept anywhere else.',

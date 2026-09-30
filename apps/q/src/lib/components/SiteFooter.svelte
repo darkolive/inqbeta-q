@@ -6,7 +6,7 @@
 	 */
 	import { FaIcon } from '@inqbeta/q-ui';
 	import { t } from '$lib/i18n/index.svelte';
-	import { REPO } from '$lib/config';
+	import { REPO, SPONSORS_URL } from '$lib/config';
 	import QText from './QText.svelte';
 	import ShareLinks from './ShareLinks.svelte';
 
@@ -24,16 +24,23 @@
 	<div class="mx-auto max-w-5xl px-4 py-10 sm:px-8 grid gap-10 md:grid-cols-[3fr_2fr]">
 		<ShareLinks />
 		<nav aria-label={t('footer.label')} class="space-y-3">
-			<h2 class="h6">{t('footer.label')}</h2>
+			<h2 class="h6"><QText text={t('footer.label')} /></h2>
 			<ul class="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
 				{#each LINKS as l (l.href)}
-					<li><a class="anchor" href={l.href}>{t(l.key)}</a></li>
+					<li><a class="anchor" href={l.href}><QText text={t(l.key)} /></a></li>
 				{/each}
 				<li>
 					<a class="anchor inline-flex items-center gap-1.5" href={REPO} rel="noopener" target="_blank">
 						<FaIcon name="github" /><span>{t('footer.source')}</span>
 					</a>
 				</li>
+				{#if SPONSORS_URL}
+					<li>
+						<a class="anchor inline-flex items-center gap-1.5" href={SPONSORS_URL} rel="noopener" target="_blank">
+							<FaIcon name="github" /><span>{t('support.sponsor')}</span>
+						</a>
+					</li>
+				{/if}
 			</ul>
 		</nav>
 	</div>

@@ -12,7 +12,8 @@
 	 */
 	import { Icon } from '@inqbeta/q-ui';
 	import { t } from '$lib/i18n/index.svelte';
-	import { DONATE_URL } from '$lib/config';
+	import { FaIcon } from '@inqbeta/q-ui';
+	import { DONATE_URL, SPONSORS_URL } from '$lib/config';
 	import QText from './QText.svelte';
 </script>
 
@@ -20,10 +21,19 @@
 	<Icon name="heart" class="size-10 mx-auto text-secondary-500" stroke={2} />
 	<h2 id="support-title" class="h3" data-read="support.title">{t('support.title')}</h2>
 	<p class="text-lg text-surface-700-300 text-balance" data-read="support.body"><QText text={t('support.body')} linkOrg /></p>
-	{#if DONATE_URL}
-		<a class="btn preset-filled-secondary-500 min-h-11" href={DONATE_URL} rel="noopener" target="_blank">
-			<Icon name="heart" size={20} stroke={2.5} /><span>{t('support.button')}</span>
-		</a>
+	{#if DONATE_URL || SPONSORS_URL}
+		<div class="flex flex-wrap items-center justify-center gap-3">
+			{#if DONATE_URL}
+				<a class="btn preset-filled-secondary-500 min-h-11" href={DONATE_URL} rel="noopener" target="_blank">
+					<Icon name="heart" size={20} stroke={2.5} /><span><QText text={t('support.button')} /></span>
+				</a>
+			{/if}
+			{#if SPONSORS_URL}
+				<a class="btn preset-outlined-secondary-500 min-h-11 hover:preset-filled-secondary-50-950" href={SPONSORS_URL} rel="noopener" target="_blank">
+					<FaIcon name="github" /><span>{t('support.sponsor')}</span>
+				</a>
+			{/if}
+		</div>
 	{:else}
 		<p><span class="badge preset-tonal-secondary">{t('support.soon')}</span></p>
 	{/if}

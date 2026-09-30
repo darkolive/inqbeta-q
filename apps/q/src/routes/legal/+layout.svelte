@@ -5,6 +5,7 @@
 	 */
 	import { page } from '$app/state';
 	import { t, language } from '$lib/i18n/index.svelte';
+	import { qmarks } from '$lib/qmarks';
 
 	let { children } = $props();
 	const PAGES = [
@@ -32,7 +33,10 @@
 	{#if language.current !== 'en'}
 		<p class="card preset-tonal p-3 text-sm" lang={language.current}>{t('legal.inEnglish')}</p>
 	{/if}
-	<article lang="en" class="space-y-4 [&_h2]:h4 [&_h2]:pt-4 [&_ul]:list-disc [&_ul]:ps-6 [&_ul]:space-y-1 [&_a]:anchor">
-		{@render children()}
-	</article>
+	<!-- Keyed by page, so each page's standalone Qs become the orange mark (lib/qmarks). -->
+	{#key page.url.pathname}
+		<article use:qmarks lang="en" class="space-y-4 [&_h2]:h4 [&_h2]:pt-4 [&_ul]:list-disc [&_ul]:ps-6 [&_ul]:space-y-1 [&_a]:anchor">
+			{@render children()}
+		</article>
+	{/key}
 </div>

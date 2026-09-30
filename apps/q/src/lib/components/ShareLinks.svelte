@@ -11,6 +11,7 @@
 	import { page } from '$app/state';
 	import { t } from '$lib/i18n/index.svelte';
 	import { SITE } from '$lib/config';
+	import QText from './QText.svelte';
 
 	const url = $derived(`${SITE}${page.url.pathname === '/' ? '' : page.url.pathname}`);
 	const text = $derived(t('share.message'));
@@ -43,7 +44,7 @@
 </script>
 
 <div class="space-y-3">
-	<h2 class="h6">{t('share.title')}</h2>
+	<h2 class="h6"><QText text={t('share.title')} /></h2>
 	<p class="text-sm text-surface-700-300">{t('share.note')}</p>
 	<div class="flex flex-wrap gap-2">
 		{#if native}<button type="button" class={pill} onclick={share}>{t('share.native')}</button>{/if}

@@ -18,5 +18,11 @@ export const DARK_OLIVE = 'https://darkolive.co.uk';
  */
 export const DONATE_URL = '';
 
+/**
+ * GitHub Sponsors for Dark Olive (github.com/sponsors/darkolive). Empty until
+ * the Sponsors profile is approved and live — then the button appears.
+ */
+export const SPONSORS_URL = '';
+
 /** Where a security problem is reported privately (SECURITY.md). */
 export const SECURITY_REPORT = 'https://github.com/darkolive/inqbeta-q/security/advisories/new';
