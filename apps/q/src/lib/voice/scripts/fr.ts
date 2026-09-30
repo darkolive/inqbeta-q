@@ -49,7 +49,7 @@ export default {
 	'uses.calls.t': '[brightly] Appels et messages',
 	'uses.calls.d': '[matter-of-fact] Parlez de personne à personne. Un reçu garde les faits — qui, quand, combien de temps — jamais ce qui a été dit.',
 	'beta.touch': '[inviting] Restons en contact',
-	'beta.why': '[reassuring] [quietly] Utilisé uniquement pour vous parler de Q. Il va à Darren chez Dark Olive, nulle part ailleurs.',
+	'beta.why': '[reassuring] [quietly] Utilisé uniquement pour vous parler de Q. Il va à la boîte de réception administrative de Dark Olive, nulle part ailleurs.',
 
 	/* The home page below the fold (29 September). */
 	'sec.title': '[curious] [sincere] Est-ce vraiment sûr ?',

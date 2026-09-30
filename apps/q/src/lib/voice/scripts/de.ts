@@ -49,7 +49,7 @@ export default {
 	'uses.calls.t': '[brightly] Anrufe und Nachrichten',
 	'uses.calls.d': '[matter-of-fact] Sprich direkt von Mensch zu Mensch. Ein Beleg hält die Fakten fest — wer, wann, wie lange — nie, was gesagt wurde.',
 	'beta.touch': '[inviting] Bleib in Kontakt',
-	'beta.why': '[reassuring] [quietly] Wird nur genutzt, um dir von Q zu erzählen. Sie geht an Darren bei Dark Olive, sonst nirgendwohin.',
+	'beta.why': '[reassuring] [quietly] Wird nur genutzt, um dir von Q zu erzählen. Sie geht an das Verwaltungspostfach von Dark Olive, sonst nirgendwohin.',
 
 	/* The home page below the fold (29 September). */
 	'sec.title': '[curious] [sincere] Wie sicher ist das?',

@@ -75,7 +75,7 @@ export default {
 	'uses.calls.t': '[brightly] Calls and messages',
 	'uses.calls.d': '[matter-of-fact] Talk person to person. A receipt keeps the facts — who, when, how long — never what was said.',
 	'beta.touch': '[inviting] Stay in touch',
-	'beta.why': '[reassuring] [quietly] Only used to tell you about Q. It goes to Darren at Dark Olive, nowhere else.',
+	'beta.why': '[reassuring] [quietly] Only used to tell you about Q. It goes to Dark Olive’s admin inbox, nowhere else.',
 
 	/* The home page below the fold (29 September). */
 	'sec.title': '[curious] [sincere] How secure is this?',

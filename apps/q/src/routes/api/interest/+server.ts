@@ -2,7 +2,7 @@
  * "Stay in touch" — the beta sign-up on the home page.
  *
  * Someone who has not signed in leaves an email address; it is sent, once,
- * to one fixed inbox (Q_INTEREST_TO — Darren at Dark Olive) and kept nowhere
+ * to one fixed inbox (Q_INTEREST_TO — Dark Olive's admin inbox) and kept nowhere
  * on this server. Because the only recipient is that fixed inbox, this cannot
  * be used to send mail to strangers — it is not a relay.
  *

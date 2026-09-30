@@ -49,7 +49,7 @@ export default {
 	'uses.calls.t': '[brightly] Llamadas y mensajes',
 	'uses.calls.d': '[matter-of-fact] Habla de persona a persona. Un recibo guarda los hechos — quién, cuándo, cuánto tiempo — nunca lo que se dijo.',
 	'beta.touch': '[inviting] Mantente en contacto',
-	'beta.why': '[reassuring] [quietly] Solo se usa para contarte cosas de Q. Va a Darren, de Dark Olive, a ningún otro sitio.',
+	'beta.why': '[reassuring] [quietly] Solo se usa para contarte cosas de Q. Va al buzón de administración de Dark Olive, a ningún otro sitio.',
 
 	/* The home page below the fold (29 September). */
 	'sec.title': '[curious] [sincere] ¿Qué tan seguro es?',

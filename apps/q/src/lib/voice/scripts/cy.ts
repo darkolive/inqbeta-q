@@ -49,7 +49,7 @@ export default {
 	'uses.calls.t': '[brightly] Galwadau a negeseuon',
 	'uses.calls.d': '[matter-of-fact] Siaradwch o berson i berson. Mae derbynneb yn cadw’r ffeithiau — pwy, pryd, am ba hyd — byth yr hyn a ddywedwyd.',
 	'beta.touch': '[inviting] Cadw mewn cysylltiad',
-	'beta.why': '[reassuring] [quietly] Dim ond i ddweud wrthych am Q. Mae’n mynd at Darren yn Dark Olive, i unman arall.',
+	'beta.why': '[reassuring] [quietly] Dim ond i ddweud wrthych am Q. Mae’n mynd i fewnflwch gweinyddol Dark Olive, i unman arall.',
 
 	/* The home page below the fold (29 September). */
 	'sec.title': '[curious] [sincere] Pa mor ddiogel yw hyn?',
