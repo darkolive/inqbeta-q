@@ -1,6 +1,7 @@
 {
 	"name": "@inqbeta/q-actions",
 	"license": "Apache-2.0",
+	"author": "Darren Knipe, Dark Olive CIC",
 	"version": "0.1.0",
 	"private": true,
 	"description": "Actions: what may, must and cannot happen, as Cedar policies, decided on the spot (ADR-Q-008, ADR-Q-009).",

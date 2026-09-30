@@ -90,6 +90,7 @@
 		<Icon name="heart" class="size-12 mx-auto text-secondary-500" stroke={2} />
 		<h2 id="love-title" class="h3" data-read="love.title">{t('love.title')}</h2>
 		<p class="text-lg text-primary-600-400 font-semibold" data-read="love.line">{t('love.line')}</p>
+		<p data-read="love.by">{t('love.by')}</p>
 		<p class="font-semibold">
 			<a class="anchor inline-flex items-center gap-2" href={REPO} rel="noopener" target="_blank" data-read="love.source">
 				<span><QText text={t('love.source')} /></span>

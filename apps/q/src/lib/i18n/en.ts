@@ -128,6 +128,7 @@ const en = {
 	'sec.leave.d': 'One button clears everything Q kept in the browser. Cloud copies can only touch the folder Q made.',
 	'love.title': 'Built with love',
 	'love.line': 'Free to give — never free to take.',
+	'love.by': 'Designed by Darren Knipe, Dark Olive CIC.',
 	'thanks.title': 'With thanks to',
 	'thanks.ai': 'And to the engineering teams behind',
 	'thanks.community': 'And the wider community — the languages, the standards, and everyone who gives their work away.',

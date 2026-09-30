@@ -124,6 +124,7 @@ export default {
 	'sec.leave.d': 'Un bouton efface tout ce que Q a gardé dans le navigateur. Les copies dans le cloud n’accèdent qu’au dossier créé par Q.',
 	'love.title': 'Fait avec amour',
 	'love.line': 'Libre de donner — jamais libre de prendre.',
+	'love.by': 'Conçu par Darren Knipe, Dark Olive CIC.',
 	'thanks.title': 'Avec nos remerciements à',
 	'thanks.ai': 'Et aux équipes d’ingénierie derrière',
 	'thanks.community': 'Et à toute la communauté — les langages, les standards, et tous ceux qui offrent leur travail.',

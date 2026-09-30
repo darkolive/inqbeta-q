@@ -124,6 +124,7 @@ export default {
 	'sec.leave.d': 'Un botón borra todo lo que Q guardó en el navegador. Las copias en la nube solo pueden tocar la carpeta que creó Q.',
 	'love.title': 'Hecho con cariño',
 	'love.line': 'Libre para dar — nunca libre para tomar.',
+	'love.by': 'Diseñado por Darren Knipe, Dark Olive CIC.',
 	'thanks.title': 'Con agradecimiento a',
 	'thanks.ai': 'Y a los equipos de ingeniería detrás de',
 	'thanks.community': 'Y a toda la comunidad — los lenguajes, los estándares y todos los que regalan su trabajo.',

@@ -5,8 +5,8 @@ folder, offline, carried with you. Live at [inqbeta.com](https://inqbeta.com);
 the test site is [inqbeta.dev](https://inqbeta.dev).
 
 Open source: the app and node under the GNU AGPL, the libraries under Apache 2.0,
-the docs under CC BY 4.0 — see [LICENSING.md](LICENSING.md). Copyright © 2026
-Dark Olive CIC. Contributions welcome: [CONTRIBUTING.md](CONTRIBUTING.md).
+the docs under CC BY 4.0 — see [LICENSING.md](LICENSING.md). Designed by
+Darren Knipe, Dark Olive CIC. Copyright © 2026 Dark Olive CIC. Contributions welcome: [CONTRIBUTING.md](CONTRIBUTING.md).
 Security problems: [SECURITY.md](SECURITY.md).
 
 **Q is not part of inQbeta Stage 1.** It has its own public posture; inQbeta's Stage 1

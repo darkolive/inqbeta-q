@@ -1,8 +1,10 @@
 # Licensing
 
-Q is open source. **Copyright © 2026 Dark Olive CIC**, a community interest
-company registered in England and Wales, which owns Q and is the source of any
-permission beyond the licences below.
+Q is open source. **Designed by Darren Knipe, Dark Olive CIC.**
+**Copyright © 2026 Dark Olive CIC**, a community interest company registered in
+England and Wales, which owns Q and is the source of any permission beyond the
+licences below. Darren Knipe asserts his moral right to be identified as the
+designer and author of Q.
 
 | What | Licence | File |
 |---|---|---|
@@ -20,6 +22,9 @@ permission beyond the licences below.
 - **The format is for everyone.** The libraries that read and write Q's
   receipts, keys and actions are under Apache 2.0, so any project — open or
   not — can speak Q's format without adopting the app's licence.
+- **Credit the designer.** The licences require keeping the copyright and
+  attribution notices; please keep "Designed by Darren Knipe, Dark Olive CIC"
+  with them.
 - **The name is not included.** A changed Q must carry its own name. See
   [`TRADEMARKS.md`](TRADEMARKS.md).
 

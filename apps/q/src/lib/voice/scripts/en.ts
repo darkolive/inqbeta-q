@@ -101,6 +101,7 @@ export default {
 	/* The home page below the fold (29 September). */
 	'love.title': '[warmly] Built with love',
 	'love.line': '[sincere] [warmly] Free to give — never free to take.',
+	'love.by': '[matter-of-fact] Designed by Darren Knipe, Dark Olive C-I-C.',
 	'thanks.title': '[warmly] With thanks to',
 	'thanks.ai': '[warmly] And to the engineering teams behind',
 	'thanks.community': '[warmly] [sincere] And the wider community — the languages, the standards, and everyone who gives their work away.',

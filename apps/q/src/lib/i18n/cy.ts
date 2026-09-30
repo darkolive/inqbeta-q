@@ -124,6 +124,7 @@ export default {
 	'sec.leave.d': 'Mae un botwm yn clirio popeth a gadwodd Q yn y porwr. Dim ond y ffolder a wnaeth Q y gall copïau yn y cwmwl ei gyffwrdd.',
 	'love.title': 'Wedi’i wneud â chariad',
 	'love.line': 'Rhydd i’w roi — byth yn rhydd i’w gymryd.',
+	'love.by': 'Wedi’i ddylunio gan Darren Knipe, Dark Olive CIC.',
 	'thanks.title': 'Gyda diolch i',
 	'thanks.ai': 'Ac i’r timau peirianneg y tu ôl i',
 	'thanks.community': 'A’r gymuned ehangach — yr ieithoedd, y safonau, a phawb sy’n rhoi eu gwaith i ffwrdd.',

@@ -1,6 +1,7 @@
 {
 	"name": "@inqbeta/q",
 	"license": "AGPL-3.0-or-later",
+	"author": "Darren Knipe, Dark Olive CIC",
 	"version": "0.1.0",
 	"private": true,
 	"type": "module",

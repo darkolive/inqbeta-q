@@ -124,6 +124,7 @@ export default {
 	'sec.leave.d': 'Ein Knopf löscht alles, was Q im Browser behalten hat. Cloud-Kopien dürfen nur den Ordner berühren, den Q angelegt hat.',
 	'love.title': 'Mit Liebe gemacht',
 	'love.line': 'Frei zu geben — nie frei zu nehmen.',
+	'love.by': 'Entworfen von Darren Knipe, Dark Olive CIC.',
 	'thanks.title': 'Mit Dank an',
 	'thanks.ai': 'Und an die Entwicklungsteams hinter',
 	'thanks.community': 'Und an die ganze Gemeinschaft — die Sprachen, die Standards und alle, die ihre Arbeit verschenken.',

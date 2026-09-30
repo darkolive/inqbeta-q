@@ -75,6 +75,7 @@ export default {
 	/* The home page below the fold (29 September). */
 	'love.title': '[warmly] Wedi’i wneud â chariad',
 	'love.line': '[sincere] [warmly] Rhydd i’w roi — byth yn rhydd i’w gymryd.',
+	'love.by': '[matter-of-fact] Wedi’i ddylunio gan Darren Knipe, Dark Olive C-I-C.',
 	'thanks.title': '[warmly] Gyda diolch i',
 	'thanks.ai': '[warmly] Ac i’r timau peirianneg y tu ôl i',
 	'thanks.community': '[warmly] [sincere] A’r gymuned ehangach — yr ieithoedd, y safonau, a phawb sy’n rhoi eu gwaith i ffwrdd.',
