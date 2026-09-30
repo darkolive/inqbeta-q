@@ -15,6 +15,7 @@
 	 * below the fold is the page's own (decided 29 September).
 	 */
 	import { AppBar } from '@skeletonlabs/skeleton-svelte';
+	import BetaBadge from './BetaBadge.svelte';
 	import { thisBrowser } from '@inqbeta/q-core/browser';
 	import ComponentBlock from './ComponentBlock.svelte';
 	import LanguageMenu from './LanguageMenu.svelte';
@@ -46,7 +47,7 @@
 	<AppBar class="min-h-[calc(100dvh-var(--spacing)*20)]">
 		<!-- Inset to match the dashboard header (mx-24 from the edge: the bar's p-4 + mx-20). -->
 		<AppBar.Toolbar class="mx-20 grid-cols-[1fr_auto]">
-			<AppBar.Lead></AppBar.Lead>
+			<AppBar.Lead><BetaBadge /></AppBar.Lead>
 			<AppBar.Trail class="items-center gap-4">{@render settings()}</AppBar.Trail>
 		</AppBar.Toolbar>
 		<!-- Under the switches, only when this page is missing audio (lib/settings: coverage). -->

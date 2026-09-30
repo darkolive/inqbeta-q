@@ -96,3 +96,11 @@ If anything fails here, stop and bring the output back.
     `apps/q/local-sites.example.json` to `apps/q/local-sites.json`.
 15. **Optional**: re-record the changed open-source line — `npm run voice`
     in `apps/q` (uses ElevenLabs credits).
+
+## One public address (decided 30 September 2026)
+
+**inqbeta.com is where Q lives, marked Beta.** It is the only address shared.
+**inqbeta.dev is the test site**: it shows a banner saying so and pointing to
+inqbeta.com, because a passkey made there does not sign in on inqbeta.com.
+Changes go to `test` first; when they hold, `main` is brought level
+(`git push origin test:main`, or merge).

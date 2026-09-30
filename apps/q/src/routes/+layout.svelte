@@ -19,6 +19,8 @@
 	import ThemeSwitch from '$lib/components/ThemeSwitch.svelte';
 	import SpeechSwitch from '$lib/components/SpeechSwitch.svelte';
 	import FrontDoor from '$lib/components/FrontDoor.svelte';
+	import BetaBadge from '$lib/components/BetaBadge.svelte';
+	import TestSiteNote from '$lib/components/TestSiteNote.svelte';
 	import SearchBar from '$lib/components/SearchBar.svelte';
 	import SideNav from '$lib/components/SideNav.svelte';
 	import LanguageMenu from '$lib/components/LanguageMenu.svelte';
@@ -287,6 +289,8 @@
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
+<TestSiteNote />
+
 {#if !identity && !known && page.url.pathname === '/'}
 	<!-- The home page, signed out: the app bar is the sign-in (FrontDoor), and
 	     the page below it starts with the arrow. No nav until you are in.
@@ -306,11 +310,14 @@
 	<div class="relative flex items-center justify-between {navLayout === 'sidebar' ? 'mx-24 py-4' : 'mx-auto max-w-5xl px-6 py-4'}">
 		<!-- Under the switches, only when this page is missing audio (lib/settings: coverage). -->
 		<div class="absolute right-0 top-full mt-2"><SpeechNote /></div>
-		<!-- Logo + Terminal Icon -->
-		<a href="/" class="flex items-end gap-1.5" aria-label="Q Overview">
-			<img src="/inqbeta.svg" alt="Q" class="h-10 sm:h-11 w-auto object-contain" />
-			<FaIcon name="terminal" size="lg" animation="beat-fade" speed="slow" class="text-surface-700-300 h-5 sm:h-5 mb-2" />
-		</a>
+		<!-- Logo + Terminal Icon, and the Beta badge beside them -->
+		<div class="flex items-center gap-3">
+			<a href="/" class="flex items-end gap-1.5" aria-label="Q Overview">
+				<img src="/inqbeta.svg" alt="Q" class="h-10 sm:h-11 w-auto object-contain" />
+				<FaIcon name="terminal" size="lg" animation="beat-fade" speed="slow" class="text-surface-700-300 h-5 sm:h-5 mb-2" />
+			</a>
+			<BetaBadge />
+		</div>
 		
 		<!-- Search Bar -->
 		<SearchBar />
