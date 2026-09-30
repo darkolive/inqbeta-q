@@ -26,7 +26,9 @@
  *                                      as it is said (ElevenLabs forced alignment,
  *                                      billed like speech-to-text: by audio length)
  *
- * New recordings are timed as they are made. Timings are kept with the file
+ * New recordings are timed as they are made (the with-timestamps call, as Dark
+ * Olive does), so they never need --align. --force re-records everything that
+ * way, timings included (see the plan for what it costs). Timings are kept with the file
  * they belong to and never re-bought while the file is unchanged.
  *
  * Money leaves the account only with --yes.
@@ -217,10 +219,41 @@ function explain(status, body) {
 	}
 }
 
+/*
+ * Word timings from the recording call itself — Dark Olive's way
+ * (build-audio.mjs): the with-timestamps endpoint returns the audio and when
+ * each character is spoken. Characters inside [tags] are directions, not
+ * words, and are skipped.
+ */
+function wordsFrom(alignment) {
+	const ch = alignment?.characters ?? [];
+	const st = alignment?.character_start_times_seconds ?? [];
+	const en = alignment?.character_end_times_seconds ?? [];
+	const out = [];
+	let cur = null;
+	let tag = false;
+	for (let i = 0; i < ch.length; i++) {
+		const c = ch[i];
+		if (c === '[') tag = true;
+		if (tag) {
+			if (c === ']') tag = false;
+			if (cur) (out.push(cur), (cur = null));
+			continue;
+		}
+		if (/\s/.test(c)) {
+			if (cur) (out.push(cur), (cur = null));
+		} else if (cur) cur[1] = en[i];
+		else cur = [st[i], en[i]];
+	}
+	if (cur) out.push(cur);
+	const r = (n) => Math.round(n * 1000) / 1000;
+	return out.map(([a, b]) => [r(a), r(b)]);
+}
+
 async function record(script, lang, retake) {
-	const res = await fetch(`${API}/v1/text-to-speech/${voiceId}?output_format=${FORMAT}`, {
+	const res = await fetch(`${API}/v1/text-to-speech/${voiceId}/with-timestamps?output_format=${FORMAT}`, {
 		method: 'POST',
-		headers: { 'xi-api-key': key, 'Content-Type': 'application/json', Accept: 'audio/mpeg' },
+		headers: { 'xi-api-key': key, 'Content-Type': 'application/json' },
 		body: JSON.stringify({
 			/* Every take gets a breath at the end, so the model has room to finish
 			 * the last word (v3 otherwise often cuts it). Not part of the hash: the
@@ -235,7 +268,8 @@ async function record(script, lang, retake) {
 		})
 	});
 	if (!res.ok) throw new Error(explain(res.status, await res.text()));
-	return Buffer.from(await res.arrayBuffer());
+	const d = await res.json();
+	return { audio: Buffer.from(d.audio_base64, 'base64'), words: wordsFrom(d.alignment) };
 }
 
 /*
@@ -264,12 +298,14 @@ for (const p of plan) {
 		if (!DRY && !i.have) {
 			process.stdout.write(`  ${p.lang} ${i.key} … `);
 			try {
-				writeFileSync(i.file, await record(i.script, p.lang, i.retake));
+				const made = await record(i.script, p.lang, i.retake);
+				writeFileSync(i.file, made.audio);
 				spent += i.script.length;
 				i.have = true;
-				i.words = undefined;
+				/* Timed as it was made; only if that came back empty is it timed separately. */
+				i.words = made.words.length ? made.words : undefined;
 				i.fresh = true;
-				console.log('ok');
+				console.log(i.words ? `ok, ${i.words.length} words timed` : 'ok');
 			} catch (e) {
 				console.log(`FAILED — ${e.message}`);
 				/* A failed re-take keeps the old take rather than losing the line. */
