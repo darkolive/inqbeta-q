@@ -80,3 +80,18 @@ Darren: "a little slow … after each section, an audio cutoff sound, like a dip
 2. The Welsh script needs a first-language read.
 3. Word-by-word highlighting (Dark Olive's karaoke) is not used here: the
    front door's lines are short. `with-timestamps` on v3/v4 is unconfirmed.
+
+## Addendum — 30 September 2026: words lit, click to hear, the story waits
+
+- **Words lit as they are said**, in the sign-in tiles' hover colour
+  (`preset-filled-secondary-50-950`), fading in and out behind the voice; no
+  fade with reduced motion (`lib/voice/highlight.ts`). Timings come with each
+  recording (text-to-speech with timestamps, as Dark Olive does) or from
+  forced alignment (`npm run voice -- --align --yes`; the key needs the
+  Forced Alignment permission). Without timings the page estimates; with the
+  browser's voice it follows the voice's own word boundaries.
+- **Click any word while reading to hear from there**; lines tint under the
+  pointer ("Read from here"). The page follows the voice until the reader
+  scrolls. Reading pauses while the tab is hidden.
+- **The picture story waits for the voice** and turns to each scene as its
+  words are read (`speech.reading`).
