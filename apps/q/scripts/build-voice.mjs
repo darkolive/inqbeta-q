@@ -210,7 +210,7 @@ function explain(status, body) {
 		if (d?.code === 'paid_plan_required') return 'that voice needs a paid plan.';
 		if (d?.code === 'quota_exceeded') return 'the allowance for this period is used up — re-run after it resets; only the gaps are filled.';
 		if (d?.code === 'voice_not_found') return 'no voice with that id on this account.';
-		if (status === 401) return 'the API key was rejected.';
+		if (status === 401) return `the API key was rejected (401${d?.status ? `: ${d.status}` : ''}${d?.message ? ` — ${d.message}` : ''}).`;
 		return `${status} ${d?.message ?? JSON.stringify(d).slice(0, 300)}`;
 	} catch {
 		return `${status} ${body.slice(0, 300)}`;
@@ -256,6 +256,7 @@ async function align(file, script) {
 
 let spent = 0;
 let timed = 0;
+let noAlign = false;
 for (const p of plan) {
 	mkdirSync(p.dir, { recursive: true });
 	const items = {};
@@ -276,7 +277,7 @@ for (const p of plan) {
 			}
 		}
 		/* New recordings are always timed; older ones when --align asks. */
-		if (!DRY && GO && i.have && !i.words && (ALIGN || i.fresh)) {
+		if (!DRY && GO && !noAlign && i.have && !i.words && (ALIGN || i.fresh)) {
 			process.stdout.write(`  ${p.lang} ${i.key} timing words … `);
 			try {
 				i.words = await align(i.file, i.script);
@@ -284,6 +285,15 @@ for (const p of plan) {
 				console.log(`${i.words.length} words`);
 			} catch (e) {
 				console.log(`FAILED — ${e.message} (the page estimates instead)`);
+				/* A refused key will refuse every line: say why once, and stop asking. */
+				if (/401|rejected|permission/i.test(e.message)) {
+					noAlign = true;
+					console.log(
+						'\n  Timing is switched off for this run. The key records speech but may not be allowed' +
+							'\n  to time it: in ElevenLabs, Developers → API keys → edit this key → give it' +
+							'\n  Speech to Text (forced alignment is part of it). Then: npm run voice -- --align --yes\n'
+					);
+				}
 			}
 		}
 		/* Only lines with audio go in the manifest; the rest are read by the

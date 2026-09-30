@@ -257,6 +257,10 @@
 			"hash": "63589d6d",
 			"file": "/voice/en/63589d6d.mp3"
 		},
+		"love.by": {
+			"hash": "f1d718c3",
+			"file": "/voice/en/f1d718c3.mp3"
+		},
 		"thanks.title": {
 			"hash": "504a190a",
 			"file": "/voice/en/504a190a.mp3"
@@ -270,8 +274,8 @@
 			"file": "/voice/en/49da7415.mp3"
 		},
 		"love.source": {
-			"hash": "89f0005d",
-			"file": "/voice/en/89f0005d.mp3"
+			"hash": "d1f2de3f",
+			"file": "/voice/en/d1f2de3f.mp3"
 		},
 		"thanks.referral": {
 			"hash": "0326315f",
