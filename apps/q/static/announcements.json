@@ -6,16 +6,33 @@
       "schema": "inqbeta.announcement/1",
       "event": "federation.announced",
       "federation": "did:key:z6Mkvo5GNipFGRo6v29PbHnFXjvh8UFjLuBDnXYpRGzB6GCP",
-      "id": "r8BcfnfX9RZL",
-      "title": "Big Update",
-      "says": "Just seeing notification works!",
-      "at": "2026-10-01T12:39:18.052Z",
-      "until": "2026-10-15T12:39:18.052Z",
+      "id": "H07I1yPdjhyg",
+      "title": "say this",
+      "says": "say that",
+      "at": "2026-10-01T14:15:04.051Z",
+      "until": "2026-10-15T14:15:04.051Z",
       "signatures": [
         {
           "by": "federation",
           "did": "did:key:z6Mkvo5GNipFGRo6v29PbHnFXjvh8UFjLuBDnXYpRGzB6GCP",
-          "signature": "pEQqePYWSqZp_0WYGJ0VYZ6Bj-b5C-673EzVwad6HLDBQqdkZUezwAJFgdY3GAzg0jPGezEcvd_mf84XrJg4Cg"
+          "signature": "wvi9ytTqUOnhXDEZ5fnBeh1E8H7sCK0KwqewMCNSuMrHcQbhyfRwlFRRAjR4gEjhrz-NuRQWVP8bOIJKiKGxBg"
+        }
+      ]
+    },
+    {
+      "schema": "inqbeta.announcement/1",
+      "event": "federation.announced",
+      "federation": "did:key:z6Mkvo5GNipFGRo6v29PbHnFXjvh8UFjLuBDnXYpRGzB6GCP",
+      "id": "1GlZeFy335W0",
+      "title": "Just got big update",
+      "says": "now building out the address book and communication system.",
+      "at": "2026-10-01T12:32:46.603Z",
+      "until": "2026-10-15T12:32:46.603Z",
+      "signatures": [
+        {
+          "by": "federation",
+          "did": "did:key:z6Mkvo5GNipFGRo6v29PbHnFXjvh8UFjLuBDnXYpRGzB6GCP",
+          "signature": "w-t8DMYQuC2oPn5o0YBfA5Oqy8lYOaL9eKGAxgbV_j17R1InsCKNPb954a-VtXcLsStomRxK9GAOqm6tpUWmDg"
         }
       ]
     }
