@@ -77,11 +77,11 @@ export function announcementsFile(federation: string, list: Announcement[]): str
 	return JSON.stringify(file, null, 2);
 }
 
-/* Read or not, on this device. Reading doesn't clear one — it stays until its time is over. */
-const READ_KEY = 'q.announcements.read';
+/* Read or not, on this device, for whoever is signed in (cleared when they sign out:
+ * q-core storage.ts). Reading doesn't clear one — it stays until its time is over. */
 export function readIds(): Set<string> {
 	try {
-		return new Set(JSON.parse(localStorage.getItem(READ_KEY) ?? '[]') as string[]);
+		return new Set(JSON.parse(localStorage.getItem('q.announcements.read') ?? '[]') as string[]);
 	} catch {
 		return new Set();
 	}
@@ -90,7 +90,7 @@ export function markRead(id: string): void {
 	try {
 		const s = readIds();
 		s.add(id);
-		localStorage.setItem(READ_KEY, JSON.stringify([...s]));
+		localStorage.setItem('q.announcements.read', JSON.stringify([...s]));
 	} catch {
 		/* No storage: it simply shows as new again next time. */
 	}

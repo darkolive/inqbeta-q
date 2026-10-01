@@ -13,7 +13,6 @@
 	 * all. Leaving belongs where you always are, which is the header.
 	 */
 	import { remembered, signOut as leave, unlock, watch, type Identity } from '@inqbeta/q-core/passkey';
-	import { goto } from '$app/navigation';
 	import { Avatar, Icon } from '@inqbeta/q-ui';
 	import { fingerprint } from '$lib/fingerprint';
 
@@ -51,7 +50,8 @@
 	function out() {
 		open = false;
 		leave();
-		void goto('/');
+		/* A full load, so nothing of the last person stays in the page (see SignIn). */
+		location.replace('/');
 	}
 
 	const label = $derived(

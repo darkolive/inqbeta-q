@@ -131,7 +131,14 @@
 	}
 	function leaveNow() {
 		signOut();
-		void goto('/');
+		/*
+		 * A full load of the home page, not goto('/'): storage is cleared above,
+		 * but the page itself still held the last person — their bell, their
+		 * announcements, their open line to the bellboy, their ledger. Loading
+		 * afresh drops all of it, so the next person starts clean, with no
+		 * "empty the cache" needed.
+		 */
+		location.replace('/');
 	}
 </script>
 

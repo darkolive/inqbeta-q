@@ -83,7 +83,9 @@ test('the things that belong to a person are the things sign-out clears', () => 
 		'inqbeta-second-factor',
 		'inqbeta-second-factor-pending',
 		'inqbeta-zk-2fa',
-		'inqbeta-zk-pending'
+		'inqbeta-zk-pending',
+		'q.announcements.read',
+		'q.notify'
 	]) {
 		assert.ok(cleared.has(key), `${key} should be cleared when somebody signs out`);
 	}

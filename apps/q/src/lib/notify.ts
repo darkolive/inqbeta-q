@@ -26,12 +26,13 @@ export const SAYS: Record<Reach, { label: string; means: string }> = {
 	off: { label: 'Off', means: 'Nothing arrives from them at all.' }
 };
 
+/* Belongs to whoever is signed in, so it goes when they sign out (q-core storage.ts). */
 const KEY = 'q.notify';
 const DEFAULTS = { people: 'ring', fed: 'quiet' } as const;
 
 function readAll(): Record<string, Reach> {
 	try {
-		return JSON.parse(localStorage.getItem(KEY) ?? '{}') as Record<string, Reach>;
+		return JSON.parse(localStorage.getItem('q.notify') ?? '{}') as Record<string, Reach>;
 	} catch {
 		return {};
 	}
@@ -45,7 +46,7 @@ export function reachFor(source: Source, all: Record<string, Reach> = readAll())
 
 export function setReach(source: Source, reach: Reach): void {
 	try {
-		localStorage.setItem(KEY, JSON.stringify({ ...readAll(), [source]: reach }));
+		localStorage.setItem('q.notify', JSON.stringify({ ...readAll(), [source]: reach }));
 	} catch {
 		/* No storage: the default stands. */
 	}

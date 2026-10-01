@@ -19,12 +19,11 @@ export interface MediaChoice {
 	cleanup: boolean;
 }
 
-const KEY = 'q.call.choice';
 const DEFAULT: MediaChoice = { quality: 'best', cleanup: true };
 
 export function loadChoice(): MediaChoice {
 	try {
-		return { ...DEFAULT, ...(JSON.parse(localStorage.getItem(KEY) ?? '{}') as Partial<MediaChoice>) };
+		return { ...DEFAULT, ...(JSON.parse(localStorage.getItem('q.call.choice') ?? '{}') as Partial<MediaChoice>) };
 	} catch {
 		return { ...DEFAULT };
 	}
@@ -32,7 +31,7 @@ export function loadChoice(): MediaChoice {
 
 export function saveChoice(c: MediaChoice) {
 	try {
-		localStorage.setItem(KEY, JSON.stringify(c));
+		localStorage.setItem('q.call.choice', JSON.stringify(c));
 	} catch {
 		/* private window, or storage refused — the choice lasts for this visit */
 	}
