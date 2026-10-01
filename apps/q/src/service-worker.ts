@@ -52,8 +52,15 @@ const ENGINE_CACHE = `q-engine-cedar-${CEDAR_VERSION}`;
 const VOICE_CACHE = 'q-voice';
 const isEngine = (path: string) => /cedar_wasm_bg[^/]*\.wasm$/.test(path);
 
+/*
+ * Signed files the caretaker publishes (ADR-Q-016): the home federation's
+ * invitation and its announcements. They change without the app changing, so
+ * they are fetched fresh every time, with the kept copy only when offline —
+ * never answered from the cache first, which once hid a new announcement.
+ */
+const PUBLISHED = new Set(['/incubator.json', '/announcements.json']);
 const SMALL_STATIC = files.filter(
-	(f) => !f.startsWith('/images/') && !f.startsWith('/audio/') && !f.startsWith('/voice/') && !f.endsWith('.md')
+	(f) => !f.startsWith('/images/') && !f.startsWith('/audio/') && !f.startsWith('/voice/') && !f.endsWith('.md') && !PUBLISHED.has(f)
 );
 const KEEP = new Set([...build, ...SMALL_STATIC, ...prerendered].filter((f) => !isEngine(f)));
 
@@ -121,6 +128,13 @@ sw.addEventListener('fetch', (event) => {
 				if (response.status === 200) void cache.put(url.pathname, response.clone());
 				return response;
 			})
+		);
+		return;
+	}
+
+	if (PUBLISHED.has(url.pathname)) {
+		event.respondWith(
+			fromNetwork(new Request(request.url, { cache: 'no-store' }), true).catch(async () => (await caches.match(url.pathname)) ?? Response.error())
 		);
 		return;
 	}

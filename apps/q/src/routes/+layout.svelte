@@ -8,7 +8,7 @@
 	 */
 	import '../app.css';
 	import { onMount } from 'svelte';
-	import { page } from '$app/state';
+	import { page, updated } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { Navigation, Dialog, Portal } from '@skeletonlabs/skeleton-svelte';
 	import { Icon, FaIcon, Status, type IconName } from '@inqbeta/q-ui';
@@ -612,6 +612,17 @@
 				{/each}
 			</ul>
 		{/if}
+	</div>
+{/if}
+
+<!--
+	A new deploy is live (svelte.config: version.pollInterval). Said once, calmly,
+	with one button — nobody should ever have to clear their browser to get it.
+-->
+{#if updated.current}
+	<div class="fixed bottom-20 md:bottom-6 left-1/2 z-50 -translate-x-1/2 card preset-filled-surface-950-50 shadow-xl px-4 py-3 flex items-center gap-4" role="status">
+		<span class="text-sm">Q has been updated.</span>
+		<button type="button" class="btn btn-sm preset-filled-primary-500 min-h-11" onclick={() => location.reload()}>Reload</button>
 	</div>
 {/if}
 
