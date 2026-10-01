@@ -17,6 +17,7 @@
 	import { Icon } from '@inqbeta/q-ui';
 	import { t, type Key } from '$lib/i18n/index.svelte';
 	import { noteWhere } from '$lib/vault-pointer';
+	import { pointerRead } from '@inqbeta/q-core/pointer';
 
 	let {
 		open = $bindable(false),
@@ -37,6 +38,8 @@
 
 	$effect(() => {
 		if (open) {
+			/* This passkey can't hold a note: don't ask for a touch that can't work. */
+			if (pointerRead().carried === false) return finish(false);
 			stage = 'ask';
 			says = '';
 		}
@@ -54,7 +57,7 @@
 			stage = 'done';
 			/* Long enough to read the one line, then carry on. */
 			setTimeout(() => finish(true), 1200);
-		} else if (n.cancelled) finish(false);
+		} else if (n.cancelled || n.unsupported) finish(false);
 		else {
 			stage = 'failed';
 			says = n.says;

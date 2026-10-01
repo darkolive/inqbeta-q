@@ -55,7 +55,7 @@
  * seed) are also kept in IndexedDB for 30 quiet minutes so a reload carries
  * on — see "Staying signed in across a reload" below.
  */
-import { decodePointer, encodePointer, setPointerRead, type VaultPointer } from './pointer';
+import { decodePointer, encodePointer, setPointerRead, pointerRead, type VaultPointer } from './pointer';
 import { b64url, didFromPublicKey, pkcs8, x25519PrivateFromEd25519Seed } from './did';
 import { canonical } from './canonical';
 import { openWith, setOpeningSource, type Opener, type Signer } from './seal';
@@ -648,7 +648,15 @@ export async function makePasskey(label: string, place: KeyPlace = keyPlace()): 
 			hold(identity);
 			return { ok: true, identity };
 		}
-		return unlock(place);
+		/*
+		 * Most systems ask for a second touch to sign in. Keep what the new
+		 * passkey said at creation about carrying a note: the sign-in that
+		 * follows reads no note (there isn't one yet) and would otherwise
+		 * forget it, so Q would ask for a touch it already knows will fail.
+		 */
+		const out = await unlock(place);
+		if (out.ok && typeof ext.largeBlob?.supported === 'boolean') setPointerRead({ pointer: null, carried: ext.largeBlob.supported });
+		return out;
 	} catch (e) {
 		return said(e);
 	}
@@ -835,6 +843,10 @@ function rebuildOpening(): Promise<CryptoKey> {
  * Writing the vault pointer (pointer.ts) — one touch, offline.
  * ------------------------------------------------------------------ */
 
+/** Said once, calmly: nothing is wrong, the note is a convenience. */
+export const NO_NOTE =
+	'Your passkey can’t hold a note about where your vault is. Nothing is wrong: your copies are safe, Q just can’t remind you where they are when you sign in somewhere new.';
+
 export type PointerNoted = { ok: true } | { ok: false; says: string; cancelled?: boolean; unsupported?: boolean };
 
 /**
@@ -848,6 +860,8 @@ export async function notePointer(p: VaultPointer): Promise<PointerNoted> {
 	if (typeof console !== 'undefined') console.info('[vault note] writing to passkey', id ? b64url(id).slice(0, 12) + '…' : 'none');
 	/* A browser writes a passkey's note only for one passkey named by id. */
 	if (!id) return { ok: false, says: 'Sign in with your passkey first, so Q knows which passkey to note it on.' };
+	/* The passkey already said it can't keep a note: don't ask for a touch that can't work. */
+	if (pointerRead().carried === false) return { ok: false, unsupported: true, says: NO_NOTE };
 	let blob: Uint8Array<ArrayBuffer>;
 	try {
 		blob = encodePointer(p);
@@ -873,7 +887,7 @@ export async function notePointer(p: VaultPointer): Promise<PointerNoted> {
 			return {
 				ok: false,
 				unsupported: true,
-				says: 'This passkey cannot carry a note. Either it was made before Q asked for one, or the keychain it lives in does not keep notes (iCloud Keychain and Google Password Manager do).'
+				says: NO_NOTE
 			};
 		}
 		setPointerRead({ pointer: p, carried: true });

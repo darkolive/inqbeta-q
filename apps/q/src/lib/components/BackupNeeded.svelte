@@ -52,7 +52,8 @@
 		noting = true;
 		const n = await noteWhere(also);
 		noting = false;
-		noted = n.ok ? t('note.done') : n.cancelled ? null : n.says;
+		/* A passkey that can't hold a note isn't news after a backup: say nothing. */
+		noted = n.ok ? t('note.done') : n.cancelled || n.unsupported ? null : n.says;
 	}
 
 	function recount() {

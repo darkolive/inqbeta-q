@@ -123,6 +123,11 @@ export function setPointerRead(r: PointerRead): void {
 	for (const fn of listeners) fn(read);
 }
 
+/** What the passkey has said so far in this tab. */
+export function pointerRead(): PointerRead {
+	return read;
+}
+
 export function watchPointer(fn: (r: PointerRead) => void): () => void {
 	listeners.add(fn);
 	fn(read);
