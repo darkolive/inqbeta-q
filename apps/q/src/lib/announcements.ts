@@ -86,6 +86,16 @@ export function readIds(): Set<string> {
 		return new Set();
 	}
 }
+/** Put back the read marks your vault remembers, after signing in. */
+export function restoreRead(ids: string[]): void {
+	if (!ids.length) return;
+	try {
+		localStorage.setItem('q.announcements.read', JSON.stringify([...new Set([...readIds(), ...ids])]));
+	} catch {
+		/* no storage: they show as new this time */
+	}
+}
+
 export function markRead(id: string): void {
 	try {
 		const s = readIds();

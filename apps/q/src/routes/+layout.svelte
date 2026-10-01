@@ -42,9 +42,10 @@
 	import { connectMqtt } from '$lib/mqtt-ws';
 	import ReceivedView from '$lib/components/ReceivedView.svelte';
 	import { readHome } from '$lib/home';
-	import { readAnnouncements, readIds, markRead } from '$lib/announcements';
+	import { readAnnouncements, readIds, markRead, restoreRead } from '$lib/announcements';
+	import { keptFrom, knownKept, keepSoon } from '$lib/kept-settings';
 	import type { Announcement } from '@inqbeta/q-core/announcements';
-	import { reachFor, watchReach, type Reach } from '$lib/notify';
+	import { reachFor, watchReach, restoreReach, type Reach } from '$lib/notify';
 
 	/*
 	 * The bell (ADR-Q-014 §4): notices from the bellboy. Kept apart from the
@@ -164,6 +165,7 @@
 	function openAnnouncement(a: Announcement) {
 		markRead(a.id);
 		seen = new Set([...seen, a.id]);
+		keepSettings();
 		reading = a;
 		notificationsOpen = false;
 	}
@@ -348,6 +350,34 @@
 	let ledger = $state<Ledger | null>(null);
 	let askedAlready = $state<boolean | null>(null);
 	$effect(() => watchLedger((l) => (ledger = l)));
+
+	/*
+	 * Read marks and the notifications card come back from your vault after
+	 * signing in (lib/kept-settings), and go back into it when they change.
+	 */
+	let keptReady = $state(false);
+	$effect(() => {
+		if (!identity) keptReady = false;
+		if (!identity || !folderReady || ledger?.state !== 'ready' || keptReady) return;
+		const did = identity.did;
+		void Promise.all(ledger.found.filter((f) => f.kind === 'answers').map((f) => answersFrom(f.item))).then((list) => {
+			const k = keptFrom(list.filter((a): a is AnswerSet => !!a), did);
+			knownKept(k);
+			if (k) {
+				restoreRead(k.read);
+				seen = readIds();
+				restoreReach(k.notify);
+			}
+			keptReady = true;
+		});
+	});
+	function keepSettings() {
+		if (identity && keptReady) keepSoon(identity, { read: [...readIds()], notify: reach }, folderReady);
+	}
+	$effect(() => {
+		void reach;
+		keepSettings();
+	});
 
 	$effect(() => {
 		if (!identity || !folderReady || ledger?.state !== 'ready') return;

@@ -53,6 +53,24 @@ export function setReach(source: Source, reach: Reach): void {
 	window.dispatchEvent(new CustomEvent(KEY));
 }
 
+/** Put back what your vault remembers, after signing in. What this browser already says wins. */
+export function restoreReach(kept: Record<string, Reach>): void {
+	const now = readAll();
+	const merged = { ...kept, ...now };
+	if (JSON.stringify(merged) === JSON.stringify(now)) return;
+	try {
+		localStorage.setItem('q.notify', JSON.stringify(merged));
+	} catch {
+		return;
+	}
+	window.dispatchEvent(new CustomEvent(KEY));
+}
+
+/** Everything chosen on the card, as kept. */
+export function allReach(): Record<string, Reach> {
+	return readAll();
+}
+
 /** Calls you now, and again whenever the card changes (in this tab or another). */
 export function watchReach(cb: (all: Record<string, Reach>) => void): () => void {
 	const fire = () => cb(readAll());
