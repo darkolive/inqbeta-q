@@ -8,6 +8,7 @@
 	import { watchFolder, type FolderState } from '@inqbeta/q-core/folder';
 	import { listReplicas, type Replica } from '@inqbeta/q-core/replicas';
 	import { watchLedger, type Ledger } from '$lib/ledger';
+	import { readHome, type Home } from '$lib/home';
 	import OpenFromBackup from '$lib/components/OpenFromBackup.svelte';
 	import PointerNote from '$lib/components/PointerNote.svelte';
 	import LeaveNoTrace from '$lib/components/LeaveNoTrace.svelte';
@@ -51,6 +52,12 @@
 	const courses = $derived(found.filter((f) => f.kind === 'course'));
 	const federations = $derived(found.filter((f) => f.kind === 'federation' || f.kind === 'membership'));
 	const recent = $derived(found.slice(0, 5));
+	/* Q's home federation (ADR-Q-016): offered once, calmly, until you join or have joined. */
+	let home = $state<Home | null>(null);
+	$effect(() => void readHome().then((h) => (home = h)));
+	const inHome = $derived(
+		!!home?.ok && found.some((f) => (f.kind === 'membership' || f.kind === 'federation') && f.key.endsWith(`:${home!.ok ? home!.federation : ''}`))
+	);
 	const linked = $derived(ledger?.links.filter((l) => l.link.event === 'identity.linked').length ?? 0);
 </script>
 
@@ -118,6 +125,16 @@
 {:else}
 	<!-- Signed in - Dashboard -->
 	<Page title="Overview" lead="Your identity, your files and your federations — on this device, offline.">
+		{#if identity && home?.ok && !inHome}
+			<div class="card preset-outlined-primary-500 mb-6 p-5 flex flex-wrap items-center gap-4">
+				<div class="min-w-48 flex-1">
+					<p class="font-bold">Join {home.name}</p>
+					<p class="text-sm opacity-80">{home.purpose}</p>
+					<p class="text-sm opacity-70 mt-1">Your agreement is with {home.name}, one step at a time. You can leave whenever you like.</p>
+				</div>
+				<a class="btn preset-filled-primary-500 min-h-11" href={home.joinHref}>Read and join</a>
+			</div>
+		{/if}
 	<!-- Straight after the passkey: an empty browser offers the last backup. -->
 	<div class="mb-4"><OpenFromBackup /></div>
 	<!-- What the passkey said about where the vault is (ADR-Q-012). Nothing, if no note. -->

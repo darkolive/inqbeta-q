@@ -41,6 +41,7 @@
 	import type { Found } from '$lib/features/registry';
 	import { standingAt } from '@inqbeta/q-core/membership';
 	import { reachIndex, reachPostOffice, reachStorage, type Reach } from '$lib/node-health';
+	import { readHome, HOME_SCHEMA, type Home, type HomeFile } from '$lib/home';
 	import { untrack } from 'svelte';
 
 	let identity = $state<Identity | null>(null);
@@ -144,6 +145,33 @@
 		busy = null;
 		said = out.ok ? { tone: 'good', text: `${n.called} is no longer listed. The record of it stays.` } : { tone: 'bad', text: out.says };
 		await refreshLedger();
+	}
+
+	/*
+	 * Q's home federation (ADR-Q-016): publish this federation's standing
+	 * invitation as /incubator.json, so signing up to Q is joining it.
+	 */
+	let home = $state<Home | null>(null);
+	$effect(() => void readHome().then((h) => (home = h)));
+	const isHome = $derived(!!home?.ok && home.federation === id);
+	let homeFile = $state<{ url: string; until: string } | null>(null);
+	async function publishHome() {
+		if (!identity || !own) return;
+		busy = 'home';
+		said = null;
+		const out = await invite(identity, own, { for: 'Everyone who signs up to Q', days: 90 });
+		busy = null;
+		if (!out.ok) return void (said = { tone: 'bad', text: out.says });
+		const until = new Date(out.invitation.offer.exp * 1000).toISOString();
+		const file: HomeFile = {
+			schema: HOME_SCHEMA,
+			federation: own.founding.federation,
+			name: own.founding.name,
+			purpose: own.manifest.constitution.purpose,
+			invitation: out.link.slice(out.link.indexOf('#') + 1),
+			until
+		};
+		homeFile = { url: URL.createObjectURL(new Blob([JSON.stringify(file, null, 2)], { type: 'application/json' })), until };
 	}
 
 	const founding = $derived(own?.founding ?? mine?.founding ?? null);
@@ -491,6 +519,30 @@
 			<!-- Settings: the machines it runs. Caretaker only. -->
 			{#if own}
 				<Tabs.Content value="settings">
+				<Section title="Q’s home federation" description="Signing up to Q joins the home federation. Publishing makes a standing invitation, signed by this federation, that runs for 90 days.">
+					{#if isHome && home?.ok}
+						<p class="mb-3 flex flex-wrap items-center gap-2"><Status tone="good">This is Q’s home federation</Status> <span class="text-sm">Its invitation runs until {onDay(home.until)}. Publish again before then.</span></p>
+					{:else if home?.ok}
+						<p class="mb-3 text-sm">Q’s home federation is currently {home.name}.</p>
+					{/if}
+					{#if homeFile}
+						<div class="card preset-tonal p-4 flex flex-col gap-3">
+							<p class="font-bold">Your invitation is made and signed.</p>
+							<ol class="list-decimal pl-6 text-sm space-y-1">
+								<li>Download the file.</li>
+								<li>Put it in the repo at <span class="role-token">apps/q/static/incubator.json</span>.</li>
+								<li>Commit and push. Every Q checks its signature before trusting it.</li>
+							</ol>
+							<a class="btn preset-filled-primary-500 min-h-11 self-start" href={homeFile.url} download="incubator.json">Download incubator.json</a>
+							<p class="text-xs opacity-60">Runs until {onDay(homeFile.until)}.</p>
+						</div>
+					{:else}
+						<button type="button" class="btn preset-filled-primary-500 min-h-11" disabled={busy !== null} onclick={() => void publishHome()}>
+							{busy === 'home' ? 'Signing…' : isHome ? 'Renew the invitation' : 'Make this Q’s home federation'}
+						</button>
+					{/if}
+				</Section>
+
 				<Section title="Nodes" description="The machines this federation runs, on its own private mesh. Whether each service answers is checked from this device, now — never stored.">
 					{#if nodes.length === 0 && !adding}
 						<Empty icon="federations" title="No nodes yet" description="A node holds the federation’s bellboy, directory and storage unit — any or all of them. List one when it’s on the mesh." />
@@ -514,20 +566,22 @@
 									{#if n.services.postOffice}
 										<dt class="flex items-center gap-2"><Icon name="bellboy" />Bellboy</dt>
 										<dd><Status tone={toneOf(r?.postOffice)}>{r?.asking ? 'Checking' : wordOf(r?.postOffice)}</Status></dd>
-										<dd class="text-sm">{r?.postOffice?.says ?? ''} <span class="role-token text-xs opacity-60">ws :{n.services.postOffice.port}</span></dd>
+										<dd class="text-sm">{r?.postOffice?.is === 'cannot-ask' ? '' : (r?.postOffice?.says ?? '')} <span class="role-token text-xs opacity-60">ws :{n.services.postOffice.port}</span></dd>
 									{/if}
 									{#if n.services.index}
 										<dt class="flex items-center gap-2"><Icon name="directory" />Directory</dt>
 										<dd><Status tone={toneOf(r?.index)}>{r?.asking ? 'Checking' : wordOf(r?.index)}</Status></dd>
-										<dd class="text-sm">{r?.index?.says ?? ''} <span class="role-token text-xs opacity-60">http :{n.services.index.port}</span></dd>
+										<dd class="text-sm">{r?.index?.is === 'cannot-ask' ? '' : (r?.index?.says ?? '')} <span class="role-token text-xs opacity-60">http :{n.services.index.port}</span></dd>
 									{/if}
 								{#if n.services.storage}
 									<dt class="flex items-center gap-2"><Icon name="storage-unit" />Storage unit</dt>
 									<dd><Status tone={toneOf(r?.storage)}>{r?.asking ? 'Checking' : wordOf(r?.storage)}</Status></dd>
-									<dd class="text-sm">{r?.storage?.says ?? ''} <span class="role-token text-xs opacity-60">http :{n.services.storage.port}</span></dd>
+									<dd class="text-sm">{r?.storage?.is === 'cannot-ask' ? '' : (r?.storage?.says ?? '')} <span class="role-token text-xs opacity-60">http :{n.services.storage.port}</span></dd>
 								{/if}
 								</dl>
-								{#if r?.at}<p class="text-xs opacity-60">Checked from this device at {r.at}.</p>{/if}
+								{#if [r?.postOffice, r?.index, r?.storage].some((x) => x?.is === 'cannot-ask')}
+									<p class="text-sm">Not checked from here: a secure (https) page can’t reach the federation’s private mesh. They’re checked from Q on a computer that’s on the mesh.</p>
+								{:else if r?.at}<p class="text-xs opacity-60">Checked from this device at {r.at}.</p>{/if}
 							</li>
 						{/each}
 					</ul>
