@@ -204,6 +204,8 @@
 	let annHref = $state('');
 	let annDays = $state(14);
 	let annFile = $state<{ url: string; note: string } | null>(null);
+	/* What's happening right now, in words, so the button never just sits there. */
+	let annStage = $state('');
 	function offer(list: Announcement[], note: string) {
 		annFile = { url: URL.createObjectURL(new Blob([announcementsFile(id, list)], { type: 'application/json' })), note };
 	}
@@ -214,8 +216,10 @@
 	async function publish(list: Announcement[], key: Awaited<ReturnType<typeof openFederationKey>>, sent: string, filed: string) {
 		const live = list.filter((a) => Date.parse(a.until) > Date.now());
 		if (storage && own) {
+			annStage = `Sending to ${own.founding.name}’s storage unit…`;
 			const publication = await makePublication(signerFor(key), own.founding.federation, live);
 			const out = await publishAnnouncements(storage, own.founding.federation, live, publication);
+			annStage = '';
 			if (out.ok) {
 				announcements = live;
 				annFile = null;
@@ -231,6 +235,7 @@
 		if (!identity || !own) return;
 		busy = 'announce';
 		said = null;
+		annStage = 'Signing with your thumbprint…';
 		try {
 			const key = await openFederationKey(own.sealedKey, identity);
 			const a = await makeAnnouncement(signerFor(key), {
@@ -245,6 +250,7 @@
 		} catch (e) {
 			said = { tone: 'bad', text: e instanceof Error ? e.message : String(e) };
 		}
+		annStage = '';
 		busy = null;
 	}
 	async function takeDown(a: Announcement) {
@@ -620,8 +626,15 @@
 								</select>
 							</label>
 							<button type="button" class="btn preset-filled-primary-500 min-h-11 self-start" disabled={busy !== null || !annTitle.trim() || !annSays.trim()} onclick={() => void announce()}>
-								{busy === 'announce' ? 'Signing…' : 'Sign and send'}
+								{busy === 'announce' ? 'Sending…' : 'Sign and send'}
 							</button>
+							{#if annStage}
+								<p class="text-sm" aria-live="polite">{annStage}</p>
+							{:else if said}
+								<p class="text-sm card p-3 {said.tone === 'good' ? 'preset-tonal-success' : 'preset-tonal-error'}" aria-live="polite">{said.text}</p>
+							{:else if !annTitle.trim() || !annSays.trim()}
+								<p class="text-xs opacity-60">Write a title and a message, and the button wakes up.</p>
+							{/if}
 						</div>
 						{#if annFile}
 							<div class="card preset-tonal p-4 mt-6 flex flex-col gap-3">

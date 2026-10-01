@@ -55,12 +55,14 @@ export async function publishAnnouncements(storage: string, federation: string, 
 		const r = await fetch(atStorage(storage, federation), {
 			method: 'POST',
 			headers: { 'content-type': 'application/json' },
-			body: JSON.stringify({ file, publication })
+			body: JSON.stringify({ file, publication }),
+			/* Never hang: after 15 seconds, say so and offer the file instead. */
+			signal: AbortSignal.timeout(15_000)
 		});
 		const said = (await r.json().catch(() => ({}))) as { says?: string };
 		return r.ok ? { ok: true } : { ok: false, says: said.says ?? `The storage unit said ${r.status}.` };
 	} catch {
-		return { ok: false, says: 'The storage unit couldn’t be reached.' };
+		return { ok: false, says: 'The storage unit didn’t answer in time.' };
 	}
 }
 
