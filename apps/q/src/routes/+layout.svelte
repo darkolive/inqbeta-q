@@ -44,6 +44,7 @@
 	import { readHome } from '$lib/home';
 	import { readAnnouncements, readIds, markRead } from '$lib/announcements';
 	import type { Announcement } from '@inqbeta/q-core/announcements';
+	import { reachFor, watchReach, type Reach } from '$lib/notify';
 
 	/*
 	 * The bell (ADR-Q-014 §4): notices from the bellboy. Kept apart from the
@@ -56,6 +57,14 @@
 	let ringing = $state(false);
 	let announce = $state('');
 	const bell = bellConfig();
+	/* Your notifications card: what rings, what waits quietly, what's off. */
+	let reach = $state<Record<string, Reach>>({});
+	$effect(() => watchReach((a) => (reach = a)));
+	const peopleReach = $derived(reachFor('people', reach));
+	function ring() {
+		ringing = true;
+		setTimeout(() => (ringing = false), 2400);
+	}
 	$effect(() => {
 		if (!identity || !bell) return;
 		let hangUp: (() => void) | null = null;
@@ -64,8 +73,7 @@
 			if (notices.some((x) => x.notice.receipt === n.receipt) || capturedHashes.has(n.receipt)) return;
 			notices.unshift({ notice: n, at: new Date(), state: 'new' });
 			announce = `New: ${n.from} — ${n.title}`;
-			ringing = true;
-			setTimeout(() => (ringing = false), 2400);
+			if (reachFor('people') === 'ring') ring();
 		}).then((h) => (gone ? h() : (hangUp = h)));
 		return () => {
 			gone = true;
@@ -85,7 +93,7 @@
 			void refreshLedger();
 		}
 	}
-	const newNotices = $derived(notices.filter((n) => n.state === 'new').length);
+	const newNotices = $derived(peopleReach === 'ring' ? notices.filter((n) => n.state === 'new').length : 0);
 
 	/*
 	 * Announcements from Q's home federation (ADR-Q-016 §6), for its members.
@@ -98,6 +106,7 @@
 	let reading = $state<Announcement | null>(null);
 	let homeStorage = $state<string | undefined>(undefined);
 	let homeBellboy = $state<string | undefined>(undefined);
+	const homeReach = $derived(homeDid ? reachFor(`fed:${homeDid}`, reach) : 'quiet');
 	$effect(() => {
 		if (!identity) return;
 		void readHome().then(async (h) => {
@@ -116,7 +125,8 @@
 	 * announcements from the storage unit and checks them. Members only.
 	 */
 	$effect(() => {
-		if (!identity || !homeBellboy || !homeDid || !inHomeFed) return;
+		/* Off on the notifications card: Q doesn't even listen. */
+		if (!identity || !homeBellboy || !homeDid || !inHomeFed || homeReach === 'off') return;
 		const did = homeDid, storage = homeStorage, url = homeBellboy;
 		let line: { close(): void } | null = null;
 		let gone = false;
@@ -129,8 +139,7 @@
 					announcements = await readAnnouncements(did, storage);
 					if (announcements.some((a) => !before.has(a.id))) {
 						announce = `New from ${homeName}`;
-						ringing = true;
-						setTimeout(() => (ringing = false), 2400);
+						if (reachFor(`fed:${did}`) === 'ring') ring();
 					}
 				}
 			},
@@ -149,8 +158,9 @@
 	const inHomeFed = $derived(
 		!!homeDid && (ledger?.found ?? []).some((f) => (f.kind === 'membership' || f.kind === 'federation') && f.key.endsWith(`:${homeDid}`))
 	);
-	const heard = $derived(inHomeFed ? announcements : []);
-	const unheard = $derived(heard.filter((a) => !seen.has(a.id)).length);
+	const heard = $derived(inHomeFed && homeReach !== 'off' ? announcements : []);
+	/* Only what rings is counted; quiet ones wait in the list without a number. */
+	const unheard = $derived(homeReach === 'ring' ? heard.filter((a) => !seen.has(a.id)).length : 0);
 	function openAnnouncement(a: Announcement) {
 		markRead(a.id);
 		seen = new Set([...seen, a.id]);
@@ -572,6 +582,9 @@
 			<h3 class="font-semibold">Notifications</h3>
 			<button type="button" class="text-sm text-primary-500" onclick={markAllRead}>Mark all read</button>
 		</div>
+		<a href="/cards#reach" class="flex items-center gap-2 px-3 py-2 text-sm border-b border-surface-200-800 hover:bg-surface-100-900 min-h-11" onclick={() => (notificationsOpen = false)}>
+			<Icon name="settings" class="size-4" /> Choose what reaches you
+		</a>
 		{#if heard.length}
 			<p class="px-3 pt-3 text-xs font-bold uppercase opacity-60">From {homeName}</p>
 			<ul class="divide-y divide-surface-200-800 border-b border-surface-200-800">

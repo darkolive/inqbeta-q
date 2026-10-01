@@ -1,6 +1,6 @@
 ---
 status: proposed
-implementation: none
+implementation: started — home federation, joining, announcements through its own storage unit and bellboy, the notifications card (1 October 2026)
 updated: 2026-10-01
 ---
 

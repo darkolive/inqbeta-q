@@ -36,6 +36,8 @@
 	import { bellConfig } from '$lib/bellboy';
 	import { recordFrom, isMembershipRecord, isFederationRecord, type MembershipRecord, type FederationRecord } from '$lib/federations';
 	import { standingAt } from '@inqbeta/q-core/membership';
+	import NotificationsCard from '$lib/components/NotificationsCard.svelte';
+	import { readHome } from '$lib/home';
 
 	let identity = $state<Identity | null>(null);
 	let folder = $state<FolderState>({ kind: 'checking' });
@@ -66,6 +68,14 @@
 		void Promise.all(found.filter((f) => f.kind === 'membership').map((f) => recordFrom(f.item))).then((l) => (memberships = l.filter(isMembershipRecord)));
 		void Promise.all(found.filter((f) => f.kind === 'federation').map((f) => recordFrom(f.item))).then((l) => (looking = l.filter(isFederationRecord)));
 	});
+	/* Which federations can reach you: today, Q's home federation, if you're in it. */
+	let home = $state<{ did: string; name: string } | null>(null);
+	$effect(() => {
+		void readHome().then((h) => (home = h.ok ? { did: h.federation, name: h.name } : null));
+	});
+	const reaching = $derived(
+		home && [...memberships.map((m) => m.joining.federation), ...looking.map((f) => f.founding.federation)].includes(home.did) ? [home] : []
+	);
 	const fedHref = (did: string) => `/federations/one?id=${encodeURIComponent(did)}`;
 
 	/* Your profile, now: every detail, as only you see it. */
@@ -299,6 +309,12 @@
 					</div>
 				</Section>
 			{/if}
+
+			<div id="reach" class="scroll-mt-24">
+				<Section title="What reaches you" description="Your notifications card. Choose, for each, whether it rings the bell, waits quietly, or doesn’t come at all.">
+					<NotificationsCard federations={reaching} />
+				</Section>
+			</div>
 
 			<Section title="Giving a card to someone" description="Next.">
 				<p class="text-sm">Handing a card to a person is a signed permission, scoped to that card, that you can take back on its own. It is built and tested underneath, and comes next.</p>
