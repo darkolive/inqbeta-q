@@ -11,6 +11,7 @@
 	import { readHome, type Home } from '$lib/home';
 	import OpenFromBackup from '$lib/components/OpenFromBackup.svelte';
 	import YouAtTop from '$lib/components/YouAtTop.svelte';
+	import ActivityFeed from '$lib/components/ActivityFeed.svelte';
 	import PointerNote from '$lib/components/PointerNote.svelte';
 	import LeaveNoTrace from '$lib/components/LeaveNoTrace.svelte';
 	import { FEATURES } from '$lib/features/registry';
@@ -52,7 +53,6 @@
 	const found = $derived(ledger ? newestPerKey(ledger.found) : []);
 	const courses = $derived(found.filter((f) => f.kind === 'course'));
 	const federations = $derived(found.filter((f) => f.kind === 'federation' || f.kind === 'membership'));
-	const recent = $derived(found.slice(0, 5));
 	/* Q's home federation (ADR-Q-016): offered once, calmly, until you join or have joined. */
 	let home = $state<Home | null>(null);
 	$effect(() => void readHome().then((h) => (home = h)));
@@ -130,7 +130,7 @@
 	<div class="mb-4"><PointerNote /></div>
 	<YouAtTop {identity} {ledger} />
 
-	<Page title="Your activity" lead="Your files, receipts and federations — on this device, offline.">
+	<Page title="Your activity" lead="What’s happened lately, from your own receipts.">
 		{#if identity && home?.ok && !inHome}
 			<div class="card preset-outlined-primary-500 mb-6 p-5 flex flex-wrap items-center gap-4">
 				<div class="min-w-48 flex-1">
@@ -141,6 +141,9 @@
 				<a class="btn preset-filled-primary-500 min-h-11" href={home.joinHref}>Read and join</a>
 			</div>
 		{/if}
+	{#if identity}<ActivityFeed {ledger} did={identity.did} />{/if}
+
+	<Section title="Everything" description="Every part of Q, and how each stands.">
 	<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 		<Tile href="/keys" icon="keys" title="Keys" meta={identity ? 'Signed in with your passkey' : 'Not signed in'}>
 			{#snippet status()}
@@ -169,22 +172,6 @@
 		{/each}
 	</div>
 
-	<Section title="Recent" description="The newest things in your folder that Q understands.">
-		{#if !identity}
-			<Empty icon="lock" title="Locked" description="Sign in to see what is in your folder." />
-		{:else if !recent.length}
-			<Empty icon="activity" title="Nothing yet" description="Records saved from DoStudy, and links you approve, show here." />
-		{:else}
-			<div class="stack-tight">
-				{#each recent as r (r.key)}
-					<Item title={r.title} description={r.description} meta={r.meta}>
-						{#snippet status()}
-							{#if r.status}<Status tone={r.status.tone}>{r.status.text}</Status>{/if}
-						{/snippet}
-					</Item>
-				{/each}
-			</div>
-		{/if}
 	</Section>
 
 	{#if identity}
