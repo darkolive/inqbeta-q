@@ -171,3 +171,18 @@ test('the newest answering of a set wins; the earlier ones are still evidence', 
 	assert.equal(kept.length, 1);
 	assert.equal(kept[0].answers['q:person/called'].value, 'Darren');
 });
+
+test('a newer version of the same set replaces the older one, so a cleared answer is gone', async () => {
+	/* Your profile grows a question when someone adds a detail of their own:
+	 * a new address, the same name. The old version must not leak through. */
+	const grown = { ...set, questions: [...set.questions.map((q) => ({ ...q, optional: true })), { id: 'q:own/shoe-size', answer: 'number' as const, asks: { 'en-GB': 'Shoe size' }, optional: true }] };
+	const first = await buildAnswerSet({ did, set, values: { 'q:person/called': 'Daz', 'q:person/reach-by': 'post' }, at: '2026-01-01T00:00:00.000Z' });
+	const later = await buildAnswerSet({ did, set: grown, values: { 'q:person/called': 'Darren', 'q:own/shoe-size': 9 }, at: '2026-10-01T00:00:00.000Z' });
+	assert.ok(first.ok && later.ok);
+	if (!first.ok || !later.ok) return;
+	assert.notEqual(first.answers.asked, later.answers.asked);
+
+	const kept = newestPerSet([first.answers, later.answers]);
+	assert.equal(kept.length, 1);
+	assert.equal(kept[0].answers['q:person/reach-by'], undefined, 'reach-by was cleared in the newer version');
+});

@@ -43,6 +43,18 @@ export const A_CARD: QuestionSet = {
 			optional: true
 		},
 		{
+			/* Which tab it lives in (1 October 2026): Personal, Business, or one you built. */
+			id: 'q:card/kind',
+			answer: 'choice',
+			asks: { 'en-GB': 'What kind of card is it?' },
+			choices: [
+				{ id: 'personal', label: { 'en-GB': 'Personal' } },
+				{ id: 'business', label: { 'en-GB': 'Business' } },
+				{ id: 'own', label: { 'en-GB': 'One you built' } }
+			],
+			optional: true
+		},
+		{
 			id: 'q:card/channels',
 			answer: 'channels',
 			asks: { 'en-GB': 'Which ways to be reached belong on it?' },

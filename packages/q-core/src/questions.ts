@@ -337,12 +337,23 @@ export async function answersMatch(set: QuestionSet, answers: AnswerSet): Promis
 	return (await setAddress(set)).address === answers.asked;
 }
 
-/** The newest answer set per question set. Earlier ones stay as evidence. */
+/**
+ * The newest answer set per question set. Earlier ones stay as evidence.
+ *
+ * Grouped by the set's NAME (`setId`), not its address, since 1 October 2026.
+ * A set's address changes whenever its questions do — Your profile grows a
+ * question each time someone adds a detail of their own — and grouping by
+ * address left every older version standing beside the new one, so a detail
+ * you had cleared still showed from the version before. The newest answering
+ * of a named set replaces the whole of the last one; the address still says
+ * exactly which questions it answered.
+ */
 export function newestPerSet(all: AnswerSet[]): AnswerSet[] {
 	const by = new Map<string, AnswerSet>();
 	for (const a of all) {
-		const seen = by.get(a.asked);
-		if (!seen || a.at > seen.at) by.set(a.asked, a);
+		const key = a.setId || a.asked;
+		const seen = by.get(key);
+		if (!seen || a.at > seen.at) by.set(key, a);
 	}
 	return [...by.values()].sort((x, y) => (x.at < y.at ? 1 : -1));
 }

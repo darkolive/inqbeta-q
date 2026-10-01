@@ -1,6 +1,6 @@
 ---
 status: proposed
-implementation: started (profile, templates, CardFace — 1 October 2026)
+implementation: started (profile, templates, CardFace, tabs, building blocks, share by ticking — 1 October 2026)
 updated: 2026-10-01
 ---
 
@@ -88,6 +88,39 @@ your standing (`standingAt`: member, suspended, left, removed), the card you
 gave them, and the principles no vote can remove. "When it runs out" is the
 end date for event federations (`endsOn`) and otherwise "while you choose to
 stay". It needs no new receipt, only a face.
+
+## Addendum, later on 1 October: tabs, building blocks, sharing by ticking
+
+Darren: "first tab is your profile or key identity … membership cards …
+business cards … still be able to make a new card with different questions on
+it … like the building blocks: is it a date, a number, a text, a text box, an
+image … you start with one row … press add … and whether it's visible …
+when you share, you can send an invite to someone to be your friend and tick
+box which of those pieces of information you want to share with that person."
+
+This revises §2's "no blank or free-form cards":
+
+- **The Cards page is tabs:** Your profile · Personal · Business · Built by
+  you · Memberships · Notifications.
+- **The profile grows:** first and last name, pronouns, gender, birthday and
+  home address join it. The sharper ones (home address, gender, birthday)
+  **start as just for me**, so filling one in shows it to nobody.
+- **Building blocks.** In your profile, and when building a card, you add a
+  row: what it's called and what kind of thing it is (words, a few lines, a
+  date, a number, yes or no, a web address, a picture). A new row becomes a
+  detail of your own (`q:own/…`) in your profile, so a card built from blocks
+  still only **names** details, and follows them when they change. Their
+  labels travel with a card, so any Q can draw them.
+- **Built-by-you cards** keep a purpose by being named for one ("Allotment
+  society", "Band"); there is still no card that isn't drawn from your profile.
+- **Sharing is per person.** Share opens a list of what may go (never anything
+  just for you), ticked for that card or, from your profile, your name and
+  picture only. You untick or tick, see exactly what they'll get, then send
+  the link by email, WhatsApp, copy or QR.
+- **Underneath:** a newer version of a question set now replaces the older
+  one by name (`newestPerSet` groups by `setId`), because your profile's set
+  changes every time you add a detail and an older version must not keep
+  showing a detail you've cleared.
 
 ## Build order
 

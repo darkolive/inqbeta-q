@@ -41,7 +41,8 @@ export async function makeCardLink(name: string, details: Record<string, string>
 	const small: Record<string, string> = {};
 	for (const [k, v] of Object.entries(details)) {
 		if (k === 'q:person/cover') continue;
-		small[k] = k === 'q:person/picture' && v.startsWith('data:') ? await thumbnail(v) : v;
+		/* Every picture made small, yours included: a link has to fit in a message. */
+		small[k] = v.startsWith('data:image/') ? await thumbnail(v) : v;
 	}
 	const card: CardLink = { schema: CARD_LINK_SCHEMA, name, details: small, ...(inbox ? { inbox } : {}), at: new Date().toISOString() };
 	const signed = await seal(card);

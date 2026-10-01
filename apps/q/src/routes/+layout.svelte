@@ -582,7 +582,7 @@
 			<h3 class="font-semibold">Notifications</h3>
 			<button type="button" class="text-sm text-primary-500" onclick={markAllRead}>Mark all read</button>
 		</div>
-		<a href="/cards#reach" class="flex items-center gap-2 px-3 py-2 text-sm border-b border-surface-200-800 hover:bg-surface-100-900 min-h-11" onclick={() => (notificationsOpen = false)}>
+		<a href="/cards?tab=notifications" class="flex items-center gap-2 px-3 py-2 text-sm border-b border-surface-200-800 hover:bg-surface-100-900 min-h-11" onclick={() => (notificationsOpen = false)}>
 			<Icon name="settings" class="size-4" /> Choose what reaches you
 		</a>
 		{#if heard.length}

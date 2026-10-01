@@ -14,7 +14,12 @@
 	 * and cardView in q-core is the one thing that decides what leaves — now
 	 * including "just for you", which no card can override.
 	 */
-	import { Page, Section, Empty } from '@inqbeta/q-ui';
+	import { Page, Section, Empty, Icon } from '@inqbeta/q-ui';
+	import { Tabs } from '@skeletonlabs/skeleton-svelte';
+	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
+	import CardBuilder from '$lib/components/CardBuilder.svelte';
+	import ShareCard from '$lib/components/ShareCard.svelte';
 	import SignIn from '$lib/components/SignIn.svelte';
 	import CardFace from '$lib/components/CardFace.svelte';
 	import ProfileEditor from '$lib/components/ProfileEditor.svelte';
@@ -25,15 +30,12 @@
 	import type { VerifiedChannel } from '@inqbeta/q-core/channels';
 	import { CARD_PRESETS, type CardPreset } from '$lib/questions/presets';
 	import { answersFrom } from '$lib/answers';
-	import { cardFrom, saveCard } from '$lib/cards';
+	import { cardFrom, saveCard, type KindCard, type CardKind } from '$lib/cards';
 	import { channelFrom } from '$lib/channels';
 	import { watchLedger, refreshLedger, type Ledger } from '$lib/ledger';
 	import { newestPerKey } from '$lib/features/dostudy';
-	import { DETAILS, LABEL, profileNow, justForMe, asText } from '$lib/profile';
+	import { LABEL, profileNow, justForMe, asText, allDetails, ownDetails, withLabels, nameFrom } from '$lib/profile';
 	import MembershipCard from '$lib/components/MembershipCard.svelte';
-	import ShareLink from '$lib/components/ShareLink.svelte';
-	import { makeCardLink } from '$lib/cardlink';
-	import { bellConfig } from '$lib/bellboy';
 	import { recordFrom, isMembershipRecord, isFederationRecord, type MembershipRecord, type FederationRecord } from '$lib/federations';
 	import { standingAt } from '@inqbeta/q-core/membership';
 	import NotificationsCard from '$lib/components/NotificationsCard.svelte';
@@ -47,7 +49,7 @@
 	$effect(() => watchLedger((l) => (ledger = l)));
 
 	let answers = $state<AnswerSet[]>([]);
-	let cards = $state<Card[]>([]);
+	let cards = $state<KindCard[]>([]);
 	let channels = $state<VerifiedChannel[]>([]);
 	let loaded = $state(false);
 	$effect(() => {
@@ -56,7 +58,7 @@
 			answers = l.filter((a): a is AnswerSet => !!a);
 			loaded = ledger?.state === 'ready';
 		});
-		void Promise.all(found.filter((f) => f.kind === 'card').map((f) => cardFrom(f.item))).then((l) => (cards = newestPerCard(l.filter((c): c is Card => !!c))));
+		void Promise.all(found.filter((f) => f.kind === 'card').map((f) => cardFrom(f.item))).then((l) => (cards = newestPerCard(l.filter((c): c is KindCard => !!c)) as KindCard[]));
 		void Promise.all(found.filter((f) => f.kind === 'channel').map((f) => channelFrom(f.item))).then((l) => (channels = l.filter((c): c is VerifiedChannel => !!c)));
 	});
 
@@ -81,30 +83,48 @@
 	/* Your profile, now: every detail, as only you see it. */
 	const now = $derived(identity ? profileNow(answers, identity.did) : {});
 	const mine = $derived(justForMe(now));
+	const own = $derived(ownDetails(now));
+	const details = $derived(allDetails(own));
 	const hasProfile = $derived(!!now['q:person/called']);
-	const fullFace = $derived(Object.fromEntries(DETAILS.map((d) => [d.id, asText(now[d.id])]).filter(([, v]) => v)));
+	const fullFace = $derived(withLabels(Object.fromEntries(details.map((d) => [d.id, asText(now[d.id])]).filter(([, v]) => v)), own));
+	/* What may leave at all: filled in, and not just for you. */
+	const allowed = $derived(Object.fromEntries(details.filter((d) => now[d.id] !== undefined && !mine.includes(d.id)).map((d) => [d.id, asText(now[d.id])])));
+
+	/* ---- Tabs, remembered in the address so the bell can link straight to one ---- */
+	const TABS = ['profile', 'personal', 'business', 'own', 'memberships', 'notifications'] as const;
+	type Tab = (typeof TABS)[number];
+	const tab = $derived<Tab>(TABS.includes(page.url.searchParams.get('tab') as Tab) ? (page.url.searchParams.get('tab') as Tab) : 'profile');
+	function openTab(t: string) {
+		const url = new URL(page.url);
+		url.searchParams.set('tab', t);
+		void goto(url, { replaceState: true, noScroll: true, keepFocus: true });
+	}
 	let editing = $state(false);
 
 	/* A card's face: exactly what cardView lets out, drawn. */
 	function faceOf(card: Card) {
 		const view = cardView(card, answers);
-		return { details: Object.fromEntries(view.shown.map((s) => [s.question, asText(s.value)])), view };
+		return { details: withLabels(Object.fromEntries(view.shown.map((s) => [s.question, asText(s.value)])), own), view };
 	}
+	const ofKind = (k: CardKind) => cards.filter((c) => c.kind === k);
 
-	/* ---- Sharing a card (ADR-Q-015): a signed link, by email, WhatsApp, copy or QR ---- */
-	let sharing = $state<{ card: Card; link: string } | null>(null);
-	let shareSays = $state('');
-	async function share(card: Card) {
-		shareSays = '';
-		try {
-			sharing = { card, link: await makeCardLink(card.name, faceOf(card).details, bellConfig()?.inbox) };
-		} catch (e) {
-			shareSays = e instanceof Error ? e.message : 'The link couldn’t be made.';
-		}
+	/* ---- Sharing (ADR-Q-015): tick what this person gets, then send a signed link ---- */
+	let sharing = $state<{ key: string; name: string; details: Record<string, string>; ticked?: string[] } | null>(null);
+	function shareCard(card: Card) {
+		const d = Object.fromEntries(Object.entries(faceOf(card).details).filter(([k]) => k !== 'q:card/labels'));
+		sharing = { key: card.id, name: card.name, details: d };
+	}
+	function shareProfile() {
+		/* From your whole profile: your name and picture start ticked, the rest is up to you. */
+		const d = { ...allowed };
+		delete d['q:person/first'];
+		delete d['q:person/last'];
+		sharing = { key: 'profile', name: nameFrom(d) || 'My card', details: d, ticked: ['q:person/called', 'q:person/picture', 'q:person/cover'] };
 	}
 
 	/* ---- Making a card ---- */
-	let step = $state<'none' | 'template' | 'edit'>('none');
+	let step = $state<'none' | 'edit' | 'build'>('none');
+	let editKind = $state<CardKind>('personal');
 	let name = $state('');
 	let shows = $state<string[]>([]);
 	let picked = $state<string[]>([]);
@@ -112,10 +132,12 @@
 	let says = $state('');
 
 	/* What a card could show: details you've filled in and haven't kept for yourself. */
-	const shareable = $derived(DETAILS.filter((d) => now[d.id] !== undefined && !mine.includes(d.id)));
-	const kept = $derived(DETAILS.filter((d) => now[d.id] !== undefined && mine.includes(d.id)));
+	const shareable = $derived(details.filter((d) => now[d.id] !== undefined && !mine.includes(d.id) && d.id !== 'q:person/first' && d.id !== 'q:person/last'));
+	const kept = $derived(details.filter((d) => now[d.id] !== undefined && mine.includes(d.id)));
 
 	function start(p: CardPreset | null) {
+		editKind = p?.id === 'business' ? 'business' : 'personal';
+		sharing = null;
 		const ok = new Set(shareable.map((d) => d.id));
 		name = p?.name ?? '';
 		shows = p ? p.shows.filter((id) => ok.has(id)) : [];
@@ -134,7 +156,7 @@
 		if (!identity) return;
 		says = '';
 		saving = true;
-		const out = await saveCard(identity, name, shows.filter((id) => !mine.includes(id)), picked);
+		const out = await saveCard(identity, name, shows.filter((id) => !mine.includes(id)), picked, editKind);
 		saving = false;
 		if (!out.ok) return void (says = out.says);
 		step = 'none';
@@ -154,128 +176,165 @@
 	{:else if !loaded}
 		<p class="opacity-60">Reading your folder…</p>
 	{:else}
-		<Section title="Your profile" description={hasProfile && !editing ? 'The whole of you, including anything kept just for you. Nobody else sees this page — other people only ever see a card you make.' : 'Fill in what you like. Each detail is either shown on cards or kept just for you.'}>
-			{#if editing || !hasProfile}
-				<ProfileEditor
-					{identity}
-					{now}
-					onSaved={async () => {
-						editing = false;
-						await refreshLedger();
-					}}
-					onCancel={hasProfile ? () => (editing = false) : undefined}
-				/>
-			{:else}
-				<div class="grid gap-4 sm:grid-cols-[minmax(0,26rem)_auto] items-start">
-					<CardFace details={fullFace} did={identity.did} badge="Your profile" />
-					<div class="flex flex-col gap-3">
-						<button type="button" class="btn preset-filled-primary-500 min-h-11" onclick={() => (editing = true)}>Edit my profile</button>
-						<button type="button" class="btn preset-tonal min-h-11" onclick={() => start(CARD_PRESETS.find((p) => p.id === 'personal')!)}>Show it to people: make a card</button>
-						{#if mine.length}
-							<p class="text-sm opacity-70">Just for you: {mine.map((id) => LABEL[id] ?? id).join(', ')}.</p>
-						{:else}
-							<p class="text-sm opacity-70">Nothing is kept just for you, so a card can show any of it.</p>
-						{/if}
-					</div>
+		{#snippet shareHere(key: string)}
+			{#if sharing?.key === key}
+				<div class="mt-4">
+					<ShareCard did={identity!.did} name={sharing.name} details={sharing.details} {own} ticked={sharing.ticked} onDone={() => (sharing = null)} />
 				</div>
 			{/if}
-		</Section>
+		{/snippet}
 
-		{#if hasProfile}
-			<Section title="Your cards" description="Each card shows only what you put on it. Change your profile and every card follows.">
-				{#snippet actions()}
-					{#if step === 'none'}
-						<button type="button" class="btn preset-filled-primary-500 min-h-11" onclick={() => (step = 'template')}>New card</button>
-					{/if}
-				{/snippet}
-
-				{#if step === 'template'}
-					<p class="mb-3">Start from one of these. You can change anything before it's made.</p>
-					<div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 mb-6">
-						{#each CARD_PRESETS.filter((p) => p.id === 'personal' || p.id === 'business') as p (p.id)}
-							<button type="button" class="card preset-outlined-surface-200-800 hover:preset-tonal p-4 text-left min-h-11" onclick={() => start(p)}>
-								<span class="h5 block">{p.name}</span>
-								<span class="text-sm opacity-70">{p.says}</span>
-							</button>
-						{/each}
+		{#snippet cardList(list: KindCard[])}
+			<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+				{#each list as card (card.id)}
+					{@const f = faceOf(card)}
+					<div class="flex flex-col gap-2">
+						<CardFace details={f.details} did={card.did} badge={card.name} missing={f.view.missing.map((id) => LABEL[id] ?? id)} />
+						<button type="button" class="btn preset-tonal min-h-11" onclick={() => shareCard(card)}><Icon name="share" size={16} /> Share with someone</button>
 					</div>
-					<button type="button" class="btn preset-tonal min-h-11" onclick={() => (step = 'none')}>Not now</button>
-				{:else if step === 'edit' && draft}
-					<div class="grid gap-6 lg:grid-cols-[1fr_22rem] mb-6">
-						<div class="flex flex-col gap-5">
-							<label class="label">
-								<span class="label-text">What do you call this card?</span>
-								<input class="input" bind:value={name} placeholder="Basic" />
-							</label>
-							<div class="flex flex-col gap-2">
-								<span class="font-bold">What it shows</span>
-								<div class="flex flex-wrap gap-2">
-									{#each shareable as d (d.id)}
-										<button type="button" aria-pressed={shows.includes(d.id)} class="btn btn-sm min-h-11 {shows.includes(d.id) ? 'preset-filled-primary-500' : 'preset-outlined-surface-500'}" onclick={() => (shows = toggle(shows, d.id))}>{d.label}</button>
-									{/each}
-								</div>
-								{#if kept.length}
-									<p class="text-xs opacity-60">Just for you, so never on a card: {kept.map((d) => d.label).join(', ')}.</p>
+				{/each}
+			</div>
+			{#each list as card (card.id)}{@render shareHere(card.id)}{/each}
+		{/snippet}
+
+		{#snippet editForm()}
+			<div class="grid gap-6 lg:grid-cols-[1fr_22rem] mb-6">
+				<div class="flex flex-col gap-5">
+					<label class="label">
+						<span class="label-text">What do you call this card?</span>
+						<input class="input" bind:value={name} />
+					</label>
+					<div class="flex flex-col gap-2">
+						<span class="font-bold">What it shows</span>
+						<div class="flex flex-wrap gap-2">
+							{#each shareable as d (d.id)}
+								<button type="button" aria-pressed={shows.includes(d.id)} class="btn btn-sm min-h-11 {shows.includes(d.id) ? 'preset-filled-primary-500' : 'preset-outlined-surface-500'}" onclick={() => (shows = toggle(shows, d.id))}>{d.label}</button>
+							{/each}
+						</div>
+						{#if kept.length}
+							<p class="text-xs opacity-60">Just for you, so never on a card: {kept.map((d) => d.label).join(', ')}.</p>
+						{/if}
+					</div>
+					{#if channels.length}
+						<div class="flex flex-col gap-2">
+							<span class="font-bold">Ways to reach you</span>
+							<div class="flex flex-wrap gap-2">
+								{#each channels as c (c.id)}
+									<button type="button" aria-pressed={picked.includes(c.id)} class="btn btn-sm min-h-11 {picked.includes(c.id) ? 'preset-filled-primary-500' : 'preset-outlined-surface-500'}" onclick={() => (picked = toggle(picked, c.id))}>{c.kind === 'email' ? 'Email' : 'Phone'}</button>
+								{/each}
+							</div>
+						</div>
+					{/if}
+					<div class="flex flex-wrap gap-3">
+						<button type="button" class="btn preset-filled-primary-500 min-h-11" disabled={saving || !name.trim() || (!shows.length && !picked.length)} onclick={() => void make()}>{saving ? 'Making…' : 'Make this card'}</button>
+						<button type="button" class="btn preset-tonal min-h-11" onclick={() => (step = 'none')}>Not now</button>
+					</div>
+					{#if says}<p class="text-sm text-warning-700-300" aria-live="polite">{says}</p>{/if}
+				</div>
+				{#if draft}
+					<aside class="flex flex-col gap-2 lg:sticky lg:top-4 self-start">
+						<p class="text-sm opacity-70">What the person you give it to will see.</p>
+						<CardFace details={draft.details} did={identity!.did} badge={name.trim() || 'New card'} />
+					</aside>
+				{/if}
+			</div>
+		{/snippet}
+
+		{#snippet kindTab(kind: CardKind, preset: CardPreset)}
+			{@const list = ofKind(kind)}
+			{#if step === 'edit' && editKind === kind}
+				{@render editForm()}
+			{:else if list.length}
+				<div class="flex justify-end mb-4">
+					<button type="button" class="btn preset-tonal min-h-11" onclick={() => start(preset)}>Another {preset.name} card</button>
+				</div>
+				{@render cardList(list)}
+			{:else}
+				<Empty icon="card" title="No {preset.name} card yet" description={preset.says}>
+					<button type="button" class="btn preset-filled-primary-500 min-h-11" onclick={() => start(preset)}>Make my {preset.name} card</button>
+				</Empty>
+			{/if}
+		{/snippet}
+
+		<Tabs value={tab} onValueChange={(d) => openTab(d.value)}>
+			<Tabs.List class="mb-6 flex-wrap">
+				<Tabs.Trigger value="profile" class="min-h-11">Your profile</Tabs.Trigger>
+				<Tabs.Trigger value="personal" class="min-h-11">Personal</Tabs.Trigger>
+				<Tabs.Trigger value="business" class="min-h-11">Business</Tabs.Trigger>
+				<Tabs.Trigger value="own" class="min-h-11">Built by you</Tabs.Trigger>
+				<Tabs.Trigger value="memberships" class="min-h-11">Memberships</Tabs.Trigger>
+				<Tabs.Trigger value="notifications" class="min-h-11">Notifications</Tabs.Trigger>
+				<Tabs.Indicator />
+			</Tabs.List>
+
+			<!-- Your profile: the whole of you, as only you see it. -->
+			<Tabs.Content value="profile">
+				<Section title="Your profile" description={hasProfile && !editing ? 'The whole of you, including anything kept just for you. Nobody else sees this — other people only see what you share.' : 'Fill in what you like. Each detail is shown on cards or kept just for you. Add your own at the bottom.'}>
+					{#if editing || !hasProfile}
+						<ProfileEditor
+							identity={identity}
+							{now}
+							onSaved={async () => {
+								editing = false;
+								await refreshLedger();
+							}}
+							onCancel={hasProfile ? () => (editing = false) : undefined}
+						/>
+					{:else}
+						<div class="grid gap-4 sm:grid-cols-[minmax(0,26rem)_auto] items-start">
+							<CardFace details={fullFace} did={identity.did} badge="Your profile" />
+							<div class="flex flex-col gap-3">
+								<button type="button" class="btn preset-filled-primary-500 min-h-11" onclick={shareProfile}><Icon name="share" size={16} /> Share with someone</button>
+								<button type="button" class="btn preset-tonal min-h-11" onclick={() => (editing = true)}>Edit my profile</button>
+								{#if mine.length}
+									<p class="text-sm opacity-70">Just for you: {mine.map((id) => LABEL[id] ?? own.find((o) => o.id === id)?.label ?? id).join(', ')}.</p>
+								{:else}
+									<p class="text-sm opacity-70">Nothing is kept just for you, so anything here can be shared.</p>
 								{/if}
 							</div>
-							{#if channels.length}
-								<div class="flex flex-col gap-2">
-									<span class="font-bold">Ways to reach you</span>
-									<div class="flex flex-wrap gap-2">
-										{#each channels as c (c.id)}
-											<button type="button" aria-pressed={picked.includes(c.id)} class="btn btn-sm min-h-11 {picked.includes(c.id) ? 'preset-filled-primary-500' : 'preset-outlined-surface-500'}" onclick={() => (picked = toggle(picked, c.id))}>{c.kind === 'email' ? 'Email' : 'Phone'}</button>
-										{/each}
-									</div>
-								</div>
-							{/if}
-							<div class="flex flex-wrap gap-3">
-								<button type="button" class="btn preset-filled-primary-500 min-h-11" disabled={saving || !name.trim() || (!shows.length && !picked.length)} onclick={() => void make()}>{saving ? 'Making…' : 'Make this card'}</button>
-								<button type="button" class="btn preset-tonal min-h-11" onclick={() => (step = 'none')}>Not now</button>
-							</div>
-							{#if says}<p class="text-sm text-warning-700-300" aria-live="polite">{says}</p>{/if}
 						</div>
-						<aside class="flex flex-col gap-2 lg:sticky lg:top-4 self-start">
-							<p class="text-sm opacity-70">What the person you give it to will see.</p>
-							<CardFace details={draft.details} did={identity.did} badge={name.trim() || 'New card'} />
-							<p class="text-xs opacity-60">
-								{draft.view.withheld === 0 ? 'Everything you’ve filled in is on this card.' : `${draft.view.withheld} other ${draft.view.withheld === 1 ? 'detail stays' : 'details stay'} off it. They can’t see which.`}
-							</p>
-						</aside>
-					</div>
-				{/if}
-
-				{#if cards.length}
-					<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-						{#each cards as card (card.id)}
-							{@const f = faceOf(card)}
-							<div class="flex flex-col gap-2">
-								<CardFace details={f.details} did={card.did} badge={card.name} missing={f.view.missing.map((id) => LABEL[id] ?? id)} />
-								<button type="button" class="btn preset-tonal min-h-11" onclick={() => void share(card)}>Share this card</button>
-							</div>
-						{/each}
-					</div>
-					{#if sharing}
-						<div class="mt-6">
-							<ShareLink
-								link={sharing.link}
-								label="Your {sharing.card.name} card"
-								note="Send it any way you like. When they open it and link up, you’ll hear the bell."
-								subject="My card"
-								message="Here’s my card — open it to link up with me."
-							/>
-							<button type="button" class="btn preset-tonal min-h-11 mt-3" onclick={() => (sharing = null)}>Done</button>
-						</div>
+						{@render shareHere('profile')}
 					{/if}
-					{#if shareSays}<p class="text-sm text-warning-700-300 mt-3">{shareSays}</p>{/if}
-				{:else if step === 'none'}
-					<Empty icon="card" title="No cards yet" description="Two kinds: Personal, for the people in your life, and Business, for work.">
-						<button type="button" class="btn preset-filled-primary-500 min-h-11" onclick={() => start(CARD_PRESETS.find((p) => p.id === 'personal')!)}>Make a Personal card</button>
-					</Empty>
-				{/if}
-			</Section>
+				</Section>
+			</Tabs.Content>
 
-			{#if memberships.length || looking.length}
-				<Section title="Your memberships" description="Your place in each federation: since when, your standing, what they hold on you and what they can’t have.">
+			<Tabs.Content value="personal">
+				{#if hasProfile}{@render kindTab('personal', CARD_PRESETS.find((p) => p.id === 'personal')!)}
+				{:else}{@render needProfile()}{/if}
+			</Tabs.Content>
+
+			<Tabs.Content value="business">
+				{#if hasProfile}{@render kindTab('business', CARD_PRESETS.find((p) => p.id === 'business')!)}
+				{:else}{@render needProfile()}{/if}
+			</Tabs.Content>
+
+			<!-- Built by you: cards made row by row from building blocks. -->
+			<Tabs.Content value="own">
+				{#if !hasProfile}{@render needProfile()}
+				{:else if step === 'build'}
+					<CardBuilder
+						identity={identity}
+						{now}
+						onMade={async () => {
+							step = 'none';
+							await refreshLedger();
+						}}
+						onCancel={() => (step = 'none')}
+					/>
+				{:else}
+					{@const list = ofKind('own')}
+					<div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+						<p class="opacity-70">A card for anything: a club, a team, a hobby. Start with one row and add more.</p>
+						<button type="button" class="btn preset-filled-primary-500 min-h-11" onclick={() => { sharing = null; step = 'build'; }}><Icon name="plus" size={16} /> Build a card</button>
+					</div>
+					{#if list.length}{@render cardList(list)}
+					{:else}<Empty icon="card" title="Nothing built yet" description="Pick details you already have, or add something new: words, a date, a number, a picture." />{/if}
+				{/if}
+			</Tabs.Content>
+
+			<Tabs.Content value="memberships">
+				{#if memberships.length || looking.length}
+					<p class="mb-4 opacity-70">Your place in each federation: since when, your standing, what they hold on you and what they can’t have.</p>
 					<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 						{#each looking as f (f.founding.federation)}
 							<MembershipCard
@@ -307,18 +366,23 @@
 							/>
 						{/each}
 					</div>
-				</Section>
-			{/if}
+				{:else}
+					<Empty icon="federations" title="No memberships yet" description="When you join a federation, its membership card appears here.">
+						<a class="btn preset-filled-primary-500 min-h-11" href="/federations">See federations</a>
+					</Empty>
+				{/if}
+			</Tabs.Content>
 
-			<div id="reach" class="scroll-mt-24">
-				<Section title="What reaches you" description="Your notifications card. Choose, for each, whether it rings the bell, waits quietly, or doesn’t come at all.">
-					<NotificationsCard federations={reaching} />
-				</Section>
-			</div>
+			<Tabs.Content value="notifications">
+				<p class="mb-4 opacity-70">Choose, for each, whether it rings the bell, waits quietly, or doesn’t come at all.</p>
+				<NotificationsCard federations={reaching} />
+			</Tabs.Content>
+		</Tabs>
 
-			<Section title="Giving a card to someone" description="Next.">
-				<p class="text-sm">Handing a card to a person is a signed permission, scoped to that card, that you can take back on its own. It is built and tested underneath, and comes next.</p>
-			</Section>
-		{/if}
+		{#snippet needProfile()}
+			<Empty icon="card" title="Your profile comes first" description="Every card is made from your profile, so fill that in first.">
+				<button type="button" class="btn preset-filled-primary-500 min-h-11" onclick={() => openTab('profile')}>Fill in my profile</button>
+			</Empty>
+		{/snippet}
 	{/if}
 </Page>

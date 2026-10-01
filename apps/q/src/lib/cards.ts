@@ -28,11 +28,24 @@ import { readItem, saveLocked, type FolderItem } from '@inqbeta/q-core/folder';
 import type { Identity } from '@inqbeta/q-core/passkey';
 import { A_CARD } from '$lib/questions/a-card';
 
+export type CardKind = 'personal' | 'business' | 'own';
+export type KindCard = Card & { kind: CardKind };
+
+/** Cards written before kinds existed: read by their name. */
+function kindOf(answers: unknown, name: string): CardKind {
+	const k = (answers as { answers?: Record<string, { value?: unknown }> })?.answers?.['q:card/kind']?.value;
+	if (k === 'personal' || k === 'business' || k === 'own') return k;
+	if (/business/i.test(name)) return 'business';
+	if (/^(personal|basic|friends|contact)$/i.test(name.trim())) return 'personal';
+	return 'own';
+}
+
 export async function saveCard(
 	identity: Identity,
 	name: string,
 	shows: string[],
-	channels: string[] = []
+	channels: string[] = [],
+	kind: CardKind = 'own'
 ): Promise<{ ok: true; card: Card; storedAs: string } | { ok: false; says: string }> {
 	const answered = await buildAnswerSet({
 		did: identity.did,
@@ -40,7 +53,8 @@ export async function saveCard(
 		values: {
 			[CARD_QUESTIONS.name]: name,
 			[CARD_QUESTIONS.shows]: shows,
-			[CARD_QUESTIONS.channels]: channels
+			[CARD_QUESTIONS.channels]: channels,
+			'q:card/kind': kind
 		}
 	});
 	if (!answered.ok) return { ok: false, says: answered.says.join(' ') };
@@ -63,10 +77,12 @@ export async function saveCard(
 }
 
 /** Read a card back out of a folder item — either shape — or null if it is not one. */
-export async function cardFrom(item: FolderItem): Promise<Card | null> {
+export async function cardFrom(item: FolderItem): Promise<KindCard | null> {
 	try {
 		const json = JSON.parse(new TextDecoder().decode((await readItem(item)).data)) as { content?: unknown };
-		return readCard(json?.content ?? json);
+		const content = json?.content ?? json;
+		const card = await readCard(content);
+		return card ? { ...card, kind: kindOf(content, card.name) } : null;
 	} catch {
 		return null;
 	}

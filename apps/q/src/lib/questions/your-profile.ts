@@ -12,10 +12,20 @@
  * behaviour you would want and it falls out of the model rather than being
  * arranged.
  *
- * WHAT IS NOT HERE. A profile is written to be shown to other people, so the
- * bar is higher, not lower: no date of birth, no address, nothing protected.
- * A town is not a street. Anything sharper than this belongs to a federation
- * that has a reason to ask and says what the reason is.
+ * WHAT CHANGED, 1 October 2026. This once said: no date of birth, no address,
+ * nothing protected, because a profile was written to be shown. Darren then
+ * asked for the whole of you in one place — first and last name, pronouns,
+ * gender, home address — with each detail shown on cards or "just for me".
+ * That holds up because of two things underneath, not good intentions:
+ * cardView never lets a just-for-me detail leave, and the sharper ones
+ * (home address, gender, birthday) START as just for me, so filling one in
+ * never shows it to anyone until you say so. Nothing here leaves your vault
+ * unless a card you hand over names it.
+ *
+ * YOUR OWN DETAILS. You can add details of your own (a date, a number, a
+ * picture, anything): `profileSet` adds them to this set as `q:own/…`
+ * questions, and their labels and kinds are kept as an answer too
+ * (`q:profile/own-details`), so they travel with your profile.
  */
 import { QUESTION_SET_SCHEMA, type QuestionSet } from '@inqbeta/q-core/questions';
 import { JUST_FOR_ME } from '@inqbeta/q-core/cards';
@@ -26,10 +36,60 @@ export const YOUR_PROFILE: QuestionSet = {
 	title: { 'en-GB': 'Your profile' },
 	questions: [
 		{
+			id: 'q:person/first',
+			answer: 'text',
+			asks: { 'en-GB': 'Your first name' },
+			optional: true
+		},
+		{
+			id: 'q:person/last',
+			answer: 'text',
+			asks: { 'en-GB': 'Your last name' },
+			optional: true
+		},
+		{
+			id: 'q:person/pronouns',
+			answer: 'text',
+			asks: { 'en-GB': 'Your pronouns' },
+			help: { 'en-GB': 'However you say them: “she/her”, “they/them”.' },
+			optional: true
+		},
+		{
+			/* Starts just for you (lib/profile QUIET). */
+			id: 'q:person/gender',
+			answer: 'text',
+			asks: { 'en-GB': 'Your gender' },
+			help: { 'en-GB': 'In your own words.' },
+			optional: true
+		},
+		{
+			/* Starts just for you. */
+			id: 'q:person/birthday',
+			answer: 'date',
+			asks: { 'en-GB': 'Your birthday' },
+			optional: true
+		},
+		{
+			/* Starts just for you. */
+			id: 'q:person/address',
+			answer: 'longtext',
+			asks: { 'en-GB': 'Your home address' },
+			optional: true
+		},
+		{
+			/* Your own details: what each is called and what kind it is. */
+			id: 'q:profile/own-details',
+			answer: 'longtext',
+			asks: { 'en-GB': 'Details you added yourself' },
+			optional: true
+		},
+		{
 			/* The same question About You asks. One predicate, two askings. */
 			id: 'q:person/called',
 			answer: 'text',
 			asks: { 'en-GB': 'What should Q call you?' },
+			/* Optional since 1 October 2026: left blank, it's your first and last name. */
+			optional: true,
 			help: { 'en-GB': 'Already answered if you have done About You — this just lets you change it.' }
 		},
 		{
@@ -123,3 +183,34 @@ export const YOUR_PROFILE: QuestionSet = {
 
 /** Every question set Q itself declares. A federation would declare its own. */
 export const Q_SETS = ['q/about-you', 'q/your-profile'] as const;
+
+/** A detail you added yourself (a building block). */
+export type OwnKind = 'text' | 'longtext' | 'date' | 'number' | 'yesno' | 'link' | 'picture';
+export interface OwnDetail {
+	/** `q:own/<slug>` */
+	id: string;
+	label: string;
+	kind: OwnKind;
+}
+
+const ANSWER_FOR: Record<OwnKind, QuestionSet['questions'][number]['answer']> = {
+	text: 'text',
+	longtext: 'longtext',
+	date: 'date',
+	number: 'number',
+	yesno: 'boolean',
+	link: 'link',
+	picture: 'text'
+};
+
+/** Your profile's questions, with your own details added on the end. */
+export function profileSet(own: OwnDetail[]): QuestionSet {
+	if (!own.length) return YOUR_PROFILE;
+	return {
+		...YOUR_PROFILE,
+		questions: [
+			...YOUR_PROFILE.questions,
+			...own.map((d) => ({ id: d.id, answer: ANSWER_FOR[d.kind], asks: { 'en-GB': d.label }, optional: true }))
+		]
+	};
+}
