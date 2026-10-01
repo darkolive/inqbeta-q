@@ -84,7 +84,7 @@
 	<div class="flex flex-col gap-4">
 		<label class="label">
 			<span class="label-text">What do you call this card?</span>
-			<input class="input" bind:value={name} placeholder="Allotment society, Band, Football team…" />
+			<input class="input preset-outlined-surface-300-700" bind:value={name} placeholder="Allotment society, Band, Football team…" />
 		</label>
 
 		{#each rows as r, i (r.key)}
@@ -92,7 +92,7 @@
 				<div class="flex flex-wrap items-end gap-3">
 					<label class="label flex-1 min-w-48">
 						<span class="label-text">Row {i + 1}</span>
-						<select class="select" bind:value={r.pick}>
+						<select class="select preset-outlined-surface-300-700" bind:value={r.pick}>
 							<option value="" disabled>Choose a detail…</option>
 							{#each have as d (d.id)}<option value={d.id}>{d.label}</option>{/each}
 							<option value={NEW}>Something new…</option>
@@ -110,11 +110,11 @@
 					<div class="grid gap-3 sm:grid-cols-2">
 						<label class="label">
 							<span class="label-text">What is it called?</span>
-							<input class="input" bind:value={r.label} placeholder="Plot number" />
+							<input class="input preset-outlined-surface-300-700" bind:value={r.label} placeholder="Plot number" />
 						</label>
 						<label class="label">
 							<span class="label-text">What kind of thing?</span>
-							<select class="select" bind:value={r.kind} onchange={() => (r.value = '')}>
+							<select class="select preset-outlined-surface-300-700" bind:value={r.kind} onchange={() => (r.value = '')}>
 								{#each OWN_KINDS as k (k.kind)}<option value={k.kind}>{k.label}</option>{/each}
 							</select>
 						</label>

@@ -28,7 +28,7 @@ export const DETAILS: Detail[] = [
 	{ id: 'q:person/called', label: 'What people call you', kind: 'text', hint: 'Leave it empty and your card says your first and last name.' },
 	{ id: 'q:person/pronouns', label: 'Pronouns', kind: 'text', hint: '“she/her”, “he/him”, “they/them” — however you say them.' },
 	{ id: 'q:person/gender', label: 'Gender', kind: 'text', hint: 'In your own words. Starts just for you.' },
-	{ id: 'q:person/birthday', label: 'Birthday', kind: 'date', hint: 'Starts just for you.' },
+	{ id: 'q:person/birthday', label: 'Date of birth', kind: 'date' },
 	{ id: 'q:person/role', label: 'What you do', kind: 'text', hint: 'However you’d say it out loud: “sound engineer”.' },
 	{ id: 'q:org/name', label: 'Who for', kind: 'text', hint: 'A company, a practice, or your own name.' },
 	{ id: 'q:person/near', label: 'Roughly where you are', kind: 'text', hint: 'A town or a region.' },
@@ -58,7 +58,7 @@ export const OWN_KINDS: { kind: OwnKind; label: string }[] = [
 export function ownDetails(now: Record<string, AnswerValue>): OwnDetail[] {
 	try {
 		const list = JSON.parse(String(now['q:profile/own-details'] ?? '[]')) as OwnDetail[];
-		return Array.isArray(list) ? list.filter((d) => d && /^q:own\/[a-z0-9-]+$/.test(d.id) && d.label) : [];
+		return Array.isArray(list) ? list.filter((d) => d && /^q:(own\/[a-z0-9-]+|biz\/[a-z0-9-]+\/[a-z]+)$/.test(d.id) && d.label) : [];
 	} catch {
 		return [];
 	}
@@ -127,4 +127,53 @@ export async function saveProfile(identity: Identity, values: Record<string, str
 	const kept = privateIds.filter((id) => clean[id] !== undefined);
 	if (kept.length) clean[JUST_FOR_ME] = kept;
 	return saveAnswers(identity, profileSet(keptOwn), clean);
+}
+
+/* ------------------------------------------------------------------ *
+ * Work: businesses you add one at a time (the Personal card's third step).
+ * Each is a handful of details of your own, `q:biz/<slug>/<part>`, so a
+ * Business card names them like any other detail.
+ * ------------------------------------------------------------------ */
+export type Business = { slug: string; name: string; role: string; site: string; email: string; phone: string };
+export const BIZ_PARTS: { part: keyof Omit<Business, 'slug'>; label: string; kind: OwnKind; hint?: string }[] = [
+	{ part: 'name', label: 'Business name', kind: 'text' },
+	{ part: 'role', label: 'What you do there', kind: 'text', hint: '“Director”, “Sound engineer”' },
+	{ part: 'site', label: 'Website', kind: 'link', hint: '“darkolive.co.uk” is enough' },
+	{ part: 'email', label: 'Work email', kind: 'text' },
+	{ part: 'phone', label: 'Work phone', kind: 'text' }
+];
+export const blankBusiness = (): Business => ({ slug: '', name: '', role: '', site: '', email: '', phone: '' });
+
+export function businessesFrom(now: Record<string, AnswerValue>, own: OwnDetail[]): Business[] {
+	const by = new Map<string, Business>();
+	for (const d of own) {
+		const m = /^q:biz\/([a-z0-9-]+)\/([a-z]+)$/.exec(d.id);
+		if (!m) continue;
+		const b = by.get(m[1]) ?? { ...blankBusiness(), slug: m[1] };
+		if (BIZ_PARTS.some((p) => p.part === m[2])) (b as Record<string, string>)[m[2]] = asText(now[d.id]);
+		by.set(m[1], b);
+	}
+	return [...by.values()].filter((b) => b.name);
+}
+
+/** Businesses as details of your own: replaces any you had before. */
+export function businessesAsDetails(list: Business[], own: OwnDetail[]): { own: OwnDetail[]; values: Record<string, string> } {
+	const keep = own.filter((d) => !d.id.startsWith('q:biz/'));
+	const values: Record<string, string> = {};
+	const used = new Set<string>();
+	const out: OwnDetail[] = [...keep];
+	for (const b of list) {
+		if (!b.name.trim()) continue;
+		let slug = b.slug || b.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 24) || 'work';
+		for (let n = 2; used.has(slug); n++) slug = `${slug.replace(/-\d+$/, '')}-${n}`;
+		used.add(slug);
+		for (const p of BIZ_PARTS) {
+			const v = b[p.part].trim();
+			if (!v) continue;
+			const id = `q:biz/${slug}/${p.part}`;
+			out.push({ id, label: p.part === 'name' ? 'Business' : `${b.name.trim()}: ${p.label.toLowerCase()}`, kind: p.kind });
+			values[id] = v;
+		}
+	}
+	return { own: out, values };
 }

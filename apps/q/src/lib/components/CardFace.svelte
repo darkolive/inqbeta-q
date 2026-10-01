@@ -29,15 +29,18 @@
 	const picture = $derived(details['q:person/picture']);
 	const name = $derived(details['q:person/called'] || [details['q:person/first'], details['q:person/last']].filter(Boolean).join(' '));
 	const pronouns = $derived(details['q:person/pronouns']);
-	const role = $derived(details['q:person/role']);
-	const org = $derived(details['q:org/name']);
+	/* A Business card's work details (q:biz/<slug>/…) stand in for role, org, page and contact. */
+	const biz = $derived(Object.keys(details).map((k) => /^q:biz\/([a-z0-9-]+)\/name$/.exec(k)?.[1]).find(Boolean));
+	const bz = (part: string) => (biz ? details[`q:biz/${biz}/${part}`] : undefined);
+	const role = $derived(details['q:person/role'] || bz('role'));
+	const org = $derived(details['q:org/name'] || bz('name'));
 	const near = $derived(details['q:person/near']);
-	const site = $derived(details['q:person/site']);
+	const site = $derived(details['q:person/site'] || bz('site'));
 	const about = $derived(details['q:person/about']);
 	const siteLabel = $derived(site ? site.replace(/^https?:\/\//, '').replace(/\/$/, '') : '');
 	/* Ways to reach them: each opens the person's own app. Q is not involved. */
-	const email = $derived(details['q:person/email']);
-	const phone = $derived(details['q:person/phone']);
+	const email = $derived(bz('email') || details['q:person/email']);
+	const phone = $derived(bz('phone') || details['q:person/phone']);
 	const whatsapp = $derived(details['q:person/whatsapp']);
 	const digits = (n: string) => n.replace(/[^\d+]/g, '');
 
@@ -56,7 +59,7 @@
 	});
 	const others = $derived(
 		Object.entries(details)
-			.filter(([id, v]) => !DRAWN.has(id) && v)
+			.filter(([id, v]) => !DRAWN.has(id) && !(biz && id.startsWith(`q:biz/${biz}/`)) && v)
 			.map(([id, v]) => {
 				const kind = carried[id]?.kind ?? (id === 'q:person/birthday' ? 'date' : 'text');
 				const shown = kind === 'date' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? new Date(v).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : v;

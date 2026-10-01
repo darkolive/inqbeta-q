@@ -29,16 +29,16 @@
 		{#if value}<button type="button" class="btn preset-tonal min-h-11" onclick={() => (value = '')}>Remove</button>{/if}
 	</div>
 {:else if kind === 'longtext'}
-	<textarea class="textarea" rows="3" bind:value aria-label={label}></textarea>
+	<textarea class="textarea preset-outlined-surface-300-700" rows="3" bind:value aria-label={label}></textarea>
 {:else if kind === 'date'}
-	<input class="input w-auto" type="date" bind:value aria-label={label} />
+	<input class="input preset-outlined-surface-300-700 w-auto" type="date" bind:value aria-label={label} />
 {:else if kind === 'number'}
-	<input class="input w-40" type="number" inputmode="decimal" bind:value aria-label={label} />
+	<input class="input preset-outlined-surface-300-700 w-40" type="number" inputmode="decimal" bind:value aria-label={label} />
 {:else if kind === 'yesno'}
 	<div class="flex gap-2" role="group" aria-label={label}>
 		<button type="button" class="btn btn-sm min-h-11 {value === 'yes' ? 'preset-filled-primary-500' : 'preset-outlined-surface-500'}" aria-pressed={value === 'yes'} onclick={() => (value = value === 'yes' ? '' : 'yes')}>Yes</button>
 		<button type="button" class="btn btn-sm min-h-11 {value === 'no' ? 'preset-filled-primary-500' : 'preset-outlined-surface-500'}" aria-pressed={value === 'no'} onclick={() => (value = value === 'no' ? '' : 'no')}>No</button>
 	</div>
 {:else}
-	<input class="input" type="text" inputmode={kind === 'link' ? 'url' : undefined} bind:value aria-label={label} />
+	<input class="input preset-outlined-surface-300-700" type="text" inputmode={kind === 'link' ? 'url' : undefined} bind:value aria-label={label} />
 {/if}
