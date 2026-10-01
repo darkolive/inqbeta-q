@@ -216,3 +216,29 @@ filer on the mesh only (`10.42.0.1:8888`).
 - **Memory** with all four services: 534 MB used of 1.9 GB, swap barely
   touched (256 KB).
 - Sealing in the test is a stand-in (openssl AES); `seal.ts` replaces it in Q.
+
+## Step 5 — the node's front doors (ADR-Q-016), 1 October 2026
+
+Two public names, with certificates from Caddy, and nothing else opened:
+
+- `wss://bellboy.135-181-156-21.sslip.io` → the bellboy's **public, read-only**
+  listener (port 9002): anyone may listen for "federation X has news"; nobody
+  may publish there.
+- `https://storage.135-181-156-21.sslip.io` → the **gate** (`gate/server.mjs`):
+  stores a federation's announcements only if every one, and the publication,
+  is signed by that federation, newer than what's held and made in the last
+  ten minutes; then it pings the news channel. Only federations listed in
+  `GATE_FEDERATIONS` are served.
+
+Hetzner firewall: TCP 22, UDP 4242, TCP 80 and 443. Mosquitto now uses
+`per_listener_settings true` (1883 and 9001 sign-in as before; 9002 public).
+
+Set up once, on the server, in `/srv/node`:
+
+```sh
+bin/add-user.sh gate                               # the gate's own bellboy account
+echo 'GATE_MQTT_PASSWORD=<the password it printed>' >> .env
+echo 'GATE_FEDERATIONS=<the federation DID>' >> .env
+mkdir -p caddy/data caddy/config
+docker compose up -d && docker compose restart mosquitto
+```

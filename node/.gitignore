@@ -8,3 +8,5 @@ storage/
 # Nebula keys and certificates never go in git. ca.key above all.
 nebula/pki/
 .env
+caddy/data/
+caddy/config/

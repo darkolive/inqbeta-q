@@ -28,3 +28,24 @@ test('an announcement goes when its time is over', async () => {
 	const a = await makeAnnouncement(signerFor(fed), { federationDid: fed.did, title: 'Soon', says: 'Gone', days: 1, now: NOW });
 	assert.equal((await checkAnnouncement(a, fed.did, new Date('2026-10-03T00:00:00Z'))).ok, false);
 });
+
+test('the node’s gate accepts a federation’s publication, and refuses forgeries, roll-backs and replays', async () => {
+	// @ts-expect-error — plain JS, no types
+	const { checkSubmission } = await import('../../../node/gate/server.mjs');
+	const { makePublication } = await import('../src/announcements');
+	const fed = await identityFromSeed(seed(7));
+	const now = new Date();
+	const a = await makeAnnouncement(signerFor(fed), { federationDid: fed.did, title: 'News', says: 'Words', days: 7, now });
+	const file = { schema: 'inqbeta.announcements/1', federation: fed.did, announcements: [a] };
+	const pub = await makePublication(signerFor(fed), fed.did, [a], now);
+	assert.equal(await checkSubmission(fed.did, { file, publication: pub }, null, now.getTime()), null, 'a genuine one is stored');
+
+	const forged = { ...file, announcements: [{ ...a, says: 'Other words' }] };
+	assert.match(String(await checkSubmission(fed.did, { file: forged, publication: pub }, null, now.getTime())), /isn’t signed/);
+
+	const someone = await identityFromSeed(seed(9));
+	await assert.rejects(makePublication(signerFor(someone), fed.did, [a], now));
+
+	assert.match(String(await checkSubmission(fed.did, { file, publication: pub }, { publication: pub }, now.getTime())), /newer/, 'no roll-back or repeat');
+	assert.match(String(await checkSubmission(fed.did, { file, publication: pub }, null, now.getTime() + 20 * 60_000)), /too old/, 'no replay later');
+});

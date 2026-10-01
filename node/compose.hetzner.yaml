@@ -61,3 +61,35 @@ services:
     ports:
       - "127.0.0.1:8888:8888"
       - "10.42.0.1:8888:8888"   # the filer — members only
+
+  # The gate in front of the storage unit (node/gate/server.mjs): stores a
+  # federation's announcements only when the federation's signatures check out,
+  # then rings the bellboy's news channel. Reached only through Caddy.
+  gate:
+    image: node:22-alpine
+    restart: unless-stopped
+    networks: [node]
+    depends_on: [storage, mosquitto]
+    working_dir: /gate
+    command: sh -c "apk add --no-cache mosquitto-clients >/dev/null && node server.mjs"
+    environment:
+      GATE_FEDERATIONS: ${GATE_FEDERATIONS:-}
+      GATE_MQTT_PASSWORD: ${GATE_MQTT_PASSWORD:-}
+      GATE_ORIGINS: https://inqbeta.com,https://inqbeta.dev,http://localhost:3100
+    volumes:
+      - ./gate:/gate:ro
+
+  # The node's two public front doors, with certificates (node/caddy/Caddyfile).
+  # The only ports open to the internet besides SSH and Nebula.
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    networks: [node]
+    depends_on: [gate, mosquitto]
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./caddy/data:/data
+      - ./caddy/config:/config

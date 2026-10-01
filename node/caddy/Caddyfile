@@ -1,0 +1,16 @@
+# The node's two front doors (ADR-Q-016 step 5, 1 October 2026). Everything
+# else — Dgraph, the filer, the private bellboy listeners — stays off the
+# internet. Caddy gets the certificates itself (Let's Encrypt).
+#
+# Names from sslip.io: the address is in the name, so no DNS is needed.
+# Later: bellboy.inqbeta.com and storage.inqbeta.com, same config.
+
+bellboy.135-181-156-21.sslip.io {
+	# Public, read-only news listener on the bellboy (mosquitto.conf, port 9002).
+	reverse_proxy mosquitto:9002
+}
+
+storage.135-181-156-21.sslip.io {
+	# The gate in front of the storage unit: it checks signatures before storing.
+	reverse_proxy gate:8090
+}

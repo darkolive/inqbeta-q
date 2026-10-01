@@ -1,0 +1,3 @@
+# The public listener (port 9002): listening to federations' news pings, nothing else.
+# Lines before any "user" line apply to anonymous clients. No write is granted.
+topic read q/fed/+/news

@@ -75,3 +75,24 @@ export async function checkAnnouncement(a: unknown, federationDid: string, now =
 	if (Date.parse(x.until) <= now.getTime()) return { ok: false, says: 'Its time is over.' };
 	return { ok: true };
 }
+
+/*
+ * A publication: the federation saying "these are my announcements now",
+ * signed and timed, so a storage unit can refuse an older list (no rolling
+ * back) or an old one sent again (no replay). node/gate checks it.
+ */
+export const PUBLICATION_SCHEMA = 'inqbeta.announcements-publication/1';
+export interface PublicationStatement {
+	schema: typeof PUBLICATION_SCHEMA;
+	federation: string;
+	/** The ids of every announcement in the list, sorted. */
+	ids: string[];
+	at: string;
+}
+export type Publication = PublicationStatement & { signatures: { by: 'federation'; did: string; signature: string }[] };
+
+export async function makePublication(federation: Signer, federationDid: string, list: Announcement[], now = new Date()): Promise<Publication> {
+	if (toDid(federation.did) !== federationDid) throw new Error('Only the federation’s own key can publish.');
+	const statement: PublicationStatement = { schema: PUBLICATION_SCHEMA, federation: federationDid, ids: list.map((a) => a.id).sort(), at: now.toISOString() };
+	return { ...statement, signatures: [{ by: 'federation', did: federationDid, signature: await federation.signCanonical(statement) }] };
+}

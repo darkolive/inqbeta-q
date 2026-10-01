@@ -42,10 +42,10 @@
 	import { standingAt } from '@inqbeta/q-core/membership';
 	import { reachIndex, reachPostOffice, reachStorage, type Reach } from '$lib/node-health';
 	import { readHome, HOME_SCHEMA, type Home, type HomeFile } from '$lib/home';
-	import { makeAnnouncement, type Announcement } from '@inqbeta/q-core/announcements';
+	import { makeAnnouncement, makePublication, type Announcement } from '@inqbeta/q-core/announcements';
 	import { openFederationKey } from '@inqbeta/q-core/membership';
 	import { signerFor } from '@inqbeta/q-core/passkey';
-	import { readAnnouncements, announcementsFile } from '$lib/announcements';
+	import { readAnnouncements, announcementsFile, publishAnnouncements } from '$lib/announcements';
 	import { untrack } from 'svelte';
 
 	let identity = $state<Identity | null>(null);
@@ -159,6 +159,15 @@
 	$effect(() => void readHome().then((h) => (home = h)));
 	const isHome = $derived(!!home?.ok && home.federation === id);
 	let homeFile = $state<{ url: string; until: string } | null>(null);
+	/* Where this federation's services answer from the internet (ADR-Q-016 step 5). */
+	let svcStorage = $state('https://storage.135-181-156-21.sslip.io');
+	let svcBellboy = $state('wss://bellboy.135-181-156-21.sslip.io');
+	$effect(() => {
+		if (home?.ok && home.federation === id) {
+			if (home.services.storage) svcStorage = home.services.storage;
+			if (home.services.bellboy) svcBellboy = home.services.bellboy;
+		}
+	});
 	async function publishHome() {
 		if (!identity || !own) return;
 		busy = 'home';
@@ -173,15 +182,21 @@
 			name: own.founding.name,
 			purpose: own.manifest.constitution.purpose,
 			invitation: out.link.slice(out.link.indexOf('#') + 1),
-			until
+			until,
+			services: {
+				...(svcStorage.trim() ? { storage: svcStorage.trim() } : {}),
+				...(svcBellboy.trim() ? { bellboy: svcBellboy.trim() } : {})
+			}
 		};
 		homeFile = { url: URL.createObjectURL(new Blob([JSON.stringify(file, null, 2)], { type: 'application/json' })), until };
 	}
 
 	/* ---- Communication (ADR-Q-016 §6): announcements to members ---- */
 	let announcements = $state<Announcement[]>([]);
+	/* This federation's storage unit, when it is Q's home and has one (ADR-Q-016 step 5). */
+	const storage = $derived(home?.ok && home.federation === id ? home.services.storage : undefined);
 	$effect(() => {
-		if (id) void readAnnouncements(id).then((l) => (announcements = l));
+		if (id) void readAnnouncements(id, storage).then((l) => (announcements = l));
 	});
 	let annTitle = $state('');
 	let annSays = $state('');
@@ -191,6 +206,26 @@
 	let annFile = $state<{ url: string; note: string } | null>(null);
 	function offer(list: Announcement[], note: string) {
 		annFile = { url: URL.createObjectURL(new Blob([announcementsFile(id, list)], { type: 'application/json' })), note };
+	}
+	/*
+	 * Publish the list: to the federation's storage unit when it has one — the
+	 * gate checks the signatures and rings members — else as a file to push.
+	 */
+	async function publish(list: Announcement[], key: Awaited<ReturnType<typeof openFederationKey>>, sent: string, filed: string) {
+		const live = list.filter((a) => Date.parse(a.until) > Date.now());
+		if (storage && own) {
+			const publication = await makePublication(signerFor(key), own.founding.federation, live);
+			const out = await publishAnnouncements(storage, own.founding.federation, live, publication);
+			if (out.ok) {
+				announcements = live;
+				annFile = null;
+				said = { tone: 'good', text: sent };
+				return;
+			}
+			said = { tone: 'bad', text: `${out.says} Here it is as a file instead.` };
+		}
+		announcements = live;
+		offer(live, filed);
 	}
 	async function announce() {
 		if (!identity || !own) return;
@@ -205,17 +240,24 @@
 				action: annHref.trim() ? { href: annHref, label: annLabel.trim() || 'Open' } : undefined,
 				days: annDays
 			});
-			announcements = [a, ...announcements];
-			offer(announcements, `“${a.title}” is signed. Publish the file and members will see it until ${onDay(a.until)}.`);
+			await publish([a, ...announcements], key, `Sent. “${a.title}” is in members’ bells until ${onDay(a.until)}.`, `“${a.title}” is signed. Publish the file and members will see it until ${onDay(a.until)}.`);
 			annTitle = annSays = annLabel = annHref = '';
 		} catch (e) {
 			said = { tone: 'bad', text: e instanceof Error ? e.message : String(e) };
 		}
 		busy = null;
 	}
-	function takeDown(a: Announcement) {
-		announcements = announcements.filter((x) => x.id !== a.id);
-		offer(announcements, `“${a.title}” is taken out. Publish the file and it goes from members’ bells.`);
+	async function takeDown(a: Announcement) {
+		if (!identity || !own) return;
+		busy = 'announce';
+		said = null;
+		try {
+			const key = await openFederationKey(own.sealedKey, identity);
+			await publish(announcements.filter((x) => x.id !== a.id), key, `“${a.title}” is taken down.`, `“${a.title}” is taken out. Publish the file and it goes from members’ bells.`);
+		} catch (e) {
+			said = { tone: 'bad', text: e instanceof Error ? e.message : String(e) };
+		}
+		busy = null;
 	}
 
 	const founding = $derived(own?.founding ?? mine?.founding ?? null);
@@ -608,7 +650,7 @@
 									<div class="flex flex-wrap items-center gap-3">
 										<span class="font-bold">{a.title}</span>
 										<span class="text-xs opacity-60">{onDay(a.at)} · shows until {onDay(a.until)}</span>
-										{#if own}<button type="button" class="btn btn-sm preset-tonal min-h-11 ml-auto" onclick={() => takeDown(a)}>Take it down</button>{/if}
+										{#if own}<button type="button" class="btn btn-sm preset-tonal min-h-11 ml-auto" disabled={busy !== null} onclick={() => void takeDown(a)}>Take it down</button>{/if}
 									</div>
 									<p class="whitespace-pre-line">{a.says}</p>
 									{#if a.action}<a class="btn btn-sm preset-tonal min-h-11 self-start" href={a.action.href}>{a.action.label}</a>{/if}
@@ -640,6 +682,10 @@
 							<p class="text-xs opacity-60">Runs until {onDay(homeFile.until)}.</p>
 						</div>
 					{:else}
+						<div class="grid gap-3 sm:grid-cols-2 mb-4 max-w-3xl">
+							<label class="label"><span class="label-text">Its storage unit (https)</span><input class="input role-token text-xs" bind:value={svcStorage} /></label>
+							<label class="label"><span class="label-text">Its bellboy (wss)</span><input class="input role-token text-xs" bind:value={svcBellboy} /></label>
+						</div>
 						<button type="button" class="btn preset-filled-primary-500 min-h-11" disabled={busy !== null} onclick={() => void publishHome()}>
 							{busy === 'home' ? 'Signing…' : isHome ? 'Renew the invitation' : 'Make this Q’s home federation'}
 						</button>

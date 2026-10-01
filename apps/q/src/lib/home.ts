@@ -20,9 +20,17 @@ export interface HomeFile {
 	invitation: string;
 	/** When the invitation runs out, ISO. */
 	until: string;
+	/**
+	 * Where the federation's services answer from the internet (ADR-Q-016 step
+	 * 5). Not trusted for truth: everything collected from them is checked
+	 * against the federation's signature. Step 3 makes this a signed list.
+	 */
+	services?: { storage?: string; bellboy?: string };
 }
 
-export type Home = { ok: true; federation: string; name: string; purpose: string; joinHref: string; until: string } | { ok: false; says: string };
+export type Home =
+	| { ok: true; federation: string; name: string; purpose: string; joinHref: string; until: string; services: { storage?: string; bellboy?: string } }
+	| { ok: false; says: string };
 
 /** Read /incubator.json and check it. Never throws. */
 export async function readHome(): Promise<Home> {
@@ -36,7 +44,11 @@ export async function readHome(): Promise<Home> {
 		const check = await checkInvitation(inv);
 		if (!check.ok) return { ok: false, says: check.says };
 		if (inv.founding.federation !== f.federation) return { ok: false, says: 'The home invitation is for a different federation.' };
-		return { ok: true, federation: f.federation, name: inv.founding.name, purpose: inv.manifest.constitution.purpose, joinHref: `/federations/join#${f.invitation}`, until: f.until };
+		const services = {
+			...(typeof f.services?.storage === 'string' && /^https:\/\//.test(f.services.storage) ? { storage: f.services.storage.replace(/\/$/, '') } : {}),
+			...(typeof f.services?.bellboy === 'string' && /^wss:\/\//.test(f.services.bellboy) ? { bellboy: f.services.bellboy } : {})
+		};
+		return { ok: true, federation: f.federation, name: inv.founding.name, purpose: inv.manifest.constitution.purpose, joinHref: `/federations/join#${f.invitation}`, until: f.until, services };
 	} catch {
 		return { ok: false, says: 'The home federation couldn’t be read.' };
 	}

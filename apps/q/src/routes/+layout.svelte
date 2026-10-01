@@ -39,6 +39,7 @@
 	import { answeringOf, answersFrom } from '$lib/answers';
 	import type { AnswerSet } from '@inqbeta/q-core/questions';
 	import { bellConfig, listen, collect, type Notice } from '$lib/bellboy';
+	import { connectMqtt } from '$lib/mqtt-ws';
 	import ReceivedView from '$lib/components/ReceivedView.svelte';
 	import { readHome } from '$lib/home';
 	import { readAnnouncements, readIds, markRead } from '$lib/announcements';
@@ -95,15 +96,54 @@
 	let announcements = $state<Announcement[]>([]);
 	let seen = $state<Set<string>>(new Set());
 	let reading = $state<Announcement | null>(null);
+	let homeStorage = $state<string | undefined>(undefined);
+	let homeBellboy = $state<string | undefined>(undefined);
 	$effect(() => {
 		if (!identity) return;
 		void readHome().then(async (h) => {
 			if (!h.ok) return;
 			homeName = h.name;
 			homeDid = h.federation;
-			announcements = await readAnnouncements(h.federation);
+			homeStorage = h.services.storage;
+			homeBellboy = h.services.bellboy;
+			announcements = await readAnnouncements(h.federation, h.services.storage);
 			seen = readIds();
 		});
+	});
+	/*
+	 * Listen on the home federation's news channel (ADR-Q-016 §6): the bellboy
+	 * pings "there's news", carrying nothing; Q collects the signed
+	 * announcements from the storage unit and checks them. Members only.
+	 */
+	$effect(() => {
+		if (!identity || !homeBellboy || !homeDid || !inHomeFed) return;
+		const did = homeDid, storage = homeStorage, url = homeBellboy;
+		let line: { close(): void } | null = null;
+		let gone = false;
+		void connectMqtt(
+			{
+				url,
+				clientId: `q-news-${crypto.randomUUID().slice(0, 8)}`,
+				onMessage: async () => {
+					const before = new Set(announcements.map((a) => a.id));
+					announcements = await readAnnouncements(did, storage);
+					if (announcements.some((a) => !before.has(a.id))) {
+						announce = `New from ${homeName}`;
+						ringing = true;
+						setTimeout(() => (ringing = false), 2400);
+					}
+				}
+			},
+			[`q/fed/${did}/news`]
+		)
+			.then((l) => (gone ? l.close() : (line = l)))
+			.catch(() => {
+				/* No news line: announcements still arrive whenever Q opens. */
+			});
+		return () => {
+			gone = true;
+			line?.close();
+		};
 	});
 	/* Only members (and its caretaker) hear from it. */
 	const inHomeFed = $derived(
