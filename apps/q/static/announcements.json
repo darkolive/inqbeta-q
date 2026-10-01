@@ -1,0 +1,23 @@
+{
+  "schema": "inqbeta.announcements/1",
+  "federation": "did:key:z6Mkvo5GNipFGRo6v29PbHnFXjvh8UFjLuBDnXYpRGzB6GCP",
+  "announcements": [
+    {
+      "schema": "inqbeta.announcement/1",
+      "event": "federation.announced",
+      "federation": "did:key:z6Mkvo5GNipFGRo6v29PbHnFXjvh8UFjLuBDnXYpRGzB6GCP",
+      "id": "1GlZeFy335W0",
+      "title": "Just got big update",
+      "says": "now building out the address book and communication system.",
+      "at": "2026-10-01T12:32:46.603Z",
+      "until": "2026-10-15T12:32:46.603Z",
+      "signatures": [
+        {
+          "by": "federation",
+          "did": "did:key:z6Mkvo5GNipFGRo6v29PbHnFXjvh8UFjLuBDnXYpRGzB6GCP",
+          "signature": "w-t8DMYQuC2oPn5o0YBfA5Oqy8lYOaL9eKGAxgbV_j17R1InsCKNPb954a-VtXcLsStomRxK9GAOqm6tpUWmDg"
+        }
+      ]
+    }
+  ]
+}
