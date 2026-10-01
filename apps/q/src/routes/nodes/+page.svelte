@@ -16,6 +16,7 @@
 	import { syncCloudNow, watchCloud, type CloudState } from '$lib/autosync';
 	import NoteTouch from '$lib/components/NoteTouch.svelte';
 	import BackupSteps from '$lib/components/BackupSteps.svelte';
+	import { CLOUDS, cloudChannel, disconnectCloud, type CloudId } from '$lib/cloud-channels';
 	import { folderOwner } from '@inqbeta/q-core/folder';
 
 	/* Google Drive — a storage channel through its API, for Safari and the iPhone too. */
@@ -24,7 +25,16 @@
 	let cloudBusy = $state(false);
 	let cloudSays = $state('');
 	let confirmingDisconnect = $state(false);
+	let others = $state<Partial<Record<CloudId, string>>>({});
+	async function disconnectOther(cid: CloudId, name: string) {
+		cloudBusy = true;
+		await disconnectCloud(cid);
+		cloudBusy = false;
+		await loadCloud();
+		cloudSays = `${name} disconnected. What’s already there stays, locked; delete the “Q vault” folder in ${name} if you want it gone.`;
+	}
 	$effect(() => watchCloud((c) => (cloud = c)));
+	const gState = $derived(cloud.find((c) => c.kind === 'google-drive'));
 	/* Keys held in this tab. Without them the locked Google token cannot be
 	 * read, so the page must not offer "Connect" as if there were none. */
 	let signedIn = $state(false);
@@ -38,6 +48,12 @@
 	async function loadCloud() {
 		const did = folderOwner();
 		google = did && current() ? await googleChannel(did).catch(() => null) : null;
+		const next: Partial<Record<CloudId, string>> = {};
+		if (did && current()) for (const c of CLOUDS) {
+			const ch = await cloudChannel(c.id, did).catch(() => null);
+			if (ch) next[c.id] = ch.connectedAt;
+		}
+		others = next;
 		cloudChecked = !!current();
 	}
 	/* The small Google window hands its code back here. */
@@ -63,7 +79,7 @@
 		cloudSays = '';
 		const out = await syncCloudNow();
 		cloudBusy = false;
-		const g = out[0];
+		const g = out.find((c) => c.kind === 'google-drive');
 		cloudSays = !g
 			? ''
 			: g.error
@@ -221,9 +237,9 @@
 		{:else if !signedIn || !cloudChecked}
 			<Empty icon="lock" title="Sign in to see your cloud" description="Your connections are locked in your vault, so Q needs your passkey to read them. They are still syncing wherever you are signed in." />
 		{:else if google}
-			<Item title="Google Drive" description={`Connected ${new Date(google.connectedAt).toLocaleDateString()} · a folder of its own, only files Q made`} meta={cloud[0]?.at ? `Last synced ${new Date(cloud[0].at).toLocaleTimeString()}${cloud[0].holdsAll ? ' · holds everything' : ''}` : 'Syncs every five minutes'}>
+			<Item title="Google Drive" description={`Connected ${new Date(google.connectedAt).toLocaleDateString()} · a folder of its own, only files Q made`} meta={gState?.at ? `Last synced ${new Date(gState.at!).toLocaleTimeString()}${gState?.holdsAll ? ' · holds everything' : ''}` : 'Syncs every five minutes'}>
 				{#snippet status()}
-					<Status tone={cloud[0]?.error ? 'bad' : 'good'}>{cloud[0]?.error ? 'Needs attention' : 'On'}</Status>
+					<Status tone={gState?.error ? 'bad' : 'good'}>{gState?.error ? 'Needs attention' : 'On'}</Status>
 				{/snippet}
 			</Item>
 			<div class="actions mt-2">
@@ -241,6 +257,19 @@
 				<button type="button" class="btn preset-filled-primary-500" onclick={() => void connect()}>Connect Google Drive</button>
 			</div>
 		{/if}
+		{#each CLOUDS.filter((c) => others[c.id]) as c (c.id)}
+			{@const st = cloud.find((x) => x.kind === c.id)}
+			<div class="mt-4">
+				<Item title={c.name} description={`Connected ${new Date(others[c.id]!).toLocaleDateString()} · a folder of its own, only files Q made`} meta={st?.at ? `Last synced ${new Date(st.at).toLocaleTimeString()}${st.holdsAll ? ' · holds everything' : ''}` : 'Syncs every five minutes'}>
+					{#snippet status()}
+						<Status tone={st?.error ? 'bad' : 'good'}>{st?.error ? 'Needs attention' : 'On'}</Status>
+					{/snippet}
+				</Item>
+				<div class="actions mt-2">
+					<button type="button" class="btn btn-sm preset-outlined-surface-500" disabled={cloudBusy} onclick={() => void disconnectOther(c.id, c.name)}>Disconnect {c.name}</button>
+				</div>
+			</div>
+		{/each}
 		{#if cloudSays}<p class="text-sm mt-2" role="status" aria-live="polite">{cloudSays}</p>{/if}
 	</Section>
 

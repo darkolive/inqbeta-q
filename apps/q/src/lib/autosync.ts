@@ -7,16 +7,20 @@
  * comes back into view. Nothing is asked and nothing interrupts; a channel
  * that needs allowing again is skipped and shows as asleep on /nodes.
  *
- * Channels today: copy-location folders (replicas.ts) and Google Drive.
+ * Channels today: copy-location folders (replicas.ts), Google Drive, Dropbox
+ * and OneDrive.
  */
 import { syncAllQuietly } from '@inqbeta/q-core/replicas';
 import { folderOwner, noteCarried, primaryHandle } from '@inqbeta/q-core/folder';
 import { folderChannel, holdsEverything, syncChannels, type ChannelSync } from '@inqbeta/q-core/storage-channels';
 import { googleChannel } from '$lib/google-channel';
+import { CLOUDS, cloudChannel } from '$lib/cloud-channels';
 
 const EVERY_MS = 5 * 60 * 1000;
 
 export interface CloudState {
+	/** 'google-drive', 'dropbox' or 'onedrive'. */
+	kind: string;
 	called: string;
 	at?: string;
 	/** Asked after the sync, and it holds every locked file here — so it counts as a backup. */
@@ -39,16 +43,19 @@ export async function syncCloudNow(): Promise<CloudState[]> {
 	const main = primaryHandle();
 	if (!did || !main) return cloud;
 	const out: CloudState[] = [];
-	const g = await googleChannel(did).catch(() => null);
-	if (g) {
+	/* Google Drive, Dropbox, OneDrive: each one connected is brought level. */
+	const connected = [await googleChannel(did).catch(() => null), ...(await Promise.all(CLOUDS.map((c) => cloudChannel(c.id, did).catch(() => null))))].filter(
+		(c): c is NonNullable<typeof c> => !!c
+	);
+	const vault = folderChannel(main, { id: 'vault', called: 'this vault', kind: 'this-browser' });
+	for (const g of connected) {
 		try {
-			const vault = folderChannel(main, { id: 'vault', called: 'this vault', kind: 'this-browser' });
 			const result = await syncChannels(vault, g, did);
 			const holdsAll = !result.failed.length && !result.damaged.length && (await holdsEverything(vault, g));
 			if (holdsAll) noteCarried();
-			out.push({ called: g.called, at: result.at, result, holdsAll });
+			out.push({ kind: g.kind, called: g.called, at: result.at, result, holdsAll });
 		} catch (e) {
-			out.push({ called: g.called, at: new Date().toISOString(), error: e instanceof Error ? e.message : String(e) });
+			out.push({ kind: g.kind, called: g.called, at: new Date().toISOString(), error: e instanceof Error ? e.message : String(e) });
 		}
 	}
 	cloud = out;

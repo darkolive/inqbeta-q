@@ -27,6 +27,7 @@
 	import { connectGoogle, googleChannel, watchGoogleReturn } from '$lib/google-channel';
 	import { syncCloudNow, watchCloud, type CloudState } from '$lib/autosync';
 	import { refreshLedger } from '$lib/ledger';
+	import { CLOUDS, connectCloud, cloudChannel, watchCloudReturn, type CloudId } from '$lib/cloud-channels';
 
 	let { startAt = 0, onDone, onCancel }: { startAt?: number; onDone: () => void; onCancel?: () => void } = $props();
 
@@ -75,12 +76,49 @@
 		googleWaiting = false;
 		const out = await syncCloudNow();
 		busy = false;
-		if (out[0]?.error) says = out[0].error;
+		const mine = out.find((c) => c.kind === 'google-drive');
+		if (mine?.error) says = mine.error;
 		await refreshLedger();
 	}
-	const g = $derived(cloud[0]);
+	const g = $derived(cloud.find((c) => c.kind === 'google-drive'));
 
-	/* ---- 3. Another copy ---- */
+	/* ---- 3. Another copy: Dropbox and OneDrive, the same way as Google ---- */
+	let clouds = $state<Partial<Record<CloudId, string>>>({});
+	let cloudWaiting = $state<CloudId | null>(null);
+	async function loadClouds() {
+		const did = folderOwner();
+		if (!did || !current()) return;
+		const next: Partial<Record<CloudId, string>> = {};
+		for (const c of CLOUDS) {
+			const ch = await cloudChannel(c.id, did).catch(() => null);
+			if (ch) next[c.id] = ch.connectedAt;
+		}
+		clouds = next;
+	}
+	$effect(() => {
+		if (ready) void loadClouds();
+	});
+	$effect(() =>
+		watchCloudReturn(async (cid, out) => {
+			cloudWaiting = null;
+			if (!out.ok) return void (says = out.says);
+			await loadClouds();
+			busy = true;
+			const synced = await syncCloudNow();
+			busy = false;
+			const mine = synced.find((c) => c.kind === cid);
+			if (mine?.error) says = mine.error;
+			await refreshLedger();
+		})
+	);
+	async function connectOther(cid: CloudId) {
+		says = '';
+		const out = await connectCloud(cid);
+		if (!out.ok) says = out.says;
+		else cloudWaiting = cid;
+	}
+	const cloudState = (cid: CloudId) => cloud.find((c) => c.kind === cid);
+
 	let replicas = $state<Replica[]>([]);
 	const loadReplicas = async () => (replicas = ready ? await listReplicas().catch(() => []) : []);
 	$effect(() => {
@@ -116,6 +154,7 @@
 	const places = $derived([
 		...(ready ? [{ name: folder.kind === 'ready' && folder.inBrowser ? 'This browser' : `Your ${folder.kind === 'ready' ? folder.name : ''} folder`, why: 'Where you work. Fast, but a browser can clear it.', off: false }] : []),
 		...(google ? [{ name: 'Google Drive', why: g?.holdsAll ? 'Holds every file. Kept level every five minutes.' : 'Connected. Kept level every five minutes.', off: true }] : []),
+		...CLOUDS.filter((c) => clouds[c.id]).map((c) => ({ name: c.name, why: cloudState(c.id)?.holdsAll ? 'Holds every file. Kept level every five minutes.' : 'Connected. Kept level every five minutes.', off: true })),
 		...replicas.map((r) => ({ name: r.name, why: r.state === 'ready' ? 'Kept level every five minutes while Q is open.' : 'Needs allowing again: open Backups.', off: true })),
 		...(downloaded ? [{ name: 'A backup file', why: `Saved ${new Date(downloaded).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })}. Keep it somewhere safe.`, off: true }] : [])
 	]);
@@ -131,7 +170,7 @@
 	/* Already kept somewhere else: open on where it is, not on step one. */
 	let jumped = false;
 	$effect(() => {
-		if (!jumped && step === 0 && ready && (google || replicas.length)) {
+		if (!jumped && step === 0 && ready && (google || replicas.length || Object.keys(clouds).length)) {
 			jumped = true;
 			step = 3;
 		}
@@ -207,6 +246,19 @@
 		<!-- 3. Another copy -->
 		<Steps.Content index={2}>
 			<div class="grid gap-4 sm:grid-cols-2 max-w-2xl">
+				{#each CLOUDS as c (c.id)}
+					<div class="card preset-outlined-surface-200-800 p-4 flex flex-col gap-3">
+						<p class="font-bold flex items-center gap-2"><Icon name="cloud" /> {c.name}</p>
+						<p class="text-sm opacity-80">Q puts a <strong>Q vault</strong> folder in your {c.name} and keeps it level every five minutes. Locked first; Q sees only its own folder.</p>
+						{#if clouds[c.id]}
+							<p class="text-sm"><Status tone={cloudState(c.id)?.error ? 'needs-you' : 'good'}>{cloudState(c.id)?.error ? 'Needs connecting again' : busy ? 'Copying…' : 'Connected'}</Status></p>
+						{:else}
+							<button type="button" class="btn preset-tonal min-h-11 self-start mt-auto" disabled={!ready || !!cloudWaiting} onclick={() => void connectOther(c.id)}>
+								{cloudWaiting === c.id ? `Finish in the ${c.name} window…` : `Connect ${c.name}`}
+							</button>
+						{/if}
+					</div>
+				{/each}
 				{#if folderSupported()}
 					<div class="card preset-outlined-surface-200-800 p-4 flex flex-col gap-3">
 						<p class="font-bold flex items-center gap-2"><Icon name="files" /> A folder that syncs</p>
