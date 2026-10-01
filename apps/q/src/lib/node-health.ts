@@ -49,6 +49,17 @@ export async function reachIndex(mesh: string, port: number): Promise<Reach> {
 	}
 }
 
+/** The storage unit's filer answers at its root. Asked without reading, so CORS can't hide it. */
+export async function reachStorage(mesh: string, port: number): Promise<Reach> {
+	if (fromSecurePage()) return SECURE_PAGE;
+	try {
+		await fetch(`http://${mesh}:${port}/`, { mode: 'no-cors', signal: AbortSignal.timeout(WAIT_MS) });
+		return { is: 'reached', says: 'Open — it would hold what’s sent to you until you collect it.' };
+	} catch {
+		return unreached();
+	}
+}
+
 /** Open a WebSocket to Mosquitto and close it. Signing in isn't needed to know it's there. */
 export function reachPostOffice(mesh: string, port: number): Promise<Reach> {
 	if (fromSecurePage()) return Promise.resolve(SECURE_PAGE);

@@ -40,7 +40,7 @@
 	} from '$lib/federations';
 	import type { Found } from '$lib/features/registry';
 	import { standingAt } from '@inqbeta/q-core/membership';
-	import { reachIndex, reachPostOffice, type Reach } from '$lib/node-health';
+	import { reachIndex, reachPostOffice, reachStorage, type Reach } from '$lib/node-health';
 	import { untrack } from 'svelte';
 
 	let identity = $state<Identity | null>(null);
@@ -95,14 +95,15 @@
 		const items = nodeItems.map((f) => f.item);
 		void Promise.all(items.map(recordFrom)).then((rs) => (nodes = rs.filter(isNodeRecord).filter((n) => !n.withdrawn)));
 	});
-	let reach = $state<Record<string, { index?: Reach; postOffice?: Reach; asking: boolean; at?: string }>>({});
+	let reach = $state<Record<string, { index?: Reach; postOffice?: Reach; storage?: Reach; asking: boolean; at?: string }>>({});
 	async function ask(n: NodeRecord) {
 		reach[n.mesh] = { ...reach[n.mesh], asking: true };
-		const [index, postOffice] = await Promise.all([
+		const [index, postOffice, storage] = await Promise.all([
 			n.services.index ? reachIndex(n.mesh, n.services.index.port) : Promise.resolve(undefined),
-			n.services.postOffice ? reachPostOffice(n.mesh, n.services.postOffice.port) : Promise.resolve(undefined)
+			n.services.postOffice ? reachPostOffice(n.mesh, n.services.postOffice.port) : Promise.resolve(undefined),
+			n.services.storage ? reachStorage(n.mesh, n.services.storage.port) : Promise.resolve(undefined)
 		]);
-		reach[n.mesh] = { index, postOffice, asking: false, at: new Date().toLocaleTimeString('en-GB') };
+		reach[n.mesh] = { index, postOffice, storage, asking: false, at: new Date().toLocaleTimeString('en-GB') };
 	}
 	$effect(() => {
 		for (const n of nodes) if (!untrack(() => reach[n.mesh])) void ask(n);
@@ -116,6 +117,7 @@
 	let nodeLighthouse = $state('');
 	let nodeHasPostOffice = $state(true);
 	let nodeHasIndex = $state(true);
+	let nodeHasStorage = $state(true);
 	async function addNode() {
 		if (!own) return;
 		busy = 'node';
@@ -125,7 +127,8 @@
 			mesh: nodeMesh,
 			lighthouse: nodeLighthouse,
 			postOffice: nodeHasPostOffice ? 9001 : undefined,
-			index: nodeHasIndex ? 8080 : undefined
+			index: nodeHasIndex ? 8080 : undefined,
+			storage: nodeHasStorage ? 8888 : undefined
 		});
 		busy = null;
 		if (!out.ok) return void (said = { tone: 'bad', text: out.says });
@@ -490,7 +493,7 @@
 				<Tabs.Content value="settings">
 				<Section title="Nodes" description="The machines this federation runs, on its own private mesh. Whether each service answers is checked from this device, now — never stored.">
 					{#if nodes.length === 0 && !adding}
-						<Empty icon="federations" title="No nodes yet" description="A node holds the federation’s bellboy, its directory, or both. List one when it’s on the mesh." />
+						<Empty icon="federations" title="No nodes yet" description="A node holds the federation’s bellboy, directory and storage unit — any or all of them. List one when it’s on the mesh." />
 					{/if}
 					<ul class="flex flex-col gap-3">
 						{#each nodes as n (n.mesh)}
@@ -518,6 +521,11 @@
 										<dd><Status tone={toneOf(r?.index)}>{r?.asking ? 'Checking' : wordOf(r?.index)}</Status></dd>
 										<dd class="text-sm">{r?.index?.says ?? ''} <span class="role-token text-xs opacity-60">http :{n.services.index.port}</span></dd>
 									{/if}
+								{#if n.services.storage}
+									<dt class="flex items-center gap-2"><Icon name="storage-unit" />Storage unit</dt>
+									<dd><Status tone={toneOf(r?.storage)}>{r?.asking ? 'Checking' : wordOf(r?.storage)}</Status></dd>
+									<dd class="text-sm">{r?.storage?.says ?? ''} <span class="role-token text-xs opacity-60">http :{n.services.storage.port}</span></dd>
+								{/if}
 								</dl>
 								{#if r?.at}<p class="text-xs opacity-60">Checked from this device at {r.at}.</p>{/if}
 							</li>
@@ -543,6 +551,7 @@
 								<legend class="label-text mb-1">What it runs</legend>
 								<label class="flex items-center gap-2"><input class="checkbox" type="checkbox" bind:checked={nodeHasPostOffice} /><Icon name="bellboy" /> Bellboy (port 9001)</label>
 								<label class="flex items-center gap-2"><input class="checkbox" type="checkbox" bind:checked={nodeHasIndex} /><Icon name="directory" /> Directory (port 8080)</label>
+							<label class="flex items-center gap-2"><input class="checkbox" type="checkbox" bind:checked={nodeHasStorage} /><Icon name="storage-unit" /> Storage unit (port 8888)</label>
 							</fieldset>
 							<div class="flex flex-wrap gap-3">
 								<button type="button" class="btn preset-filled-primary-500 min-h-11" disabled={busy !== null || !nodeCalled.trim()} onclick={addNode}>

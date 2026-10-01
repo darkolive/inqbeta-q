@@ -451,6 +451,8 @@ export interface NodeRecord {
 		postOffice?: { port: number };
 		/** The directory: Dgraph's HTTP port (home-node.md §5). */
 		index?: { port: number };
+		/** The storage unit: SeaweedFS's filer (ADR-Q-014), the holding bay. */
+		storage?: { port: number };
 	};
 	at: string;
 	withdrawn?: string;
@@ -465,7 +467,7 @@ const MESH_ADDRESS = /^(10|172|192)\.\d{1,3}\.\d{1,3}\.\d{1,3}$/;
 /** Write down a node the federation runs. Only its caretaker can. */
 export async function listNode(
 	record: FederationRecord,
-	o: { called: string; mesh: string; lighthouse?: string; postOffice?: number; index?: number }
+	o: { called: string; mesh: string; lighthouse?: string; postOffice?: number; index?: number; storage?: number }
 ): Promise<Outcome<{ node: NodeRecord }>> {
 	try {
 		const mesh = o.mesh.trim();
@@ -480,7 +482,8 @@ export async function listNode(
 			...(o.lighthouse?.trim() ? { lighthouse: o.lighthouse.trim() } : {}),
 			services: {
 				...(o.postOffice ? { postOffice: { port: o.postOffice } } : {}),
-				...(o.index ? { index: { port: o.index } } : {})
+				...(o.index ? { index: { port: o.index } } : {}),
+				...(o.storage ? { storage: { port: o.storage } } : {})
 			},
 			at: new Date().toISOString()
 		};
