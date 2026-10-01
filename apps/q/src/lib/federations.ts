@@ -414,3 +414,90 @@ export async function recordFrom(item: FolderItem): Promise<unknown> {
 		return null;
 	}
 }
+
+/* ---- Nodes (ADR-Q-010 §10, home-node.md): the machines a federation runs. ---- */
+
+/**
+ * A node the federation runs, as its caretaker wrote it down: where it sits on
+ * the federation's own mesh, and which services members reach there.
+ *
+ * FIRST SLICE (1 October 2026, after the Hetzner test). Kept in the
+ * caretaker's vault and signed by them, like a member record. Not yet:
+ * signed by the federation key, sent to members, or checked by a
+ * `node.listed` action — those wait on ADR-Q-006's open question (where a
+ * federation's shared state lives). The health shown beside it is never
+ * stored: it is what this device can reach, asked each time.
+ */
+export const NODE_RECORD_SCHEMA = 'inqbeta.federation-node/1';
+export interface NodeRecord {
+	schema: typeof NODE_RECORD_SCHEMA;
+	source: 'inqbeta:q/federation-node';
+	federation: string;
+	/** What the caretaker calls it: "Hetzner, Helsinki". */
+	called: string;
+	/** Its address on the federation's Nebula mesh, e.g. 10.42.0.1. */
+	mesh: string;
+	/** Is it the mesh's lighthouse, and at which public address (host:port)? */
+	lighthouse?: string;
+	/*
+	 * Named in Q's words since 1 October 2026: the BELLBOY (Mosquitto — "there's
+	 * a call for you, sir, in reception": it tells you something is waiting and
+	 * where, and carries nothing you could read) and the DIRECTORY (Dgraph —
+	 * where things are found). The keys keep their first names so records already
+	 * written still read. docs/q/node-sizes.md.
+	 */
+	services: {
+		/** The bellboy: Mosquitto over WebSockets (ADR-Q-010 §4). */
+		postOffice?: { port: number };
+		/** The directory: Dgraph's HTTP port (home-node.md §5). */
+		index?: { port: number };
+	};
+	at: string;
+	withdrawn?: string;
+}
+export function isNodeRecord(x: unknown): x is NodeRecord {
+	const r = x as NodeRecord;
+	return !!r && r.schema === NODE_RECORD_SCHEMA && typeof r.federation === 'string' && typeof r.mesh === 'string';
+}
+
+const MESH_ADDRESS = /^(10|172|192)\.\d{1,3}\.\d{1,3}\.\d{1,3}$/;
+
+/** Write down a node the federation runs. Only its caretaker can. */
+export async function listNode(
+	record: FederationRecord,
+	o: { called: string; mesh: string; lighthouse?: string; postOffice?: number; index?: number }
+): Promise<Outcome<{ node: NodeRecord }>> {
+	try {
+		const mesh = o.mesh.trim();
+		if (!MESH_ADDRESS.test(mesh)) return { ok: false, says: 'The mesh address is a private address like 10.42.0.1 — the one in the node’s Nebula certificate.' };
+		if (!o.called.trim()) return { ok: false, says: 'Give it a name you’ll recognise.' };
+		const node: NodeRecord = {
+			schema: NODE_RECORD_SCHEMA,
+			source: 'inqbeta:q/federation-node',
+			federation: record.founding.federation,
+			called: o.called.trim(),
+			mesh,
+			...(o.lighthouse?.trim() ? { lighthouse: o.lighthouse.trim() } : {}),
+			services: {
+				...(o.postOffice ? { postOffice: { port: o.postOffice } } : {}),
+				...(o.index ? { index: { port: o.index } } : {})
+			},
+			at: new Date().toISOString()
+		};
+		await keep('federations/nodes', `${short(node.federation)}-${mesh.replaceAll('.', '-')}.json`, node);
+		return { ok: true, node };
+	} catch (e) {
+		return { ok: false, says: e instanceof Error ? e.message : String(e) };
+	}
+}
+
+/** Stop listing a node. The earlier record stays; this one says when it ended. */
+export async function withdrawNode(node: NodeRecord): Promise<Outcome<{}>> {
+	try {
+		const at = new Date().toISOString();
+		await keep('federations/nodes', `${short(node.federation)}-${node.mesh.replaceAll('.', '-')}.json`, { ...node, withdrawn: at, at });
+		return { ok: true };
+	} catch (e) {
+		return { ok: false, says: e instanceof Error ? e.message : String(e) };
+	}
+}

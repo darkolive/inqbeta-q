@@ -1,0 +1,52 @@
+# Nebula on the Hetzner box: the lighthouse of the test federation's mesh.
+# Lives at /etc/nebula/config.yml on the server. Mesh address 10.42.0.1.
+pki:
+  ca: /etc/nebula/ca.crt
+  cert: /etc/nebula/host.crt
+  key: /etc/nebula/host.key
+
+static_host_map: {}
+
+lighthouse:
+  am_lighthouse: true
+
+listen:
+  host: "[::]"
+  port: 4242          # the only port the public firewall opens besides SSH
+
+punchy:
+  punch: true
+
+tun:
+  dev: nebula1
+
+logging:
+  level: info
+
+# The mesh has its own firewall, on top of Hetzner's.
+# Members of the federation (group "member") may reach the node's services;
+# nobody else on the mesh may, and nothing here is on the internet.
+firewall:
+  outbound:
+    - port: any
+      proto: any
+      host: any
+  inbound:
+    - port: any
+      proto: icmp
+      host: any
+    - port: 1883      # bellboy (MQTT)
+      proto: tcp
+      group: member
+    - port: 9001      # bellboy (WebSockets)
+      proto: tcp
+      group: member
+    - port: 8080      # directory (Dgraph HTTP / GraphQL)
+      proto: tcp
+      group: member
+    - port: 9080      # Dgraph gRPC
+      proto: tcp
+      group: member
+    - port: 8888      # storage unit (SeaweedFS filer)
+      proto: tcp
+      group: member

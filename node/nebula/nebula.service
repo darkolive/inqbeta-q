@@ -1,0 +1,15 @@
+# /etc/systemd/system/nebula.service on the Hetzner box.
+# Starts before Docker, so the containers can bind to 10.42.0.1.
+[Unit]
+Description=Nebula mesh (inQbeta test federation)
+Wants=network-online.target
+After=network-online.target
+Before=docker.service
+
+[Service]
+ExecStart=/usr/local/bin/nebula -config /etc/nebula/config.yml
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

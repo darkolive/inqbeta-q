@@ -7,8 +7,14 @@
 	 * Copying follows Skeleton's clipboard cookbook (navigator.clipboard).
 	 */
 	import { QrCode } from '@skeletonlabs/skeleton-svelte';
+	import { Icon } from '@inqbeta/q-ui';
 
-	let { link, label = 'Link', note = '' }: { link: string; label?: string; note?: string } = $props();
+	/*
+	 * `message` adds Email and WhatsApp (ADR-Q-015): each opens the person's own
+	 * app with the message and the link written in. Q isn't involved in sending.
+	 */
+	let { link, label = 'Link', note = '', subject = '', message = '' }: { link: string; label?: string; note?: string; subject?: string; message?: string } = $props();
+	const body = $derived(`${message}\n\n${link}`);
 
 	/* A link made on a dev server points at this computer: a phone can't open it. */
 	/* A QR code holds about 2,900 characters; past that, only the link works. */
@@ -48,6 +54,10 @@
 		{/if}
 		<input class="input text-xs" type="text" readonly value={link} aria-label={label} onfocus={(e) => e.currentTarget.select()} />
 		<div class="flex flex-wrap gap-3">
+			{#if message}
+				<a class="btn preset-tonal min-h-11" href="mailto:?subject={encodeURIComponent(subject)}&body={encodeURIComponent(body)}"><Icon name="mail" size={18} /> Email</a>
+				<a class="btn preset-tonal min-h-11" href="https://wa.me/?text={encodeURIComponent(body)}" target="_blank" rel="noreferrer noopener"><Icon name="message" size={18} /> WhatsApp</a>
+			{/if}
 			<button type="button" class="btn preset-filled-primary-500 min-h-11" onclick={copy}>
 				{copied ? 'Copied' : 'Copy link'}
 			</button>

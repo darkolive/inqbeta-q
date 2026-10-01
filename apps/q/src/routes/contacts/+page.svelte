@@ -65,11 +65,49 @@
 		selectedContact = contact;
 		drawerOpen = true;
 	}
+
+	/*
+	 * People you're linked with (ADR-Q-015), drawn as their cards: those whose
+	 * card you opened and linked up with, and those who linked up with yours
+	 * (their card came back through the bell). One per person, newest wins.
+	 */
+	import CardFace from '$lib/components/CardFace.svelte';
+	import { watchLedger, type Ledger } from '$lib/ledger';
+	let ledger = $state<Ledger | null>(null);
+	$effect(() => watchLedger((l) => (ledger = l)));
+	type Person = { did: string; details: Record<string, string>; name: string; at: string; how: string };
+	const people = $derived.by<Person[]>(() => {
+		const by = new Map<string, Person>();
+		for (const r of ledger?.receipts ?? []) {
+			const c = (r.json as { content?: Record<string, unknown> } | undefined)?.content as
+				| { schema?: string; with?: string; card?: { name?: string; details?: Record<string, string> }; receipt?: { card?: Record<string, string>; from?: string }; at?: string; collectedAt?: string }
+				| undefined;
+			let p: Person | null = null;
+			if (c?.schema === 'inqbeta.linked/1' && c.with && c.card?.details)
+				p = { did: c.with, details: c.card.details, name: c.card.name ?? 'Card', at: c.at ?? r.at, how: 'You linked up with their card' };
+			else if (c?.schema === 'inqbeta.received/1' && c.receipt?.card && c.receipt.from)
+				p = { did: c.receipt.from, details: c.receipt.card, name: 'Personal', at: c.collectedAt ?? r.at, how: 'They linked up with yours' };
+			if (p && (!by.has(p.did) || p.at > by.get(p.did)!.at)) by.set(p.did, p);
+		}
+		return [...by.values()].sort((a, b) => b.at.localeCompare(a.at));
+	});
 </script>
 
 <svelte:head><title>Contacts — Q</title></svelte:head>
 
 <Page title="Contacts" lead="Your address book — contacts shared with you via receipts.">
+	{#if people.length}
+		<Section title="People you’re linked with" description="Their cards, as they shared them. Call, WhatsApp or email straight from the card.">
+			<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+				{#each people as p (p.did)}
+					<div class="flex flex-col gap-1">
+						<CardFace details={p.details} did={p.did} badge={p.name} />
+						<p class="text-xs opacity-60">{p.how}</p>
+					</div>
+				{/each}
+			</div>
+		</Section>
+	{/if}
 	{#if !identity}
 		<Empty icon="contacts" title="Locked" description="Sign in to view your contacts." />
 	{:else}

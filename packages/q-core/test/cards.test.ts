@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildCard, cardFromAnswers, cardId, cardView, isCard, looksLikeCard, newestPerCard, readCard, unknownQuestions } from '../src/cards';
+import { buildCard, cardFromAnswers, cardId, cardView, isCard, JUST_FOR_ME, looksLikeCard, newestPerCard, readCard, unknownQuestions } from '../src/cards';
 import { buildAnswerSet, QUESTION_SET_SCHEMA, type AnswerSet, type QuestionSet } from '../src/questions';
 
 const did = 'did:key:z6MkOne';
@@ -248,4 +248,26 @@ test('an ordinary answer set is not mistaken for a card', async () => {
 	assert.ok(!looksLikeCard(answers));
 	assert.equal(await readCard(answers), null);
 	assert.equal(await readCard({ nothing: 'to see' }), null);
+});
+
+test('a detail kept just for you never leaves, whatever the card names', async () => {
+	const profile: QuestionSet = {
+		schema: QUESTION_SET_SCHEMA,
+		id: 'q/your-profile',
+		title: { 'en-GB': 'Your profile' },
+		questions: [
+			{ id: 'q:person/called', answer: 'text', asks: { 'en-GB': 'Name?' } },
+			{ id: 'q:person/near', answer: 'text', asks: { 'en-GB': 'Where?' }, optional: true },
+			{ id: JUST_FOR_ME, answer: 'questions', asks: { 'en-GB': 'Just for you?' }, optional: true }
+		]
+	};
+	const built = await buildAnswerSet({ did, set: profile, values: { 'q:person/called': 'Darren', 'q:person/near': 'Bristol', [JUST_FOR_ME]: ['q:person/near'] } });
+	assert.ok(built.ok);
+	if (!built.ok) return;
+	/* An older card that names the detail, and the list itself. */
+	const card = await buildCard({ did, name: 'Friends', shows: ['q:person/called', 'q:person/near', JUST_FOR_ME] });
+	const view = cardView(card, [built.answers]);
+	assert.deepEqual(view.shown, [{ question: 'q:person/called', value: 'Darren' }]);
+	assert.deepEqual(view.missing, [], 'kept, not missing: a holder is not told it exists');
+	assert.equal(view.withheld, 1, 'counted as held back, like anything else off the card');
 });

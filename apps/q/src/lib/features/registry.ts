@@ -24,7 +24,7 @@ import { isRelease } from '@inqbeta/q-core/releases';
 import { isCarrierRecord } from '$lib/releases';
 import { isFederationDraft, isLegacyFederation } from '@inqbeta/q-core/federations';
 import { standingAt } from '@inqbeta/q-core/membership';
-import { isFederationRecord, isMembershipRecord, isMemberRecord } from '$lib/federations';
+import { isFederationRecord, isMembershipRecord, isMemberRecord, isNodeRecord } from '$lib/federations';
 
 /** Something a pack recognised in the folder. */
 export interface Found {
@@ -349,6 +349,21 @@ function recogniseFederations(json: unknown, item: FolderItem): Found[] | null {
 						: complete
 						? { text: 'Member', tone: 'good' as const }
 						: { text: 'Waiting', tone: 'waiting' as const },
+				at: content.at,
+				item
+			}
+		];
+	}
+	if (isNodeRecord(content)) {
+		return [
+			{
+				feature: 'federations',
+				kind: 'node',
+				key: `node:${content.federation}:${content.mesh}`,
+				title: content.called,
+				description: `On the mesh at ${content.mesh}`,
+				meta: content.withdrawn ? `Withdrawn ${onDay(content.withdrawn)}` : `Listed ${onDay(content.at)}`,
+				status: content.withdrawn ? { text: 'Withdrawn', tone: 'plain' as const } : { text: 'Node', tone: 'good' as const },
 				at: content.at,
 				item
 			}

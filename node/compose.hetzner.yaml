@@ -1,0 +1,63 @@
+# inQbeta node — the Hetzner test (node/HETZNER.md).
+# Used on top of compose.yaml:
+#   docker compose -f compose.yaml -f compose.hetzner.yaml up -d
+#
+# Three jobs (ADR-Q-014): the bellboy (Mosquitto), the directory (Dgraph) and
+# the storage unit (SeaweedFS). Nothing here is reachable from the internet. Every port is bound to
+# localhost (for bin/check.sh) and to the node's Nebula address, 10.42.0.1,
+# so only members of the test federation's mesh can reach it.
+# Nebula must be up before Docker starts (nebula/nebula.service sees to it).
+
+services:
+  mosquitto:
+    ports: !override
+      - "127.0.0.1:1883:1883"
+      - "127.0.0.1:9001:9001"
+      - "10.42.0.1:1883:1883"   # members only, over the mesh
+      - "10.42.0.1:9001:9001"
+
+  # Dgraph: this node's own index (home-node.md §5). Zero keeps the
+  # cluster map; Alpha holds the data and answers queries.
+  dgraph-zero:
+    image: dgraph/dgraph:latest   # pin to the digest after the first pull
+    restart: unless-stopped
+    networks: [node]
+    command: dgraph zero --my=dgraph-zero:5080
+    volumes:
+      - ./dgraph:/dgraph
+
+  dgraph-alpha:
+    image: dgraph/dgraph:latest
+    restart: unless-stopped
+    networks: [node]
+    depends_on: [dgraph-zero]
+    # The box has 2 GB. Cap Dgraph's cache so it can't starve Mosquitto.
+    # Admin calls only from the mesh and Docker's own networks.
+    command: >
+      dgraph alpha --my=dgraph-alpha:7080 --zero=dgraph-zero:5080
+      --cache size-mb=512
+      --security whitelist=10.42.0.0/24,172.16.0.0/12,127.0.0.1
+    volumes:
+      - ./dgraph:/dgraph
+    ports:
+      - "127.0.0.1:8080:8080"
+      - "10.42.0.1:8080:8080"   # HTTP / GraphQL — members only
+      - "10.42.0.1:9080:9080"   # gRPC — members only
+
+  # The storage unit (ADR-Q-014): the holding bay. Sealed receipts wait here
+  # until they're collected and custody passes. SeaweedFS in one process:
+  # master, one volume server and the filer. 1 GB in all: 8 volumes of 128 MB.
+  # Its volume port is 8081 so it doesn't meet Dgraph on 8080.
+  storage:
+    image: chrislusf/seaweedfs:latest   # pin to the digest after the first pull
+    restart: unless-stopped
+    networks: [node]
+    command: >
+      server -dir=/data -ip=storage -ip.bind=0.0.0.0
+      -master.volumeSizeLimitMB=128 -volume.max=8 -volume.port=8081
+      -filer -filer.port=8888
+    volumes:
+      - ./storage:/data
+    ports:
+      - "127.0.0.1:8888:8888"
+      - "10.42.0.1:8888:8888"   # the filer — members only

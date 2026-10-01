@@ -1,0 +1,19 @@
+inQbeta node — the federation's view, 2026-10-01-0809
+member: inqbeta   node: 10.42.0.1 (mesh), 135.181.156.21 (public)
+
+On the mesh
+  PASS  the node answers on the mesh (10.42.0.1)
+  PASS  Dgraph is healthy, reached over the mesh
+  PASS  a member writes to Dgraph and reads it back
+  PASS  post office (MQTT 1883) answers on the mesh
+  PASS  post office (WebSockets 9001) answers on the mesh
+  PASS  a message goes through the post office over the mesh
+Not on the internet
+  PASS  port 1883 is closed on the public address
+  PASS  port 9001 is closed on the public address
+  PASS  port 8080 is closed on the public address
+  PASS  port 9080 is closed on the public address
+  PASS  port 5080 is closed on the public address
+  PASS  port 7080 is closed on the public address
+
+12 passed, 0 failed.  Kept in node/checks/mesh-2026-10-01-0809.txt

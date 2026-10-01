@@ -38,6 +38,71 @@
 	import { ABOUT_YOU } from '$lib/questions/about-you';
 	import { answeringOf, answersFrom } from '$lib/answers';
 	import type { AnswerSet } from '@inqbeta/q-core/questions';
+	import { bellConfig, listen, collect, type Notice } from '$lib/bellboy';
+	import ReceivedView from '$lib/components/ReceivedView.svelte';
+
+	/*
+	 * The bell (ADR-Q-014 §4): notices from the bellboy. Kept apart from the
+	 * older notifications list, which the poll below replaces wholesale.
+	 * The bell moves once when one arrives (not for reduced motion), shows a
+	 * count, and lists who it's from and the title. Clicking a line collects it.
+	 */
+	type BellNotice = { notice: Notice; at: Date; state: 'new' | 'collecting' | 'captured' | 'failed'; says?: string };
+	let notices = $state<BellNotice[]>([]);
+	let ringing = $state(false);
+	let announce = $state('');
+	const bell = bellConfig();
+	$effect(() => {
+		if (!identity || !bell) return;
+		let hangUp: (() => void) | null = null;
+		let gone = false;
+		void listen(bell, (n) => {
+			if (notices.some((x) => x.notice.receipt === n.receipt) || capturedHashes.has(n.receipt)) return;
+			notices.unshift({ notice: n, at: new Date(), state: 'new' });
+			announce = `New: ${n.from} — ${n.title}`;
+			ringing = true;
+			setTimeout(() => (ringing = false), 2400);
+		}).then((h) => (gone ? h() : (hangUp = h)));
+		return () => {
+			gone = true;
+			hangUp?.();
+		};
+	});
+	async function collectNotice(b: BellNotice) {
+		if (!bell || b.state === 'collecting' || b.state === 'captured') return;
+		b.state = 'collecting';
+		const out = await collect(bell, b.notice);
+		b.state = out.ok ? 'captured' : 'failed';
+		b.says = out.says;
+		if (out.ok) {
+			/* Open what was captured straight away, as a person reads it. */
+			viewing = { kept: { from: b.notice.from, title: b.notice.title, kind: b.notice.kind, hash: b.notice.receipt, collectedAt: new Date().toISOString(), receipt: out.receipt as Record<string, unknown> }, holds: true };
+			notificationsOpen = false;
+			void refreshLedger();
+		}
+	}
+	const newNotices = $derived(notices.filter((n) => n.state === 'new').length);
+	/*
+	 * Read: what the bell has captured, read back from your vault, so the
+	 * history is the same on any device signed in to it and survives a reload.
+	 * Unread: notices still waiting to be collected (above).
+	 */
+	type Captured = { hash: string; from: string; title: string; at: string; kept: Record<string, unknown>; holds: boolean; where: string };
+	/* The receipt open in the drawer. */
+	let viewing = $state<{ kept: Record<string, unknown>; holds: boolean; where?: string } | null>(null);
+	const captured = $derived.by<Captured[]>(() => {
+		const out: Captured[] = [];
+		for (const r of ledger?.receipts ?? []) {
+			const c = (r.json as { content?: { schema?: string; hash?: string; from?: string; title?: string; collectedAt?: string } } | undefined)?.content;
+			if (c?.schema === 'inqbeta.received/1' && c.hash)
+				out.push({ hash: c.hash, from: c.from ?? 'Someone', title: c.title ?? 'a message', at: c.collectedAt ?? r.at, kept: c as Record<string, unknown>, holds: r.holds !== 'no', where: r.where });
+		}
+		return out.sort((a, b) => b.at.localeCompare(a.at));
+	});
+	const capturedHashes = $derived(new Set(captured.map((c) => c.hash)));
+	/* Live notices not yet in the vault: new, being collected, or failed. */
+	const waiting = $derived(notices.filter((n) => !capturedHashes.has(n.notice.receipt)));
+	const onDay = (iso: string) => new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
 
 	// Notifications state
 	let notificationsOpen = $state(false);
@@ -357,13 +422,13 @@
 				type="button"
 				aria-label="Notifications"
 				onclick={toggleNotifications}
-				class="btn py-0 relative text-secondary-500 cursor-pointer
+				class="btn py-0 relative text-secondary-500 cursor-pointer {ringing ? 'motion-safe:animate-bounce' : ''}
 					focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary-500"
 			>
 				<Icon name="bell" class="size-7" stroke={2} />
-				{#if unreadCount > 0}
+				{#if unreadCount + newNotices > 0}
 					<span class="absolute -right-2 -top-2 badge-icon preset-filled-error-500 text-xs">
-						{unreadCount > 9 ? '9+' : unreadCount}
+						{unreadCount + newNotices > 9 ? '9+' : unreadCount + newNotices}
 					</span>
 				{/if}
 			</button>
@@ -375,6 +440,27 @@
 	</div>
 </header>
 
+<!-- What the bell captured, opened as a person reads it (a drawer from the right). -->
+<Dialog open={!!viewing} onOpenChange={(e) => { if (!e.open) viewing = null; }}>
+	<Portal>
+		<Dialog.Backdrop class="fixed inset-0 z-50 bg-surface-50-950/50" />
+		<Dialog.Positioner class="fixed inset-0 z-50 flex justify-end">
+			<Dialog.Content class="h-full w-full max-w-lg card bg-surface-50-950 p-6 shadow-xl overflow-y-auto">
+				<header class="flex items-center justify-between mb-6">
+					<Status tone="good">Captured</Status>
+					<button type="button" class="btn btn-sm preset-tonal-surface min-h-11" onclick={() => (viewing = null)}>Close</button>
+				</header>
+				{#if viewing}
+					<ReceivedView kept={viewing.kept} holds={viewing.holds} where={viewing.where ?? ''} />
+				{/if}
+			</Dialog.Content>
+		</Dialog.Positioner>
+	</Portal>
+</Dialog>
+
+<!-- Read out when a notice arrives, for anyone who can't see the bell move. -->
+<p class="sr-only" aria-live="polite">{announce}</p>
+
 <!-- Notifications Dropdown -->
 {#if notificationsOpen}
 	<div class="fixed inset-0 z-50" onclick={toggleNotifications} onkeydown={(e) => e.key === 'Escape' && (notificationsOpen = false)} role="button" tabindex="0" aria-label="Close notifications"></div>
@@ -383,7 +469,59 @@
 			<h3 class="font-semibold">Notifications</h3>
 			<button type="button" class="text-sm text-primary-500" onclick={markAllRead}>Mark all read</button>
 		</div>
-		{#if notifications.length === 0}
+		{#if waiting.length}
+			<p class="px-3 pt-3 text-xs font-bold uppercase opacity-60">New</p>
+			<ul class="divide-y divide-surface-200-800 border-b border-surface-200-800">
+				{#each waiting as b (b.notice.receipt)}
+					<li>
+						<button
+							type="button"
+							class="w-full p-3 text-left hover:bg-surface-100-900 flex items-start gap-3 min-h-11"
+							disabled={b.state === 'collecting' || b.state === 'captured'}
+							onclick={() => collectNotice(b)}
+						>
+							<Icon name="bellboy" class="mt-0.5 shrink-0" />
+							<span class="flex flex-col gap-1">
+								<span class="text-sm"><span class="font-bold">{b.notice.from}</span> — {b.notice.title}</span>
+								{#if b.state === 'new'}
+									<span class="text-xs opacity-60">{b.at.toLocaleTimeString()} · Click to collect</span>
+								{:else if b.state === 'collecting'}
+									<span class="text-xs">Collecting…</span>
+								{:else if b.state === 'captured'}
+									<Status tone="good">{b.says}</Status>
+								{:else}
+									<Status tone="needs-you">{b.says}</Status>
+								{/if}
+							</span>
+						</button>
+					</li>
+				{/each}
+			</ul>
+		{/if}
+		{#if captured.length}
+			<p class="px-3 pt-3 text-xs font-bold uppercase opacity-60">Captured</p>
+			<ul class="divide-y divide-surface-200-800 border-b border-surface-200-800">
+				{#each captured as c (c.hash)}
+					<li>
+						<button
+							type="button"
+							class="w-full p-3 text-left hover:bg-surface-100-900 flex items-start gap-3 min-h-11"
+							onclick={() => {
+								viewing = { kept: c.kept, holds: c.holds, where: c.where };
+								notificationsOpen = false;
+							}}
+						>
+							<Icon name="bellboy" class="mt-0.5 shrink-0 opacity-60" />
+							<span class="flex flex-col gap-1">
+								<span class="text-sm opacity-70"><span class="font-bold">{c.from}</span> — {c.title}</span>
+								<span class="text-xs opacity-60">{onDay(c.at)} · Open</span>
+							</span>
+						</button>
+					</li>
+				{/each}
+			</ul>
+		{/if}
+		{#if notifications.length === 0 && waiting.length === 0 && captured.length === 0}
 			<div class="p-4 text-center text-sm opacity-60">No notifications</div>
 		{:else}
 			<ul class="divide-y divide-surface-200-800">
@@ -417,18 +555,9 @@
 						{#if can.fix}<p class="text-sm mt-1">{can.fix}</p>{/if}
 					</div>
 				{/if}
-				{#if offerQuestions}
-					<div class="card preset-outlined-primary-500 mb-6 flex flex-wrap items-center gap-4 p-4">
-						<div class="min-w-48 flex-1">
-							<p class="font-medium">Your identity has nothing said under it yet</p>
-							<p class="text-sm opacity-70">
-								Signing in made your DID. Answering Q's first questions is what turns it into
-								a graph of your own — kept in your folder, and yours to say what it is for.
-							</p>
-						</div>
-						<a class="btn preset-filled-primary-500" href="/questions">Have a look</a>
-					</div>
-				{/if}
+				<!-- The "Your identity has nothing said under it yet" banner was removed on
+				     1 October 2026 (Darren: "such a distraction"). The questions stay in the
+				     menu; offerQuestions is kept should a quieter invitation be wanted. -->
 				{@render children()}
 			</div>
 			<SiteFooter />

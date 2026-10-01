@@ -5,11 +5,16 @@
 	 * As its caretaker: invite people (a link, or a code to scan), see who has
 	 * joined, and remove someone — citing the clause, never silently.
 	 * As a member: your standing, and a Leave button that asks nobody.
+ * Three tabs: Home (what it is), Members, and Settings (caretaker only).
+ * Its nodes (ADR-Q-010 §10), under Settings: the machines it runs — a bellboy, a directory
+ * or both (docs/q/node-sizes.md) — and whether this device
+ * can reach their services over the federation's mesh, asked live.
 	 *
 	 * /federations/one?id=<the federation's DID>
 	 */
 	import { page } from '$app/state';
-	import { Page, Section, Status, Empty } from '@inqbeta/q-ui';
+	import { Page, Section, Status, Empty, Icon } from '@inqbeta/q-ui';
+	import { Tabs } from '@skeletonlabs/skeleton-svelte';
 	import SignIn from '$lib/components/SignIn.svelte';
 	import ShareLink from '$lib/components/ShareLink.svelte';
 	import { watch, type Identity } from '@inqbeta/q-core/passkey';
@@ -25,12 +30,18 @@
 		removeMember,
 		suspendMember,
 		liftSuspension,
+		isNodeRecord,
+		listNode,
+		withdrawNode,
+		type NodeRecord,
 		type FederationRecord,
 		type MemberRecord,
 		type MembershipRecord
 	} from '$lib/federations';
 	import type { Found } from '$lib/features/registry';
 	import { standingAt } from '@inqbeta/q-core/membership';
+	import { reachIndex, reachPostOffice, type Reach } from '$lib/node-health';
+	import { untrack } from 'svelte';
 
 	let identity = $state<Identity | null>(null);
 	let ledger = $state<Ledger | null>(null);
@@ -38,6 +49,9 @@
 	$effect(() => watchLedger((l) => (ledger = l)));
 
 	const id = $derived(page.url.searchParams.get('id') ?? '');
+	/* Three tabs, one thing each (Darren, 1 October: "always thinking how simple
+	 * can the information be conveyed"). ?tab= opens one directly. */
+	let tab = $state(page.url.searchParams.get('tab') ?? 'home');
 	const found = $derived<Found[]>(ledger?.state === 'ready' ? ledger.found : []);
 	const newest = (list: Found[]) => [...list].sort((a, b) => b.at.localeCompare(a.at))[0] ?? null;
 	const ownItem = $derived(newest(found.filter((f) => f.feature === 'federations' && f.key === `federation:${id}`)));
@@ -45,6 +59,13 @@
 	const memberItems = $derived.by(() => {
 		const by = new Map<string, Found>();
 		for (const f of found.filter((f) => f.kind === 'member' && f.key.startsWith(`member:${id}:`)))
+			if (!by.has(f.key) || f.at > by.get(f.key)!.at) by.set(f.key, f);
+		return [...by.values()];
+	});
+
+	const nodeItems = $derived.by(() => {
+		const by = new Map<string, Found>();
+		for (const f of found.filter((f) => f.kind === 'node' && f.key.startsWith(`node:${id}:`)))
 			if (!by.has(f.key) || f.at > by.get(f.key)!.at) by.set(f.key, f);
 		return [...by.values()];
 	});
@@ -67,6 +88,60 @@
 		const items = memberItems.map((f) => f.item);
 		void Promise.all(items.map(recordFrom)).then((rs) => (members = rs.filter(isMemberRecord)));
 	});
+
+	/* Nodes, and what this device can reach on each. Health is asked, never kept. */
+	let nodes = $state<NodeRecord[]>([]);
+	$effect(() => {
+		const items = nodeItems.map((f) => f.item);
+		void Promise.all(items.map(recordFrom)).then((rs) => (nodes = rs.filter(isNodeRecord).filter((n) => !n.withdrawn)));
+	});
+	let reach = $state<Record<string, { index?: Reach; postOffice?: Reach; asking: boolean; at?: string }>>({});
+	async function ask(n: NodeRecord) {
+		reach[n.mesh] = { ...reach[n.mesh], asking: true };
+		const [index, postOffice] = await Promise.all([
+			n.services.index ? reachIndex(n.mesh, n.services.index.port) : Promise.resolve(undefined),
+			n.services.postOffice ? reachPostOffice(n.mesh, n.services.postOffice.port) : Promise.resolve(undefined)
+		]);
+		reach[n.mesh] = { index, postOffice, asking: false, at: new Date().toLocaleTimeString('en-GB') };
+	}
+	$effect(() => {
+		for (const n of nodes) if (!untrack(() => reach[n.mesh])) void ask(n);
+	});
+	const toneOf = (r?: Reach) => (r?.is === 'reached' ? 'good' : r?.is === 'unreached' ? 'needs-you' : 'plain') as 'good' | 'needs-you' | 'plain';
+	const wordOf = (r?: Reach) => (r?.is === 'reached' ? 'Reached' : r?.is === 'unreached' ? 'Not reached' : 'Not checked');
+
+	let adding = $state(false);
+	let nodeCalled = $state('');
+	let nodeMesh = $state('10.42.0.1');
+	let nodeLighthouse = $state('');
+	let nodeHasPostOffice = $state(true);
+	let nodeHasIndex = $state(true);
+	async function addNode() {
+		if (!own) return;
+		busy = 'node';
+		said = null;
+		const out = await listNode(own, {
+			called: nodeCalled,
+			mesh: nodeMesh,
+			lighthouse: nodeLighthouse,
+			postOffice: nodeHasPostOffice ? 9001 : undefined,
+			index: nodeHasIndex ? 8080 : undefined
+		});
+		busy = null;
+		if (!out.ok) return void (said = { tone: 'bad', text: out.says });
+		said = { tone: 'good', text: `${out.node.called} is listed. Checking what this device can reach on it…` };
+		adding = false;
+		nodeCalled = '';
+		nodeLighthouse = '';
+		await refreshLedger();
+	}
+	async function withdraw(n: NodeRecord) {
+		busy = 'node';
+		const out = await withdrawNode(n);
+		busy = null;
+		said = out.ok ? { tone: 'good', text: `${n.called} is no longer listed. The record of it stays.` } : { tone: 'bad', text: out.says };
+		await refreshLedger();
+	}
 
 	const founding = $derived(own?.founding ?? mine?.founding ?? null);
 	const manifest = $derived(own?.manifest ?? mine?.manifest ?? null);
@@ -217,183 +292,272 @@
 			</div>
 		{/if}
 
-		<Section title="About it">
-			<dl class="grid gap-2 sm:grid-cols-[12rem_1fr]">
-				<dt class="opacity-60">Kind</dt>
-				<dd>{STRANDS.find((s) => s.id === c.strand)?.called}{c.endsOn ? `, ending ${onDay(c.endsOn)}` : ''}</dd>
-				<dt class="opacity-60">How people join</dt>
-				<dd>{JOIN_POLICIES.find((p) => p.id === c.joinPolicy)?.means}</dd>
-				<dt class="opacity-60">Founded</dt>
-				<dd>{onDay(founding.at)}</dd>
-				<dt class="opacity-60">Its key</dt>
-				<dd class="role-token text-xs break-all">{founding.federation}</dd>
-			</dl>
-		</Section>
+		<Tabs value={tab} onValueChange={(d) => (tab = d.value)}>
+			<Tabs.List class="mb-6">
+				<Tabs.Trigger value="home" class="min-h-11">Home</Tabs.Trigger>
+				<Tabs.Trigger value="members" class="min-h-11">Members</Tabs.Trigger>
+				{#if own}<Tabs.Trigger value="settings" class="min-h-11">Settings</Tabs.Trigger>{/if}
+				<Tabs.Indicator />
+			</Tabs.List>
 
-		<Section title="What members agree to" description="Each of these is a step a new member agrees to, one at a time.">
-			<ol class="flex flex-col gap-3 list-decimal pl-6">
-				<li><p class="font-bold">The agreement</p><p>{c.agreement}</p></li>
-				{#each c.consent ?? [] as b (b.id)}
-					<li><p class="font-bold">{b.title}</p><p class="whitespace-pre-line">{b.says}</p></li>
-				{/each}
-				<li><p class="font-bold">What can never change</p><p class="text-sm">Shown below.</p></li>
-			</ol>
-		</Section>
+			<!-- Home: what it is, what members agree to, what can never change. -->
+			<Tabs.Content value="home">
+				<Section title="About it">
+					<dl class="grid gap-2 sm:grid-cols-[12rem_1fr]">
+						<dt class="opacity-60">Kind</dt>
+						<dd>{STRANDS.find((s) => s.id === c.strand)?.called}{c.endsOn ? `, ending ${onDay(c.endsOn)}` : ''}</dd>
+						<dt class="opacity-60">How people join</dt>
+						<dd>{JOIN_POLICIES.find((p) => p.id === c.joinPolicy)?.means}</dd>
+						<dt class="opacity-60">Founded</dt>
+						<dd>{onDay(founding.at)}</dd>
+						<dt class="opacity-60">Its key</dt>
+						<dd class="role-token text-xs break-all">{founding.federation}</dd>
+					</dl>
+				</Section>
 
-		{#if own}
-			<Section title="Invite someone" description="Make a link, or a code they can scan. It is signed by the federation and runs out on its own.">
-				<div class="flex flex-col gap-4 sm:flex-row sm:items-end">
-					<label class="label">
-						<span class="label-text">Who it’s for (a note, optional)</span>
-						<input class="input" type="text" bind:value={inviteFor} placeholder="Theo" />
-					</label>
-					<label class="label max-w-40">
-						<span class="label-text">Good for</span>
-						<select class="select" bind:value={inviteDays}>
-							<option value={7}>7 days</option>
-							<option value={14}>14 days</option>
-							<option value={30}>30 days</option>
-						</select>
-					</label>
-					<button type="button" class="btn preset-filled-primary-500 min-h-11" disabled={busy !== null} onclick={makeInvite}>
-						{busy === 'invite' ? 'Making…' : 'Make invitation'}
-					</button>
-				</div>
-				{#if invitation}
-					<div class="mt-4">
-						<ShareLink
-							link={invitation.link}
-							label="Invitation"
-							note={invitation.admits
-								? `Whoever opens this and signs the agreement becomes a member, until ${invitation.until}. Share it only with people you mean.`
-								: `Whoever opens this can ask to join, until ${invitation.until}. You’ll accept each request yourself.`}
-						/>
-					</div>
-				{/if}
-			</Section>
+				<Section title="What members agree to" description="Each of these is a step a new member agrees to, one at a time.">
+					<ol class="flex flex-col gap-3 list-decimal pl-6">
+						<li><p class="font-bold">The agreement</p><p>{c.agreement}</p></li>
+						{#each c.consent ?? [] as b (b.id)}
+							<li><p class="font-bold">{b.title}</p><p class="whitespace-pre-line">{b.says}</p></li>
+						{/each}
+						<li><p class="font-bold">What can never change</p><p class="text-sm">Shown below.</p></li>
+					</ol>
+				</Section>
 
-			<Section title="Members" description="People who have joined and told you. Requests arrive as a link they send you.">
-				<ul class="flex flex-col gap-2">
-					<li class="card preset-outlined-surface-200-800 p-3 flex flex-wrap items-center gap-3">
-						<Status tone="good">Member</Status><span>You — founder and caretaker</span>
-					</li>
-					{#each members as m (m.joining.member)}
-						<li class="card preset-outlined-surface-200-800 p-3 flex flex-wrap items-center gap-3">
-							{#if m.removed}
-								<Status tone="plain">Removed</Status>
-							{:else if standingAt(m).is === 'suspended'}
-								<Status tone="waiting">Suspended until {onDay(m.suspended!.until)}</Status>
-							{:else if complete(m)}
-								<Status tone="good">Member</Status>
-							{:else}
-								<Status tone="waiting">Waiting</Status>
-							{/if}
-							{#if m.picture}
-								<img src={m.picture} alt="" class="size-10 rounded-full" />
-							{:else}
-								<span class="size-10 rounded-full preset-tonal flex items-center justify-center font-bold" aria-hidden="true">{initials(m)}</span>
-							{/if}
-							<span class="font-bold">{nameOf(m)}</span>
-							<span class="text-sm opacity-60">joined {onDay(m.joining.at)}</span>
-							{#if m.removed}
-								<span class="text-sm">— {m.removed.says} ({m.removed.clause})</span>
-							{:else}
-								<span class="ml-auto flex flex-wrap gap-2">
-									{#if standingAt(m).is === 'suspended'}
-										<button type="button" class="btn btn-sm preset-tonal min-h-11" disabled={busy !== null} onclick={() => liftFor(m)}>Lift early</button>
+				<Section title="What can never change" description="Every federation carries these. No vote can remove them.">
+					<ul class="list-disc pl-6 space-y-1">
+						{#each PRINCIPLES as p (p.id)}<li>{p.says}</li>{/each}
+					</ul>
+				</Section>
+
+			</Tabs.Content>
+
+			<!-- Members: inviting and looking after people (caretaker); your own membership. -->
+			<Tabs.Content value="members">
+				{#if own}
+					<Section title="Invite someone" description="Make a link, or a code they can scan. It is signed by the federation and runs out on its own.">
+						<div class="flex flex-col gap-4 sm:flex-row sm:items-end">
+							<label class="label">
+								<span class="label-text">Who it’s for (a note, optional)</span>
+								<input class="input" type="text" bind:value={inviteFor} placeholder="Theo" />
+							</label>
+							<label class="label max-w-40">
+								<span class="label-text">Good for</span>
+								<select class="select" bind:value={inviteDays}>
+									<option value={7}>7 days</option>
+									<option value={14}>14 days</option>
+									<option value={30}>30 days</option>
+								</select>
+							</label>
+							<button type="button" class="btn preset-filled-primary-500 min-h-11" disabled={busy !== null} onclick={makeInvite}>
+								{busy === 'invite' ? 'Making…' : 'Make invitation'}
+							</button>
+						</div>
+						{#if invitation}
+							<div class="mt-4">
+								<ShareLink
+									link={invitation.link}
+									label="Invitation"
+									note={invitation.admits
+										? `Whoever opens this and signs the agreement becomes a member, until ${invitation.until}. Share it only with people you mean.`
+										: `Whoever opens this can ask to join, until ${invitation.until}. You’ll accept each request yourself.`}
+								/>
+							</div>
+						{/if}
+					</Section>
+
+					<Section title="Members" description="People who have joined and told you. Requests arrive as a link they send you.">
+						<ul class="flex flex-col gap-2">
+							<li class="card preset-outlined-surface-200-800 p-3 flex flex-wrap items-center gap-3">
+								<Status tone="good">Member</Status><span>You — founder and caretaker</span>
+							</li>
+							{#each members as m (m.joining.member)}
+								<li class="card preset-outlined-surface-200-800 p-3 flex flex-wrap items-center gap-3">
+									{#if m.removed}
+										<Status tone="plain">Removed</Status>
+									{:else if standingAt(m).is === 'suspended'}
+										<Status tone="waiting">Suspended until {onDay(m.suspended!.until)}</Status>
+									{:else if complete(m)}
+										<Status tone="good">Member</Status>
 									{:else}
-										<button type="button" class="btn btn-sm preset-tonal min-h-11" onclick={() => { suspending = m; removing = null; }}>Suspend…</button>
+										<Status tone="waiting">Waiting</Status>
 									{/if}
-									<button type="button" class="btn btn-sm preset-tonal min-h-11" onclick={() => { removing = m; suspending = null; }}>Remove…</button>
-								</span>
-							{/if}
-						</li>
-					{/each}
-				</ul>
-
-				{#if suspending}
-					<div class="card preset-tonal-warning p-4 mt-4 flex flex-col gap-3" role="alertdialog" aria-label="Suspend a member">
-						<p class="font-bold">Suspend {nameOf(suspending)}?</p>
-						<p class="text-sm">They stay a member, paused until the date, then back on their own. They can still leave. Nothing they did before changes.</p>
-						<div class="flex flex-wrap gap-2" role="radiogroup" aria-label="How long">
-							{#each LENGTHS as l (l.days)}
-								<button type="button" role="radio" aria-checked={suspendDays === l.days} class="btn min-h-11 {suspendDays === l.days ? 'preset-filled-primary-500' : 'preset-tonal'}" onclick={() => (suspendDays = l.days)}>{l.called}</button>
+									{#if m.picture}
+										<img src={m.picture} alt="" class="size-10 rounded-full" />
+									{:else}
+										<span class="size-10 rounded-full preset-tonal flex items-center justify-center font-bold" aria-hidden="true">{initials(m)}</span>
+									{/if}
+									<span class="font-bold">{nameOf(m)}</span>
+									<span class="text-sm opacity-60">joined {onDay(m.joining.at)}</span>
+									{#if m.removed}
+										<span class="text-sm">— {m.removed.says} ({m.removed.clause})</span>
+									{:else}
+										<span class="ml-auto flex flex-wrap gap-2">
+											{#if standingAt(m).is === 'suspended'}
+												<button type="button" class="btn btn-sm preset-tonal min-h-11" disabled={busy !== null} onclick={() => liftFor(m)}>Lift early</button>
+											{:else}
+												<button type="button" class="btn btn-sm preset-tonal min-h-11" onclick={() => { suspending = m; removing = null; }}>Suspend…</button>
+											{/if}
+											<button type="button" class="btn btn-sm preset-tonal min-h-11" onclick={() => { removing = m; suspending = null; }}>Remove…</button>
+										</span>
+									{/if}
+								</li>
 							{/each}
-						</div>
-						<p class="text-sm">Until {onDay(new Date(Date.now() + suspendDays * 86_400_000).toISOString())}.</p>
-						<label class="label">
-							<span class="label-text">The rule it relies on</span>
-							<select class="select" bind:value={suspendClause}>
-								<option>The agreement</option>
-								<option>The federation’s rules</option>
-							</select>
-						</label>
-						<label class="label">
-							<span class="label-text">Why, in plain words</span>
-							<textarea class="textarea" rows="2" bind:value={suspendWhy}></textarea>
-						</label>
-						<div class="flex flex-wrap gap-3">
-							<button type="button" class="btn preset-filled-warning-500 min-h-11" disabled={busy !== null || !suspendWhy.trim()} onclick={confirmSuspend}>
-								{busy === 'suspend' ? 'Suspending…' : 'Suspend'}
-							</button>
-							<button type="button" class="btn preset-tonal min-h-11" onclick={() => (suspending = null)}>Not now</button>
-						</div>
-					</div>
-				{/if}
+						</ul>
 
-				{#if tellThem}
-					<div class="mt-4"><ShareLink link={tellThem.link} label="Send this to them" note={tellThem.note} /></div>
-				{/if}
+						{#if suspending}
+							<div class="card preset-tonal-warning p-4 mt-4 flex flex-col gap-3" role="alertdialog" aria-label="Suspend a member">
+								<p class="font-bold">Suspend {nameOf(suspending)}?</p>
+								<p class="text-sm">They stay a member, paused until the date, then back on their own. They can still leave. Nothing they did before changes.</p>
+								<div class="flex flex-wrap gap-2" role="radiogroup" aria-label="How long">
+									{#each LENGTHS as l (l.days)}
+										<button type="button" role="radio" aria-checked={suspendDays === l.days} class="btn min-h-11 {suspendDays === l.days ? 'preset-filled-primary-500' : 'preset-tonal'}" onclick={() => (suspendDays = l.days)}>{l.called}</button>
+									{/each}
+								</div>
+								<p class="text-sm">Until {onDay(new Date(Date.now() + suspendDays * 86_400_000).toISOString())}.</p>
+								<label class="label">
+									<span class="label-text">The rule it relies on</span>
+									<select class="select" bind:value={suspendClause}>
+										<option>The agreement</option>
+										<option>The federation’s rules</option>
+									</select>
+								</label>
+								<label class="label">
+									<span class="label-text">Why, in plain words</span>
+									<textarea class="textarea" rows="2" bind:value={suspendWhy}></textarea>
+								</label>
+								<div class="flex flex-wrap gap-3">
+									<button type="button" class="btn preset-filled-warning-500 min-h-11" disabled={busy !== null || !suspendWhy.trim()} onclick={confirmSuspend}>
+										{busy === 'suspend' ? 'Suspending…' : 'Suspend'}
+									</button>
+									<button type="button" class="btn preset-tonal min-h-11" onclick={() => (suspending = null)}>Not now</button>
+								</div>
+							</div>
+						{/if}
 
-				{#if removing}
-					<div class="card preset-tonal-warning p-4 mt-4 flex flex-col gap-3" role="alertdialog" aria-label="Remove a member">
-						<p class="font-bold">Remove {removing.called ?? 'this member'}?</p>
-						<p class="text-sm">Their belonging ends from now. Everything they did before stays valid. The removal is signed by the federation and says which rule it relies on.</p>
-						<label class="label">
-							<span class="label-text">The rule it relies on</span>
-							<select class="select" bind:value={clause}>
-								<option>The agreement</option>
-								<option>The federation’s rules</option>
-							</select>
-						</label>
-						<label class="label">
-							<span class="label-text">Why, in plain words</span>
-							<textarea class="textarea" rows="2" bind:value={why}></textarea>
-						</label>
-						<div class="flex flex-wrap gap-3">
-							<button type="button" class="btn preset-filled-error-500 min-h-11" disabled={busy !== null || !why.trim()} onclick={confirmRemove}>
-								{busy === 'remove' ? 'Removing…' : 'Remove'}
-							</button>
-							<button type="button" class="btn preset-tonal min-h-11" onclick={() => (removing = null)}>Keep them</button>
+						{#if tellThem}
+							<div class="mt-4"><ShareLink link={tellThem.link} label="Send this to them" note={tellThem.note} /></div>
+						{/if}
+
+						{#if removing}
+							<div class="card preset-tonal-warning p-4 mt-4 flex flex-col gap-3" role="alertdialog" aria-label="Remove a member">
+								<p class="font-bold">Remove {removing.called ?? 'this member'}?</p>
+								<p class="text-sm">Their belonging ends from now. Everything they did before stays valid. The removal is signed by the federation and says which rule it relies on.</p>
+								<label class="label">
+									<span class="label-text">The rule it relies on</span>
+									<select class="select" bind:value={clause}>
+										<option>The agreement</option>
+										<option>The federation’s rules</option>
+									</select>
+								</label>
+								<label class="label">
+									<span class="label-text">Why, in plain words</span>
+									<textarea class="textarea" rows="2" bind:value={why}></textarea>
+								</label>
+								<div class="flex flex-wrap gap-3">
+									<button type="button" class="btn preset-filled-error-500 min-h-11" disabled={busy !== null || !why.trim()} onclick={confirmRemove}>
+										{busy === 'remove' ? 'Removing…' : 'Remove'}
+									</button>
+									<button type="button" class="btn preset-tonal min-h-11" onclick={() => (removing = null)}>Keep them</button>
+								</div>
+							</div>
+						{/if}
+					</Section>
+
+				{/if}
+				{#if mine && !mine.left && !mine.removed}
+					<Section title="Leaving" description="You can leave at any time. Nobody is asked, and you keep every receipt you had.">
+						{#if !leaving}
+							<button type="button" class="btn preset-tonal min-h-11" onclick={() => (leaving = true)}>Leave…</button>
+						{:else}
+							<div class="card preset-tonal-warning p-4 flex flex-col gap-3" role="alertdialog" aria-label="Leave this federation">
+								<p class="font-bold">Leave {founding.name}?</p>
+								<div class="flex flex-wrap gap-3">
+									<button type="button" class="btn preset-filled-primary-500 min-h-11" disabled={busy !== null} onclick={confirmLeave}>
+										{busy === 'leave' ? 'Leaving…' : 'Leave'}
+									</button>
+									<button type="button" class="btn preset-tonal min-h-11" onclick={() => (leaving = false)}>Stay</button>
+								</div>
+							</div>
+						{/if}
+					</Section>
+				{/if}
+			</Tabs.Content>
+
+			<!-- Settings: the machines it runs. Caretaker only. -->
+			{#if own}
+				<Tabs.Content value="settings">
+				<Section title="Nodes" description="The machines this federation runs, on its own private mesh. Whether each service answers is checked from this device, now — never stored.">
+					{#if nodes.length === 0 && !adding}
+						<Empty icon="federations" title="No nodes yet" description="A node holds the federation’s bellboy, its directory, or both. List one when it’s on the mesh." />
+					{/if}
+					<ul class="flex flex-col gap-3">
+						{#each nodes as n (n.mesh)}
+							{@const r = reach[n.mesh]}
+							<li class="card preset-outlined-surface-200-800 p-4 flex flex-col gap-3">
+								<div class="flex flex-wrap items-center gap-3">
+									<span class="font-bold">{n.called}</span>
+									<span class="role-token text-xs">mesh {n.mesh}</span>
+									{#if n.lighthouse}<Status tone="plain">Lighthouse · {n.lighthouse}</Status>{/if}
+									<span class="ml-auto flex flex-wrap gap-2">
+										<button type="button" class="btn btn-sm preset-tonal min-h-11" disabled={r?.asking} onclick={() => ask(n)}>
+											{r?.asking ? 'Checking…' : 'Check again'}
+										</button>
+										<button type="button" class="btn btn-sm preset-tonal min-h-11" disabled={busy !== null} onclick={() => withdraw(n)}>Withdraw</button>
+									</span>
+								</div>
+								<dl class="grid gap-2 sm:grid-cols-[10rem_8rem_1fr] items-center">
+									{#if n.services.postOffice}
+										<dt class="flex items-center gap-2"><Icon name="bellboy" />Bellboy</dt>
+										<dd><Status tone={toneOf(r?.postOffice)}>{r?.asking ? 'Checking' : wordOf(r?.postOffice)}</Status></dd>
+										<dd class="text-sm">{r?.postOffice?.says ?? ''} <span class="role-token text-xs opacity-60">ws :{n.services.postOffice.port}</span></dd>
+									{/if}
+									{#if n.services.index}
+										<dt class="flex items-center gap-2"><Icon name="directory" />Directory</dt>
+										<dd><Status tone={toneOf(r?.index)}>{r?.asking ? 'Checking' : wordOf(r?.index)}</Status></dd>
+										<dd class="text-sm">{r?.index?.says ?? ''} <span class="role-token text-xs opacity-60">http :{n.services.index.port}</span></dd>
+									{/if}
+								</dl>
+								{#if r?.at}<p class="text-xs opacity-60">Checked from this device at {r.at}.</p>{/if}
+							</li>
+						{/each}
+					</ul>
+
+					{#if adding}
+						<div class="card preset-tonal p-4 mt-4 flex flex-col gap-3">
+							<p class="font-bold">List a node</p>
+							<label class="label">
+								<span class="label-text">What you call it</span>
+								<input class="input" type="text" bind:value={nodeCalled} placeholder="Hetzner, Helsinki" />
+							</label>
+							<label class="label">
+								<span class="label-text">Its address on the mesh</span>
+								<input class="input role-token" type="text" bind:value={nodeMesh} placeholder="10.42.0.1" />
+							</label>
+							<label class="label">
+								<span class="label-text">If it’s the mesh’s lighthouse, its public address (optional)</span>
+								<input class="input role-token" type="text" bind:value={nodeLighthouse} placeholder="135.181.156.21:4242" />
+							</label>
+							<fieldset class="flex flex-wrap gap-4">
+								<legend class="label-text mb-1">What it runs</legend>
+								<label class="flex items-center gap-2"><input class="checkbox" type="checkbox" bind:checked={nodeHasPostOffice} /><Icon name="bellboy" /> Bellboy (port 9001)</label>
+								<label class="flex items-center gap-2"><input class="checkbox" type="checkbox" bind:checked={nodeHasIndex} /><Icon name="directory" /> Directory (port 8080)</label>
+							</fieldset>
+							<div class="flex flex-wrap gap-3">
+								<button type="button" class="btn preset-filled-primary-500 min-h-11" disabled={busy !== null || !nodeCalled.trim()} onclick={addNode}>
+									{busy === 'node' ? 'Listing…' : 'List it'}
+								</button>
+								<button type="button" class="btn preset-tonal min-h-11" onclick={() => (adding = false)}>Not now</button>
+							</div>
 						</div>
-					</div>
-				{/if}
-			</Section>
-		{/if}
-
-		{#if mine && !mine.left && !mine.removed}
-			<Section title="Leaving" description="You can leave at any time. Nobody is asked, and you keep every receipt you had.">
-				{#if !leaving}
-					<button type="button" class="btn preset-tonal min-h-11" onclick={() => (leaving = true)}>Leave…</button>
-				{:else}
-					<div class="card preset-tonal-warning p-4 flex flex-col gap-3" role="alertdialog" aria-label="Leave this federation">
-						<p class="font-bold">Leave {founding.name}?</p>
-						<div class="flex flex-wrap gap-3">
-							<button type="button" class="btn preset-filled-primary-500 min-h-11" disabled={busy !== null} onclick={confirmLeave}>
-								{busy === 'leave' ? 'Leaving…' : 'Leave'}
-							</button>
-							<button type="button" class="btn preset-tonal min-h-11" onclick={() => (leaving = false)}>Stay</button>
-						</div>
-					</div>
-				{/if}
-			</Section>
-		{/if}
-
-		<Section title="What can never change" description="Every federation carries these. No vote can remove them.">
-			<ul class="list-disc pl-6 space-y-1">
-				{#each PRINCIPLES as p (p.id)}<li>{p.says}</li>{/each}
-			</ul>
-		</Section>
+					{:else}
+						<button type="button" class="btn preset-tonal min-h-11 mt-4" onclick={() => (adding = true)}>List a node…</button>
+					{/if}
+				</Section>
+				</Tabs.Content>
+			{/if}
+		</Tabs>
 
 		<a class="btn preset-tonal-surface min-h-11" href="/federations">Back to federations</a>
 	{/if}

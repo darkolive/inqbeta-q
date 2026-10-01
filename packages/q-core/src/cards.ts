@@ -42,6 +42,17 @@ import { isAnswerSet, newestPerSet } from './questions';
 
 export const CARD_SOURCE = 'inqbeta:card/1';
 
+/**
+ * The details you keep for yourself (Darren, 1 October 2026: "you get to choose
+ * what is shown on those address cards and what is just for you").
+ *
+ * Answered in your profile as a list of question ids. `cardView` honours it
+ * above any card: a detail marked just for you never leaves, whatever a card
+ * — even an older one — names. One function decides what leaves, so this is
+ * where the rule lives.
+ */
+export const JUST_FOR_ME = 'q:profile/just-for-me';
+
 export interface Card {
 	source: typeof CARD_SOURCE;
 	/** Whose card. */
@@ -153,18 +164,21 @@ export function cardView(card: Card, answers: AnswerSet[]): CardView {
 		}
 	}
 
-	const shows = new Set(card.shows);
+	/* Just for you: never shown, whatever the card names. The list itself is never shown either. */
+	const kept = new Set([JUST_FOR_ME, ...asList(current.get(JUST_FOR_ME)?.value)]);
+	const shows = new Set(card.shows.filter((q) => !kept.has(q)));
 	const shown: { question: string; value: AnswerValue }[] = [];
 	const missing: string[] = [];
 
 	for (const question of card.shows) {
+		if (kept.has(question)) continue;
 		const answer = current.get(question);
 		if (answer) shown.push({ question, value: answer.value });
 		else missing.push(question);
 	}
 
 	let withheld = 0;
-	for (const predicate of current.keys()) if (!shows.has(predicate)) withheld++;
+	for (const predicate of current.keys()) if (predicate !== JUST_FOR_ME && !shows.has(predicate)) withheld++;
 
 	return { cardId: card.id, name: card.name, of: card.did, shown, missing, channels: card.channels, withheld };
 }

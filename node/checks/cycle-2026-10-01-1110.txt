@@ -1,0 +1,26 @@
+inQbeta node — the full cycle, 2026-10-01-1110
+bellboy: 10.42.0.1:1883   storage unit: http://10.42.0.1:8888   from: friend   to: darren
+
+Storage unit
+  PASS  the storage unit answers on the mesh
+0. Darren has been here before, and is now away
+  PASS  darren's bellboy session is registered; darren goes offline
+1. Friend seals a receipt and puts it in the storage unit
+  PASS  sealed receipt stored at holding/abacee51c527… (HTTP 201)
+  PASS  the stored copy is sealed — the storage unit can't read it
+2. Friend rings the bellboy: a notice, sealed, never the receipt
+  PASS  the notice is small: 408 bytes
+  PASS  friend rang darren's bellboy
+  PASS  the bellboy can't read who or what
+3. Darren comes back; the bellboy tells him
+  PASS  the bellboy held the notice while darren was away, and gave it to him
+  PASS  on darren's device the bell would show: friend — Meet at the green
+4. Darren collects the receipt from the storage unit
+  PASS  what he collected is exactly what was sent (hash matches)
+  PASS  Captured: "Meet at the green at six"
+5. Custody passes; the storage unit lets its copy go
+  PASS  custody released (HTTP 204)
+  PASS  the holding bay is empty again
+  PASS  the notice is spent: the bellboy has nothing more for darren
+
+14 passed, 0 failed.  Kept in node/checks/cycle-2026-10-01-1110.txt

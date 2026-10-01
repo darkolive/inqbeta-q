@@ -26,35 +26,27 @@ export interface CardPreset {
 	channels: boolean;
 }
 
+/*
+ * Two kinds you make (ADR-Q-015 §2, 1 October 2026): Personal and Business.
+ * Basic, Friends and Contact folded into Personal; membership and agreement
+ * cards are drawn from the receipts they belong to, never made by hand.
+ */
 export const CARD_PRESETS: CardPreset[] = [
+	{
+		id: 'personal',
+		name: 'Personal',
+		says: 'For the people in your life: your picture, cover, name, where you are and a line about you.',
+		shows: ['q:person/cover', 'q:person/picture', 'q:person/called', 'q:person/near', 'q:person/about', 'q:person/phone', 'q:person/whatsapp', 'q:person/email'],
+		channels: true
+	},
 	{
 		id: 'business',
 		name: 'Business',
-		says: 'What you do and who for. The card you would hand to someone at an event.',
-		shows: ['q:person/called', 'q:person/role', 'q:org/name', 'q:person/site'],
-		channels: true
-	},
-	{
-		id: 'friends',
-		name: 'Friends',
-		says: 'Enough for people who already know you. No work, no company.',
-		shows: ['q:person/called', 'q:person/near', 'q:person/about'],
-		channels: true
-	},
-	{
-		id: 'contact',
-		name: 'Contact only',
-		says: 'A name and a way to reach you. Nothing else at all.',
-		shows: ['q:person/called'],
-		channels: true
-	},
-	{
-		id: 'anonymous',
-		name: 'Anonymous',
-		says: 'A way to reach you and no name. Useful more often than you would think.',
-		shows: [],
+		says: 'You at work: what you do, who for, and your page.',
+		shows: ['q:person/cover', 'q:person/picture', 'q:person/called', 'q:person/role', 'q:org/name', 'q:person/site', 'q:person/email', 'q:person/phone'],
 		channels: true
 	}
 ];
+
 
 /* `unknownQuestions` lives in q-core/cards.ts, where there are tests. */

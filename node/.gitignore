@@ -3,3 +3,8 @@ mosquitto/data/*
 mosquitto/log/*
 !mosquitto/data/.keep
 !mosquitto/log/.keep
+dgraph/
+storage/
+# Nebula keys and certificates never go in git. ca.key above all.
+nebula/pki/
+.env

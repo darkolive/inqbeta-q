@@ -20,6 +20,7 @@ import type { FolderItem } from '@inqbeta/q-core/folder';
 import { checkLink, isLink, LINK_COMMAND, type Link } from '@inqbeta/q-core/links';
 import { COMMANDS } from '@inqbeta/q-core/permissions';
 import { checkCallChain, isCallChain } from '@inqbeta/q-core/calls';
+import { checkReceipt } from '@inqbeta/q-core/seal';
 import { REVOKE_COMMAND, toDagJson, type KnownRevocation, type Token } from '@inqbeta/q-core/ucan/index';
 
 export type ReceiptGroup = 'courses' | 'links' | 'permissions' | 'other';
@@ -109,6 +110,48 @@ export async function receiptsInJson(json: unknown, item: FolderItem): Promise<R
 	const where = item.diskPath;
 	const o = json as Record<string, unknown>;
 	const out: ReceiptEntry[] = [];
+
+	/* Someone you linked up with (ADR-Q-015): their card, kept, signed by you. */
+	const linked = o.content as { schema?: string; card?: { name?: string; details?: Record<string, string> }; at?: string } | undefined;
+	if (linked?.schema === 'inqbeta.linked/1') {
+		const c = await checkReceipt(json);
+		out.push({
+			id: `json:${where}`,
+			group: 'other',
+			what: 'Linked up',
+			title: `${linked.card?.details?.['q:person/called'] ?? 'Someone'} — ${linked.card?.name ?? 'card'}`,
+			description: 'You linked up with them from their card.',
+			at: DAY(linked.at),
+			signers: [didOf(o.publicKey as string) || String(o.did ?? '')],
+			holds: c.ok ? 'yes' : 'no',
+			says: c.ok ? 'Kept by you when you linked up, and unchanged since.' : c.says,
+			where,
+			item,
+			json
+		});
+		return out;
+	}
+
+	/* Collected by the bell (ADR-Q-014): kept, signed by you, when it was Captured. */
+	const got = o.content as { schema?: string; from?: string; title?: string; hash?: string; collectedAt?: string } | undefined;
+	if (got?.schema === 'inqbeta.received/1') {
+		const c = await checkReceipt(json);
+		out.push({
+			id: `json:${where}`,
+			group: 'other',
+			what: 'Message received',
+			title: `${got.from ?? 'Someone'} — ${got.title ?? 'a message'}`,
+			description: `Collected by the bell · fingerprint ${(got.hash ?? '').slice(0, 12)}…`,
+			at: DAY(got.collectedAt),
+			signers: [didOf(o.publicKey as string) || String(o.did ?? '')],
+			holds: c.ok ? 'yes' : 'no',
+			says: c.ok ? 'Kept by you when the bell captured it, and unchanged since. Its fingerprint matched what was sent.' : c.says,
+			where,
+			item,
+			json
+		});
+		return out;
+	}
 
 	if (isLink(json)) {
 		const l = json as Link;

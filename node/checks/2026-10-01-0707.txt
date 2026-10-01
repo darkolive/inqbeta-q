@@ -1,0 +1,32 @@
+inQbeta node — post office audit, 2026-10-01-0707
+host:   ubuntu-2gb-hel1-1
+config: 505185ab55b25919 mosquitto/config/mosquitto.conf c9ba293cf2aa35b2 mosquitto/config/acl 
+
+  PASS  broker is running
+image:  sha256:38c0da4f2ef84284d
+
+ Container inqbeta-node-mosquitto-1 Killing 
+ Container inqbeta-node-mosquitto-1 Killed 
+Must sign in
+  PASS  anonymous is refused
+  PASS  wrong password is refused
+Delivers
+  PASS  A posts into B's inbox, B receives it
+Cannot read anyone else's inbox
+  PASS  A cannot read B's inbox, even with a wildcard
+  PASS  broker internals ($SYS) are hidden
+Holds for people who are away
+  PASS  B was offline, gets it on return
+  PASS  a held message survives a restart
+Cannot carry more than a receipt, cannot keep anything
+  PASS  300 KB message is refused (limit 256 KB)
+  PASS  retained messages are refused
+Cannot log who talks to whom
+  PASS  no passwords in the logs
+  PASS  no inbox ids in the logs
+Kept apart
+  PASS  password file is private (600, mosquitto)
+  PASS  only on the node network
+  PASS  WebSocket port 9001 answers
+
+15 passed, 0 failed.  Kept in node/checks/2026-10-01-0707.txt

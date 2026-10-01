@@ -14,6 +14,12 @@
 	import { download, readItem } from '@inqbeta/q-core/folder';
 	import { watchLedger, refreshLedger, type Ledger } from '$lib/ledger';
 	import type { ReceiptEntry, ReceiptGroup } from '$lib/receipts';
+	import ReceivedView from '$lib/components/ReceivedView.svelte';
+	/* A receipt the bell collected is shown as a person reads it (ADR-Q-014). */
+	const keptOf = (r: ReceiptEntry | null) => {
+		const c = (r?.json as { content?: { schema?: string } } | undefined)?.content;
+		return c?.schema === 'inqbeta.received/1' ? (c as Record<string, unknown>) : null;
+	};
 
 	let identity = $state<Identity | null>(null);
 	let ledger = $state<Ledger | null>(null);
@@ -282,7 +288,9 @@
 					</button>
 				</header>
 
-				{#if selectedReceipt}
+				{#if selectedReceipt && keptOf(selectedReceipt)}
+					<ReceivedView kept={keptOf(selectedReceipt)!} holds={selectedReceipt.holds !== 'no'} where={selectedReceipt.where} />
+				{:else if selectedReceipt}
 					<dl class="space-y-4">
 						<div>
 							<dt class="text-sm opacity-60">What</dt>

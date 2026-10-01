@@ -240,3 +240,27 @@ where a reader could mistake it for something the person stated.
 3. Give `/cards` a real type: a predicate list and a channel list, signed, and
    expressed as a UCAN delegation rather than a new mechanism.
 4. Leave §5 alone until question 1 has an answer.
+
+## Addendum, 1 October 2026 — one profile, cards from templates
+
+Darren: "I don't like the way you've got the cards concept quite answering
+questions. I think we just need templates or create a new card … your profile,
+your cover image … and you get to choose what is shown on those address cards
+and what is just for you."
+
+What changed is what you see; the model in §4 stands.
+
+- **One profile**, filled in like a form (`/cards`, `ProfileEditor`): cover,
+  picture, name, what you do, who for, where roughly, your page, about you.
+  Still an answering of `q/your-profile`, which gained `q:person/picture`,
+  `q:person/cover` (small images made on the device) and
+  `q:profile/just-for-me`.
+- **Shown on cards / Just for me**, one switch per detail. `cardView` honours
+  "just for me" above any card, older ones included, so the one function that
+  decides what leaves still decides it (`test/cards.test.ts`).
+- **Cards from templates**: Basic (new, the public face), Friends, Business,
+  Contact, or Blank. A live preview draws the card as its holder will see it
+  (`CardFace`).
+- **Not yet**: giving a card to a person (the UCAN step); powers — details kept
+  for you that let a card prove something without showing it; friends' cards in
+  the address book drawn the same way.

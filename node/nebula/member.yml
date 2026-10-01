@@ -1,0 +1,38 @@
+# Nebula on the Mac: a member of the test federation. Mesh address 10.42.0.2.
+# Replace SERVER_IP with the Hetzner box's public IPv4 address.
+# Run with:  sudo nebula -config nebula/member.yml   (from node/)
+pki:
+  ca: nebula/pki/ca.crt
+  cert: nebula/pki/mac.crt
+  key: nebula/pki/mac.key
+
+static_host_map:
+  "10.42.0.1": ["135.181.156.21:4242"]
+
+lighthouse:
+  am_lighthouse: false
+  interval: 60
+  hosts:
+    - "10.42.0.1"
+
+listen:
+  host: "[::]"
+  port: 0             # any free port; Nebula finds its way out through the router
+
+punchy:
+  punch: true
+
+# On macOS, leave tun.dev unset and Nebula picks a utun device.
+
+logging:
+  level: info
+
+firewall:
+  outbound:
+    - port: any
+      proto: any
+      host: any
+  inbound:
+    - port: any
+      proto: icmp
+      host: any
