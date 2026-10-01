@@ -42,6 +42,10 @@
 	import { standingAt } from '@inqbeta/q-core/membership';
 	import { reachIndex, reachPostOffice, reachStorage, type Reach } from '$lib/node-health';
 	import { readHome, HOME_SCHEMA, type Home, type HomeFile } from '$lib/home';
+	import { makeAnnouncement, type Announcement } from '@inqbeta/q-core/announcements';
+	import { openFederationKey } from '@inqbeta/q-core/membership';
+	import { signerFor } from '@inqbeta/q-core/passkey';
+	import { readAnnouncements, announcementsFile } from '$lib/announcements';
 	import { untrack } from 'svelte';
 
 	let identity = $state<Identity | null>(null);
@@ -172,6 +176,46 @@
 			until
 		};
 		homeFile = { url: URL.createObjectURL(new Blob([JSON.stringify(file, null, 2)], { type: 'application/json' })), until };
+	}
+
+	/* ---- Communication (ADR-Q-016 §6): announcements to members ---- */
+	let announcements = $state<Announcement[]>([]);
+	$effect(() => {
+		if (id) void readAnnouncements(id).then((l) => (announcements = l));
+	});
+	let annTitle = $state('');
+	let annSays = $state('');
+	let annLabel = $state('');
+	let annHref = $state('');
+	let annDays = $state(14);
+	let annFile = $state<{ url: string; note: string } | null>(null);
+	function offer(list: Announcement[], note: string) {
+		annFile = { url: URL.createObjectURL(new Blob([announcementsFile(id, list)], { type: 'application/json' })), note };
+	}
+	async function announce() {
+		if (!identity || !own) return;
+		busy = 'announce';
+		said = null;
+		try {
+			const key = await openFederationKey(own.sealedKey, identity);
+			const a = await makeAnnouncement(signerFor(key), {
+				federationDid: own.founding.federation,
+				title: annTitle,
+				says: annSays,
+				action: annHref.trim() ? { href: annHref, label: annLabel.trim() || 'Open' } : undefined,
+				days: annDays
+			});
+			announcements = [a, ...announcements];
+			offer(announcements, `“${a.title}” is signed. Publish the file and members will see it until ${onDay(a.until)}.`);
+			annTitle = annSays = annLabel = annHref = '';
+		} catch (e) {
+			said = { tone: 'bad', text: e instanceof Error ? e.message : String(e) };
+		}
+		busy = null;
+	}
+	function takeDown(a: Announcement) {
+		announcements = announcements.filter((x) => x.id !== a.id);
+		offer(announcements, `“${a.title}” is taken out. Publish the file and it goes from members’ bells.`);
 	}
 
 	const founding = $derived(own?.founding ?? mine?.founding ?? null);
@@ -327,6 +371,7 @@
 			<Tabs.List class="mb-6">
 				<Tabs.Trigger value="home" class="min-h-11">Home</Tabs.Trigger>
 				<Tabs.Trigger value="members" class="min-h-11">Members</Tabs.Trigger>
+				<Tabs.Trigger value="communication" class="min-h-11">Communication</Tabs.Trigger>
 				{#if own}<Tabs.Trigger value="settings" class="min-h-11">Settings</Tabs.Trigger>{/if}
 				<Tabs.Indicator />
 			</Tabs.List>
@@ -514,6 +559,64 @@
 						{/if}
 					</Section>
 				{/if}
+			</Tabs.Content>
+
+			<!-- Communication: announcements to members (ADR-Q-016 §6). -->
+			<Tabs.Content value="communication">
+				{#if own}
+					<Section title="Tell your members" description="An announcement is signed by the federation and stays in members’ bells, read or not, until its time is over.">
+						<div class="flex flex-col gap-4 max-w-2xl">
+							<label class="label"><span class="label-text">Title</span><input class="input" bind:value={annTitle} placeholder="We’ve just done a big update" /></label>
+							<label class="label"><span class="label-text">What you want to say</span><textarea class="textarea" rows="4" bind:value={annSays}></textarea></label>
+							<div class="grid gap-4 sm:grid-cols-2">
+								<label class="label"><span class="label-text">A button (optional)</span><input class="input" bind:value={annLabel} placeholder="Try it" /></label>
+								<label class="label"><span class="label-text">Where it goes</span><input class="input" bind:value={annHref} placeholder="/cards" /></label>
+							</div>
+							<label class="label max-w-48"><span class="label-text">Shows for</span>
+								<select class="select" bind:value={annDays}>
+									<option value={7}>A week</option><option value={14}>Two weeks</option><option value={30}>A month</option><option value={90}>Three months</option>
+								</select>
+							</label>
+							<button type="button" class="btn preset-filled-primary-500 min-h-11 self-start" disabled={busy !== null || !annTitle.trim() || !annSays.trim()} onclick={() => void announce()}>
+								{busy === 'announce' ? 'Signing…' : 'Sign and send'}
+							</button>
+						</div>
+						{#if annFile}
+							<div class="card preset-tonal p-4 mt-6 flex flex-col gap-3">
+								<p class="font-bold">{annFile.note}</p>
+								{#if isHome}
+									<ol class="list-decimal pl-6 text-sm space-y-1">
+										<li>Download the file.</li>
+										<li>Put it in the repo at <span class="role-token">apps/q/static/announcements.json</span>.</li>
+										<li>Commit and push. Every member’s Q checks the federation’s signature on each one.</li>
+									</ol>
+								{:else}
+									<p class="text-sm">For now only Q’s home federation publishes announcements this way. Others will send theirs through their own bellboy.</p>
+								{/if}
+								<a class="btn preset-filled-primary-500 min-h-11 self-start" href={annFile.url} download="announcements.json">Download announcements.json</a>
+							</div>
+						{/if}
+					</Section>
+				{/if}
+				<Section title="Announcements" description={announcements.length ? 'What this federation has told its members, while it still applies.' : ''}>
+					{#if !announcements.length}
+						<Empty icon="bell" title="Nothing announced" description="When there’s news, it appears here and in members’ bells." />
+					{:else}
+						<ul class="flex flex-col gap-3">
+							{#each announcements as a (a.id)}
+								<li class="card preset-outlined-surface-200-800 p-4 flex flex-col gap-2">
+									<div class="flex flex-wrap items-center gap-3">
+										<span class="font-bold">{a.title}</span>
+										<span class="text-xs opacity-60">{onDay(a.at)} · shows until {onDay(a.until)}</span>
+										{#if own}<button type="button" class="btn btn-sm preset-tonal min-h-11 ml-auto" onclick={() => takeDown(a)}>Take it down</button>{/if}
+									</div>
+									<p class="whitespace-pre-line">{a.says}</p>
+									{#if a.action}<a class="btn btn-sm preset-tonal min-h-11 self-start" href={a.action.href}>{a.action.label}</a>{/if}
+								</li>
+							{/each}
+						</ul>
+					{/if}
+				</Section>
 			</Tabs.Content>
 
 			<!-- Settings: the machines it runs. Caretaker only. -->

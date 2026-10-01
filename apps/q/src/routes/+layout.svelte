@@ -40,6 +40,9 @@
 	import type { AnswerSet } from '@inqbeta/q-core/questions';
 	import { bellConfig, listen, collect, type Notice } from '$lib/bellboy';
 	import ReceivedView from '$lib/components/ReceivedView.svelte';
+	import { readHome } from '$lib/home';
+	import { readAnnouncements, readIds, markRead } from '$lib/announcements';
+	import type { Announcement } from '@inqbeta/q-core/announcements';
 
 	/*
 	 * The bell (ADR-Q-014 §4): notices from the bellboy. Kept apart from the
@@ -82,6 +85,38 @@
 		}
 	}
 	const newNotices = $derived(notices.filter((n) => n.state === 'new').length);
+
+	/*
+	 * Announcements from Q's home federation (ADR-Q-016 §6), for its members.
+	 * They stay in the bell, read or not, until their time is over.
+	 */
+	let homeName = $state('');
+	let homeDid = $state('');
+	let announcements = $state<Announcement[]>([]);
+	let seen = $state<Set<string>>(new Set());
+	let reading = $state<Announcement | null>(null);
+	$effect(() => {
+		if (!identity) return;
+		void readHome().then(async (h) => {
+			if (!h.ok) return;
+			homeName = h.name;
+			homeDid = h.federation;
+			announcements = await readAnnouncements(h.federation);
+			seen = readIds();
+		});
+	});
+	/* Only members (and its caretaker) hear from it. */
+	const inHomeFed = $derived(
+		!!homeDid && (ledger?.found ?? []).some((f) => (f.kind === 'membership' || f.kind === 'federation') && f.key.endsWith(`:${homeDid}`))
+	);
+	const heard = $derived(inHomeFed ? announcements : []);
+	const unheard = $derived(heard.filter((a) => !seen.has(a.id)).length);
+	function openAnnouncement(a: Announcement) {
+		markRead(a.id);
+		seen = new Set([...seen, a.id]);
+		reading = a;
+		notificationsOpen = false;
+	}
 	/*
 	 * Read: what the bell has captured, read back from your vault, so the
 	 * history is the same on any device signed in to it and survives a reload.
@@ -426,9 +461,9 @@
 					focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary-500"
 			>
 				<Icon name="bell" class="size-7" stroke={2} />
-				{#if unreadCount + newNotices > 0}
+				{#if unreadCount + newNotices + unheard > 0}
 					<span class="absolute -right-2 -top-2 badge-icon preset-filled-error-500 text-xs">
-						{unreadCount + newNotices > 9 ? '9+' : unreadCount + newNotices}
+						{unreadCount + newNotices + unheard > 9 ? '9+' : unreadCount + newNotices + unheard}
 					</span>
 				{/if}
 			</button>
@@ -458,6 +493,34 @@
 	</Portal>
 </Dialog>
 
+<!-- An announcement, opened. It stays in the bell until its time is over. -->
+<Dialog open={!!reading} onOpenChange={(e) => { if (!e.open) reading = null; }}>
+	<Portal>
+		<Dialog.Backdrop class="fixed inset-0 z-50 bg-surface-50-950/50" />
+		<Dialog.Positioner class="fixed inset-0 z-50 flex justify-end">
+			<Dialog.Content class="h-full w-full max-w-lg card bg-surface-50-950 p-6 shadow-xl overflow-y-auto">
+				<header class="flex items-center justify-between mb-6">
+					<span class="badge preset-filled-primary-500">From {homeName}</span>
+					<button type="button" class="btn btn-sm preset-tonal-surface min-h-11" onclick={() => (reading = null)}>Close</button>
+				</header>
+				{#if reading}
+					<article class="flex flex-col gap-4">
+						<h2 class="h3">{reading.title}</h2>
+						<p class="text-lg leading-relaxed whitespace-pre-line">{reading.says}</p>
+						{#if reading.action}
+							<a class="btn preset-filled-primary-500 min-h-11 self-start" href={reading.action.href} onclick={() => (reading = null)}>{reading.action.label}</a>
+						{/if}
+						<p class="text-sm opacity-60">
+							{new Date(reading.at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })} · stays in your bell until
+							{new Date(reading.until).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })} · signed by {homeName}
+						</p>
+					</article>
+				{/if}
+			</Dialog.Content>
+		</Dialog.Positioner>
+	</Portal>
+</Dialog>
+
 <!-- Read out when a notice arrives, for anyone who can't see the bell move. -->
 <p class="sr-only" aria-live="polite">{announce}</p>
 
@@ -469,6 +532,22 @@
 			<h3 class="font-semibold">Notifications</h3>
 			<button type="button" class="text-sm text-primary-500" onclick={markAllRead}>Mark all read</button>
 		</div>
+		{#if heard.length}
+			<p class="px-3 pt-3 text-xs font-bold uppercase opacity-60">From {homeName}</p>
+			<ul class="divide-y divide-surface-200-800 border-b border-surface-200-800">
+				{#each heard as a (a.id)}
+					<li>
+						<button type="button" class="w-full p-3 text-left hover:bg-surface-100-900 flex items-start gap-3 min-h-11" onclick={() => openAnnouncement(a)}>
+							<Icon name="federations" class="mt-0.5 shrink-0 {seen.has(a.id) ? 'opacity-60' : ''}" />
+							<span class="flex flex-col gap-1">
+								<span class="text-sm {seen.has(a.id) ? 'opacity-70' : 'font-bold'}">{a.title}</span>
+								<span class="text-xs opacity-60">{seen.has(a.id) ? 'Read' : 'New'} · until {new Date(a.until).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })}</span>
+							</span>
+						</button>
+					</li>
+				{/each}
+			</ul>
+		{/if}
 		{#if waiting.length}
 			<p class="px-3 pt-3 text-xs font-bold uppercase opacity-60">New</p>
 			<ul class="divide-y divide-surface-200-800 border-b border-surface-200-800">
@@ -521,7 +600,7 @@
 				{/each}
 			</ul>
 		{/if}
-		{#if notifications.length === 0 && waiting.length === 0 && captured.length === 0}
+		{#if notifications.length === 0 && waiting.length === 0 && captured.length === 0 && heard.length === 0}
 			<div class="p-4 text-center text-sm opacity-60">No notifications</div>
 		{:else}
 			<ul class="divide-y divide-surface-200-800">
