@@ -10,6 +10,7 @@
 	import { watchLedger, type Ledger } from '$lib/ledger';
 	import { readHome, type Home } from '$lib/home';
 	import OpenFromBackup from '$lib/components/OpenFromBackup.svelte';
+	import YouAtTop from '$lib/components/YouAtTop.svelte';
 	import PointerNote from '$lib/components/PointerNote.svelte';
 	import LeaveNoTrace from '$lib/components/LeaveNoTrace.svelte';
 	import { FEATURES } from '$lib/features/registry';
@@ -123,8 +124,13 @@
 		<SupportQ />
 	</section>
 {:else}
-	<!-- Signed in - Dashboard -->
-	<Page title="Overview" lead="Your identity, your files and your federations — on this device, offline.">
+	<!-- Signed in: an empty browser offers the last backup first (someone
+	     returning on a new device), then you — or, if you're new, your card. -->
+	<div class="mb-4"><OpenFromBackup /></div>
+	<div class="mb-4"><PointerNote /></div>
+	<YouAtTop {identity} {ledger} />
+
+	<Page title="Your activity" lead="Your files, receipts and federations — on this device, offline.">
 		{#if identity && home?.ok && !inHome}
 			<div class="card preset-outlined-primary-500 mb-6 p-5 flex flex-wrap items-center gap-4">
 				<div class="min-w-48 flex-1">
@@ -135,10 +141,6 @@
 				<a class="btn preset-filled-primary-500 min-h-11" href={home.joinHref}>Read and join</a>
 			</div>
 		{/if}
-	<!-- Straight after the passkey: an empty browser offers the last backup. -->
-	<div class="mb-4"><OpenFromBackup /></div>
-	<!-- What the passkey said about where the vault is (ADR-Q-012). Nothing, if no note. -->
-	<div class="mb-4"><PointerNote /></div>
 	<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 		<Tile href="/keys" icon="keys" title="Keys" meta={identity ? 'Signed in with your passkey' : 'Not signed in'}>
 			{#snippet status()}

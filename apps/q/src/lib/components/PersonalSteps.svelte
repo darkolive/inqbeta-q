@@ -24,6 +24,24 @@
 	import { allDetails, ownDetails, justForMe, asText, saveProfile, nameFrom, businessesFrom, businessesAsDetails, blankBusiness, BIZ_PARTS, LABEL, type Business } from '$lib/profile';
 	import { smallPicture, PICTURE, COVER } from '$lib/pictures';
 	import { saveCard } from '$lib/cards';
+	import { watchFolder, chooseFolder, wakeFolder, type FolderState } from '@inqbeta/q-core/folder';
+
+	/*
+	 * Someone brand new may have nowhere to keep things yet (a computer's
+	 * browser waits for a folder to be chosen). Then the steps keep everything
+	 * in this page, and the last step asks where to keep it — one choice,
+	 * made once. On a phone the browser keeps it, so this never comes up.
+	 */
+	let folder = $state<FolderState>({ kind: 'checking' });
+	$effect(() => watchFolder((f) => (folder = f)));
+	let needPlace = $state(false);
+	async function choosePlace() {
+		says = '';
+		const out = folder.kind === 'asleep' ? await wakeFolder() : await chooseFolder();
+		if (!out.ok) return void (says = out.cancelled ? '' : out.says);
+		needPlace = false;
+		await finish();
+	}
 
 	let {
 		identity,
@@ -83,7 +101,9 @@
 	const canGoOn = $derived(step !== 0 || !!name);
 
 	/** Keep what's written so far. */
-	async function keep(cardShows?: string[]) {
+	async function keep(cardShows?: string[]): Promise<{ ok: true } | { ok: false; says: string[] }> {
+		/* Nowhere to keep it yet: it stays in this page until the last step. */
+		if (folder.kind !== 'ready') return { ok: true };
 		if (sameAsPhone) values['q:person/whatsapp'] = values['q:person/phone'];
 		const work = businessesAsDetails(businesses, ownDetails(start));
 		const all = { ...values, ...work.values };
@@ -103,6 +123,7 @@
 
 	async function finish() {
 		says = '';
+		if (folder.kind !== 'ready') return void (needPlace = true);
 		busy = true;
 		const out = await keep(shows);
 		if (!out.ok) {
@@ -253,5 +274,14 @@
 	</footer>
 	{#if step === 0 && !name}<p class="text-sm opacity-70 -mt-3">Your first name, and Next wakes up.</p>{/if}
 	{#if adding}<p class="text-sm opacity-70 -mt-3">Add the business, or press Not now, and Next wakes up.</p>{/if}
+	{#if needPlace}
+		<div class="card preset-tonal-primary p-4 flex flex-col gap-3" aria-live="polite">
+			<p class="font-bold">Last thing: where should Q keep your card?</p>
+			<p class="text-sm">Choose or make a folder on this computer, “Q” in Documents, say. Everything in it is locked to your passkey. Making copies elsewhere comes next.</p>
+			<button type="button" class="btn preset-filled-primary-500 min-h-11 self-start" onclick={() => void choosePlace()}>
+				{folder.kind === 'asleep' ? `Allow my ${folder.name} folder` : 'Choose a folder'}
+			</button>
+		</div>
+	{/if}
 	{#if says}<p class="text-sm card preset-tonal-error p-3" aria-live="polite">{says}</p>{/if}
 </div>
