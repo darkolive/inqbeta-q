@@ -64,7 +64,7 @@ export const SECTIONS: NavGroup[] = [
 		links: [
 			{ href: '/data', label: 'Files', icon: 'files' },
 			{ href: '/receipts', label: 'Receipts', icon: 'receipts' },
-			{ href: '/nodes', label: 'Copy locations', icon: 'nodes' },
+			{ href: '/nodes', label: 'Backups', icon: 'nodes' },
 			{ href: '/network', label: 'Network', icon: 'network' }
 		]
 	},

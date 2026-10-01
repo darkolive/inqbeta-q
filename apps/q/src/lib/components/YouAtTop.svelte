@@ -14,6 +14,9 @@
 	import type { AnswerSet } from '@inqbeta/q-core/questions';
 	import { newestPerCard } from '@inqbeta/q-core/cards';
 	import PersonalSteps from '$lib/components/PersonalSteps.svelte';
+	import BackupSteps from '$lib/components/BackupSteps.svelte';
+	import { copiesElsewhere } from '$lib/backup-state';
+	import { watchFolder } from '@inqbeta/q-core/folder';
 	import { answersFrom } from '$lib/answers';
 	import { cardFrom, type KindCard } from '$lib/cards';
 	import { refreshLedger, type Ledger } from '$lib/ledger';
@@ -56,6 +59,15 @@
 	const since = $derived(times[0] ? new Date(times[0]).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) : '');
 
 	let stepping = $state(false);
+
+	/* Second core power: once your card exists, keeping it safe comes next. */
+	let copies = $state<number | null>(null);
+	let notNow = $state(false);
+	let folderReady = $state(false);
+	$effect(() => watchFolder((f) => (folderReady = f.kind === 'ready')));
+	$effect(() => {
+		if (name && folderReady && copies === null) void copiesElsewhere().then((n) => (copies = n));
+	});
 </script>
 
 {#if !loaded}
@@ -111,5 +123,21 @@
 				<button type="button" class="btn preset-tonal min-h-11" onclick={() => (stepping = true)}>Change my details</button>
 			</div>
 		</div>
+	</section>
+{/if}
+
+{#if loaded && name && !stepping && copies === 0 && !notNow}
+	<section class="mb-8 flex flex-col gap-4" aria-labelledby="keep-safe">
+		<header>
+			<h2 id="keep-safe" class="h3">Next: keep your vault safe</h2>
+			<p class="opacity-70">Your card, and everything Q keeps for you, lives on this device. Put a copy somewhere else, so losing this device doesn’t lose you.</p>
+		</header>
+		<BackupSteps
+			onDone={async () => {
+				copies = await copiesElsewhere();
+				notNow = true;
+			}}
+			onCancel={() => (notNow = true)}
+		/>
 	</section>
 {/if}

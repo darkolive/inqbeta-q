@@ -163,7 +163,7 @@
 		/>
 		<Tile href="/federations" icon="federations" title="Federations" count={identity ? federations.length : undefined} meta="Founded or joined" />
 		<Tile href="/devices" icon="devices" title="Devices" count={identity ? linked + 1 : undefined} meta="This one, plus linked keys" />
-		<Tile href="/nodes" icon="nodes" title="Copy locations" count={folder.kind === 'ready' ? replicas.length : undefined} meta="Other places your folder is kept" />
+		<Tile href="/nodes" icon="nodes" title="Backups" count={folder.kind === 'ready' ? replicas.length : undefined} meta="Other places your vault is kept" />
 		{#each FEATURES as f (f.id)}
 			<Tile href={f.href} icon={f.icon} title={f.title} count={identity ? courses.length : undefined} meta={f.federation} />
 		{/each}

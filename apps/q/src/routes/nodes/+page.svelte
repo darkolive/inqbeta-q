@@ -15,6 +15,7 @@
 	import { connectGoogle, disconnectGoogle, googleChannel, watchGoogleReturn } from '$lib/google-channel';
 	import { syncCloudNow, watchCloud, type CloudState } from '$lib/autosync';
 	import NoteTouch from '$lib/components/NoteTouch.svelte';
+	import BackupSteps from '$lib/components/BackupSteps.svelte';
 	import { folderOwner } from '@inqbeta/q-core/folder';
 
 	/* Google Drive — a storage channel through its API, for Safari and the iPhone too. */
@@ -188,7 +189,12 @@
 
 <svelte:head><title>Copy locations — Q</title></svelte:head>
 
-<Page title="Copy locations" lead="Storage channels: keep your locked folder in more than one place — a USB drive, your Dropbox or Google Drive folder, a community node. Nobody there can read it.">
+<Page title="Backups" lead="Where your vault is kept. Everything is locked before it leaves, so nobody there can read it.">
+	<BackupSteps onDone={() => void load()} />
+
+	<details class="card preset-outlined-surface-200-800 p-4">
+		<summary class="cursor-pointer font-bold min-h-11 flex items-center">More detail</summary>
+		<div class="mt-4 flex flex-col gap-8">
 	{#snippet actions()}
 		{#if folder.kind === 'ready' && replicas.some((r) => r.state === 'ready')}
 			<button type="button" class="btn preset-filled-primary-500" disabled={!!busy} onclick={() => void syncAll()}>Sync all</button>
@@ -279,6 +285,8 @@
 		{/if}
 		{#if note}<p class="role-meta" aria-live="polite">{note}</p>{/if}
 	</Section>
+		</div>
+	</details>
 </Page>
 
 <!-- Drawer for Replica Details -->
