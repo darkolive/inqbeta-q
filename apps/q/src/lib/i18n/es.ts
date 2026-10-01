@@ -26,6 +26,13 @@ export default {
 	'signin.lost': 'Llave perdida',
 	'signin.older': '¿No encuentras la llave? Prueba una creada antes del 27 de septiembre',
 	'signin.noPasskeys': 'Este navegador no admite llaves de acceso.',
+	'signin.inApp': "Estás dentro de {app}. Las llaves de acceso no funcionan en su navegador integrado.",
+	'signin.inApp.thisApp': "esta app",
+	'signin.inApp.chrome': "Abrir en Chrome",
+	'signin.inApp.android': "O toca ⋮ o ••• arriba y elige «Abrir en el navegador».",
+	'signin.inApp.ios': "Toca ••• o el botón de compartir y elige «Abrir en Safari».",
+	'signin.inApp.copy': "Copiar el enlace",
+	'signin.inApp.copied': "Copiado. Pégalo en Chrome o Safari.",
 
 	'place.device': 'Este dispositivo',
 	'place.device.hint': 'Touch ID, Face ID o Windows Hello',

@@ -26,6 +26,13 @@ export default {
 	'signin.lost': 'Clé perdue',
 	'signin.older': 'Clé d’accès introuvable ? Essayez-en une créée avant le 27 septembre',
 	'signin.noPasskeys': 'Ce navigateur ne prend pas en charge les clés d’accès.',
+	'signin.inApp': "Vous êtes dans {app}. Les clés d’accès ne fonctionnent pas dans son navigateur intégré.",
+	'signin.inApp.thisApp': "cette application",
+	'signin.inApp.chrome': "Ouvrir dans Chrome",
+	'signin.inApp.android': "Ou touchez ⋮ ou ••• en haut et choisissez « Ouvrir dans le navigateur ».",
+	'signin.inApp.ios': "Touchez ••• ou le bouton de partage, puis « Ouvrir dans Safari ».",
+	'signin.inApp.copy': "Copier le lien",
+	'signin.inApp.copied': "Copié. Collez-le dans Chrome ou Safari.",
 
 	'place.device': 'Cet appareil',
 	'place.device.hint': 'Touch ID, Face ID ou Windows Hello',

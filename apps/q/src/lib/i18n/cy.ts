@@ -26,6 +26,13 @@ export default {
 	'signin.lost': 'Allwedd ar goll',
 	'signin.older': 'Heb ddod o hyd i’r allwedd? Rhowch gynnig ar un a wnaed cyn 27 Medi',
 	'signin.noPasskeys': 'Does dim modd defnyddio allweddi mynediad yn y porwr hwn.',
+	'signin.inApp': "Rydych chi y tu mewn i {app}. Dyw allweddi mynediad ddim yn gweithio yn ei borwr adeiledig.",
+	'signin.inApp.thisApp': "yr ap hwn",
+	'signin.inApp.chrome': "Agor yn Chrome",
+	'signin.inApp.android': "Neu tapiwch ⋮ neu ••• ar y brig a dewis “Agor yn y porwr”.",
+	'signin.inApp.ios': "Tapiwch ••• neu’r botwm rhannu, yna dewis “Agor yn Safari”.",
+	'signin.inApp.copy': "Copïo’r ddolen",
+	'signin.inApp.copied': "Wedi’i chopïo. Gludwch hi yn Chrome neu Safari.",
 
 	'place.device': 'Y ddyfais hon',
 	'place.device.hint': 'Touch ID, Face ID neu Windows Hello',

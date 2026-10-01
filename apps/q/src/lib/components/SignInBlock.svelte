@@ -31,6 +31,7 @@
 	import RecoverWithCard from './RecoverWithCard.svelte';
 	import { recovery } from '$lib/recovery.svelte';
 	import { t, type Key } from '$lib/i18n/index.svelte';
+	import { inAppBrowser, chromeIntent } from '$lib/in-app';
 
 	/* A title or line set on the block (ADR-Q-006) is used as written; left
 	 * unset, they follow the chosen language. */
@@ -58,6 +59,17 @@
 
 	let identity = $state<Identity | null>(null);
 	let supported = $state(true);
+	/* Inside Messenger, Facebook, Instagram…: say which, and how to get out. */
+	const inApp = typeof navigator === 'undefined' ? null : inAppBrowser();
+	let copied = $state(false);
+	async function copyLink() {
+		try {
+			await navigator.clipboard.writeText(location.href);
+			copied = true;
+		} catch {
+			copied = false;
+		}
+	}
 	let place = $state<KeyPlace>('device');
 	let mode = $state<'in' | 'new'>('in');
 	let name = $state('');
@@ -157,6 +169,20 @@
 
 	{#if recovery.active}
 		<RecoverWithCard />
+	{:else if !supported && inApp}
+		<div class="card preset-tonal-warning p-5 w-full flex flex-col gap-4 text-left" role="status">
+			<div class="flex items-center gap-4">
+				<Icon name="info" size={32} stroke={2.5} />
+				<p class="font-semibold">{t('signin.inApp').replace('{app}', inApp.app || t('signin.inApp.thisApp'))}</p>
+			</div>
+			{#if inApp.android}
+				<a class="btn preset-filled-primary-500 min-h-11 w-full" href={chromeIntent()}>{t('signin.inApp.chrome')}</a>
+				<p class="text-sm">{t('signin.inApp.android')}</p>
+			{:else}
+				<p class="text-sm">{t('signin.inApp.ios')}</p>
+			{/if}
+			<button type="button" class="btn preset-tonal min-h-11 w-full" onclick={() => void copyLink()}>{copied ? t('signin.inApp.copied') : t('signin.inApp.copy')}</button>
+		</div>
 	{:else if !supported}
 		<div class="card preset-tonal-warning p-5 w-full flex items-center gap-4 text-left" role="status">
 			<Icon name="info" size={32} stroke={2.5} />

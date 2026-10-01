@@ -26,6 +26,13 @@ export default {
 	'signin.lost': 'Schlüssel verloren',
 	'signin.older': 'Passkey nicht gefunden? Versuch einen, der vor dem 27. September erstellt wurde',
 	'signin.noPasskeys': 'Dieser Browser unterstützt keine Passkeys.',
+	'signin.inApp': "Du bist in {app}. Im eingebauten Browser funktionieren Passkeys nicht.",
+	'signin.inApp.thisApp': "dieser App",
+	'signin.inApp.chrome': "In Chrome öffnen",
+	'signin.inApp.android': "Oder tippe oben auf ⋮ oder ••• und wähle „Im Browser öffnen“.",
+	'signin.inApp.ios': "Tippe auf ••• oder „Teilen“ und wähle „In Safari öffnen“.",
+	'signin.inApp.copy': "Link kopieren",
+	'signin.inApp.copied': "Kopiert. Füge ihn in Chrome oder Safari ein.",
 
 	'place.device': 'Dieses Gerät',
 	'place.device.hint': 'Touch ID, Face ID oder Windows Hello',

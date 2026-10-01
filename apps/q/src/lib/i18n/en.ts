@@ -30,6 +30,13 @@ const en = {
 	'signin.lost': 'Lost key',
 	'signin.older': 'Passkey not found? Try one made before 27 September',
 	'signin.noPasskeys': "This browser can't use passkeys.",
+	'signin.inApp': "You're inside {app}. Passkeys don't work in its built-in browser.",
+	'signin.inApp.thisApp': "this app",
+	'signin.inApp.chrome': "Open in Chrome",
+	'signin.inApp.android': "Or tap ⋮ or ••• at the top and choose “Open in browser”.",
+	'signin.inApp.ios': "Tap ••• or the share button, then choose “Open in Safari”.",
+	'signin.inApp.copy': "Copy the link",
+	'signin.inApp.copied': "Copied. Paste it into Chrome or Safari.",
 
 	'place.device': 'This device',
 	'place.device.hint': 'Touch ID, Face ID or Windows Hello',

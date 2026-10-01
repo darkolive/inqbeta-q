@@ -32,6 +32,13 @@ export default {
 	'signin.lost': '密钥丢失',
 	'signin.older': '找不到通行密钥？试试 9 月 27 日之前创建的',
 	'signin.noPasskeys': '此浏览器无法使用通行密钥。',
+	'signin.inApp': "你正在 {app} 内打开。其内置浏览器不支持通行密钥。",
+	'signin.inApp.thisApp': "此应用",
+	'signin.inApp.chrome': "在 Chrome 中打开",
+	'signin.inApp.android': "或点按顶部的 ⋮ 或 •••，选择“在浏览器中打开”。",
+	'signin.inApp.ios': "点按 ••• 或分享按钮，然后选择“在 Safari 中打开”。",
+	'signin.inApp.copy': "复制链接",
+	'signin.inApp.copied': "已复制。请粘贴到 Chrome 或 Safari。",
 
 	'place.device': '这台设备',
 	'place.device.hint': '触控 ID、面容 ID 或 Windows Hello',
