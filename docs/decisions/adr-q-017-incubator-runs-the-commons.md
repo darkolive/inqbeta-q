@@ -1,7 +1,7 @@
 ---
 status: proposed
 implementation: none
-updated: 2026-10-01
+updated: 2026-10-02
 ---
 
 # ADR-Q-017 — Incubator runs the commons
@@ -136,6 +136,42 @@ owning the other:
 
 A treaty is a receipt both federations sign. Its musts and cannots are
 ADR-Q-008's, and either side can leave on the notice it names.
+
+## Addendum, 2 October 2026: paying its way, efficiently
+
+Darren, after voice messages went to 48 kbps:
+
+> "Free tier should just be for sending files across between yourselves, and
+> we are the storage whilst that happens … the bigger the files and the more
+> often, then you need to buy credits … it can be cheap, but it's still got
+> value and it's still got a cost. And that's got to be sustainable. And
+> that's not going to be by investors and IPOs and control ownership … So
+> we've got to make sure we're sensible and efficient. And if there's things
+> that are running off the community's club's own resources, then those costs
+> to members can be included in subscription, membership cost, whatever,
+> that's down to the Federation and their rules."
+
+This sharpens §3, §4 and §7:
+
+- **The free allowance is for passing things between people**, with Incubator
+  as the holding bay while it happens: messages, voice messages, shared cards
+  and files, collected and let go. Not for holding, and not for heavy use.
+- **More, bigger and more often costs credits.** Cheap and published, but
+  never nothing: every byte held and every relayed minute has a real cost,
+  and the price says so honestly.
+- **Sustained by use, not by investors.** No outside investment, no sale of
+  control, no flotation. Incubator pays its way from credits, sponsorship and
+  treaties, so it must stay lean: measure what each service costs (§6) and
+  make it cheaper before charging more.
+- **Efficiency is a duty, not an extra.** Examples already open: send a voice
+  message's audio as bytes rather than turning it into text twice (about a
+  quarter smaller); let storage go the moment custody passes (it does,
+  `lib/messages.ts`); a post's lifetime caps what's forgotten (30 days).
+- **A club running its own resources sets its own terms.** When a federation
+  runs its own node, storage or switchboard (ADR-Q-020 §2), what it costs is
+  the federation's to cover, in a membership fee, a subscription, or however
+  its rules say. Q shows the terms at joining, as part of what members agree
+  to; it doesn't set them.
 
 ## Consequences
 
