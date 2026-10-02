@@ -3,17 +3,21 @@
  * answered you can leave one: recorded here in the browser, sealed to them
  * like any message, waiting in storage until they collect it.
  *
- * Recorded as Opus where the browser can (small and clear for voice), AAC on
- * Safari. Kept short and at a voice bitrate so the sealed post stays well under
- * the storage's 1 MB limit for a post.
+ * Recorded as Opus where the browser can, AAC on Safari, at 48 kbps: a warm,
+ * full voice (24 kbps sounded flat, Darren, 2 October). Two minutes is about
+ * 720 KB, about 1.3 MB once signed and sealed, inside the storage's 2 MB limit
+ * for a post. Storage only holds it until it's collected.
+ *
+ * Echo cancellation stays on; noise suppression and automatic volume are off,
+ * because they're made for live calls and make a recorded voice sound muffled.
  */
 import { MESSAGE_SCHEMA } from '@inqbeta/q-core/inbox';
 import type { Signed } from './messages';
 
 export const MOST_SECONDS = 120;
-const BITRATE = 24_000;
-/* A data: URL longer than this won't fit in a post once sealed. */
-const MOST_CHARS = 620_000;
+const BITRATE = 48_000;
+/* A data: URL longer than this won't fit in a 2 MB post once sealed. */
+const MOST_CHARS = 1_300_000;
 
 export interface Recording {
 	audio: string;
@@ -43,7 +47,7 @@ const toDataUrl = (b: Blob) =>
  */
 export async function startRecording(opts: { mic?: string; onTick: (s: number) => void; onLimit: () => void }) {
 	const stream = await navigator.mediaDevices.getUserMedia({
-		audio: { deviceId: opts.mic ? { exact: opts.mic } : undefined, echoCancellation: true, noiseSuppression: true, autoGainControl: true }
+		audio: { deviceId: opts.mic ? { exact: opts.mic } : undefined, echoCancellation: true, noiseSuppression: false, autoGainControl: false, channelCount: 1 }
 	});
 	const mimeType = pickType();
 	const rec = new MediaRecorder(stream, { mimeType, audioBitsPerSecond: BITRATE });

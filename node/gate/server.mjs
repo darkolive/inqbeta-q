@@ -105,7 +105,8 @@ export async function checkDrop(r, now = Date.now()) {
  * Only the inbox's owner can list, collect and let go: their key hashes to
  * the inbox's id, and nobody else can make that key.
  */
-const POST_BYTES = 1024 * 1024;
+/* 2 MB: room for a 2-minute voice message at 48 kbps once sealed (ADR-Q-022). */
+const POST_BYTES = 2 * 1024 * 1024;
 const POSTS_PER_HOUR = 120;
 export async function ownsInbox(id, key) {
 	if (typeof key !== 'string' || key.length < 20) return false;

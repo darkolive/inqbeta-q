@@ -35,8 +35,10 @@ the business itself, and by saying so before anyone speaks.
 1. **When a call isn't answered** (no answer, or they press Not now), Q offers
    **Leave a message** beside Try again and Send a message.
 2. **Recorded in the browser**, as Opus audio (what browsers record by
-   themselves: small and clear for voice; AAC on Safari). Up to 2 minutes at a
-   voice bitrate, so the sealed post stays under the storage's 1 MB limit.
+   themselves; AAC on Safari). Up to 2 minutes at 48 kbps, a warm, full voice
+   (24 kbps sounded flat). About 1.3 MB once sealed, inside the storage's 2 MB
+   limit for a post. Noise suppression and automatic volume off, echo
+   cancellation on.
    Listen back, record again, or Send.
 3. **Sent like any message** (ADR-Q-010, ADR-Q-014): sealed to them, put in
    storage, and the bellboy rings with a notice of kind `voicemail`: who it's
