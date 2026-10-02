@@ -82,17 +82,6 @@ export const SECTIONS: NavGroup[] = [
 
 export const PLUGINS: NavGroup[] = [
 	{
-		id: 'plugins',
-		label: 'Plugins',
-		icon: 'plus',
-		kind: 'plugin',
-		about: 'Find plugins, and see the ones you have',
-		links: [
-			{ href: '/marketplace', label: 'Marketplace', icon: 'search' },
-			{ href: '/plugins', label: 'Installed', icon: 'check' }
-		]
-	},
-	{
 		id: 'federations',
 		label: 'Federations',
 		icon: 'federations',
@@ -133,7 +122,24 @@ export const PLUGINS: NavGroup[] = [
 	}
 ];
 
-export const NAV: NavGroup[] = [...SECTIONS, ...PLUGINS];
+/*
+ * Plugins: find more, and the ones you have. Shown after the installed plugins,
+ * just before Settings (Darren, 3 October): the plugins you switched on, in the
+ * order you set on the Installed page, then this.
+ */
+export const PLUGIN_MANAGER: NavGroup = {
+		id: 'plugins',
+		label: 'Plugins',
+		icon: 'plus',
+		kind: 'plugin',
+		about: 'Find plugins, and see the ones you have',
+		links: [
+			{ href: '/marketplace', label: 'Marketplace', icon: 'search' },
+			{ href: '/plugins', label: 'Installed', icon: 'check' }
+		]
+	};
+
+export const NAV: NavGroup[] = [...SECTIONS, ...PLUGINS, PLUGIN_MANAGER];
 
 /** Whether `path` is this link's page, or a page under it. */
 export function isHere(href: string, path: string): boolean {
@@ -150,5 +156,5 @@ export function groupOf(path: string): NavGroup | undefined {
 	return NAV.find((g) => g.links.some((l) => isHereLink(l, path)));
 }
 
-/** Installed plugins: everything in the plugins area but the Plugins group itself. */
-export const INSTALLED = PLUGINS.filter((g) => g.id !== 'plugins');
+/** Installed plugins. Which show in the menu, and in what order, is yours (lib/plugins.svelte.ts). */
+export const INSTALLED = PLUGINS;

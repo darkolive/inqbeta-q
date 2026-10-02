@@ -12,7 +12,8 @@
 	 */
 	import { page } from '$app/state';
 	import { Icon } from '@inqbeta/q-ui';
-	import { NAV, groupOf, isHere, isHereLink, type NavGroup, type NavLink } from '$lib/nav';
+	import { SECTIONS, PLUGIN_MANAGER, groupOf, isHere, isHereLink, type NavGroup, type NavLink } from '$lib/nav';
+	import { plugins as mine, active } from '$lib/plugins.svelte';
 
 	let { folded = $bindable(false) }: { folded?: boolean } = $props();
 
@@ -51,8 +52,9 @@
 		}
 	}
 
-	const sections = NAV.filter((g) => g.kind === 'section');
-	const plugins = NAV.filter((g) => g.kind === 'plugin');
+	const sections = SECTIONS;
+	/* The plugins you switched on, in your order (the Installed page), then Plugins itself. */
+	const plugins = $derived(active(mine.prefs));
 
 	function outside(e: MouseEvent) {
 		if (flyout && !(e.target as HTMLElement).closest('[data-nav-group]')) flyout = null;
@@ -136,8 +138,8 @@
 	<div class="flex-1 space-y-1 p-2 {folded ? 'flex flex-col items-center' : 'w-full overflow-y-auto'}">
 		{#each sections as g (g.id)}{@render group(g)}{/each}
 		<div class="my-2 {folded ? 'w-8' : 'mx-3'} border-t border-surface-200-800"></div>
-		{#if !folded}<p class="px-3 pb-1 text-xs font-semibold uppercase tracking-widest opacity-50">Plugins</p>{/if}
 		{#each plugins as g (g.id)}{@render group(g)}{/each}
+		{@render group(PLUGIN_MANAGER)}
 	</div>
 
 	<div class="border-t border-surface-200-800 p-2 {folded ? '' : 'w-full'}">

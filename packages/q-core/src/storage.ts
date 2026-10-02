@@ -49,6 +49,7 @@ export const STORED_KEYS: StoredKey[] = [
 	{ key: 'q-vault-exported', where: 'local', kind: 'identity', holds: 'when the vault was last taken out of this browser' },
 	{ key: 'q.announcements.read', where: 'local', kind: 'identity', holds: 'which federation announcements the person has opened (their ids only)' },
 	{ key: 'q.notify', where: 'local', kind: 'identity', holds: 'the notifications card: what rings, what is quiet, what is off (ADR-Q-016 §6)' },
+	{ key: 'q.plugins', where: 'local', kind: 'identity', holds: 'which installed plugins show in the menu, and in what order — also kept in the vault' },
 	{ key: 'q.call.choice', where: 'local', kind: 'device', holds: 'which camera and microphone this browser uses for calls — a preference' },
 	{ key: 'q-nav-folded', where: 'local', kind: 'device', holds: 'whether the side menu is folded to icons — a preference' },
 	{ key: 'q-nav-open', where: 'local', kind: 'device', holds: 'which groups of the side menu are open — a preference' },

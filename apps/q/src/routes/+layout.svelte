@@ -48,6 +48,7 @@
 	import { keptFrom, knownKept, keepSoon } from '$lib/kept-settings';
 	import { startMessaging, watchArrivals, sendTo, type Signed } from '$lib/messages';
 	import { lengthOf } from '$lib/voicemail';
+	import { plugins, restorePlugins } from '$lib/plugins.svelte';
 	import { peopleFrom } from '$lib/people';
 	import type { Announcement } from '@inqbeta/q-core/announcements';
 	import { reachFor, watchReach, restoreReach, type Reach } from '$lib/notify';
@@ -480,15 +481,17 @@
 				restoreRead(k.read);
 				seen = readIds();
 				restoreReach(k.notify);
+				restorePlugins(k.plugins);
 			}
 			keptReady = true;
 		});
 	});
 	function keepSettings() {
-		if (identity && keptReady) keepSoon(identity, { read: [...readIds()], notify: reach }, folderReady);
+		if (identity && keptReady) keepSoon(identity, { read: [...readIds()], notify: reach, plugins: $state.snapshot(plugins.prefs) }, folderReady);
 	}
 	$effect(() => {
 		void reach;
+		void plugins.prefs;
 		keepSettings();
 	});
 

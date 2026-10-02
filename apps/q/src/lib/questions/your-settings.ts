@@ -28,6 +28,13 @@ export const YOUR_SETTINGS: QuestionSet = {
 			answer: 'longtext',
 			asks: { 'en-GB': 'What reaches you, and whether it rings' },
 			optional: true
+		},
+		{
+			/* Your plugins: which show in the menu, and their order (3 October 2026). */
+			id: 'q:settings/plugins',
+			answer: 'longtext',
+			asks: { 'en-GB': 'Which plugins show in your menu, and in what order' },
+			optional: true
 		}
 	]
 };

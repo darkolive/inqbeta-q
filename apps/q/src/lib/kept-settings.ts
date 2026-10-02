@@ -12,10 +12,12 @@ import type { Identity } from '@inqbeta/q-core/passkey';
 import { YOUR_SETTINGS } from '$lib/questions/your-settings';
 import { saveAnswers } from '$lib/answers';
 import type { Reach } from '$lib/notify';
+import type { PluginPrefs } from '$lib/plugins.svelte';
 
 export interface KeptSettings {
 	read: string[];
 	notify: Record<string, Reach>;
+	plugins?: PluginPrefs;
 }
 
 export function keptFrom(answers: AnswerSet[], did: string): KeptSettings | null {
@@ -28,11 +30,18 @@ export function keptFrom(answers: AnswerSet[], did: string): KeptSettings | null
 	} catch {
 		/* an unreadable card is an empty one */
 	}
-	return { read: Array.isArray(read) ? read : [], notify };
+	let plugins: PluginPrefs | undefined;
+	try {
+		const raw = set.answers['q:settings/plugins']?.value;
+		plugins = raw ? JSON.parse(String(raw)) : undefined;
+	} catch {
+		plugins = undefined;
+	}
+	return { read: Array.isArray(read) ? read : [], notify, plugins };
 }
 
 const same = (a: KeptSettings, b: KeptSettings) =>
-	JSON.stringify([[...a.read].sort(), Object.entries(a.notify).sort()]) === JSON.stringify([[...b.read].sort(), Object.entries(b.notify).sort()]);
+	JSON.stringify([[...a.read].sort(), Object.entries(a.notify).sort(), a.plugins ?? null]) === JSON.stringify([[...b.read].sort(), Object.entries(b.notify).sort(), b.plugins ?? null]);
 
 let last: KeptSettings | null = null;
 let timer: ReturnType<typeof setTimeout> | null = null;
@@ -54,6 +63,7 @@ export function keepSoon(identity: Identity, next: KeptSettings, canSave: boolea
 		const values: Record<string, unknown> = {};
 		if (next.read.length) values['q:settings/read'] = next.read;
 		if (Object.keys(next.notify).length) values['q:settings/notify'] = JSON.stringify(next.notify);
+		if (next.plugins && (next.plugins.order.length || next.plugins.off.length)) values['q:settings/plugins'] = JSON.stringify(next.plugins);
 		if (!Object.keys(values).length) return;
 		const out = await saveAnswers(identity, YOUR_SETTINGS, values).catch(() => null);
 		if (out?.ok) last = next;
