@@ -23,7 +23,7 @@ import { checkCallChain, isCallChain } from '@inqbeta/q-core/calls';
 import { checkReceipt } from '@inqbeta/q-core/seal';
 import { REVOKE_COMMAND, toDagJson, type KnownRevocation, type Token } from '@inqbeta/q-core/ucan/index';
 
-export type ReceiptGroup = 'courses' | 'links' | 'permissions' | 'other';
+export type ReceiptGroup = 'courses' | 'links' | 'permissions' | 'people' | 'other';
 export type Holds = 'yes' | 'no' | 'partly';
 
 export interface ReceiptEntry {
@@ -117,7 +117,7 @@ export async function receiptsInJson(json: unknown, item: FolderItem): Promise<R
 		const c = await checkReceipt(json);
 		out.push({
 			id: `json:${where}`,
-			group: 'other',
+			group: 'people',
 			what: 'Linked up',
 			title: `${linked.card?.details?.['q:person/called'] ?? 'Someone'} — ${linked.card?.name ?? 'card'}`,
 			description: 'You linked up with them from their card.',
@@ -138,7 +138,7 @@ export async function receiptsInJson(json: unknown, item: FolderItem): Promise<R
 		const c = await checkReceipt(json);
 		out.push({
 			id: `json:${where}`,
-			group: 'other',
+			group: 'people',
 			what: msg.kind === 'linked-back' ? 'Linked up' : 'Message',
 			title: msg.kind === 'linked-back' ? 'They linked up with your card' : (msg.text ?? '').slice(0, 80) || 'A message',
 			description: 'Signed by whoever wrote it.',
@@ -159,7 +159,7 @@ export async function receiptsInJson(json: unknown, item: FolderItem): Promise<R
 		const c = await checkReceipt(json);
 		out.push({
 			id: `json:${where}`,
-			group: 'other',
+			group: 'people',
 			what: 'Message received',
 			title: `${got.from ?? 'Someone'} — ${got.title ?? 'a message'}`,
 			description: `Collected by the bell · fingerprint ${(got.hash ?? '').slice(0, 12)}…`,
@@ -218,7 +218,7 @@ export async function receiptsInJson(json: unknown, item: FolderItem): Promise<R
 		const sum = c.ok ? c.summary : undefined;
 		out.push({
 			id: `json:${where}`,
-			group: 'other',
+			group: 'people',
 			what: 'Call',
 			title: sum?.media.includes('video') ? 'Video call' : 'Call',
 			description: `${json.steps.length} receipt${json.steps.length === 1 ? '' : 's'} in the chain${sum?.route ? ` · ${sum.route}` : ''}`,
@@ -344,4 +344,29 @@ export function receiptFromToken(t: Token, revocations: KnownRevocation[], now =
 	if (p.cmd === COMMANDS.approve)
 		return { ...base, ...ok, group: 'permissions', what: 'Second signature', title: `Agreed to remove ${p.args.thing}`, description: `By ${p.iss}`, at };
 	return { ...base, ...ok, group: 'permissions', what: 'Use of a power', title: `${VERB[p.cmd] ?? p.cmd}${p.args.thing ? ` on ${p.args.thing}` : ''}`, description: `By ${p.iss}`, at };
+}
+
+/**
+ * One row per call (2 October 2026). A call's record is rewritten as it grows
+ * — placed, answered, ended — and each version is its own locked file, and the
+ * other side's copy arrives too. Every version stays on disk as evidence; the
+ * list shows only the fullest one, so a call is never told four ways.
+ */
+export function oneRowPerCall(list: ReceiptEntry[]): ReceiptEntry[] {
+	const best = new Map<string, ReceiptEntry>();
+	const score = (r: ReceiptEntry) => {
+		const steps = isCallChain(r.json) ? r.json.steps.length : 0;
+		return steps * 10 + (r.holds === 'yes' ? 2 : r.holds === 'partly' ? 1 : 0);
+	};
+	const out: ReceiptEntry[] = [];
+	for (const r of list) {
+		const id = isCallChain(r.json) ? r.json.steps[0]?.content?.call : undefined;
+		if (!id) {
+			out.push(r);
+			continue;
+		}
+		const had = best.get(id);
+		if (!had || score(r) > score(had)) best.set(id, r);
+	}
+	return [...out, ...best.values()];
 }

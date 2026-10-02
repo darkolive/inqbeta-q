@@ -4,12 +4,19 @@
 	// Import specific icons we need to keep bundle small
 	import { faTerminal } from '@fortawesome/free-solid-svg-icons';
 	/* GitHub's own mark, from Font Awesome's brand set — not redrawn. */
-	import { faGithub } from '@fortawesome/free-brands-svg-icons';
+	import { faGithub, faInstagram, faFacebook, faLinkedin, faXTwitter, faTiktok, faWhatsapp } from '@fortawesome/free-brands-svg-icons';
 
 	// Map of available animated icons
 	const animatedIcons: Record<string, IconDefinition> = {
 		terminal: faTerminal,
-		github: faGithub
+		github: faGithub,
+		/* The platforms' own marks, for the social links on a card. */
+		instagram: faInstagram,
+		facebook: faFacebook,
+		linkedin: faLinkedin,
+		x: faXTwitter,
+		tiktok: faTiktok,
+		whatsapp: faWhatsapp
 	};
 
 	let { 

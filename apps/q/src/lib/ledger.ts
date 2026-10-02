@@ -20,7 +20,7 @@ import { checkReceipt, whose } from '@inqbeta/q-core/seal';
 import { folderStore, gather, type Delegation, type KnownRevocation, type Token } from '@inqbeta/q-core/ucan/index';
 import type { ReceiptState } from '@inqbeta/q-core/offline-queue';
 import { FEATURES, type Found } from './features/registry';
-import { receiptFromToken, receiptsInJson, type ReceiptEntry } from './receipts';
+import { oneRowPerCall, receiptFromToken, receiptsInJson, type ReceiptEntry } from './receipts';
 
 /** Download state for a receipt */
 export interface ReceiptDownloadState {
@@ -196,6 +196,7 @@ async function pass(): Promise<void> {
 	const linkCids = new Set(linkList.map((l) => l.approval.cid.toString()));
 	const grants = delegations.filter((d) => !linkCids.has(d.cid.toString()));
 	for (const t of tokens) receipts.push(receiptFromToken(t, revocations));
+	receipts.splice(0, receipts.length, ...oneRowPerCall(receipts));
 	receipts.sort((a, b) => b.at.localeCompare(a.at));
 	const receiptPaths = new Set(receipts.filter((r) => r.item).map((r) => r.item!.diskPath));
 	if (mine === run)

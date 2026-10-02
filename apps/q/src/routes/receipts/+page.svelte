@@ -91,6 +91,7 @@
 		{ id: 'courses', title: 'Course records', description: 'Receipts and chains from DoStudy — named, revised, reviewed, read.', empty: 'Receipts you save from DoStudy appear here.' },
 		{ id: 'links', title: 'Links', description: 'Which keys speak for which identity — requests, links and unlinks.', empty: 'Links you approve on the Keys page appear here.' },
 		{ id: 'permissions', title: 'Permissions', description: 'Powers given, used, asked for and taken back — as UCAN.', empty: 'Permissions you give or are given appear here.' },
+		{ id: 'people', title: 'Calls and messages', description: 'Calls, messages and link-ups with the people in your contacts.', empty: 'Calls and messages appear here.' },
 		{ id: 'other', title: 'Founding and membership', description: 'Federation founding records and membership credentials.', empty: 'Founding records and credentials appear here.' }
 	];
 
