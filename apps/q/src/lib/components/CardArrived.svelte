@@ -6,7 +6,7 @@
 	 *
 	 * Where the card came from is the caller's business (`open`): the old
 	 * links carry it in the #fragment; links from 2 October 2026 fetch it,
-	 * locked, from the storage unit (q-core/drop.ts).
+	 * locked, from the storage (q-core/drop.ts).
 	 */
 	import { Section, Status, Empty } from '@inqbeta/q-ui';
 	import SignIn from '$lib/components/SignIn.svelte';

@@ -2,9 +2,9 @@
  * Messages (2 October 2026): writing to the people you're linked with.
  *
  * A message is a receipt you sign, sealed so only they can open it, left in
- * their inbox at the storage unit (q-core/inbox.ts). The bellboy pings their
+ * their inbox at the storage (q-core/inbox.ts). The bellboy pings their
  * inbox; their Q collects it, checks your signature, keeps it in their vault,
- * and lets the storage unit's copy go. You keep your own signed copy, so the
+ * and lets the storage's copy go. You keep your own signed copy, so the
  * conversation is the two vaults' receipts read side by side.
  *
  * It needs no account and no bellboy sign-in: the inbox id comes from your
@@ -46,7 +46,7 @@ export async function sendTo(
 	if (!me) return { ok: false, says: 'Sign in first.' };
 	if (!to.inbox) return { ok: false, says: 'Q doesn’t know where to write to them yet. Their card needs to come from a newer Q.' };
 	const { storage } = await services();
-	if (!storage) return { ok: false, says: 'Q can’t find the storage unit just now.' };
+	if (!storage) return { ok: false, says: 'Q can’t find the storage just now.' };
 	const mine = await myInbox(me);
 	const content: Message = { schema: MESSAGE_SCHEMA, source: 'inqbeta:q/message', to: to.did, replyTo: mine?.id, at: new Date().toISOString(), ...what };
 	const signed = (await sealWith(me, content)) as Signed;
@@ -55,9 +55,9 @@ export async function sendTo(
 	try {
 		const res = await fetch(`${storage}/inbox/${to.inbox}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(post), signal: AbortSignal.timeout(15_000) });
 		const out = (await res.json().catch(() => ({}))) as { ok?: boolean; says?: string };
-		if (!res.ok || !out.ok) return { ok: false, says: out.says ?? `The storage unit said ${res.status}.` };
+		if (!res.ok || !out.ok) return { ok: false, says: out.says ?? `The storage said ${res.status}.` };
 	} catch {
-		return { ok: false, says: 'The storage unit didn’t answer. Try again in a moment.' };
+		return { ok: false, says: 'The storage didn’t answer. Try again in a moment.' };
 	}
 	/* Calls' handshakes aren't conversation: only real words are kept as yours. */
 	if (what.kind === 'message' || what.kind === 'linked-back') await keep(signed).catch(() => {});
@@ -96,7 +96,7 @@ export function collectInbox(): Promise<number> {
 				const check = await checkReceipt(signed);
 				if (!check.ok || signed.content?.schema !== MESSAGE_SCHEMA || signed.content.to !== me.did) continue;
 				if (signed.content.kind === 'message' || signed.content.kind === 'linked-back') await keep(signed);
-				/* Custody passes: it's in your vault now, so the storage unit can let its copy go. */
+				/* Custody passes: it's in your vault now, so the storage can let its copy go. */
 				await fetch(`${storage}/inbox/${mine.id}/${pid}`, { method: 'DELETE', headers: head }).catch(() => {});
 				for (const fn of listeners) fn(signed);
 				n++;

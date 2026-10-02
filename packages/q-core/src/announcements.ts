@@ -78,7 +78,7 @@ export async function checkAnnouncement(a: unknown, federationDid: string, now =
 
 /*
  * A publication: the federation saying "these are my announcements now",
- * signed and timed, so a storage unit can refuse an older list (no rolling
+ * signed and timed, so a storage can refuse an older list (no rolling
  * back) or an old one sent again (no replay). node/gate checks it.
  */
 export const PUBLICATION_SCHEMA = 'inqbeta.announcements-publication/1';

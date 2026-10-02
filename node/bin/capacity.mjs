@@ -14,7 +14,7 @@
 const ASSUMPTIONS = {
 	onlineShare: 0.1, //            members with Q open at once (holding a bellboy connection)
 	connectionKB: 64, //            memory per open connection: Mosquitto + Caddy (WebSocket over TLS)
-	transitMBPerMember: 1, //       held in the storage unit at once, on average: messages, cards, receipts waiting
+	transitMBPerMember: 1, //       held in the storage at once, on average: messages, cards, receipts waiting
 	directoryKBPerMember: 30, //    the directory's share per member on disk: published facts, offers, memberships, indexes
 	directoryCacheKBPerMember: 25, // and in memory, to stay quick
 	inCallShare: 0.01, //           members on a video call at once
@@ -68,14 +68,14 @@ export function capacity(d) {
 	return { ...d, perJob: out, members, limit };
 }
 
-const NAMES = { bellboy: 'bellboy', storage: 'storage unit', directory: 'directory', relay: 'switchboard' };
+const NAMES = { bellboy: 'bellboy', storage: 'storage', directory: 'directory', relay: 'switchboard' };
 const round = (n) => (n === Infinity ? '—' : n >= 10000 ? `${Math.round(n / 1000)}k` : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n));
 const rows = DEVICES.map(capacity);
 
 if (process.argv.includes('--json')) {
 	console.log(JSON.stringify({ assumptions: A, rows }, null, 2));
 } else {
-	console.log('| Device | Bellboy | Storage unit | Directory | Switchboard | Members | Limited by |');
+	console.log('| Device | Bellboy | Storage | Directory | Switchboard | Members | Limited by |');
 	console.log('|---|---|---|---|---|---|---|');
 	for (const r of rows) {
 		const j = r.perJob;

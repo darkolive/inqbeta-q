@@ -1,7 +1,7 @@
 /*
  * The bell (ADR-Q-014 §4). Q listens to your inbox on the bellboy; a notice
  * says who something is from, its title, and where to collect it. Clicking it
- * collects the sealed receipt from the storage unit, checks its hash, opens
+ * collects the sealed receipt from the storage, checks its hash, opens
  * it, keeps it in your vault — Captured — and releases custody.
  *
  * DEV STAND-INS, to be replaced (ADR-Q-014 build order):
@@ -25,7 +25,7 @@ export interface Notice {
 	from: string;
 	title: string;
 	kind: 'message' | 'invitation' | 'call' | 'decision';
-	/** Where the sealed receipt waits: storage unit URLs. */
+	/** Where the sealed receipt waits: storage URLs. */
 	collect: string[];
 }
 function isNotice(x: unknown): x is Notice {
@@ -136,7 +136,7 @@ export async function listen(c: BellConfig, onNotice: (n: Notice) => void, onTro
 
 /* ---- Collecting ---- */
 
-/** Reach the storage unit; in development, through Q's own server if the browser is refused (CORS). */
+/** Reach the storage; in development, through Q's own server if the browser is refused (CORS). */
 async function storage(url: string, method: 'GET' | 'DELETE' | 'PUT', bytes?: Uint8Array<ArrayBuffer>): Promise<Response> {
 	try {
 		if (method === 'PUT') {
@@ -157,14 +157,14 @@ async function storage(url: string, method: 'GET' | 'DELETE' | 'PUT', bytes?: Ui
 
 /* ---- Ringing someone else's bell (linking up, ADR-Q-015) ---- */
 
-/** Where this node's storage unit is: the same host as the bellboy, port 8888. */
+/** Where this node's storage is: the same host as the bellboy, port 8888. */
 function storageBase(c: BellConfig): string {
 	return `http://${new URL(c.url).hostname}:8888`;
 }
 
 /**
  * Send something to another inbox the ADR-Q-014 way: the sealed receipt into
- * the storage unit, then a sealed notice to their bellboy saying who and what.
+ * the storage, then a sealed notice to their bellboy saying who and what.
  */
 export async function ring(c: BellConfig, to: string, n: { from: string; title: string; kind: Notice['kind'] }, receipt: unknown): Promise<{ ok: true } | { ok: false; says: string }> {
 	try {
@@ -172,7 +172,7 @@ export async function ring(c: BellConfig, to: string, n: { from: string; title: 
 		const hash = await sha256(sealed);
 		const url = `${storageBase(c)}/holding/${hash}`;
 		const put = await storage(url, 'PUT', sealed);
-		if (!put.ok) return { ok: false, says: `The storage unit didn’t take it (${put.status}).` };
+		if (!put.ok) return { ok: false, says: `The storage didn’t take it (${put.status}).` };
 		const notice: Notice = { schema: NOTICE_SCHEMA, receipt: hash, from: n.from, title: n.title, kind: n.kind, collect: [url] };
 		const payload = toBase64(await close(c.key, new TextEncoder().encode(JSON.stringify(notice))));
 		const line = await connectMqtt({ url: c.url, clientId: `q-ring-${crypto.randomUUID().slice(0, 8)}`, username: c.inbox, password: c.password, onMessage: () => {} }, []);
@@ -194,7 +194,7 @@ export async function collect(c: BellConfig, n: Notice): Promise<Collected> {
 			if (r.status === 404) continue;
 			if (!r.ok) continue;
 			const sealed = new Uint8Array(await r.arrayBuffer());
-			if ((await sha256(sealed)) !== n.receipt) return { ok: false, says: 'What the storage unit gave back doesn’t match the notice. It wasn’t kept.' };
+			if ((await sha256(sealed)) !== n.receipt) return { ok: false, says: 'What the storage gave back doesn’t match the notice. It wasn’t kept.' };
 			const receipt = JSON.parse(new TextDecoder().decode(await open(c.key, sealed)));
 			const kept = {
 				schema: 'inqbeta.received/1',

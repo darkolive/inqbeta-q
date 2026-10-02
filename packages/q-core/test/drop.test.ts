@@ -1,4 +1,4 @@
-/* Drops: a card shared by a short link, locked in the storage unit. */
+/* Drops: a card shared by a short link, locked in the storage. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { identityFromSeed } from '../src/passkey';
@@ -13,7 +13,7 @@ test('a card is locked, dropped, checked by the gate, and opened only with the k
 	const me = await identityFromSeed(seed(3));
 	const card = await sealWith(me, { schema: 'inqbeta.card-link/1', name: 'Personal', details: { 'q:person/called': 'Darren', 'q:person/cover': 'data:image/jpeg;base64,' + 'A'.repeat(200_000) }, at: new Date().toISOString() });
 	const { box, key } = await lockForLink(card);
-	assert.ok(!box.ct.includes('Darren'), 'the storage unit sees no name');
+	assert.ok(!box.ct.includes('Darren'), 'the storage sees no name');
 	const drop = await makeDrop(me, box);
 	assert.equal(await checkDrop(drop), null);
 

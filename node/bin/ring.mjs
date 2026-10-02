@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /*
  * Ring darren's bell, as friend (ADR-Q-014): seal a receipt, put it in the
- * storage unit, then send the bellboy a sealed notice saying who and what.
+ * storage, then send the bellboy a sealed notice saying who and what.
  *
  *   node node/bin/ring.mjs <friend password> ["Title"] ["What it says"]
  *
@@ -41,7 +41,7 @@ async function seal(bytes) {
 }
 const sha256 = async (b) => Buffer.from(await crypto.subtle.digest('SHA-256', b)).toString('hex');
 
-// 1. The receipt, sealed, into the storage unit.
+// 1. The receipt, sealed, into the storage.
 const receipt = { schema: 'inqbeta.receipt/test', says, from: 'friend', at: new Date().toISOString(), nonce: crypto.randomUUID() };
 const sealed = await seal(Buffer.from(JSON.stringify(receipt)));
 const hash = await sha256(sealed);
@@ -50,10 +50,10 @@ const form = new FormData();
 form.append('file', new Blob([sealed]), hash);
 const put = await fetch(url, { method: 'POST', body: form }).catch((e) => ({ ok: false, status: e.message }));
 if (!put.ok) {
-	console.error(`Couldn't put it in the storage unit (${put.status}). Is Nebula running?`);
+	console.error(`Couldn't put it in the storage (${put.status}). Is Nebula running?`);
 	process.exit(1);
 }
-console.log(`1. Sealed receipt in the storage unit: holding/${hash.slice(0, 12)}…`);
+console.log(`1. Sealed receipt in the storage: holding/${hash.slice(0, 12)}…`);
 
 // 2. The notice, sealed, to the bellboy.
 const notice = { schema: 'inqbeta.notice/1', receipt: hash, from: 'friend', title, kind: 'message', collect: [url] };

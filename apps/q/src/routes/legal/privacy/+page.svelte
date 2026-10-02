@@ -49,7 +49,7 @@
 		find a direct route (STUN). Calls that cannot connect directly go through our own switchboard, or
 		Cloudflare's.</li>
 	<li><a href="https://www.hetzner.com">Hetzner</a>, in Finland, runs our node: the bellboy that tells your Q
-		something is waiting, the storage unit that holds sealed things until you collect them, the directory, and
+		something is waiting, the storage that holds sealed things until you collect them, the directory, and
 		the switchboard. What it holds for you is sealed so it can't read it; the directory holds only what is
 		published on purpose.</li>
 	<li>Google again, for your Drive, only if you connect it yourself.</li>

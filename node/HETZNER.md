@@ -204,7 +204,7 @@ First run of the post office anywhere, and of Nebula and Dgraph together.
 
 ## The full cycle — 1 October 2026, later
 
-The storage unit added (ADR-Q-014): SeaweedFS, 1 GB (8 × 128 MB volumes),
+The storage added (ADR-Q-014): SeaweedFS, 1 GB (8 × 128 MB volumes),
 filer on the mesh only (`10.42.0.1:8888`).
 
 - **`bin/check-cycle.sh`** from the Mac: **14 passed, 0 failed**
@@ -247,7 +247,7 @@ docker compose up -d && docker compose restart mosquitto
 
 From the repo on the Mac. This copies the node's files and **never** its
 secrets or what it holds: not `.env`, the keys, the bellboy's held messages,
-the directory or the storage unit.
+the directory or the storage.
 
 ```sh
 rsync -av \
@@ -257,7 +257,7 @@ rsync -av \
   node/ root@135.181.156.21:/srv/node/
 ```
 
-## Step 5a — give the storage unit the disk, 2 October 2026
+## Step 5a — give the storage the disk, 2 October 2026
 
 It started at 1 GB (8 × 128 MB), about 1,000 members. Now 16 × 1 GB by default
 (`STORAGE_VOLUMES`, `STORAGE_VOLUME_MB` in `.env`), about 13,000 members
@@ -298,6 +298,6 @@ Then **Send to live site** for both.
 **Run, 2 October 2026:** `bin/check-relay.sh` 5/5. From the Mac, behind the BT
 router, WebRTC's Trickle ICE page gathered a **relay** candidate at
 135.181.156.21:49749 (UDP): the firewall is open and the switchboard hands out
-public addresses. The storage unit is now 16 volumes (Max 16, 7 in use). Q offers the node's relay first and
+public addresses. The storage is now 16 volumes (Max 16, 7 in use). Q offers the node's relay first and
 Cloudflare's after it, if that's set too. Not yet: `turns:` on 443 (TLS), for
 networks that only allow web traffic.

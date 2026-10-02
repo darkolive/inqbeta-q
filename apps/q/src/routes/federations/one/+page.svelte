@@ -305,7 +305,7 @@
 
 	/* ---- Communication (ADR-Q-016 §6): announcements to members ---- */
 	let announcements = $state<Announcement[]>([]);
-	/* This federation's storage unit, when it is Q's home and has one (ADR-Q-016 step 5). */
+	/* This federation's storage, when it is Q's home and has one (ADR-Q-016 step 5). */
 	const storage = $derived(home?.ok && home.federation === id ? home.services.storage : undefined);
 	$effect(() => {
 		if (id) void readAnnouncements(id, storage).then((l) => (announcements = l));
@@ -322,13 +322,13 @@
 		annFile = { url: URL.createObjectURL(new Blob([announcementsFile(id, list)], { type: 'application/json' })), note };
 	}
 	/*
-	 * Publish the list: to the federation's storage unit when it has one — the
+	 * Publish the list: to the federation's storage when it has one — the
 	 * gate checks the signatures and rings members — else as a file to push.
 	 */
 	async function publish(list: Announcement[], key: Awaited<ReturnType<typeof openFederationKey>>, sent: string, filed: string) {
 		const live = list.filter((a) => Date.parse(a.until) > Date.now());
 		if (storage && own) {
-			annStage = `Sending to ${own.founding.name}’s storage unit…`;
+			annStage = `Sending to ${own.founding.name}’s storage…`;
 			const publication = await makePublication(signerFor(key), own.founding.federation, live);
 			const out = await publishAnnouncements(storage, own.founding.federation, live, publication);
 			annStage = '';
@@ -927,7 +927,7 @@
 						</div>
 					{:else}
 						<div class="grid gap-3 sm:grid-cols-2 mb-4 max-w-3xl">
-							<label class="label"><span class="label-text">Its storage unit (https)</span><input class="input role-token text-xs" bind:value={svcStorage} /></label>
+							<label class="label"><span class="label-text">Its storage (https)</span><input class="input role-token text-xs" bind:value={svcStorage} /></label>
 							<label class="label"><span class="label-text">Its bellboy (wss)</span><input class="input role-token text-xs" bind:value={svcBellboy} /></label>
 						</div>
 						<button type="button" class="btn preset-filled-primary-500 min-h-11" disabled={busy !== null} onclick={() => void publishHome()}>
@@ -938,7 +938,7 @@
 
 				<Section title="Nodes" description="The machines this federation runs, on its own private mesh. Whether each service answers is checked from this device, now — never stored.">
 					{#if nodes.length === 0 && !adding}
-						<Empty icon="federations" title="No nodes yet" description="A node holds the federation’s bellboy, directory and storage unit — any or all of them. List one when it’s on the mesh." />
+						<Empty icon="federations" title="No nodes yet" description="A node holds the federation’s bellboy, directory and storage — any or all of them. List one when it’s on the mesh." />
 					{/if}
 					<ul class="flex flex-col gap-3">
 						{#each nodes as n (n.mesh)}
@@ -952,9 +952,6 @@
 										<button type="button" class="btn btn-sm preset-tonal min-h-11" disabled={r?.asking} onclick={() => ask(n)}>
 											{r?.asking ? 'Checking…' : 'Check again'}
 										</button>
-										{#if !n.services.relay}
-											<button type="button" class="btn btn-sm preset-tonal min-h-11" disabled={busy !== null} onclick={() => ((addingRelayTo = n.mesh), (relayHost = hostOf(n.lighthouse)))}>Add its switchboard…</button>
-										{/if}
 										<button type="button" class="btn btn-sm preset-tonal min-h-11" disabled={busy !== null} onclick={() => withdraw(n)}>Withdraw</button>
 									</span>
 								</div>
@@ -970,7 +967,7 @@
 										<dd class="text-sm">{r?.index?.is === 'cannot-ask' ? '' : (r?.index?.says ?? '')} <span class="role-token text-xs opacity-60">http :{n.services.index.port}</span></dd>
 									{/if}
 								{#if n.services.storage}
-									<dt class="flex items-center gap-2"><Icon name="storage-unit" />Storage unit</dt>
+									<dt class="flex items-center gap-2"><Icon name="storage-unit" />Storage</dt>
 									<dd><Status tone={toneOf(r?.storage)}>{r?.asking ? 'Checking' : wordOf(r?.storage)}</Status></dd>
 									<dd class="text-sm">{r?.storage?.is === 'cannot-ask' ? '' : (r?.storage?.says ?? '')} <span class="role-token text-xs opacity-60">http :{n.services.storage.port}</span></dd>
 								{/if}
@@ -978,6 +975,15 @@
 									<dt class="flex items-center gap-2"><Icon name="switchboard" />Switchboard</dt>
 									<dd><Status tone={toneOf(r?.relay)}>{r?.asking ? 'Checking' : wordOf(r?.relay)}</Status></dd>
 									<dd class="text-sm">{r?.relay?.says ?? ''} <span class="role-token text-xs opacity-60">turn {n.services.relay.host}:{n.services.relay.port} · public</span></dd>
+								{:else}
+									<!-- Listed before the switchboard existed: always shown, so it's never hidden. -->
+									<dt class="flex items-center gap-2"><Icon name="switchboard" />Switchboard</dt>
+									<dd><Status tone="plain">Not listed</Status></dd>
+									<dd class="text-sm">
+										{#if addingRelayTo !== n.mesh}
+											<button type="button" class="btn btn-sm preset-filled-primary-500 min-h-11" disabled={busy !== null || !own} onclick={() => ((addingRelayTo = n.mesh), (relayHost = hostOf(n.lighthouse)))}>Add it</button>
+										{/if}
+									</dd>
 								{/if}
 								</dl>
 								{#if addingRelayTo === n.mesh}
@@ -1016,7 +1022,7 @@
 								<legend class="label-text mb-1">What it runs</legend>
 								<label class="flex items-center gap-2"><input class="checkbox" type="checkbox" bind:checked={nodeHasPostOffice} /><Icon name="bellboy" /> Bellboy (port 9001)</label>
 								<label class="flex items-center gap-2"><input class="checkbox" type="checkbox" bind:checked={nodeHasIndex} /><Icon name="directory" /> Directory (port 8080)</label>
-							<label class="flex items-center gap-2"><input class="checkbox" type="checkbox" bind:checked={nodeHasStorage} /><Icon name="storage-unit" /> Storage unit (port 8888)</label>
+							<label class="flex items-center gap-2"><input class="checkbox" type="checkbox" bind:checked={nodeHasStorage} /><Icon name="storage-unit" /> Storage (port 8888)</label>
 							<label class="flex items-center gap-2"><input class="checkbox" type="checkbox" bind:checked={nodeHasRelay} /><Icon name="switchboard" /> Switchboard (public, port 3478)</label>
 							</fieldset>
 							{#if nodeHasRelay}

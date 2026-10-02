@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # The full cycle (ADR-Q-014), run on the Mac with Nebula up:
 #
-#   friend puts a sealed receipt in the STORAGE UNIT, then rings the BELLBOY;
+#   friend puts a sealed receipt in the STORAGE, then rings the BELLBOY;
 #   darren is away; he comes back, the bellboy tells him who and what, he
 #   collects it from storage, checks it, opens it — Captured — and custody
-#   passes, so the storage unit lets its copy go.
+#   passes, so the storage lets its copy go.
 #
 #   bin/check-cycle.sh <darren password> <friend password>
 #
@@ -34,25 +34,25 @@ hash()   { shasum -a 256 "$1" | cut -c1-64; }
 SESSION="darren-mac-cycle"
 
 echo "inQbeta node — the full cycle, $stamp"
-echo "bellboy: $MESH:1883   storage unit: $STORE   from: friend   to: darren"
+echo "bellboy: $MESH:1883   storage: $STORE   from: friend   to: darren"
 echo
 
-echo "Storage unit"
+echo "Storage"
 st=$(curl -s --max-time 5 "http://$MESH:8888/" -o /dev/null -w '%{http_code}')
-[[ $st == 200 || $st == 404 ]] && ok "the storage unit answers on the mesh" || bad "the storage unit answers on the mesh (HTTP $st)"
+[[ $st == 200 || $st == 404 ]] && ok "the storage answers on the mesh" || bad "the storage answers on the mesh (HTTP $st)"
 
 echo "0. Darren has been here before, and is now away"
 mosquitto_sub -h $MESH -u darren -P "$PD" -i $SESSION -c -q 1 -t q/in/darren -W 2 >/dev/null 2>&1
 ok "darren's bellboy session is registered; darren goes offline"
 
-echo "1. Friend seals a receipt and puts it in the storage unit"
+echo "1. Friend seals a receipt and puts it in the storage"
 printf '{"schema":"inqbeta.receipt/test","says":"Meet at the green at six","at":"%s","nonce":"%s"}' \
   "$(date -u +%FT%TZ)" "$(openssl rand -hex 8)" > "$W/receipt.json"
 seal "$W/receipt.json" "$W/receipt.sealed"
 H=$(hash "$W/receipt.sealed")
 put=$(curl -s --max-time 10 -o /dev/null -w '%{http_code}' -F "file=@$W/receipt.sealed" "$STORE/holding/$H")
 [[ $put == 201 || $put == 200 ]] && ok "sealed receipt stored at holding/${H:0:12}… (HTTP $put)" || bad "sealed receipt stored (HTTP $put)"
-grep -q "Meet at the green" "$W/receipt.sealed" && bad "the stored copy is sealed" || ok "the stored copy is sealed — the storage unit can't read it"
+grep -q "Meet at the green" "$W/receipt.sealed" && bad "the stored copy is sealed" || ok "the stored copy is sealed — the storage can't read it"
 
 echo "2. Friend rings the bellboy: a notice, sealed, never the receipt"
 printf '{"schema":"inqbeta.notice/1","receipt":"%s","from":"friend","title":"Meet at the green","kind":"message","collect":["%s/holding/%s"]}' \
@@ -76,7 +76,7 @@ else
   bad "darren opens the notice on his device"
 fi
 
-echo "4. Darren collects the receipt from the storage unit"
+echo "4. Darren collects the receipt from the storage"
 URL=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["collect"][0])' "$W/got.json" 2>/dev/null)
 curl -s --max-time 10 -o "$W/collected.sealed" "$URL"
 [[ $(hash "$W/collected.sealed") == "$H" ]] && ok "what he collected is exactly what was sent (hash matches)" || bad "the collected copy matches the hash in the notice"
@@ -86,7 +86,7 @@ else
   bad "Captured: the receipt opens on darren's device"
 fi
 
-echo "5. Custody passes; the storage unit lets its copy go"
+echo "5. Custody passes; the storage lets its copy go"
 del=$(curl -s --max-time 10 -o /dev/null -w '%{http_code}' -X DELETE "$URL")
 [[ $del == 204 || $del == 202 || $del == 200 ]] && ok "custody released (HTTP $del)" || bad "custody released (HTTP $del)"
 gone=$(curl -s --max-time 10 -o /dev/null -w '%{http_code}' "$URL")

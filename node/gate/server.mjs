@@ -1,5 +1,5 @@
 /*
- * The gate in front of the storage unit (ADR-Q-016 §6, step 5).
+ * The gate in front of the storage (ADR-Q-016 §6, step 5).
  *
  * A federation's announcements are written here by its caretaker's Q and
  * read by its members' Q. The gate stores NOTHING it hasn't checked:

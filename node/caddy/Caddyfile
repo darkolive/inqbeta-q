@@ -11,6 +11,6 @@ bellboy.135-181-156-21.sslip.io {
 }
 
 storage.135-181-156-21.sslip.io {
-	# The gate in front of the storage unit: it checks signatures before storing.
+	# The gate in front of the storage: it checks signatures before storing.
 	reverse_proxy gate:8090
 }

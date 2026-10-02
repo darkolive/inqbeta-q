@@ -22,6 +22,9 @@ small a machine can do each one.
   telephone directory that used to sit in the phone box.
 - **Lighthouse**: Nebula's meeting point for a federation's mesh. A third,
   very small job, listed here for completeness.
+- **Storage** (2 October, was "storage unit"): SeaweedFS and the gate, the
+  holding bay where sealed things wait until they're collected. Darren: "just
+  call it storage." The icon and record keep `storage-unit` / `storage`.
 - **Switchboard** (2 October, was "relay"): coturn, a TURN relay. Darren:
   "that's how you used to make calls, through the switchboard." It connects a
   call when two devices can't reach each other, and unlike the old operators it

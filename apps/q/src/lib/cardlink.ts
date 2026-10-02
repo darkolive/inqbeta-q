@@ -21,10 +21,10 @@ import { readHome } from '$lib/home';
 /*
  * 2 October 2026: the card no longer travels IN the link (Darren: "why does
  * that need to be in the link?"). It waits, locked, in the home federation's
- * storage unit; the link is short — inqbeta.com/card/<id>#<key> — so it fits
+ * storage; the link is short — inqbeta.com/card/<id>#<key> — so it fits
  * any message or code, and the card keeps its full pictures, cover too. The
- * key is in the #fragment, which no server ever sees, so the storage unit
- * holds a box it can't open. If the storage unit can't be reached, the link
+ * key is in the #fragment, which no server ever sees, so the storage
+ * holds a box it can't open. If the storage can't be reached, the link
  * falls back to carrying the card itself, as before.
  */
 async function storageUnit(): Promise<string | null> {
@@ -96,7 +96,7 @@ async function inflate(bytes: Uint8Array): Promise<string> {
 	return new Response(stream).text();
 }
 
-/** Make the link. Signed with the passkey held in this tab. Short when the storage unit can keep it. */
+/** Make the link. Signed with the passkey held in this tab. Short when the storage can keep it. */
 export async function makeCardLink(name: string, details: Record<string, string>, inbox?: string): Promise<string> {
 	const whole: CardLink = { schema: CARD_LINK_SCHEMA, name, details, ...(inbox ? { inbox } : {}), at: new Date().toISOString() };
 	const short = await dropLink(whole);

@@ -13,7 +13,7 @@ export interface Person {
 	details: Record<string, string>;
 	/** The card's badge: Personal, a business name. */
 	cardName: string;
-	/** Their inbox at the storage unit, so you can write to them. */
+	/** Their inbox at the storage, so you can write to them. */
 	inbox?: string;
 	at: string;
 	how: string;

@@ -1,13 +1,13 @@
 /*
- * Drops: something shared by link, kept for a while in a storage unit
+ * Drops: something shared by link, kept for a while in a storage
  * (2 October 2026). Darren: why does the card need to be IN the link? It
- * doesn't. The card waits, locked, in the storage unit; the link is short —
+ * doesn't. The card waits, locked, in the storage; the link is short —
  * an address and a key — so it fits any message or code, and the card keeps
  * its full pictures.
  *
  *   the card      sealed by you (signed), then locked with a fresh random key
  *   the key       lives only in the link's #fragment, which browsers never
- *                 send to any server — so the storage unit holds ciphertext
+ *                 send to any server — so the storage holds ciphertext
  *                 it can't open
  *   the drop      the locked box, signed by you, saying when it may go
  *                 (at most 30 days): the gate checks that and nothing else
@@ -42,7 +42,7 @@ export async function unlockFromLink(box: Box, keyText: string): Promise<unknown
 	return JSON.parse(new TextDecoder().decode(plain));
 }
 
-/** The drop the storage unit keeps: the box, signed by you, with when it may go. */
+/** The drop the storage keeps: the box, signed by you, with when it may go. */
 export function makeDrop(identity: Pick<Identity, 'did' | 'publicKey' | 'signing'>, box: Box, days = DROP_DAYS, now = new Date()): Promise<SealedReceipt> {
 	const until = new Date(now.getTime() + Math.min(days, DROP_DAYS) * 86400000).toISOString();
 	return sealWith(identity, { schema: DROP_SCHEMA, source: 'inqbeta:q/drop', box, until });

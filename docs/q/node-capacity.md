@@ -18,7 +18,7 @@ A node now has **four jobs** (ADR-Q-014, ADR-Q-017 §3):
 | Job | Software | What it does | What runs out first |
 |---|---|---|---|
 | **Bellboy** | Mosquitto (behind Caddy) | Says *that* something is waiting, and where | Memory for open connections |
-| **Storage unit** | SeaweedFS + the gate | Holds sealed things until they're collected | Disk |
+| **Storage** | SeaweedFS + the gate | Holds sealed things until they're collected | Disk |
 | **Directory** | Dgraph | Where things are found: published facts, offers, memberships | Memory, then disk speed |
 | **Switchboard** | coturn, a TURN relay (new today) | Connects a call when two devices can't reach each other. Like the old switchboard it puts the call through; unlike it, it can't listen in | **Upload bandwidth** |
 
@@ -31,7 +31,7 @@ after it (`apps/q/src/routes/api/calls/ice`). Runbook: `node/HETZNER.md` step 6.
 
 From `node bin/capacity.mjs` (members a host can have, at its busiest hour):
 
-| Device | Bellboy | Storage unit | Directory | Switchboard | **Members** | Limited by |
+| Device | Bellboy | Storage | Directory | Switchboard | **Members** | Limited by |
 |---|---|---|---|---|---|---|
 | Raspberry Pi Zero 2 W | 20k | — | — | — | **20k** | bellboy (its only job) |
 | Raspberry Pi 5 8 GB + SSD, at home | 200k | 102k | 188k | 8.9k | **8.9k** | switchboard |
@@ -47,15 +47,15 @@ From `node bin/capacity.mjs` (members a host can have, at its busiest hour):
    Mbit/s out, and every relayed video call needs about 3. That covers about
    9,000 members. Everything else a mini PC does comfortably reaches six
    figures.
-2. **So split the jobs.** The bellboy, storage unit and directory at home (or
+2. **So split the jobs.** The bellboy, storage and directory at home (or
    on any machine with memory and an SSD), and the switchboard on a rented server or
    Cloudflare. That's the "Mini PC at home, switchboard elsewhere" row.
-3. **The test node (CPX12) covers about 13,000 members**, if its storage unit
+3. **The test node (CPX12) covers about 13,000 members**, if its storage
    is given the disk. **Today it's set to 1 GB**
    (`-volume.max=8 × 128 MB`), which is about **1,000 members**. That's the
    first number to raise (`compose.hetzner.yaml`, `storage`).
 4. **The bellboy is never the problem.** It holds connections, not messages.
-   Messages wait in the storage unit, and the bellboy only rings.
+   Messages wait in the storage, and the bellboy only rings.
 
 ## The assumptions behind it
 
@@ -65,7 +65,7 @@ All in `node/bin/capacity.mjs`. Change one and run it again.
 |---|---|---|
 | Members with Q open at once | 10% | A busy hour for a community app |
 | Memory per open connection | 64 KB | Mosquitto plus Caddy holding a WebSocket over TLS; generous |
-| Held in the storage unit per member | 1 MB | Messages (2 KB each), shared cards, receipts waiting. The free allowance (ADR-Q-017 §4) caps the worst case. |
+| Held in the storage per member | 1 MB | Messages (2 KB each), shared cards, receipts waiting. The free allowance (ADR-Q-017 §4) caps the worst case. |
 | Directory per member, disk / memory | 30 KB / 25 KB | Facts, offers and memberships, with indexes. Not receipts: those live in vaults. |
 | Members on a call at once | 1% | |
 | Calls that need the switchboard | 15% | Commonly quoted for WebRTC; mobile networks push it up |
@@ -87,7 +87,7 @@ To replace them, a load test on the CPX12, one job at a time:
 | Job | How to test | What to read |
 |---|---|---|
 | Bellboy | `emqtt-bench` (or a small Node script) opening thousands of WebSocket connections through Caddy | Memory per connection; when connections start failing |
-| Storage unit | The gate's inbox, hammered with posts of 2 KB (`autocannon`) | Posts a second; disk per member |
+| Storage | The gate's inbox, hammered with posts of 2 KB (`autocannon`) | Posts a second; disk per member |
 | Directory | Synthetic members and published facts loaded into Dgraph, then the lookups Q makes | Memory, query time at 10k / 100k members |
 | Switchboard | `turnutils_uclient -m <n>` with many streams at once | Mbit/s before packets drop; CPU |
 
@@ -111,7 +111,7 @@ To replace them, a load test on the CPX12, one job at a time:
 
 `q/node-sizes.md` (smallest device per job), `q/node-hetzner-test.md` (the
 measured run), ADR-Q-004 §3 (calls and the relay), ADR-Q-010 §14 (message
-sizes), ADR-Q-014 (bellboy, directory, storage unit), ADR-Q-017 §3–§4 (what
+sizes), ADR-Q-014 (bellboy, directory, storage), ADR-Q-017 §3–§4 (what
 Incubator provides; transit allowance).
 
 ## Sources

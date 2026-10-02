@@ -65,7 +65,7 @@
 	/*
 	 * Federations that send news, for the notifications card: only those whose
 	 * manifest says so (notifies), and Q's home federation, which announces
-	 * through its storage unit. One that never notifies isn't listed.
+	 * through its storage. One that never notifies isn't listed.
 	 */
 	let homeDid = $state('');
 	$effect(() => void readHome().then((h) => (homeDid = h.ok ? h.federation : '')));

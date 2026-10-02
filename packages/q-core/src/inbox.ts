@@ -1,5 +1,5 @@
 /*
- * Your inbox at the storage unit (2 October 2026): how a message reaches
+ * Your inbox at the storage (2 October 2026): how a message reaches
  * someone, with or without the bell.
  *
  *   your inbox   an id only you can make: from your vault key, sealing a
@@ -14,7 +14,7 @@
  *                can make it.
  *   a post       a message sealed to you (only your key opens it), wrapped in
  *                a receipt the sender signs, saying when it may go (at most
- *                30 days). The storage unit sees who sent it, to which inbox,
+ *                30 days). The storage sees who sent it, to which inbox,
  *                and its size — never what it says.
  *
  * The bellboy only pings "something's waiting" on q/inbox/<id>; Q collects it
@@ -68,7 +68,7 @@ export interface Message {
 	at: string;
 }
 
-/** The post the storage unit keeps: the sealed message, signed by the sender, with when it may go. */
+/** The post the storage keeps: the sealed message, signed by the sender, with when it may go. */
 export function makePost(identity: Pick<Identity, 'did' | 'publicKey' | 'signing'>, to: string, sealed: SealedToPeople, days = POST_DAYS, now = new Date()): Promise<SealedReceipt> {
 	const until = new Date(now.getTime() + Math.min(days, POST_DAYS) * 86400000).toISOString();
 	return sealWith(identity, { schema: POST_SCHEMA, source: 'inqbeta:q/post', to, sealed, until });

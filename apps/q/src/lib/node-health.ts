@@ -49,7 +49,7 @@ export async function reachIndex(mesh: string, port: number): Promise<Reach> {
 	}
 }
 
-/** The storage unit's filer answers at its root. Asked without reading, so CORS can't hide it. */
+/** The storage's filer answers at its root. Asked without reading, so CORS can't hide it. */
 export async function reachStorage(mesh: string, port: number): Promise<Reach> {
 	if (fromSecurePage()) return SECURE_PAGE;
 	try {

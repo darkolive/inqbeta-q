@@ -7,7 +7,7 @@ pattern read q/in/%u
 # Anyone signed in may post into any inbox (one level: q/in/<inbox-id>).
 pattern write q/in/+
 
-# The storage unit's gate (node/gate) rings a federation's news channel when a
+# The storage's gate (node/gate) rings a federation's news channel when a
 # new signed announcement is stored. Only it may (ADR-Q-016 §6).
 user gate
 topic write q/fed/+/news

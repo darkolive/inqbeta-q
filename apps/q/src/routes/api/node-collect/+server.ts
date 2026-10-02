@@ -1,5 +1,5 @@
 /*
- * Development only: lets the bell collect from a storage unit on the
+ * Development only: lets the bell collect from a storage on the
  * federation's mesh when the browser is refused (CORS). Q's dev server runs on
  * your own computer, which is on the mesh. It passes sealed bytes through
  * unopened, and only to the holding bay of a private-network address.

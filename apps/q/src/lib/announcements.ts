@@ -17,12 +17,12 @@ export interface AnnouncementsFile {
 	announcements: Announcement[];
 }
 
-/** Where a federation's announcements are kept on its storage unit. */
+/** Where a federation's announcements are kept on its storage. */
 const atStorage = (storage: string, federation: string) => `${storage}/fed/${federation}/announcements.json`;
 
 /**
  * The live, genuine announcements of this federation, newest first. From its
- * storage unit when it has one (ADR-Q-016 step 5), else the site's own file.
+ * storage when it has one (ADR-Q-016 step 5), else the site's own file.
  * Either way each is checked against the federation's signature. Never throws.
  */
 export async function readAnnouncements(federation: string, storage?: string): Promise<Announcement[]> {
@@ -47,7 +47,7 @@ async function readFrom(url: string, federation: string): Promise<Announcement[]
 	}
 }
 
-/** Send the federation's announcements to its storage unit; the gate checks and rings members. */
+/** Send the federation's announcements to its storage; the gate checks and rings members. */
 export async function publishAnnouncements(storage: string, federation: string, list: Announcement[], publication: Publication): Promise<{ ok: true } | { ok: false; says: string }> {
 	try {
 		const now = Date.now();
@@ -60,9 +60,9 @@ export async function publishAnnouncements(storage: string, federation: string, 
 			signal: AbortSignal.timeout(15_000)
 		});
 		const said = (await r.json().catch(() => ({}))) as { says?: string };
-		return r.ok ? { ok: true } : { ok: false, says: said.says ?? `The storage unit said ${r.status}.` };
+		return r.ok ? { ok: true } : { ok: false, says: said.says ?? `The storage said ${r.status}.` };
 	} catch {
-		return { ok: false, says: 'The storage unit didn’t answer in time.' };
+		return { ok: false, says: 'The storage didn’t answer in time.' };
 	}
 }
 

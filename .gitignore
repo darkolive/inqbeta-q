@@ -10,3 +10,6 @@ node_modules
 .fuse_hidden*
 dist
 .env*
+
+# Left behind while a file is rewritten on a mounted folder
+.fuse_hidden*

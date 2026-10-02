@@ -451,7 +451,7 @@ export interface NodeRecord {
 		postOffice?: { port: number };
 		/** The directory: Dgraph's HTTP port (home-node.md §5). */
 		index?: { port: number };
-		/** The storage unit: SeaweedFS's filer (ADR-Q-014), the holding bay. */
+		/** The storage: SeaweedFS's filer (ADR-Q-014), the holding bay. */
 		storage?: { port: number };
 		/**
 		 * The switchboard (2 October 2026): coturn, a TURN relay. It connects a call

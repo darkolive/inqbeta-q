@@ -128,7 +128,7 @@
 	/*
 	 * Listen on the home federation's news channel (ADR-Q-016 §6): the bellboy
 	 * pings "there's news", carrying nothing; Q collects the signed
-	 * announcements from the storage unit and checks them. Members only.
+	 * announcements from the storage and checks them. Members only.
 	 */
 	$effect(() => {
 		/* Off on the notifications card: Q doesn't even listen. */
@@ -356,7 +356,7 @@
 	$effect(() => watchLedger((l) => (ledger = l)));
 
 	/*
-	 * Messages (2 October 2026): collected from your inbox at the storage unit
+	 * Messages (2 October 2026): collected from your inbox at the storage
 	 * when Q opens and whenever the bellboy pings it. Unread ones count on the
 	 * bell (if Messages is on); a call rings with Answer.
 	 */

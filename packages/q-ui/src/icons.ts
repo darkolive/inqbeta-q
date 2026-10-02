@@ -79,7 +79,7 @@ export const icons = {
 	mail: '<rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/>',
 	/* concierge-bell (lucide-static 1.49.0) — a node's bellboy: "there's a call for you, in reception" */
 	bellboy: '<path d="M3 20a1 1 0 0 1-1-1v-1a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v1a1 1 0 0 1-1 1Z"/><path d="M20 16a8 8 0 1 0-16 0"/><path d="M12 4v4"/><path d="M10 4h4"/>',
-	/* warehouse (lucide-static 1.49.0) — a node's storage unit: the holding bay */
+	/* warehouse (lucide-static 1.49.0) — a node's storage: the holding bay */
 	'storage-unit': '<path d="M18 21V10a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1v11"/><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V8a2 2 0 0 1 1.132-1.803l7.95-3.974a2 2 0 0 1 1.837 0l7.948 3.974A2 2 0 0 1 22 8z"/><path d="M6 13h12"/><path d="M6 17h12"/>',
 	/* book-user (lucide-static 1.49.0) — a node's directory: Dgraph, where things are found */
 	/* cable (lucide-static 1.50.0) — a node's switchboard: connects a call when two devices can't reach each other */

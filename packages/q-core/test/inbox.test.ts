@@ -1,4 +1,4 @@
-/* Inboxes and posts: a message reaches someone through the storage unit, readable only by them. */
+/* Inboxes and posts: a message reaches someone through the storage, readable only by them. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { identityFromSeed } from '../src/passkey';
@@ -29,7 +29,7 @@ test('a message is posted, checked by the gate, and opened only by the person it
 	const post = await makePost(sam, box.id, sealed);
 	assert.equal(await checkPost(post, box.id), null);
 	assert.ok(await checkPost(post, (await inboxOf(sam)).id), 'posted to a different inbox');
-	assert.ok(!JSON.stringify(post).includes('Lunch'), 'the storage unit sees no words');
+	assert.ok(!JSON.stringify(post).includes('Lunch'), 'the storage sees no words');
 
 	assert.equal(await ownsInbox(box.id, box.key), true);
 	assert.equal(await ownsInbox(box.id, (await inboxOf(sam)).key), false);

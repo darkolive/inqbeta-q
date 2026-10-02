@@ -3,7 +3,7 @@
 #   docker compose -f compose.yaml -f compose.hetzner.yaml up -d
 #
 # Three jobs (ADR-Q-014): the bellboy (Mosquitto), the directory (Dgraph) and
-# the storage unit (SeaweedFS), and a fourth, the switchboard (coturn) for calls.
+# the storage (SeaweedFS), and a fourth, the switchboard (coturn) for calls.
 # Apart from the switchboard, nothing here is reachable from the internet. Every port is bound to
 # localhost (for bin/check.sh) and to the node's Nebula address, 10.42.0.1,
 # so only members of the test federation's mesh can reach it.
@@ -45,7 +45,7 @@ services:
       - "10.42.0.1:8080:8080"   # HTTP / GraphQL — members only
       - "10.42.0.1:9080:9080"   # gRPC — members only
 
-  # The storage unit (ADR-Q-014): the holding bay. Sealed receipts wait here
+  # The storage (ADR-Q-014): the holding bay. Sealed receipts wait here
   # until they're collected and custody passes. SeaweedFS in one process:
   # master, one volume server and the filer. Its volume port is 8081 so it
   # doesn't meet Dgraph on 8080.
@@ -67,7 +67,7 @@ services:
       - "127.0.0.1:8888:8888"
       - "10.42.0.1:8888:8888"   # the filer — members only
 
-  # The gate in front of the storage unit (node/gate/server.mjs): stores a
+  # The gate in front of the storage (node/gate/server.mjs): stores a
   # federation's announcements only when the federation's signatures check out,
   # then rings the bellboy's news channel. Reached only through Caddy.
   gate:
