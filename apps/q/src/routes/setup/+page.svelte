@@ -39,7 +39,7 @@
 		const out = await claimHost(identity, host.file.federation);
 		busy = false;
 		if (!out.ok) return void (says = out.says);
-		await goto('/');
+		await goto(`/federations/one?id=${encodeURIComponent(host.file.federation)}`);
 	}
 	const needsChoice = $derived(!!host?.file?.holds && !host.mark);
 </script>

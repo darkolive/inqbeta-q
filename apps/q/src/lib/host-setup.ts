@@ -12,6 +12,7 @@ import { sealWith } from '@inqbeta/q-core/seal';
 import type { Identity } from '@inqbeta/q-core/passkey';
 import { foundFromDraft, invite } from '$lib/federations';
 import { HOME_SCHEMA, type HomeFile } from '$lib/home';
+import { HOST_SERVICE_SCHEMA, endsOf, isSecret, type HostServiceRecord, type ServiceState } from '$lib/host-services';
 
 export interface LocalHost {
 	local: true;
@@ -126,4 +127,47 @@ export async function logoFrom(file: File): Promise<{ ok: true; dataUrl: string 
 	} catch {
 		return { ok: false, says: 'That picture couldn’t be read.' };
 	}
+}
+
+/** Which services this copy has keys for, and whether a restart is waiting. Null on a deployed site. */
+export async function hostServices(): Promise<{ services: ServiceState[]; restart: boolean } | null> {
+	if (!dev) return null;
+	try {
+		const r = await fetch('/api/host/services', { cache: 'no-store' });
+		return r.ok ? ((await r.json()) as { services: ServiceState[]; restart: boolean }) : null;
+	} catch {
+		return null;
+	}
+}
+
+/**
+ * Set one service setting on this computer: sign a record naming it (and
+ * never more of a secret than its last four), then hand both to this copy's
+ * dev server, which writes .env and keeps the record.
+ */
+export async function setService(identity: Identity, host: string, service: string, setting: string, value: string): Promise<{ ok: true } | { ok: false; says: string }> {
+	const record: HostServiceRecord = {
+		schema: HOST_SERVICE_SCHEMA,
+		source: 'inqbeta:q/host',
+		host,
+		service,
+		setting,
+		ends: endsOf(value, isSecret(setting)),
+		at: new Date().toISOString()
+	};
+	const signed = await sealWith(identity, record);
+	const r = await fetch('/api/host/services', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ record: signed, value: value.trim() }) });
+	return r.ok ? { ok: true } : { ok: false, says: await said(r) };
+}
+
+/** A random value for a setting Q makes for you: 32 bytes for the seed, 48 for the sign-in secret, base64url. */
+export function madeForYou(setting: string): string {
+	const bytes = crypto.getRandomValues(new Uint8Array(setting === 'Q_SERVICE_SEED' ? 32 : 48));
+	return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+/** Save a renewed host file straight into this copy (development only). */
+export async function renewHost(file: HomeFile): Promise<{ ok: true } | { ok: false; says: string }> {
+	const r = await fetch('/api/host', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'renew', file }) });
+	return r.ok ? { ok: true } : { ok: false, says: await said(r) };
 }

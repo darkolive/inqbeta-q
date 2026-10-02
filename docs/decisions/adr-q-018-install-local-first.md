@@ -1,6 +1,6 @@
 ---
 status: proposed
-implementation: started — local mode and the set-up cards (build steps 1–2), 2 October 2026
+implementation: started — local mode and set-up cards; your host first in Federations, with Website and Services; keys set in the Services cards (written to .env on this computer, a signed public record for each, Q’s own secrets made for you); renewing the invitation straight into the copy (build steps 1, 2, 4 and 5), 2 October 2026
 updated: 2026-10-02
 ---
 

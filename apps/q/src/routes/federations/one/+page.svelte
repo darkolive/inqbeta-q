@@ -47,6 +47,9 @@
 	import { signerFor } from '@inqbeta/q-core/passkey';
 	import { readAnnouncements, announcementsFile, publishAnnouncements } from '$lib/announcements';
 	import { untrack } from 'svelte';
+	import { dev } from '$app/environment';
+	import { hostServices, madeForYou, renewHost, setService } from '$lib/host-setup';
+	import { MADE_FOR_YOU, type ServiceState } from '$lib/host-services';
 
 	let identity = $state<Identity | null>(null);
 	let ledger = $state<Ledger | null>(null);
@@ -188,8 +191,49 @@
 				...(svcBellboy.trim() ? { bellboy: svcBellboy.trim() } : {})
 			}
 		};
+		/* On your own computer, it goes straight into this copy (ADR-Q-018). */
+		if (dev) {
+			busy = 'home';
+			const saved = await renewHost(file);
+			busy = null;
+			said = saved.ok
+				? { tone: 'good', text: `Saved in this copy, running until ${onDay(until)}. Commit and push to put it live.` }
+				: { tone: 'bad', text: saved.says };
+			if (saved.ok) home = await readHome();
+			return;
+		}
 		homeFile = { url: URL.createObjectURL(new Blob([JSON.stringify(file, null, 2)], { type: 'application/json' })), until };
 	}
+
+	/* ---- Your host (ADR-Q-018 §3): its website and its services ---- */
+	let services = $state<ServiceState[] | null>(null);
+	let restartWaiting = $state(false);
+	async function loadServices() {
+		const got = await hostServices();
+		services = got?.services ?? null;
+		restartWaiting = !!got?.restart;
+	}
+	$effect(() => {
+		if (isHome && own && dev) void loadServices();
+	});
+	/* One setting at a time: which one is open, and what's being typed. */
+	let editing = $state<string | null>(null);
+	let typed = $state('');
+	let serviceSays = $state<{ tone: 'good' | 'bad'; text: string } | null>(null);
+	async function saveSetting(s: ServiceState, name: string, value: string) {
+		if (!identity || !home?.ok || !value.trim()) return;
+		busy = 'service';
+		serviceSays = null;
+		const out = await setService(identity, home.federation, s.id, name, value);
+		busy = null;
+		if (!out.ok) return void (serviceSays = { tone: 'bad', text: out.says });
+		editing = null;
+		typed = '';
+		serviceSays = { tone: 'good', text: `${name} is saved on this computer, and signed by you.` };
+		await loadServices();
+	}
+	const serviceTone = (s: ServiceState) => (s.is === 'on' ? 'good' : s.is === 'part' ? 'waiting' : 'plain');
+	const serviceWord = (s: ServiceState) => (s.is === 'on' ? 'On' : s.is === 'part' ? 'Partly set' : 'Not set');
 
 	/* ---- Communication (ADR-Q-016 §6): announcements to members ---- */
 	let announcements = $state<Announcement[]>([]);
@@ -384,6 +428,8 @@
 		<a class="btn preset-tonal mt-4" href="/federations">Back to federations</a>
 	{:else}
 		<div class="mb-6 flex flex-wrap items-center gap-3">
+			{#if isHome && home?.ok && home.logo}<img src={home.logo} alt="" class="h-10 w-auto object-contain" />{/if}
+			{#if isHome}<Status tone="good">Your host</Status>{/if}
 			{#if own}
 				<Status tone="good">You look after it</Status>
 				<span class="text-sm">Caretaker until {onDay(new Date(own.caretakerUntil * 1000).toISOString())}</span>
@@ -418,6 +464,10 @@
 		<Tabs value={tab} onValueChange={(d) => (tab = d.value)}>
 			<Tabs.List class="mb-6">
 				<Tabs.Trigger value="home" class="min-h-11">Home</Tabs.Trigger>
+				{#if isHome && own}
+					<Tabs.Trigger value="website" class="min-h-11">Website</Tabs.Trigger>
+					<Tabs.Trigger value="services" class="min-h-11">Services</Tabs.Trigger>
+				{/if}
 				<Tabs.Trigger value="members" class="min-h-11">Members</Tabs.Trigger>
 				<Tabs.Trigger value="communication" class="min-h-11">Communication</Tabs.Trigger>
 				{#if own}<Tabs.Trigger value="settings" class="min-h-11">Settings</Tabs.Trigger>{/if}
@@ -456,6 +506,94 @@
 				</Section>
 
 			</Tabs.Content>
+
+			<!-- Your host's website (ADR-Q-018 §3, §5): what people see, and going live. -->
+			{#if isHome && own && home?.ok}
+				<Tabs.Content value="website">
+					<Section title="What people see" description="The front of your host. Every page of it is a receipt, signed by the host.">
+						<div class="card preset-outlined-surface-200-800 p-6 flex flex-col items-center text-center gap-3 max-w-xl">
+							{#if home.logo}<img src={home.logo} alt="" class="h-20 w-auto object-contain" />{/if}
+							<p class="h3">{home.name}</p>
+							<p class="opacity-80">{home.purpose}</p>
+						</div>
+						<a class="btn preset-filled-primary-500 min-h-11 mt-4" href="/" target="_blank" rel="noopener">View website</a>
+					</Section>
+					<Section title="Going live" description="Putting this copy on the internet, at your own address.">
+						{#if dev}
+							<p class="max-w-2xl">This is the copy on your own computer. Going live comes next: Q will take you through putting your copy on GitHub and Vercel, one card at a time. Your keys go straight from this computer to Vercel, never through a web page.</p>
+						{:else}
+							<p class="max-w-2xl">This is the live site. Changes to it are made on the founder’s own computer and sent here.</p>
+						{/if}
+					</Section>
+				</Tabs.Content>
+
+				<!-- Your host's services (ADR-Q-018 §4): which keys are set, never the keys. -->
+				<Tabs.Content value="services">
+					<Section title="Services" description="What your host can do for its members. Each one needs a key from the company that provides it.">
+						{#if !dev}
+							<p class="max-w-2xl">Services are set on the founder’s own computer. Keys never pass through this page.</p>
+						{:else if !services}
+							<p class="opacity-60">Looking at this copy’s settings…</p>
+						{:else}
+							<ul class="grid gap-4 sm:grid-cols-2">
+								{#each services as s (s.id)}
+									<li class="card preset-outlined-surface-200-800 p-4 flex flex-col gap-2">
+										<div class="flex items-center gap-3">
+											<span class="font-bold">{s.called}</span>
+											<span class="ml-auto"><Status tone={serviceTone(s)}>{serviceWord(s)}</Status></span>
+										</div>
+										<p class="text-sm opacity-80">{s.what} <span class="opacity-70">From {s.from}.</span></p>
+										<ul class="flex flex-col gap-3 text-sm">
+											{#each s.settings as x (x.name)}
+												<li class="flex flex-col gap-2">
+													<div class="flex flex-wrap items-center gap-2">
+														<span class="role-token text-xs">{x.name}</span>
+														<span class="opacity-70">{!x.set ? 'not set' : x.secret ? (x.shows ? `set · ends ${x.shows}` : 'set') : x.shows}</span>
+														{#if x.setAt}<span class="text-xs opacity-60">· {onDay(x.setAt)}</span>{/if}
+														{#if x.restart}<Status tone="waiting">Restart to use</Status>{/if}
+														{#if editing !== x.name}
+															<span class="ml-auto flex gap-2">
+																{#if MADE_FOR_YOU.has(x.name) && !x.set}
+																	<button type="button" class="btn btn-sm preset-filled-primary-500 min-h-11" disabled={busy !== null} onclick={() => void saveSetting(s, x.name, madeForYou(x.name))}>Make for me</button>
+																{/if}
+																<button type="button" class="btn btn-sm preset-tonal min-h-11" disabled={busy !== null} onclick={() => ((editing = x.name), (typed = ''), (serviceSays = null))}>{x.set ? 'Change' : 'Set'}</button>
+															</span>
+														{/if}
+													</div>
+													{#if editing === x.name}
+														<div class="flex flex-wrap items-center gap-2">
+															<input
+																class="input preset-outlined-surface-300-700 min-h-11 flex-1 min-w-48 {x.secret ? 'role-token' : ''}"
+																type={x.secret ? 'password' : 'text'}
+																autocomplete="off"
+																spellcheck="false"
+																aria-label={x.name}
+																bind:value={typed}
+															/>
+															<button type="button" class="btn btn-sm preset-filled-primary-500 min-h-11" disabled={busy !== null || !typed.trim()} onclick={() => void saveSetting(s, x.name, typed)}>
+																{busy === 'service' ? 'Saving… touch your passkey' : 'Save'}
+															</button>
+															<button type="button" class="btn btn-sm preset-tonal min-h-11" onclick={() => ((editing = null), (typed = ''))}>Cancel</button>
+														</div>
+													{/if}
+												</li>
+											{/each}
+										</ul>
+									</li>
+								{/each}
+							</ul>
+							{#if serviceSays}<p class="text-sm card p-3 mt-4 {serviceSays.tone === 'good' ? 'preset-tonal-success' : 'preset-tonal-error'}" aria-live="polite">{serviceSays.text}</p>{/if}
+							{#if restartWaiting}
+								<div class="card preset-tonal-warning p-4 mt-4 max-w-2xl">
+									<p class="font-bold">Restart Q to use the new keys</p>
+									<p class="text-sm">In the terminal running <span class="role-token">pnpm dev</span>, press Ctrl+C, then run <span class="role-token">pnpm dev</span> again.</p>
+								</div>
+							{/if}
+							<p class="text-sm opacity-70 mt-4 max-w-2xl">Keys are kept in <span class="role-token">apps/q/.env</span> on this computer, which git never sees. Each one you set is signed by you, and that record says only which key it is, never the key.</p>
+						{/if}
+					</Section>
+				</Tabs.Content>
+			{/if}
 
 			<!-- Members: inviting and looking after people (caretaker); your own membership. -->
 			<Tabs.Content value="members">
@@ -677,7 +815,7 @@
 			<!-- Settings: the machines it runs. Caretaker only. -->
 			{#if own}
 				<Tabs.Content value="settings">
-				<Section title="Q’s home federation" description="Signing up to Q joins the home federation. Publishing makes a standing invitation, signed by this federation, that runs for 90 days.">
+				<Section title={isHome ? 'Your host’s invitation' : 'Q’s home federation'} description="Signing up joins the host. Its standing invitation is signed by this federation and runs for 90 days.">
 					{#if isHome && home?.ok}
 						<p class="mb-3 flex flex-wrap items-center gap-2"><Status tone="good">This is Q’s home federation</Status> <span class="text-sm">Its invitation runs until {onDay(home.until)}. Publish again before then.</span></p>
 					{:else if home?.ok}

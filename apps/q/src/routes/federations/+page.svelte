@@ -15,6 +15,14 @@
 	import { newestPerKey } from '$lib/features/dostudy';
 	import { goto } from '$app/navigation';
 	import type { Found } from '$lib/features/registry';
+	import { readHome, type Home } from '$lib/home';
+
+	/* Your host (ADR-Q-018 §3): always first, and it can't be hidden. */
+	let home = $state<Home | null>(null);
+	$effect(() => void readHome().then((h) => (home = h)));
+	const hostDid = $derived(home?.ok ? home.federation : '');
+	const isHostRow = (f: { key: string }) => !!hostDid && f.key.endsWith(`:${hostDid}`);
+	const hostHref = $derived(hostDid ? `/federations/one?id=${encodeURIComponent(hostDid)}` : '');
 
 	let identity = $state<Identity | null>(null);
 	let ledger = $state<Ledger | null>(null);
@@ -23,8 +31,10 @@
 
 	const found = $derived(ledger ? newestPerKey(ledger.found) : []);
 	const drafts = $derived(found.filter((f) => f.kind === 'federation-draft'));
-	const founded = $derived(found.filter((f) => f.kind === 'federation'));
-	const memberships = $derived(found.filter((f) => f.kind === 'membership'));
+	/* The host first, whichever list it's in. */
+	const hostFirst = <T extends { key: string }>(l: T[]) => [...l.filter(isHostRow), ...l.filter((f) => !isHostRow(f))];
+	const founded = $derived(hostFirst(found.filter((f) => f.kind === 'federation')));
+	const memberships = $derived(hostFirst(found.filter((f) => f.kind === 'membership')));
 
 	// Drawer state
 	type FederationItem = { key: string; title: string; description?: string; meta?: string; kind: 'federation' | 'membership'; status?: { tone: Tone; text: string } };
@@ -52,6 +62,26 @@
 <svelte:head><title>Federations — Q</title></svelte:head>
 
 <Page title="Federations" lead="Groups that vouch for each other's evidence. Each one can add its own screens to Q.">
+	{#if home?.ok}
+		<Section title="Your host" description="The federation this copy of Q belongs to. Signing up is joining it.">
+			<a href={hostHref} class="card preset-outlined-surface-200-800 hover:preset-tonal p-4 sm:p-6 flex items-center gap-4 max-w-3xl">
+				{#if home.logo}
+					<img src={home.logo} alt="" class="size-16 shrink-0 object-contain" />
+				{:else}
+					<span class="size-16 shrink-0 rounded-base preset-tonal-primary flex items-center justify-center h3">{home.name.slice(0, 1)}</span>
+				{/if}
+				<span class="flex flex-col gap-1 min-w-0">
+					<span class="h4">{home.name}</span>
+					<span class="text-sm opacity-80">{home.purpose}</span>
+					<span class="flex flex-wrap gap-2 mt-1">
+						<Status tone="good">Your host</Status>
+						{#if identity && identity.did === home.founder}<Status tone="plain">You founded it</Status>{/if}
+					</span>
+				</span>
+			</a>
+		</Section>
+	{/if}
+
 	{#if identity && drafts.length}
 		<Section title="Drafts" description="Yours alone until you found them. Open one to carry on.">
 			<div class="table-container">
@@ -110,7 +140,7 @@
 					<tbody>
 						{#each founded as f (f.key)}
 							<tr onclick={() => open(f, { key: f.key, title: f.title, description: f.description, meta: f.meta, kind: 'federation', status: f.status })} class="cursor-pointer hover:preset-tonal-primary">
-								<td>{f.title}</td>
+								<td>{f.title}{#if isHostRow(f)} <Status tone="good">Your host</Status>{/if}</td>
 								<td class="text-sm opacity-60">{f.description}</td>
 								<td>Founded</td>
 								<td><Status tone={f.status?.tone ?? 'good'}>{f.status?.text ?? 'Founded'}</Status></td>
@@ -118,7 +148,7 @@
 						{/each}
 						{#each memberships as m (m.key)}
 							<tr onclick={() => open(m, { key: m.key, title: m.title, description: m.description, meta: m.meta, kind: 'membership', status: m.status })} class="cursor-pointer hover:preset-tonal-primary">
-								<td>{m.title}</td>
+								<td>{m.title}{#if isHostRow(m)} <Status tone="good">Your host</Status>{/if}</td>
 								<td class="text-sm opacity-60">{m.description}</td>
 								<td>Member</td>
 								<td>

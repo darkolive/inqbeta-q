@@ -9,6 +9,10 @@
  *            A host founded in the set-up cards. The invitation in the file is
  *            checked here exactly as every Q checks it; then the logo, the
  *            host file and the mark are written. Refused once set up.
+ *          { kind: 'renew', file }
+ *            A new standing invitation for this computer's own host, made on
+ *            its page (Settings). Only once set up, only for the same host
+ *            and founder; the logo already kept stays.
  *          { kind: 'claim', proof }
  *            "I'm this host's founder": a receipt signed by the founder's DID
  *            naming the host, made in the last five minutes. Then the mark is
@@ -57,11 +61,27 @@ export const GET: RequestHandler = async ({ request, url }) => {
 
 export const POST: RequestHandler = async ({ request, url }) => {
 	door(request, url);
-	if (readMark()) error(409, 'This computer already has its host set up.');
 	const body = (await request.json().catch(() => null)) as
 		| { kind: 'found'; file: HomeFile; logo?: string }
+		| { kind: 'renew'; file: HomeFile }
 		| { kind: 'claim'; proof: unknown }
 		| null;
+
+	if (body?.kind === 'renew') {
+		const mark = readMark();
+		if (!mark) error(409, 'Set up this computer’s host first.');
+		const f = body.file;
+		if (f?.schema !== HOME_SCHEMA || f.federation !== mark.federation) error(400, 'That isn’t this computer’s host.');
+		const who = await founderOf(f);
+		if (!who.ok) error(400, who.says);
+		if (who.founder !== mark.founder) error(403, 'Only the host’s founder can renew its invitation here.');
+		const kept = readHomeFile()?.logo;
+		const { logo: _ignored, ...rest } = f;
+		writeHomeFile({ ...rest, ...(kept ? { logo: kept } : {}) });
+		return json({ ok: true });
+	}
+
+	if (readMark()) error(409, 'This computer already has its host set up.');
 
 	if (body?.kind === 'found') {
 		const f = body.file;

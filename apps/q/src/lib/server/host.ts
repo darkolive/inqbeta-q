@@ -85,3 +85,33 @@ export function writeLogo(dataUrl: string): string {
 	const v = createHash('sha256').update(bytes).digest('hex').slice(0, 12);
 	return `/host/logo.${ext}?v=${v}`;
 }
+
+/*
+ * The host's service records (ADR-Q-018 §4), public, at static/host/services.json:
+ * the newest signed record for each setting. No secret is in any of them.
+ */
+const SERVICES = () => path.resolve(root(), 'static', 'host', 'services.json');
+export interface ServicesFile {
+	schema: 'inqbeta.host-services/1';
+	host: string;
+	records: { content: { setting: string; at: string } & Record<string, unknown> }[];
+}
+
+export function readServicesFile(): ServicesFile | null {
+	try {
+		if (!existsSync(SERVICES())) return null;
+		const f = JSON.parse(readFileSync(SERVICES(), 'utf8')) as ServicesFile;
+		return f?.schema === 'inqbeta.host-services/1' && Array.isArray(f.records) ? f : null;
+	} catch {
+		return null;
+	}
+}
+
+/** Keep a signed record, replacing any older one for the same setting. */
+export function keepServiceRecord(host: string, record: ServicesFile['records'][number]): void {
+	const was = readServicesFile();
+	const others = (was?.host === host ? was.records : []).filter((r) => r.content?.setting !== record.content.setting);
+	mkdirSync(LOGO_DIR(), { recursive: true });
+	const file: ServicesFile = { schema: 'inqbeta.host-services/1', host, records: [...others, record].sort((a, b) => a.content.setting.localeCompare(b.content.setting)) };
+	writeFileSync(SERVICES(), JSON.stringify(file, null, 2) + '\n');
+}

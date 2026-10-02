@@ -60,3 +60,42 @@ test('a logo that isn’t a picture, is too big, or carries script is refused', 
 		const svg = 'data:image/svg+xml;base64,' + Buffer.from('<svg onload="alert(1)"></svg>').toString('base64');
 		assert.throws(() => writeLogo(svg), /scripts/);
 	}));
+
+import { servicesFrom } from '../../../apps/q/src/lib/host-services';
+
+test('services say whether a key is set, and only its last four, never the key', () => {
+	const s = servicesFrom({ RESEND_API_KEY: 're_abcdefghijkl1234', Q_MAIL_FROM: 'Q <q@example.org>', CF_TURN_KEY_ID: 'id' });
+	const email = s.find((x) => x.id === 'email')!;
+	assert.equal(email.is, 'on');
+	assert.deepEqual(email.settings.map((x) => x.shows), ['1234', 'Q <q@example.org>']);
+	assert.ok(!JSON.stringify(s).includes('abcdefghijkl'), 'no more of a secret than its last four');
+	assert.equal(s.find((x) => x.id === 'calls')!.is, 'part');
+	assert.equal(s.find((x) => x.id === 'ai')!.is, 'off');
+	assert.equal(servicesFrom({ Q_OTP_SECRET: 'short' }).find((x) => x.id === 'own')!.settings[1].shows, '', 'a short secret shows nothing at all');
+});
+
+import { readEnvFile, setEnvValue } from '../../../apps/q/src/lib/server/env-file';
+import { endsOf } from '../../../apps/q/src/lib/host-services';
+
+test('.env: one line changes; comments and other settings stay as they were', () =>
+	inScratch((dir) => {
+		const f = join(dir, '.env');
+		writeFileSync(f, '# Resend\nRESEND_API_KEY=old\n\n# mine\nSOMETHING_ELSE="keep me"\n');
+		setEnvValue('RESEND_API_KEY', 're_new1234567');
+		setEnvValue('Q_MAIL_FROM', 'Q <q@example.org>');
+		const text = readFileSync(f, 'utf8');
+		assert.match(text, /^# Resend\nRESEND_API_KEY=re_new1234567\n\n# mine\nSOMETHING_ELSE="keep me"\nQ_MAIL_FROM="Q <q@example.org>"\n$/);
+		assert.deepEqual(readEnvFile(), { RESEND_API_KEY: 're_new1234567', SOMETHING_ELSE: 'keep me', Q_MAIL_FROM: 'Q <q@example.org>' });
+		assert.throws(() => setEnvValue('RESEND_API_KEY', 'two\nlines'), /one line/);
+		assert.throws(() => setEnvValue('bad name', 'x'), /setting name/);
+	}));
+
+test('a setting changed in .env but not yet running says restart; set dates come from records', () => {
+	const s = servicesFrom({ RESEND_API_KEY: 're_abcdefghijkl9999' }, { running: { RESEND_API_KEY: 're_old' }, setAt: { RESEND_API_KEY: '2026-10-02T18:00:00Z' } });
+	const key = s.find((x) => x.id === 'email')!.settings[0];
+	assert.equal(key.restart, true);
+	assert.equal(key.setAt, '2026-10-02T18:00:00Z');
+	assert.equal(s.find((x) => x.id === 'email')!.settings[1].restart, undefined, 'unset in both is no change');
+	assert.equal(endsOf('re_abcdefghijkl9999', true), '9999');
+	assert.equal(endsOf('Q <q@x.org>', false), 'Q <q@x.org>');
+});
