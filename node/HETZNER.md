@@ -243,6 +243,33 @@ mkdir -p caddy/data caddy/config
 docker compose up -d && docker compose restart mosquitto
 ```
 
+## Updating the node's files (any time after step 1)
+
+From the repo on the Mac. This copies the node's files and **never** its
+secrets or what it holds: not `.env`, the keys, the bellboy's held messages,
+the directory or the storage unit.
+
+```sh
+rsync -av \
+  --exclude '.env' --exclude 'pki/' --exclude 'checks/*' \
+  --exclude 'mosquitto/data/' --exclude 'mosquitto/log/' --exclude 'mosquitto/config/passwd' \
+  --exclude 'dgraph/' --exclude 'storage/' --exclude 'caddy/data/' --exclude 'caddy/config/' \
+  node/ root@135.181.156.21:/srv/node/
+```
+
+## Step 5a — give the storage unit the disk, 2 October 2026
+
+It started at 1 GB (8 × 128 MB), about 1,000 members. Now 16 × 1 GB by default
+(`STORAGE_VOLUMES`, `STORAGE_VOLUME_MB` in `.env`), about 13,000 members
+(docs/q/node-capacity.md). After updating the files, on the server:
+
+```sh
+cd /srv/node
+df -h /                                            # room for 16 GB more?
+docker compose up -d storage                       # restarts it with the new size
+docker compose exec storage wget -qO- localhost:9333/dir/status; echo   # its volumes: Max shows the new count
+```
+
 ## Step 6 — the relay for calls (ADR-Q-004 §3, ADR-Q-017 §3), 2 October 2026
 
 The fourth job: **coturn**, so calls between devices that can't reach each

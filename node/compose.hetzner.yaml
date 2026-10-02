@@ -47,15 +47,19 @@ services:
 
   # The storage unit (ADR-Q-014): the holding bay. Sealed receipts wait here
   # until they're collected and custody passes. SeaweedFS in one process:
-  # master, one volume server and the filer. 1 GB in all: 8 volumes of 128 MB.
-  # Its volume port is 8081 so it doesn't meet Dgraph on 8080.
+  # master, one volume server and the filer. Its volume port is 8081 so it
+  # doesn't meet Dgraph on 8080.
+  # Size: STORAGE_VOLUMES × STORAGE_VOLUME_MB, from node/.env. The default,
+  # 16 × 1 GB, suits a CPX12's 40 GB disk: about 13,000 members at 1 MB each
+  # (docs/q/node-capacity.md). It was 8 × 128 MB (1 GB, about 1,000 members)
+  # for the first test. Volumes already made keep their size; new ones use this.
   storage:
     image: chrislusf/seaweedfs:latest   # pin to the digest after the first pull
     restart: unless-stopped
     networks: [node]
     command: >
       server -dir=/data -ip=storage -ip.bind=0.0.0.0
-      -master.volumeSizeLimitMB=128 -volume.max=8 -volume.port=8081
+      -master.volumeSizeLimitMB=${STORAGE_VOLUME_MB:-1024} -volume.max=${STORAGE_VOLUMES:-16} -volume.port=8081
       -filer -filer.port=8888
     volumes:
       - ./storage:/data
