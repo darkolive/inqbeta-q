@@ -583,15 +583,19 @@
 
 	// Mobile bottom bar navigation
 	const barLinks: Link[] = [
-		{ href: '/', label: 'Overview', icon: 'overview' },
-		{ href: '/keys', label: 'Keys', icon: 'keys' },
+		{ href: '/', label: 'You', icon: 'home' },
+		{ href: '/communication', label: 'Talk', icon: 'message' },
+		{ href: '/contacts', label: 'People', icon: 'contacts' },
 		{ href: '/data', label: 'Files', icon: 'files' },
-		{ href: '/network', label: 'Network', icon: 'network' },
-		{ href: '/devices', label: 'Devices', icon: 'devices' }
+		{ href: '/balance', label: 'Credits', icon: 'wallet' }
 	];
 
-	const isHere = (href: string) =>
-		href === '/' ? page.url.pathname === '/' : page.url.pathname === href || page.url.pathname.startsWith(href + '/');
+	const isHere = (href: string) => {
+		const p = page.url.pathname;
+		const at = (h: string) => (h === '/' ? p === '/' : p === h || p.startsWith(h + '/'));
+		/* Communication gathers messages and calls. */
+		return at(href) || (href === '/communication' && (at('/messages') || at('/call')));
+	};
 </script>
 
 <svelte:head>

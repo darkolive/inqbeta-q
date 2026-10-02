@@ -12,7 +12,7 @@
 	 */
 	import { page } from '$app/state';
 	import { Icon } from '@inqbeta/q-ui';
-	import { NAV, groupOf, isHere, type NavGroup } from '$lib/nav';
+	import { NAV, groupOf, isHere, isHereLink, type NavGroup, type NavLink } from '$lib/nav';
 
 	let { folded = $bindable(false) }: { folded?: boolean } = $props();
 
@@ -61,11 +61,11 @@
 
 <svelte:window onclick={outside} onkeydown={(e) => e.key === 'Escape' && (flyout = null)} />
 
-{#snippet link(l: { href: string; label: string; icon: import('@inqbeta/q-ui').IconName })}
+{#snippet link(l: NavLink)}
 	<a
 		href={l.href}
-		aria-current={isHere(l.href, path) ? 'page' : undefined}
-		class="flex items-center gap-3 rounded-base px-3 py-2 text-sm transition-colors hover:bg-surface-200-800 {isHere(l.href, path) ? 'preset-tonal-primary font-semibold' : ''}"
+		aria-current={isHereLink(l, path) ? 'page' : undefined}
+		class="flex items-center gap-3 rounded-base px-3 py-2 text-sm transition-colors hover:bg-surface-200-800 {isHereLink(l, path) ? 'preset-tonal-primary font-semibold' : ''}"
 	>
 		<Icon name={l.icon} class="size-4 shrink-0" />
 		<span>{l.label}</span>
