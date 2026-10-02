@@ -16,7 +16,6 @@
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { Buffer } from 'node:buffer';
 import path from 'node:path';
 import type { HomeFile } from '$lib/home';
 
@@ -77,9 +76,9 @@ export function writeLogo(dataUrl: string): string {
 	const m = /^data:([a-z+/]+);base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
 	const ext = m ? LOGO_TYPES[m[1]] : undefined;
 	if (!m || !ext) throw new Error('The logo needs to be a picture: WebP, PNG, JPEG or SVG.');
-	const bytes = Buffer.from(m[2], 'base64');
+	const bytes = Uint8Array.from(atob(m[2]), (c) => c.charCodeAt(0));
 	if (bytes.length > LOGO_MOST_BYTES) throw new Error('The logo is too big. Try a smaller picture.');
-	if (ext === 'svg' && /<script|on[a-z]+\s*=|javascript:/i.test(bytes.toString('utf8')))
+	if (ext === 'svg' && /<script|on[a-z]+\s*=|javascript:/i.test(new TextDecoder().decode(bytes)))
 		throw new Error('That SVG has scripts in it. Use a plain picture.');
 	mkdirSync(LOGO_DIR(), { recursive: true });
 	writeFileSync(path.join(LOGO_DIR(), `logo.${ext}`), bytes);
