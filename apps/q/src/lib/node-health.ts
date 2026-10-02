@@ -132,3 +132,30 @@ export async function reachSwitchboard(
 		pc.close();
 	}
 }
+
+/** Whether this page is served securely, so the mesh can't be reached from it. */
+export const onSecurePage = fromSecurePage;
+
+/*
+ * From a secure page, through the node's public front door (2 October 2026).
+ * The gate sits beside the bellboy, directory and storage on the node and
+ * answers GET /health: up or not, and Dgraph's version, never anything they
+ * hold. So the live site can show the same picture localhost does.
+ */
+export async function reachThroughFrontDoor(gate: string): Promise<{ postOffice: Reach; index: Reach; storage: Reach }> {
+	const via = 'Checked through the node’s front door.';
+	try {
+		const r = await fetch(`${gate.replace(/\/$/, '')}/health`, { signal: AbortSignal.timeout(WAIT_MS + 2000), cache: 'no-store' });
+		if (!r.ok) throw new Error(String(r.status));
+		const h = (await r.json()) as { bellboy?: { up?: boolean }; directory?: { up?: boolean; version?: string }; storage?: { up?: boolean } };
+		const down: Reach = { is: 'unreached', says: `The node says it isn’t answering. ${via}` };
+		return {
+			postOffice: h.bellboy?.up ? { is: 'reached', says: `Open — it would tell you when something is waiting for you. ${via}` } : down,
+			index: h.directory?.up ? { is: 'reached', says: `Healthy${h.directory.version ? `, Dgraph ${h.directory.version}` : ''}. ${via}` } : down,
+			storage: h.storage?.up ? { is: 'reached', says: `Open — it would hold what’s sent to you until you collect it. ${via}` } : down
+		};
+	} catch {
+		const none: Reach = { is: 'unreached', says: 'The node’s front door didn’t answer, so nothing behind it could be checked.' };
+		return { postOffice: none, index: none, storage: none };
+	}
+}

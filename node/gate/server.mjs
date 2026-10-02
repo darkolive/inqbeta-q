@@ -18,12 +18,14 @@
  */
 import http from 'node:http';
 import { spawn } from 'node:child_process';
+import net from 'node:net';
 
 const PORT = 8090;
 const FILER = process.env.GATE_FILER ?? 'http://storage:8888';
 const FEDERATIONS = new Set((process.env.GATE_FEDERATIONS ?? '').split(',').map((s) => s.trim()).filter(Boolean));
 const ORIGINS = new Set((process.env.GATE_ORIGINS ?? 'https://inqbeta.com,https://inqbeta.dev,http://localhost:3100').split(',').map((s) => s.trim()));
 const MQTT = { host: process.env.GATE_MQTT_HOST ?? 'mosquitto', user: 'gate', password: process.env.GATE_MQTT_PASSWORD ?? '' };
+const DIRECTORY = process.env.GATE_DIRECTORY ?? 'http://dgraph-alpha:8080';
 const MOST_BYTES = 64 * 1024;
 const FRESH_MS = 10 * 60 * 1000;
 /* Drops (cards shared by link): sealed, signed, and held only for a while. */
@@ -304,8 +306,55 @@ async function drops(req, res, origin, id) {
 	return send(res, origin, 200, { ok: true, id: newId });
 }
 
+/*
+ * GET /health — is each of the node's jobs up? (2 October 2026)
+ *
+ * The bellboy's private listener, the directory and the storage stay on the
+ * mesh, so a page on the live site can't check them itself. The gate is the
+ * node's public front door and sits beside them, so it asks for them: up or
+ * not, and Dgraph's version. Never anything they hold. Cached for 15 seconds
+ * so it can't be used to hammer the services behind it.
+ */
+const SOON_MS = 3000;
+let healthCache = null;
+function tcpUp(host, port) {
+	return new Promise((done) => {
+		const sock = net.connect({ host, port });
+		const t = setTimeout(() => (sock.destroy(), done(false)), SOON_MS);
+		sock.once('connect', () => (clearTimeout(t), sock.end(), done(true)));
+		sock.once('error', () => (clearTimeout(t), done(false)));
+	});
+}
+async function httpUp(url) {
+	try {
+		const r = await fetch(url, { signal: AbortSignal.timeout(SOON_MS) });
+		return { up: true, status: r.status, body: await r.text().catch(() => '') };
+	} catch {
+		return { up: false };
+	}
+}
+async function health() {
+	if (healthCache && Date.now() - healthCache.at < 15_000) return healthCache.body;
+	const [bellboy, directory, storage] = await Promise.all([tcpUp(MQTT.host, 1883), httpUp(`${DIRECTORY}/health`), httpUp(`${FILER}/`)]);
+	let version;
+	try {
+		version = JSON.parse(directory.body ?? '')[0]?.version;
+	} catch {
+		/* no version, still up */
+	}
+	const body = {
+		at: new Date().toISOString(),
+		bellboy: { up: bellboy },
+		directory: { up: !!directory.up, ...(version ? { version } : {}) },
+		storage: { up: !!storage.up }
+	};
+	healthCache = { at: Date.now(), body };
+	return body;
+}
+
 export const server = http.createServer(async (req, res) => {
 	const origin = req.headers.origin ?? '';
+	if (req.method === 'GET' && new URL(req.url, 'http://gate').pathname === '/health') return send(res, origin, 200, await health());
 	const m = ROUTE.exec(decodeURIComponent(new URL(req.url, 'http://gate').pathname));
 	if (req.method === 'OPTIONS') return send(res, origin, 204);
 	const d = DROP.exec(new URL(req.url, 'http://gate').pathname);

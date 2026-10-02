@@ -40,7 +40,7 @@
 	} from '$lib/federations';
 	import type { Found } from '$lib/features/registry';
 	import { standingAt } from '@inqbeta/q-core/membership';
-	import { reachIndex, reachPostOffice, reachStorage, reachSwitchboard, type Reach } from '$lib/node-health';
+	import { onSecurePage, reachIndex, reachPostOffice, reachStorage, reachSwitchboard, reachThroughFrontDoor, type Reach } from '$lib/node-health';
 	import { iceServers } from '$lib/call/connection';
 	import { readHome, HOME_SCHEMA, type Home, type HomeFile } from '$lib/home';
 	import { makeAnnouncement, makePublication, type Announcement } from '@inqbeta/q-core/announcements';
@@ -115,6 +115,20 @@
 	}
 	async function ask(n: NodeRecord) {
 		reach[n.mesh] = { ...reach[n.mesh], asking: true };
+		/* On the live site the mesh can't be reached, so ask the node's front door instead. */
+		const gate = home?.ok && home.federation === id ? home.services.storage : undefined;
+		if (onSecurePage() && gate) {
+			const [front, relay] = await Promise.all([reachThroughFrontDoor(gate), askSwitchboard(n)]);
+			reach[n.mesh] = {
+				index: n.services.index ? front.index : undefined,
+				postOffice: n.services.postOffice ? front.postOffice : undefined,
+				storage: n.services.storage ? front.storage : undefined,
+				relay,
+				asking: false,
+				at: new Date().toLocaleTimeString('en-GB')
+			};
+			return;
+		}
 		const [index, postOffice, storage, relay] = await Promise.all([
 			n.services.index ? reachIndex(n.mesh, n.services.index.port) : Promise.resolve(undefined),
 			n.services.postOffice ? reachPostOffice(n.mesh, n.services.postOffice.port) : Promise.resolve(undefined),

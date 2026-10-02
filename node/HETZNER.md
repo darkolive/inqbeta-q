@@ -257,6 +257,18 @@ rsync -av \
   node/ root@135.181.156.21:/srv/node/
 ```
 
+## Step 5b — health through the front door, 2 October 2026
+
+The gate answers `GET /health` with whether the bellboy, directory and storage
+are up (and Dgraph's version), never anything they hold, cached for 15
+seconds. So the live site, which can't reach the mesh, shows the same
+Reached / Not reached as Q on a computer on the mesh. After updating the files:
+
+```sh
+cd /srv/node && docker compose up -d --force-recreate gate
+curl -s https://storage.135-181-156-21.sslip.io/health; echo
+```
+
 ## Step 5a — give the storage the disk, 2 October 2026
 
 It started at 1 GB (8 × 128 MB), about 1,000 members. Now 16 × 1 GB by default
