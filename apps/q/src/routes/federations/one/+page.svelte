@@ -922,11 +922,15 @@
 			<!-- Settings: the machines it runs. Caretaker only. -->
 			{#if own}
 				<Tabs.Content value="settings">
-				<Section title={isHome ? 'Your host’s invitation' : 'Q’s home federation'} description="Signing up joins the host. Its standing invitation is signed by this federation and runs for 90 days.">
-					{#if isHome && home?.ok}
-						<p class="mb-3 flex flex-wrap items-center gap-2"><Status tone="good">This is Q’s home federation</Status> <span class="text-sm">Its invitation runs until {onDay(home.until)}. Publish again before then.</span></p>
-					{:else if home?.ok}
-						<p class="mb-3 text-sm">Q’s home federation is currently {home.name}.</p>
+				<!--
+					Only the host itself has a standing invitation for everyone who signs up
+					(ADR-Q-016). A club founded inside it never sees this: which federation is
+					the host is decided when the copy is set up (ADR-Q-018), not here.
+				-->
+				{#if isHome}
+				<Section title="Your host’s invitation" description="Signing up joins the host. Its standing invitation is signed by this federation and runs for 90 days.">
+					{#if home?.ok}
+						<p class="mb-3 flex flex-wrap items-center gap-2"><Status tone="good">This is your host</Status> <span class="text-sm">Its invitation runs until {onDay(home.until)}. Renew it before then.</span></p>
 					{/if}
 					{#if homeFile}
 						<div class="card preset-tonal p-4 flex flex-col gap-3">
@@ -945,14 +949,31 @@
 							<label class="label"><span class="label-text">Its bellboy (wss)</span><input class="input role-token text-xs" bind:value={svcBellboy} /></label>
 						</div>
 						<button type="button" class="btn preset-filled-primary-500 min-h-11" disabled={busy !== null} onclick={() => void publishHome()}>
-							{busy === 'home' ? 'Signing…' : isHome ? 'Renew the invitation' : 'Make this Q’s home federation'}
+							{busy === 'home' ? 'Signing…' : 'Renew the invitation'}
 						</button>
 					{/if}
 				</Section>
+				{/if}
 
-				<Section title="Nodes" description="The machines this federation runs, on its own private mesh. Whether each service answers is checked from this device, now — never stored.">
+				<Section
+					title="Nodes"
+					description={isHome
+						? 'The machines this federation runs, on its own private mesh. Whether each service answers is checked from this device, now — never stored.'
+						: 'Machines this federation runs itself. Optional: most never need one.'}
+				>
 					{#if nodes.length === 0 && !adding}
-						<Empty icon="federations" title="No nodes yet" description="A node holds the federation’s bellboy, directory and storage — any or all of them. List one when it’s on the mesh." />
+						{#if isHome}
+							<Empty icon="federations" title="No nodes yet" description="A node runs the federation’s bellboy, directory, storage and switchboard — any or all of them. List one when it’s on the mesh." />
+						{:else}
+							<!-- A club rides on its host's services (ADR-Q-017 §2: mine → my federation's → the host's). -->
+							<div class="card preset-tonal-success p-4 flex items-start gap-3 max-w-2xl">
+								<Icon name="check" class="mt-0.5 shrink-0" />
+								<div>
+									<p class="font-bold">{founding.name} uses {home?.ok ? home.name : 'your host'}’s services</p>
+									<p class="text-sm">Its bellboy, storage and switchboard carry your members’ messages and calls. You don’t need a machine of your own. Run your own node only if you want {founding.name} to look after these itself.</p>
+								</div>
+							</div>
+						{/if}
 					{/if}
 					<ul class="flex flex-col gap-3">
 						{#each nodes as n (n.mesh)}
@@ -1053,7 +1074,7 @@
 							</div>
 						</div>
 					{:else}
-						<button type="button" class="btn preset-tonal min-h-11 mt-4" onclick={() => (adding = true)}>List a node…</button>
+						<button type="button" class="btn preset-tonal min-h-11 mt-4" onclick={() => (adding = true)}>{isHome || nodes.length ? 'List a node…' : 'Run your own node…'}</button>
 					{/if}
 				</Section>
 				</Tabs.Content>
