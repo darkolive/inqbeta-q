@@ -264,7 +264,7 @@
 			inviteLink = await c.invite(location.origin, sealFor.trim() || callee?.did || undefined);
 			/* Calling someone in Q: it rings on their Q. */
 			if (callee?.inbox) {
-				const out = await sendTo(callee, { kind: 'call', link: inviteLink });
+				const out = await sendTo(callee, { kind: 'call', link: inviteLink, call: c.name });
 				ringing = out.ok ? `Ringing ${callee.name} on their Q…` : `Couldn’t ring ${callee.name}: ${out.says} Send them the link instead.`;
 			}
 		} catch (e) {
@@ -358,6 +358,10 @@
 		wake = null;
 		record = c;
 		remote = null;
+		/* Not answered: tell their Q it's over, so it can't ring later when they sign in. */
+		const placed = c.steps[0];
+		if (placed?.did === identity?.did && !c.steps.some((st) => st.content.event === 'call.accepted') && callee?.inbox)
+			void sendTo(callee, { kind: 'call-ended', call: placed.content.call });
 		local = null;
 		phase = 'ended';
 		const checked = await checkCallChain(c);

@@ -77,6 +77,13 @@ export function watchArrivals(fn: (m: Signed) => void): () => void {
 
 let collecting: Promise<number> | null = null;
 /** Collect everything waiting in your inbox. Returns how many arrived. */
+/*
+ * Endings first: when a call, its ending and a voice message are all waiting
+ * (someone signed in after the call was over), the ending is known before the
+ * call is seen, so a call that has finished never rings.
+ */
+const first = (k: Message['kind']) => (k === 'call-ended' || k === 'voicemail' || k === 'call-declined' || k === 'call-reply' ? 0 : 1);
+
 export function collectInbox(): Promise<number> {
 	collecting ??= (async () => {
 		const me = current();
@@ -87,7 +94,7 @@ export function collectInbox(): Promise<number> {
 		const list = await fetch(`${storage}/inbox/${mine.id}`, { headers: head, signal: AbortSignal.timeout(15_000) })
 			.then((r) => (r.ok ? r.json() : { ids: [] }))
 			.catch(() => ({ ids: [] }));
-		let n = 0;
+		const arrived: Signed[] = [];
 		for (const pid of (list as { ids?: string[] }).ids ?? []) {
 			try {
 				const post = (await (await fetch(`${storage}/inbox/${mine.id}/${pid}`, { headers: head })).json()) as { content?: { sealed?: unknown } };
@@ -101,13 +108,14 @@ export function collectInbox(): Promise<number> {
 				if (kept(signed.content.kind)) await keep(signed);
 				/* Custody passes: it's in your vault now, so the storage can let its copy go. */
 				await fetch(`${storage}/inbox/${mine.id}/${pid}`, { method: 'DELETE', headers: head }).catch(() => {});
-				for (const fn of listeners) fn(signed);
-				n++;
+				arrived.push(signed);
 			} catch {
 				/* one that won't open doesn't stop the rest */
 			}
 		}
-		return n;
+		arrived.sort((a, b) => first(a.content.kind) - first(b.content.kind) || a.content.at.localeCompare(b.content.at));
+		for (const m of arrived) for (const fn of listeners) fn(m);
+		return arrived.length;
 	})().finally(() => (collecting = null));
 	return collecting;
 }

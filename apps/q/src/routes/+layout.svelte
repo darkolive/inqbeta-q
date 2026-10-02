@@ -361,22 +361,44 @@
 	 * when Q opens and whenever the bellboy pings it. Unread ones count on the
 	 * bell (if Messages is on); a call rings with Answer.
 	 */
-	let calling = $state<{ from: string; did: string; inbox?: string; link: string } | null>(null);
+	let calling = $state<{ from: string; did: string; inbox?: string; link: string; call?: string } | null>(null);
 	/* Calls that rang while you were away: kept here until you call back or close them. */
-	let missed = $state<{ did: string; name: string; at: string }[]>([]);
+	let missed = $state<{ did: string; name: string; at: string; call?: string }[]>([]);
+	/* Calls known to be over: their caller hung up, or left a voice message. They never ring. */
+	const overCalls = new Set<string>();
+	const voicemailCalls = new Set<string>();
+	const voicemailFor = (call?: string) => !!call && voicemailCalls.has(call);
 	$effect(() => {
 		if (!identity || !folderReady) return;
 		const stopArrivals = watchArrivals((m: Signed) => {
 			const who = peopleFrom(ledger, identity?.did).find((p) => p.did === m.did)?.name ?? (m.content.card?.['q:person/called'] || 'Someone');
+			/* The caller gave up, or left a voice message: that call is over. */
+			if ((m.content.kind === 'call-ended' || m.content.kind === 'voicemail') && m.content.call) {
+				overCalls.add(m.content.call);
+				if (m.content.kind === 'voicemail') voicemailCalls.add(m.content.call);
+				if (calling?.call === m.content.call) {
+					calling = null;
+					if (m.content.kind === 'call-ended') {
+						missed = [{ did: m.did, name: who, at: m.content.at, call: m.content.call }, ...missed.filter((x) => x.did !== m.did)];
+						announce = `Missed call from ${who}`;
+					}
+				}
+				/* A voice message says it all: no separate missed call for the same call. */
+				if (m.content.kind === 'voicemail') missed = missed.filter((x) => x.call !== m.content.call);
+				if (m.content.kind === 'call-ended') return;
+			}
 			if (m.content.kind === 'call' && m.content.link) {
-				/* A call only rings while it's happening: one that waited for you to sign in is a missed call. */
-				if (Date.now() - Date.parse(m.content.at) > 90_000) {
-					missed = [{ did: m.did, name: who, at: m.content.at }, ...missed.filter((x) => x.did !== m.did)];
+				/* A call only rings while it's happening: one that waited for you to sign in, or has ended, is a missed call. */
+				const over = !!m.content.call && overCalls.has(m.content.call);
+				if (over || Date.now() - Date.parse(m.content.at) > 90_000) {
+					/* Left a voice message? That notice is enough. */
+					if (over && voicemailFor(m.content.call)) return;
+					missed = [{ did: m.did, name: who, at: m.content.at, call: m.content.call }, ...missed.filter((x) => x.did !== m.did)];
 					announce = `Missed call from ${who}`;
 					if (reachFor('people') === 'ring') ring();
 					return;
 				}
-				calling = { from: who, did: m.did, inbox: m.content.replyTo, link: m.content.link };
+				calling = { from: who, did: m.did, inbox: m.content.replyTo, link: m.content.link, call: m.content.call };
 				announce = `${who} is calling`;
 				ring();
 				return;

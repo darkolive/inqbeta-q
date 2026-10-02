@@ -124,6 +124,11 @@ export class Call {
 		this.on.phase(p, says);
 	}
 
+	/** The call's name, once placed: random, the same on every receipt in its chain. */
+	get name(): string | undefined {
+		return this.placed?.content.call;
+	}
+
 	/* ---------------- handshake ---------------- */
 
 	/** Caller presses Call: the first receipt, and the link that carries it. `to` seals it for them. */
