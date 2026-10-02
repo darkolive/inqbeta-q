@@ -11,7 +11,7 @@
  * and OneDrive.
  */
 import { syncAllQuietly } from '@inqbeta/q-core/replicas';
-import { folderOwner, noteCarried, primaryHandle } from '@inqbeta/q-core/folder';
+import { folderOwner, noteCarried, primaryHandle, watchWrites } from '@inqbeta/q-core/folder';
 import { folderChannel, holdsEverything, syncChannels, type ChannelSync } from '@inqbeta/q-core/storage-channels';
 import { googleChannel } from '$lib/google-channel';
 import { CLOUDS, cloudChannel } from '$lib/cloud-channels';
@@ -63,10 +63,30 @@ export async function syncCloudNow(): Promise<CloudState[]> {
 	return cloud;
 }
 
+/**
+ * Before signing out: carry everything out now, and wait for it (up to 20
+ * seconds), so nothing made on this device is left behind on it.
+ */
+export async function flushSync(): Promise<{ ok: boolean; says: string }> {
+	if (!navigator.onLine) return { ok: false, says: 'You’re offline, so what’s new stays on this device until you’re back online here.' };
+	const run = (async () => {
+		await syncAllQuietly().catch(() => []);
+		const clouds = await syncCloudNow().catch(() => [] as CloudState[]);
+		const failed = clouds.filter((c) => c.error);
+		if (!clouds.length) return { ok: true, says: '' };
+		return failed.length
+			? { ok: false, says: `${failed.map((c) => c.called).join(', ')} didn’t take the latest: ${failed[0].error}` }
+			: { ok: true, says: `Saved to ${clouds.map((c) => c.called).join(' and ')}.` };
+	})();
+	const late = new Promise<{ ok: boolean; says: string }>((r) => setTimeout(() => r({ ok: false, says: 'Your backup is taking a long time. It carries on next time you’re signed in here.' }), 20_000));
+	return Promise.race([run, late]);
+}
+
 export function startAutoSync(onDone?: () => void): () => void {
 	let running = false;
 	async function tick() {
-		if (running || document.visibilityState !== 'visible' || !navigator.onLine) return;
+		/* Hidden is fine for a sync a write asked for: a phone locking straight after a call still sends it. */
+		if (running || !navigator.onLine) return;
 		running = true;
 		try {
 			const folders = await syncAllQuietly();
@@ -81,7 +101,26 @@ export function startAutoSync(onDone?: () => void): () => void {
 			running = false;
 		}
 	}
-	const timer = setInterval(() => void tick(), EVERY_MS);
+	const timer = setInterval(() => document.visibilityState === 'visible' && void tick(), EVERY_MS);
+	/*
+	 * At the point of the transaction: a few seconds after anything new is
+	 * written (a call's receipts, a message, a card), it's carried out. One
+	 * burst of writes is one sync; a write during a sync runs one more after.
+	 */
+	let soon: ReturnType<typeof setTimeout> | null = null;
+	let again = false;
+	const stopWrites = watchWrites(() => {
+		if (soon) clearTimeout(soon);
+		soon = setTimeout(async () => {
+			soon = null;
+			if (running) return void (again = true);
+			await tick();
+			if (again) {
+				again = false;
+				void tick();
+			}
+		}, 3000);
+	});
 	const onVisible = () => {
 		if (document.visibilityState === 'visible') void tick();
 	};
@@ -90,6 +129,8 @@ export function startAutoSync(onDone?: () => void): () => void {
 	void tick();
 	return () => {
 		clearInterval(timer);
+		stopWrites();
+		if (soon) clearTimeout(soon);
 		document.removeEventListener('visibilitychange', onVisible);
 		window.removeEventListener('online', onVisible);
 	};

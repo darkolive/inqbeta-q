@@ -681,6 +681,18 @@ export function setVaultSyncs(yes: boolean) {
  * browser clears it, the count comes back high, which errs the safe way. */
 const EXPORTED_AT = 'q-vault-exported';
 
+/*
+ * Something new was written into the vault (2 October 2026). Darren ended a
+ * call on his phone, signed out, and the desktop never saw it: the copy to
+ * Google Drive only ran every five minutes. Listeners here (autosync) carry
+ * each new receipt out moments after it's made.
+ */
+const writeListeners = new Set<() => void>();
+export function watchWrites(fn: () => void): () => void {
+	writeListeners.add(fn);
+	return () => writeListeners.delete(fn);
+}
+
 const backupListeners = new Set<(at: number) => void>();
 
 function markExported() {
@@ -1047,6 +1059,7 @@ export async function saveLocked(path: string, name: string, data: ArrayBuffer |
 	const locked = await lockBytes(keyOrThrow(), { name, path, type }, bytes);
 	const onDisk = await contentName(locked);
 	await writeText(dir, onDisk, new Blob([locked]));
+	for (const fn of writeListeners) fn();
 	return onDisk;
 }
 

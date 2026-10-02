@@ -13,6 +13,7 @@
 	 * all. Leaving belongs where you always are, which is the header.
 	 */
 	import { remembered, signOut as leave, unlock, watch, type Identity } from '@inqbeta/q-core/passkey';
+	import { flushSync } from '$lib/autosync';
 	import { Avatar, Icon } from '@inqbeta/q-ui';
 	import { fingerprint } from '$lib/fingerprint';
 
@@ -47,7 +48,12 @@
 		else void signIn();
 	}
 
-	function out() {
+	let saving = $state(false);
+	async function out() {
+		/* Carry everything out first, so nothing made here is left behind (see SignIn). */
+		saving = true;
+		await flushSync();
+		saving = false;
 		open = false;
 		leave();
 		/* A full load, so nothing of the last person stays in the page (see SignIn). */
@@ -129,7 +135,7 @@
 
 			<div class="actions">
 				<a class="btn btn-sm preset-outlined-surface-500" href="/keys" onclick={() => (open = false)}>Your keys</a>
-				<button type="button" class="btn btn-sm preset-outlined-surface-500" onclick={out}>Sign out</button>
+				<button type="button" class="btn btn-sm preset-outlined-surface-500" disabled={saving} onclick={() => void out()}>{saving ? "Saving to your backups…" : "Sign out"}</button>
 			</div>
 
 			<p class="hint">

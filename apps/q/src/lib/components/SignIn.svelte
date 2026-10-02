@@ -5,6 +5,7 @@
 	 * for the life of this tab. `compact` is for the Q window.
 	 */
 	import NoteTouch from './NoteTouch.svelte';
+	import { flushSync } from '$lib/autosync';
 	import { goto } from '$app/navigation';
 	import {
 		KEY_PLACES,
@@ -126,7 +127,17 @@
 	 * (ADR-Q-012) — asked in Q's own words (NoteTouch), then signs out either way.
 	 */
 	let noting = $state(false);
-	function signOutHere() {
+	/*
+	 * First, carry everything out to your backups and wait for it (2 October
+	 * 2026: a call made on the phone never reached the desktop, because
+	 * signing out didn't wait for the copy). Then the note, then out.
+	 */
+	let saving = $state('');
+	async function signOutHere() {
+		saving = 'Saving to your backups…';
+		const out = await flushSync();
+		saving = out.says;
+		if (!out.ok) await new Promise((r) => setTimeout(r, 2500));
 		noting = true;
 	}
 	function leaveNow() {
@@ -230,7 +241,8 @@
 		{#if !compact}
 			<div class="actions">
 				<button type="button" class="btn preset-outlined-surface-500" disabled={working} onclick={() => void run(() => unlock(keyPlace()))}>Sign in again to check</button>
-				{#if showOut}<button type="button" class="btn preset-outlined-surface-500" onclick={() => void signOutHere()}>Sign out</button>{/if}
+				{#if showOut}<button type="button" class="btn preset-outlined-surface-500" disabled={!!saving && !noting} onclick={() => void signOutHere()}>{saving && !noting ? 'Saving…' : 'Sign out'}</button>{/if}
+				{#if saving}<p class="text-sm" aria-live="polite">{saving}</p>{/if}
 			</div>
 		{/if}
 	</div>
