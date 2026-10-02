@@ -1,0 +1,78 @@
+{
+  "schema": "inqbeta.host-services/1",
+  "host": "did:key:z6Mkvo5GNipFGRo6v29PbHnFXjvh8UFjLuBDnXYpRGzB6GCP",
+  "records": [
+    {
+      "schema": "inqbeta.receipt/1",
+      "source": "inqbeta:q/host",
+      "did": "did:key:z6MkpdzRhpXvNuvxCfYHk1EX2h3kAe61tJbWi58ijkeg8pVc",
+      "publicKey": "l1SZFrbv2cFP2Ld26PBEPu0RlkIlIYn6d01DMVHfsX8",
+      "signedAt": "2026-10-02T19:12:31.508Z",
+      "contentHash": "V9xZTAfDh3kKT0bgvZiYaDY3aKe-ye4g_S7EgxV7-f0",
+      "signature": "RvP9jj3ZLMGyhXbs0bnRQ4sFNX_75swfOgx0KUmJR1zuzvWqq1Oh01ooYhz5tI4o5-dohduJDadkRBMncLg_DA",
+      "content": {
+        "schema": "inqbeta.host-service/1",
+        "source": "inqbeta:q/host",
+        "host": "did:key:z6Mkvo5GNipFGRo6v29PbHnFXjvh8UFjLuBDnXYpRGzB6GCP",
+        "service": "ai",
+        "setting": "AI_GATEWAY_API_KEY",
+        "ends": "SUmI",
+        "at": "2026-10-02T19:12:31.499Z"
+      }
+    },
+    {
+      "schema": "inqbeta.receipt/1",
+      "source": "inqbeta:q/host",
+      "did": "did:key:z6MkpdzRhpXvNuvxCfYHk1EX2h3kAe61tJbWi58ijkeg8pVc",
+      "publicKey": "l1SZFrbv2cFP2Ld26PBEPu0RlkIlIYn6d01DMVHfsX8",
+      "signedAt": "2026-10-02T19:10:12.540Z",
+      "contentHash": "-FYmJM3mZxFVkvKvYDOqxYGpPy7rrkCQ81PyzdAJO4Q",
+      "signature": "ns7-n-PHB8W_RCJG17JaxV--E2NIhWe6z2gwb9hviLyy4hMvss7YOpkgMTnjx8XNaASkbrkVHjTsiszCJwjPDg",
+      "content": {
+        "schema": "inqbeta.host-service/1",
+        "source": "inqbeta:q/host",
+        "host": "did:key:z6Mkvo5GNipFGRo6v29PbHnFXjvh8UFjLuBDnXYpRGzB6GCP",
+        "service": "email",
+        "setting": "Q_MAIL_FROM",
+        "ends": "getintouch@darkolive.co.uk",
+        "at": "2026-10-02T19:10:12.528Z"
+      }
+    },
+    {
+      "schema": "inqbeta.receipt/1",
+      "source": "inqbeta:q/host",
+      "did": "did:key:z6MkpdzRhpXvNuvxCfYHk1EX2h3kAe61tJbWi58ijkeg8pVc",
+      "publicKey": "l1SZFrbv2cFP2Ld26PBEPu0RlkIlIYn6d01DMVHfsX8",
+      "signedAt": "2026-10-02T19:04:57.162Z",
+      "contentHash": "4Ubuz0tzkpmL3e4PsCIwdNuBiqtjoiRyYwpDAEVIGlc",
+      "signature": "btwcC_mJVS8-mvEuhkpFcE4nutNH6MKZJ_5NlswwozB_8XgKbxnHF8eD1xOzjFuAsfUAIkqhfxutAQpTwXurCg",
+      "content": {
+        "schema": "inqbeta.host-service/1",
+        "source": "inqbeta:q/host",
+        "host": "did:key:z6Mkvo5GNipFGRo6v29PbHnFXjvh8UFjLuBDnXYpRGzB6GCP",
+        "service": "calls",
+        "setting": "Q_TURN_SECRET",
+        "ends": "sPd2",
+        "at": "2026-10-02T19:04:57.154Z"
+      }
+    },
+    {
+      "schema": "inqbeta.receipt/1",
+      "source": "inqbeta:q/host",
+      "did": "did:key:z6MkpdzRhpXvNuvxCfYHk1EX2h3kAe61tJbWi58ijkeg8pVc",
+      "publicKey": "l1SZFrbv2cFP2Ld26PBEPu0RlkIlIYn6d01DMVHfsX8",
+      "signedAt": "2026-10-02T19:06:15.371Z",
+      "contentHash": "aknQq-0hwfGGS3q4UHW2Vp58wvUetCi9gcLTQmp3TV4",
+      "signature": "3Krv8JTWmdWHv6IE9x0BtrutME7bcEHH4ZT4rwkBqMcCFkzD8vWYXCIX5uD2-4sU1E5SpOappj-YQfS7p5snCw",
+      "content": {
+        "schema": "inqbeta.host-service/1",
+        "source": "inqbeta:q/host",
+        "host": "did:key:z6Mkvo5GNipFGRo6v29PbHnFXjvh8UFjLuBDnXYpRGzB6GCP",
+        "service": "calls",
+        "setting": "Q_TURN_URLS",
+        "ends": "turn:135.181.156.21:3478?transport=udp,turn:135.181.156.21:3478?transport=tcp",
+        "at": "2026-10-02T19:06:15.359Z"
+      }
+    }
+  ]
+}
