@@ -76,7 +76,7 @@ export const SECTIONS: NavGroup[] = [
 		about: 'What you give and receive',
 		links: [
 			{ href: '/exchanges', label: 'Exchange', icon: 'exchange' },
-			{ href: '/balance', label: 'Balance sheet', icon: 'balance' }
+			{ href: '/balance', label: 'Credits', icon: 'wallet' }
 		]
 	},
 	{

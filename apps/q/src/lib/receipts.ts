@@ -153,6 +153,28 @@ export async function receiptsInJson(json: unknown, item: FolderItem): Promise<R
 		return out;
 	}
 
+	/* Credits (ADR-Q-023): a move, signed and checked by the credit rules when made. */
+	const credit = o.content as { schema?: string; kind?: string; credits?: number; mode?: string; at?: string; pack?: { name?: string } } | undefined;
+	if (credit?.schema === 'inqbeta.credit/1') {
+		const c = await checkReceipt(json);
+		const verb = { buy: 'Bought', spend: 'Spent', reward: 'Rewarded', trade: 'Traded' }[credit.kind ?? ''] ?? 'Moved';
+		out.push({
+			id: `json:${where}`,
+			group: 'other',
+			what: 'Credits',
+			title: `${verb} ${credit.credits ?? 0} ${credit.mode === 'test' ? 'test ' : ''}credits${credit.pack?.name ? ` · ${credit.pack.name}` : ''}`,
+			description: 'Signed, and checked by the credit rules when it was made.',
+			at: DAY(credit.at),
+			signers: [String(o.did ?? '')],
+			holds: c.ok ? 'yes' : 'no',
+			says: c.ok ? 'Signed, and unchanged since.' : c.says,
+			where,
+			item,
+			json
+		});
+		return out;
+	}
+
 	/* Collected by the bell (ADR-Q-014): kept, signed by you, when it was Captured. */
 	const got = o.content as { schema?: string; from?: string; title?: string; hash?: string; collectedAt?: string } | undefined;
 	if (got?.schema === 'inqbeta.received/1') {
