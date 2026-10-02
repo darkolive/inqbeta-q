@@ -22,6 +22,12 @@ small a machine can do each one.
   telephone directory that used to sit in the phone box.
 - **Lighthouse**: Nebula's meeting point for a federation's mesh. A third,
   very small job, listed here for completeness.
+- **Switchboard** (2 October, was "relay"): coturn, a TURN relay. Darren:
+  "that's how you used to make calls, through the switchboard." It connects a
+  call when two devices can't reach each other, and unlike the old operators it
+  can't listen in: everything it passes is encrypted. Lucide's `cable` icon.
+  The compose service and profile keep the technical name, `relay`. Sizes:
+  `q/node-capacity.md`.
 
 Q's federation screen uses these names and icons now (Lucide's
 `concierge-bell` and `book-user`). The node record's field names stay

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Check the relay (node/coturn): run on the node, after
+# Check the switchboard (node/coturn, the TURN relay): run on the node, after
 #   docker compose --profile relay up -d relay
 #
 # What can be checked from the node itself: that it's running, listens on the
@@ -18,7 +18,7 @@ bad() { echo "FAIL  $1"; fail=$((fail+1)); }
 [ -n "${TURN_SECRET:-}" ] && ok "TURN_SECRET is set in node/.env" || { bad "TURN_SECRET is set in node/.env"; exit 1; }
 HOST="${TURN_PUBLIC_IP:-135.181.156.21}"
 
-docker compose ps relay --status running -q | grep -q . && ok "the relay is running" || bad "the relay is running"
+docker compose ps relay --status running -q | grep -q . && ok "the switchboard is running" || bad "the switchboard is running"
 
 listening="$(ss -lnu | awk '$4 ~ /:3478$/ {print $4}' | sort -u)"
 if [ -n "$listening" ] && ! echo "$listening" | grep -vq "^$HOST:3478$"; then ok "it listens on the public address only ($HOST:3478)"
@@ -43,6 +43,6 @@ Now the real test, from your own computer (outside the node):
     Username:  $user
     Password:  $cred
   Press "Gather candidates". A row of type "relay" with $HOST means calls can
-  bounce off this node. (This username and password stop working in 10 minutes.)
+  be connected through this node's switchboard. (This username and password stop working in 10 minutes.)
 MSG
 [ "$fail" -eq 0 ]

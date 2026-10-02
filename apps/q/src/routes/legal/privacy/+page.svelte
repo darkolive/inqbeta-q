@@ -35,8 +35,8 @@
 		our server and keeps nothing; Q can only reach the files and folder it made in your Drive.</li>
 	<li><strong>Calls.</strong> Calls go directly between devices. To find that direct route, your device asks
 		a public STUN server (Cloudflare's or Google's), which sees your IP address and nothing else. Where a
-		relay is set up and a network blocks direct calls, the call is relayed still encrypted, with short-lived
-		credentials; the relay cannot read it.</li>
+		network blocks direct calls, the call is connected through a switchboard (a TURN relay), still encrypted,
+		with short-lived credentials; the switchboard cannot read it, and its logs never hold your identity.</li>
 	<li><strong>Hosting logs.</strong> Like any website, our host records requests — the page asked for, the
 		time and your IP address — to keep the service running and secure. These logs are kept briefly.</li>
 </ul>
@@ -46,7 +46,12 @@
 	<li><a href="https://vercel.com">Vercel</a> hosts Q.</li>
 	<li><a href="https://resend.com">Resend</a> sends Q's emails.</li>
 	<li><a href="https://cloudflare.com">Cloudflare</a> and <a href="https://google.com">Google</a> help a call
-		find a direct route (STUN), and Cloudflare relays calls that cannot connect directly.</li>
+		find a direct route (STUN). Calls that cannot connect directly go through our own switchboard, or
+		Cloudflare's.</li>
+	<li><a href="https://www.hetzner.com">Hetzner</a>, in Finland, runs our node: the bellboy that tells your Q
+		something is waiting, the storage unit that holds sealed things until you collect them, the directory, and
+		the switchboard. What it holds for you is sealed so it can't read it; the directory holds only what is
+		published on purpose.</li>
 	<li>Google again, for your Drive, only if you connect it yourself.</li>
 </ul>
 <p>Some of these providers may process data outside the UK, under their own safeguards.</p>

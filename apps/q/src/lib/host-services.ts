@@ -52,8 +52,8 @@ export const HOST_SERVICES: {
 	{
 		id: 'calls',
 		called: 'Calls',
-		what: 'A relay for calls when two devices can’t reach each other. Your node’s own relay first; Cloudflare’s if you have no node.',
-		from: 'Your node, or Cloudflare',
+		what: 'The switchboard: it connects a call when two devices can’t reach each other, and can’t listen in. Your node’s own first; Cloudflare’s if you have no node.',
+		from: 'Your node’s switchboard, or Cloudflare',
 		settings: [
 			{ name: 'Q_TURN_URLS', secret: false, group: 'own' },
 			{ name: 'Q_TURN_SECRET', secret: true, group: 'own' },

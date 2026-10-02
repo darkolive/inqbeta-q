@@ -3,8 +3,8 @@
 #   docker compose -f compose.yaml -f compose.hetzner.yaml up -d
 #
 # Three jobs (ADR-Q-014): the bellboy (Mosquitto), the directory (Dgraph) and
-# the storage unit (SeaweedFS), and a fourth, the relay (coturn) for calls.
-# Apart from the relay, nothing here is reachable from the internet. Every port is bound to
+# the storage unit (SeaweedFS), and a fourth, the switchboard (coturn) for calls.
+# Apart from the switchboard, nothing here is reachable from the internet. Every port is bound to
 # localhost (for bin/check.sh) and to the node's Nebula address, 10.42.0.1,
 # so only members of the test federation's mesh can reach it.
 # Nebula must be up before Docker starts (nebula/nebula.service sees to it).
@@ -99,8 +99,9 @@ services:
       - ./caddy/data:/data
       - ./caddy/config:/config
 
-  # The relay (node/coturn/turnserver.conf): the host's own TURN server, for
-  # calls between devices that can't reach each other. Unlike everything above,
+  # The switchboard (node/coturn/turnserver.conf): the host's own TURN relay,
+  # connecting calls between devices that can't reach each other. (The service
+  # and profile keep the technical name, relay.) Unlike everything above,
   # it has to be reachable from the internet: Hetzner's firewall opens
   # 3478 (UDP and TCP) and 49160-49999 (UDP). It carries only encrypted media
   # it can't read, and refuses to relay into private networks or the mesh.

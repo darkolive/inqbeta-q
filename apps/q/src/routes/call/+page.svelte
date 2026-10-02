@@ -599,8 +599,8 @@
 		<Section title="Getting through" description="How the call travels.">
 			<ul class="list-disc space-y-1 pl-5 text-sm">
 				<li>Direct, device to device, whenever the two networks allow it — most home broadband does.</li>
-				<li>{relay ? 'A relay is ready for networks that block direct calls (mobile data, offices, hotels). It carries encrypted packets it cannot open.' : 'No relay is set up on this server yet, so a call between two strict networks (some mobile carriers, offices) may not connect.'}</li>
-				<li>The encryption keys are the ones you and they signed, so nobody in between can listen — not Q, not a relay.</li>
+				<li>{relay ? 'A switchboard is ready for networks that block direct calls (mobile data, offices, hotels). It connects the call but can’t listen in: everything it passes along is encrypted.' : 'No switchboard is set up yet, so a call between two strict networks (some mobile carriers, offices) may not connect.'}</li>
+				<li>The encryption keys are the ones you and they signed, so nobody in between can listen — not Q, not the switchboard.</li>
 			</ul>
 		</Section>
 	{/if}

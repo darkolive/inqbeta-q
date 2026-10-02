@@ -270,9 +270,9 @@ docker compose up -d storage                       # restarts it with the new si
 docker compose exec storage wget -qO- localhost:9333/dir/status; echo   # its volumes: Max shows the new count
 ```
 
-## Step 6 — the relay for calls (ADR-Q-004 §3, ADR-Q-017 §3), 2 October 2026
+## Step 6 — the switchboard for calls (ADR-Q-004 §3, ADR-Q-017 §3), 2 October 2026
 
-The fourth job: **coturn**, so calls between devices that can't reach each
+The fourth job: the **switchboard**, coturn (a TURN relay), so calls between devices that can't reach each
 other bounce off the host's own node instead of Cloudflare. It carries only
 encrypted media it can't read, and refuses to relay into private networks or
 the mesh (`coturn/turnserver.conf`). Not run yet.
@@ -293,6 +293,11 @@ In Q on your own computer: your host → **Services** → **Calls**:
 - `Q_TURN_URLS`: `turn:135.181.156.21:3478?transport=udp,turn:135.181.156.21:3478?transport=tcp`
 - `Q_TURN_SECRET`: the same value as the node's `TURN_SECRET`
 
-Then **Send to live site** for both. Q offers the node's relay first and
+Then **Send to live site** for both.
+
+**Run, 2 October 2026:** `bin/check-relay.sh` 5/5. From the Mac, behind the BT
+router, WebRTC's Trickle ICE page gathered a **relay** candidate at
+135.181.156.21:49749 (UDP): the firewall is open and the switchboard hands out
+public addresses. The storage unit is now 16 volumes (Max 16, 7 in use). Q offers the node's relay first and
 Cloudflare's after it, if that's set too. Not yet: `turns:` on 443 (TLS), for
 networks that only allow web traffic.

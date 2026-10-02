@@ -29,7 +29,7 @@ const DEVICES = [
 	{ name: 'Raspberry Pi Zero 2 W', where: 'home', ramMB: 512, cores: 4, diskGB: 16, upMbps: 20, monthlyTB: Infinity, jobs: ['bellboy'], slowCores: true, note: 'Bellboy only' },
 	{ name: 'Raspberry Pi 5 8 GB + SSD', where: 'home', ramMB: 8192, cores: 4, diskGB: 200, upMbps: 50, monthlyTB: Infinity, jobs: ['bellboy', 'storage', 'directory', 'relay'] },
 	{ name: 'Mini PC (N100, 16 GB)', where: 'home', ramMB: 16384, cores: 4, diskGB: 400, upMbps: 50, monthlyTB: Infinity, jobs: ['bellboy', 'storage', 'directory', 'relay'] },
-	{ name: 'Mini PC at home, relay rented', where: 'split', ramMB: 16384, cores: 4, diskGB: 400, upMbps: 50, monthlyTB: Infinity, jobs: ['bellboy', 'storage', 'directory'], note: 'With the relay on a CPX12 or Cloudflare' },
+	{ name: 'Mini PC at home, switchboard rented', where: 'split', ramMB: 16384, cores: 4, diskGB: 400, upMbps: 50, monthlyTB: Infinity, jobs: ['bellboy', 'storage', 'directory'], note: 'With the switchboard on a CPX12 or Cloudflare' },
 	{ name: 'Hetzner CPX12', where: 'rented', ramMB: 2048, cores: 1, diskGB: 25, upMbps: 300, monthlyTB: 20, jobs: ['bellboy', 'storage', 'directory', 'relay'], note: 'Measured: all four idle at 534 MB' },
 	{ name: 'Hetzner CPX22', where: 'rented', ramMB: 4096, cores: 2, diskGB: 60, upMbps: 300, monthlyTB: 20, jobs: ['bellboy', 'storage', 'directory', 'relay'] },
 	{ name: 'Hetzner CPX32', where: 'rented', ramMB: 8192, cores: 4, diskGB: 140, upMbps: 400, monthlyTB: 20, jobs: ['bellboy', 'storage', 'directory', 'relay'] }
@@ -68,16 +68,17 @@ export function capacity(d) {
 	return { ...d, perJob: out, members, limit };
 }
 
+const NAMES = { bellboy: 'bellboy', storage: 'storage unit', directory: 'directory', relay: 'switchboard' };
 const round = (n) => (n === Infinity ? '—' : n >= 10000 ? `${Math.round(n / 1000)}k` : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n));
 const rows = DEVICES.map(capacity);
 
 if (process.argv.includes('--json')) {
 	console.log(JSON.stringify({ assumptions: A, rows }, null, 2));
 } else {
-	console.log('| Device | Bellboy | Storage unit | Directory | Relay | Members | Limited by |');
+	console.log('| Device | Bellboy | Storage unit | Directory | Switchboard | Members | Limited by |');
 	console.log('|---|---|---|---|---|---|---|');
 	for (const r of rows) {
 		const j = r.perJob;
-		console.log(`| ${r.name} | ${round(j.bellboy ?? Infinity)} | ${round(j.storage ?? Infinity)} | ${round(j.directory ?? Infinity)} | ${round(j.relay ?? Infinity)} | **${round(r.members)}** | ${r.limit} |`);
+		console.log(`| ${r.name} | ${round(j.bellboy ?? Infinity)} | ${round(j.storage ?? Infinity)} | ${round(j.directory ?? Infinity)} | ${round(j.relay ?? Infinity)} | **${round(r.members)}** | ${NAMES[r.limit]} |`);
 	}
 }
