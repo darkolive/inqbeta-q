@@ -18,7 +18,7 @@
 	import ShareLink from '$lib/components/ShareLink.svelte';
 	import { saveCard, type CardKind } from '$lib/cards';
 	import { makeCardLink } from '$lib/cardlink';
-	import { bellConfig } from '$lib/bellboy';
+	import { myInbox } from '$lib/messages';
 	import { refreshLedger } from '$lib/ledger';
 	import { withLabels, type OwnDetail } from '$lib/profile';
 
@@ -88,7 +88,7 @@
 		making = true;
 		try {
 			const details = withLabels(Object.fromEntries(showing.map((id) => [id, values[id]])), own);
-			link = await makeCardLink(name, details, bellConfig()?.inbox);
+			link = await makeCardLink(name, details, (await myInbox())?.id);
 		} catch (e) {
 			says = e instanceof Error ? e.message : 'The link couldn’t be made.';
 		}

@@ -1,3 +1,7 @@
 # The public listener (port 9002): listening to federations' news pings, nothing else.
 # Lines before any "user" line apply to anonymous clients. No write is granted.
 topic read q/fed/+/news
+# Inbox pings (2 October 2026): "something's waiting in inbox <id>". The ping
+# carries nothing; the inbox id is long and random, known only to people who
+# hold that person's card.
+topic read q/inbox/+

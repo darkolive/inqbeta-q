@@ -11,3 +11,5 @@ pattern write q/in/+
 # new signed announcement is stored. Only it may (ADR-Q-016 §6).
 user gate
 topic write q/fed/+/news
+# …and pings an inbox when a sealed message is left for it.
+topic write q/inbox/+

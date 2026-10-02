@@ -132,6 +132,27 @@ export async function receiptsInJson(json: unknown, item: FolderItem): Promise<R
 		return out;
 	}
 
+	/* A message (2 October 2026): signed by whoever wrote it, kept by both sides. */
+	const msg = o.content as { schema?: string; kind?: string; text?: string; at?: string } | undefined;
+	if (msg?.schema === 'inqbeta.message/1') {
+		const c = await checkReceipt(json);
+		out.push({
+			id: `json:${where}`,
+			group: 'other',
+			what: msg.kind === 'linked-back' ? 'Linked up' : 'Message',
+			title: msg.kind === 'linked-back' ? 'They linked up with your card' : (msg.text ?? '').slice(0, 80) || 'A message',
+			description: 'Signed by whoever wrote it.',
+			at: DAY(msg.at),
+			signers: [String(o.did ?? '')],
+			holds: c.ok ? 'yes' : 'no',
+			says: c.ok ? 'Signed by its writer, and unchanged since.' : c.says,
+			where,
+			item,
+			json
+		});
+		return out;
+	}
+
 	/* Collected by the bell (ADR-Q-014): kept, signed by you, when it was Captured. */
 	const got = o.content as { schema?: string; from?: string; title?: string; hash?: string; collectedAt?: string } | undefined;
 	if (got?.schema === 'inqbeta.received/1') {

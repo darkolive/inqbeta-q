@@ -20,11 +20,51 @@
 		type Devices, type MediaChoice, type Quality
 	} from '$lib/call/media';
 	import { Call, iceServers, type Far, type Health, type Phase } from '$lib/call/connection';
+	import { page } from '$app/state';
+	import { watchLedger, type Ledger } from '$lib/ledger';
+	import { peopleFrom, type Person } from '$lib/people';
+	import { sendTo, watchArrivals } from '$lib/messages';
+
 
 	let identity = $state<Identity | null>(null);
 	let folder = $state<FolderState>({ kind: 'checking' });
 	$effect(() => watch((id) => (identity = id)));
 	$effect(() => watchFolder((s) => (folder = s)));
+
+	/*
+	 * Calling someone you're linked with (2 October 2026): from their card or
+	 * your conversation, /call?with=<their DID>. The invitation goes to them
+	 * through their inbox and rings on their Q with Answer; their reply comes
+	 * back the same way and the call connects by itself. No links to pass by
+	 * hand — those stay for calling someone who isn't in Q yet.
+	 */
+	let ledger = $state<Ledger | null>(null);
+	$effect(() => watchLedger((l) => (ledger = l)));
+	const withDid = $derived(page.url.searchParams.get('with') ?? '');
+	const callee = $derived<Person | undefined>(withDid ? peopleFrom(ledger, identity?.did ?? '').find((p) => p.did === withDid) : undefined);
+	let ringing = $state('');
+	/* Answering a call that rang in Q: who to send the reply back to. */
+	let answering = $state<{ did: string; inbox?: string; name?: string } | null>(null);
+	$effect(() => {
+		try {
+			const raw = sessionStorage.getItem('q.call.with');
+			if (raw) {
+				answering = JSON.parse(raw);
+				sessionStorage.removeItem('q.call.with');
+			}
+		} catch {
+			answering = null;
+		}
+	});
+	/* Their reply arrives through your inbox: connect at once. */
+	$effect(() =>
+		watchArrivals((m) => {
+			if (m.content.kind === 'call-reply' && m.content.link && call && phase === 'waiting' && (!withDid || m.did === withDid)) {
+				ringing = '';
+				void connectReply(m.content.link);
+			}
+		})
+	);
 
 	/* ---------- the check ---------- */
 	let choice = $state<MediaChoice>({ quality: 'best', cleanup: true });
@@ -116,7 +156,12 @@
 		if (!c) return;
 		call = c;
 		try {
-			inviteLink = await c.invite(location.origin, sealFor.trim() || undefined);
+			inviteLink = await c.invite(location.origin, sealFor.trim() || callee?.did || undefined);
+			/* Calling someone in Q: it rings on their Q. */
+			if (callee?.inbox) {
+				const out = await sendTo(callee, { kind: 'call', link: inviteLink });
+				ringing = out.ok ? `Ringing ${callee.name} on their Q…` : `Couldn’t ring ${callee.name}: ${out.says} Send them the link instead.`;
+			}
 		} catch (e) {
 			problem = e instanceof Error ? e.message : String(e);
 		}
@@ -140,6 +185,11 @@
 		try {
 			replyLink = await c.reply(location.origin, incoming.h);
 			history.replaceState(null, '', '/call');
+			/* Answered from Q's ring: the reply goes straight back to them. */
+			if (answering?.inbox) {
+				const out = await sendTo({ did: answering.did, inbox: answering.inbox }, { kind: 'call-reply', link: replyLink });
+				problem = out.ok ? '' : `Couldn’t send your answer back: ${out.says} Send them the reply link instead.`;
+			}
 		} catch (e) {
 			problem = e instanceof Error ? e.message : String(e);
 		}
@@ -492,7 +542,10 @@
 				<button class="btn btn-sm preset-tonal mt-3" onclick={() => void hangUp()}>Cancel</button>
 			</Section>
 		{:else if inviteLink}
-			<Section title="Send this call" description="Your first receipt is made: the call, placed and signed by you. Send the link by message, email, anything — it rings for an hour and carries no account and no password.">
+			{#if ringing}
+				<div class="card preset-tonal-primary p-4 mb-4 flex items-center gap-3" role="status"><Icon name="phone" class="motion-safe:animate-bounce" /> {ringing}</div>
+			{/if}
+			<Section title={callee?.inbox ? 'Or send the link' : 'Send this call'} description="Your first receipt is made: the call, placed and signed by you. Send the link by message, email, anything — it rings for an hour and carries no account and no password.">
 				<div class="flex flex-wrap gap-2">
 					<input class="input flex-1 font-mono text-xs" readonly value={inviteLink} onfocus={(e) => e.currentTarget.select()} aria-label="Invitation link" />
 					<button class="btn preset-filled-primary-500" onclick={() => void copy(inviteLink, 'invite')}>{copied === 'invite' ? 'Copied' : 'Copy'}</button>
@@ -507,10 +560,14 @@
 				</div>
 			</Section>
 		{:else}
-			<Section title="Start a call">
-				<label class="label"><span class="label-text">Their Q identity (optional) — seals the link so only they can open it</span>
-					<input class="input font-mono text-xs" bind:value={sealFor} placeholder="did:key:z6Mk…" />
-				</label>
+			<Section title={callee ? `Call ${callee.name}` : 'Start a call'}>
+				{#if callee}
+					<p>It rings on {callee.name}’s Q. When they answer, the call starts by itself.</p>
+				{:else}
+					<label class="label"><span class="label-text">Their Q identity (optional) — seals the link so only they can open it</span>
+						<input class="input font-mono text-xs" bind:value={sealFor} placeholder="did:key:z6Mk…" />
+					</label>
+				{/if}
 				<button class="btn preset-filled-primary-500 mt-3" disabled={!local} onclick={() => void startCall()}><Icon name="video" size={18} /> Call</button>
 			</Section>
 		{/if}

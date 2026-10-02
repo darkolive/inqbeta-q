@@ -85,7 +85,10 @@ export const SECTIONS: NavGroup[] = [
 		icon: 'message',
 		kind: 'section',
 		about: 'Talking to people directly, with a receipt that you did',
-		links: [{ href: '/call', label: 'Video call', icon: 'video' }]
+		links: [
+			{ href: '/messages', label: 'Messages', icon: 'message' },
+			{ href: '/call', label: 'Video call', icon: 'video' }
+		]
 	},
 	{
 		id: 'federations',

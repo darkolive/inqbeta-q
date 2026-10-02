@@ -44,6 +44,8 @@
 	import { readHome } from '$lib/home';
 	import { readAnnouncements, readIds, markRead, restoreRead } from '$lib/announcements';
 	import { keptFrom, knownKept, keepSoon } from '$lib/kept-settings';
+	import { startMessaging, watchArrivals, type Signed } from '$lib/messages';
+	import { peopleFrom } from '$lib/people';
 	import type { Announcement } from '@inqbeta/q-core/announcements';
 	import { reachFor, watchReach, restoreReach, type Reach } from '$lib/notify';
 
@@ -352,6 +354,67 @@
 	$effect(() => watchLedger((l) => (ledger = l)));
 
 	/*
+	 * Messages (2 October 2026): collected from your inbox at the storage unit
+	 * when Q opens and whenever the bellboy pings it. Unread ones count on the
+	 * bell (if Messages is on); a call rings with Answer.
+	 */
+	let calling = $state<{ from: string; did: string; inbox?: string; link: string } | null>(null);
+	$effect(() => {
+		if (!identity || !folderReady) return;
+		const stopArrivals = watchArrivals((m: Signed) => {
+			const who = peopleFrom(ledger, identity?.did).find((p) => p.did === m.did)?.name ?? (m.content.card?.['q:person/called'] || 'Someone');
+			if (m.content.kind === 'call' && m.content.link) {
+				calling = { from: who, did: m.did, inbox: m.content.replyTo, link: m.content.link };
+				announce = `${who} is calling`;
+				ring();
+				return;
+			}
+			if (m.content.kind === 'call-reply') return;
+			announce = m.content.kind === 'linked-back' ? `${who} linked with you` : `New message from ${who}`;
+			if (reachFor('people') === 'ring') ring();
+		});
+		const stop = startMessaging((n) => n && void refreshLedger());
+		return () => {
+			stopArrivals();
+			stop();
+		};
+	});
+	const people = $derived(peopleFrom(ledger, identity?.did ?? ''));
+	/* Read somewhere else in Q (a conversation opened): the bell catches up, and the vault keeps it. */
+	$effect(() => {
+		const onRead = () => {
+			seen = readIds();
+			keepSettings();
+		};
+		window.addEventListener('q-read', onRead);
+		return () => window.removeEventListener('q-read', onRead);
+	});
+	const unreadMessages = $derived.by(() => {
+		const me = identity?.did;
+		const out: { id: string; did: string; name: string; picture?: string; text: string; at: string }[] = [];
+		for (const r of ledger?.receipts ?? []) {
+			const m = r.json as Signed | undefined;
+			if (m?.content?.schema !== 'inqbeta.message/1' || m.content.kind !== 'message' || m.did === me || seen.has(m.contentHash)) continue;
+			const p = people.find((x) => x.did === m.did);
+			out.push({ id: m.contentHash, did: m.did, name: p?.name ?? 'Someone', picture: p?.picture, text: m.content.text ?? '', at: m.content.at });
+		}
+		return out.sort((a, b) => b.at.localeCompare(a.at));
+	});
+	const unreadCountMessages = $derived(peopleReach === 'ring' ? unreadMessages.length : 0);
+	function answerCall() {
+		if (!calling) return;
+		try {
+			sessionStorage.setItem('q.call.with', JSON.stringify({ did: calling.did, inbox: calling.inbox, name: calling.from }));
+		} catch {
+			/* the reply goes back by link instead */
+		}
+		const link = calling.link;
+		calling = null;
+		location.assign(link);
+	}
+
+
+	/*
 	 * Read marks and the notifications card come back from your vault after
 	 * signing in (lib/kept-settings), and go back into it when they change.
 	 */
@@ -541,9 +604,9 @@
 					focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary-500"
 			>
 				<Icon name="bell" class="size-7" stroke={2} />
-				{#if unreadCount + newNotices + unheard > 0}
+				{#if unreadCount + newNotices + unheard + unreadCountMessages > 0}
 					<span class="absolute -right-2 -top-2 badge-icon preset-filled-error-500 text-xs">
-						{unreadCount + newNotices + unheard > 9 ? '9+' : unreadCount + newNotices + unheard}
+						{unreadCount + newNotices + unheard + unreadCountMessages > 9 ? '9+' : unreadCount + newNotices + unheard + unreadCountMessages}
 					</span>
 				{/if}
 			</button>
@@ -615,6 +678,24 @@
 		<a href="/cards?tab=notifications" class="flex items-center gap-2 px-3 py-2 text-sm border-b border-surface-200-800 hover:bg-surface-100-900 min-h-11" onclick={() => (notificationsOpen = false)}>
 			<Icon name="settings" class="size-4" /> Choose what reaches you
 		</a>
+		{#if unreadMessages.length}
+			<p class="px-3 pt-3 text-xs font-bold uppercase opacity-60">Messages</p>
+			<ul class="divide-y divide-surface-200-800 border-b border-surface-200-800">
+				{#each unreadMessages.slice(0, 5) as m (m.id)}
+					<li>
+						<a href="/messages/{encodeURIComponent(m.did)}" class="w-full p-3 text-left hover:bg-surface-100-900 flex items-start gap-3 min-h-11" onclick={() => (notificationsOpen = false)}>
+							<span class="size-8 shrink-0 overflow-hidden rounded-full bg-surface-100-900 flex items-center justify-center">
+								{#if m.picture}<img src={m.picture} alt="" class="size-full object-cover" />{:else}<span class="text-sm font-bold">{m.name.slice(0, 1)}</span>{/if}
+							</span>
+							<span class="flex flex-col gap-1 min-w-0">
+								<span class="text-sm font-bold">{m.name}</span>
+								<span class="text-xs opacity-70 truncate">{m.text}</span>
+							</span>
+						</a>
+					</li>
+				{/each}
+			</ul>
+		{/if}
 		{#if heard.length}
 			<p class="px-3 pt-3 text-xs font-bold uppercase opacity-60">From {homeName}</p>
 			<ul class="divide-y divide-surface-200-800 border-b border-surface-200-800">
@@ -683,7 +764,7 @@
 				{/each}
 			</ul>
 		{/if}
-		{#if notifications.length === 0 && waiting.length === 0 && captured.length === 0 && heard.length === 0}
+		{#if notifications.length === 0 && waiting.length === 0 && captured.length === 0 && heard.length === 0 && unreadMessages.length === 0}
 			<div class="p-4 text-center text-sm opacity-60">No notifications</div>
 		{:else}
 			<ul class="divide-y divide-surface-200-800">
@@ -702,6 +783,16 @@
 	A new deploy is live (svelte.config: version.pollInterval). Said once, calmly,
 	with one button — nobody should ever have to clear their browser to get it.
 -->
+<!-- Someone's calling: one line, Answer or not now. -->
+{#if calling}
+	<div class="fixed top-20 left-1/2 z-50 -translate-x-1/2 card preset-filled-surface-950-50 shadow-xl px-4 py-3 flex items-center gap-4" role="alert">
+		<Icon name="phone" class="motion-safe:animate-bounce" />
+		<span class="font-bold">{calling.from} is calling</span>
+		<button type="button" class="btn btn-sm preset-filled-success-500 min-h-11" onclick={answerCall}>Answer</button>
+		<button type="button" class="btn btn-sm preset-tonal min-h-11" onclick={() => (calling = null)}>Not now</button>
+	</div>
+{/if}
+
 {#if updated.current}
 	<div class="fixed bottom-20 md:bottom-6 left-1/2 z-50 -translate-x-1/2 card preset-filled-surface-950-50 shadow-xl px-4 py-3 flex items-center gap-4" role="status">
 		<span class="text-sm">Q has been updated.</span>

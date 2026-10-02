@@ -96,12 +96,14 @@ export function restoreRead(ids: string[]): void {
 	}
 }
 
-export function markRead(id: string): void {
+/** Mark something read: an announcement, or a message (by its content hash). */
+export function markRead(...ids: string[]): void {
 	try {
 		const s = readIds();
-		s.add(id);
+		for (const id of ids) s.add(id);
 		localStorage.setItem('q.announcements.read', JSON.stringify([...s]));
 	} catch {
 		/* No storage: it simply shows as new again next time. */
 	}
+	if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('q-read'));
 }

@@ -5,7 +5,7 @@
 	 * Your address book, stored locally.
 	 * Contacts are shared via receipts.
 	 */
-	import { Page, Section, Item, Status, Empty } from '@inqbeta/q-ui';
+	import { Page, Section, Item, Status, Empty, Icon } from '@inqbeta/q-ui';
 	import { Dialog, Portal } from '@skeletonlabs/skeleton-svelte';
 	import { watch, type Identity } from '@inqbeta/q-core/passkey';
 	import { getAccessLevel } from '@inqbeta/q-core/access';
@@ -72,36 +72,28 @@
 	 * (their card came back through the bell). One per person, newest wins.
 	 */
 	import CardFace from '$lib/components/CardFace.svelte';
+	import { peopleFrom } from '$lib/people';
 	import { watchLedger, type Ledger } from '$lib/ledger';
 	let ledger = $state<Ledger | null>(null);
 	$effect(() => watchLedger((l) => (ledger = l)));
-	type Person = { did: string; details: Record<string, string>; name: string; at: string; how: string };
-	const people = $derived.by<Person[]>(() => {
-		const by = new Map<string, Person>();
-		for (const r of ledger?.receipts ?? []) {
-			const c = (r.json as { content?: Record<string, unknown> } | undefined)?.content as
-				| { schema?: string; with?: string; card?: { name?: string; details?: Record<string, string> }; receipt?: { card?: Record<string, string>; from?: string }; at?: string; collectedAt?: string }
-				| undefined;
-			let p: Person | null = null;
-			if (c?.schema === 'inqbeta.linked/1' && c.with && c.card?.details)
-				p = { did: c.with, details: c.card.details, name: c.card.name ?? 'Card', at: c.at ?? r.at, how: 'You linked up with their card' };
-			else if (c?.schema === 'inqbeta.received/1' && c.receipt?.card && c.receipt.from)
-				p = { did: c.receipt.from, details: c.receipt.card, name: 'Personal', at: c.collectedAt ?? r.at, how: 'They linked up with yours' };
-			if (p && (!by.has(p.did) || p.at > by.get(p.did)!.at)) by.set(p.did, p);
-		}
-		return [...by.values()].sort((a, b) => b.at.localeCompare(a.at));
-	});
+	/* People from your receipts (lib/people.ts), with where to write to them. */
+	const people = $derived(peopleFrom(ledger, identity?.did ?? ''));
 </script>
 
 <svelte:head><title>Contacts — Q</title></svelte:head>
 
 <Page title="Contacts" lead="Your address book — contacts shared with you via receipts.">
 	{#if people.length}
-		<Section title="People you’re linked with" description="Their cards, as they shared them. Call, WhatsApp or email straight from the card.">
+		<Section title="People you’re linked with" description="Their cards, as they shared them. Message or video call them through Q, or use the buttons on their card.">
 			<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
 				{#each people as p (p.did)}
-					<div class="flex flex-col gap-1">
-						<CardFace details={p.details} did={p.did} badge={p.name} />
+					<div class="flex flex-col gap-2">
+						<CardFace details={p.details} did={p.did} badge={p.cardName} />
+						<!-- Talking to them through Q: a message, or a video call. -->
+						<div class="grid grid-cols-2 gap-2">
+							<a class="btn preset-filled-primary-500 min-h-11" href="/messages/{encodeURIComponent(p.did)}"><Icon name="message" size={18} /> Message</a>
+							<a class="btn preset-filled-primary-500 min-h-11" href="/call?with={encodeURIComponent(p.did)}"><Icon name="video" size={18} /> Video call</a>
+						</div>
 						<p class="text-xs opacity-60">{p.how}</p>
 					</div>
 				{/each}

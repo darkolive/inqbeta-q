@@ -16,7 +16,7 @@
 	import { saveLocked } from '@inqbeta/q-core/folder';
 	import type { AnswerSet } from '@inqbeta/q-core/questions';
 	import type { OpenedLink } from '$lib/cardlink';
-	import { bellConfig, ring } from '$lib/bellboy';
+	import { sendTo } from '$lib/messages';
 	import { watchLedger, refreshLedger, type Ledger } from '$lib/ledger';
 	import { newestPerKey } from '$lib/features/dostudy';
 	import { answersFrom } from '$lib/answers';
@@ -69,19 +69,10 @@
 			}
 			const record = { schema: 'inqbeta.linked/1', source: 'inqbeta:q/link', with: opened.from, card: opened.card, signed: opened.signed, at: new Date().toISOString() };
 			await saveLocked('contacts', `linked-${opened.from.slice(-16)}.json`, JSON.stringify(await seal(record), null, 2), 'application/json');
-			const bell = bellConfig();
+			/* Your card goes back to them, sealed to them, through their inbox: so they know, and can write back. */
 			let rang = '';
-			if (bell && opened.card.inbox) {
-				const mine = await myCard();
-				const myName = mine['q:person/called'] ?? 'Someone';
-				const out = await ring(bell, opened.card.inbox, { from: myName, title: 'Linked with you', kind: 'invitation' }, {
-					schema: 'inqbeta.linked-back/1',
-					says: `${myName} linked with you. You can reach each other now.`,
-					card: mine,
-					from: identity.did,
-					inbox: bell.inbox,
-					at: new Date().toISOString()
-				});
+			if (opened.card.inbox && opened.from !== identity.did) {
+				const out = await sendTo({ did: opened.from, inbox: opened.card.inbox }, { kind: 'linked-back', card: await myCard() });
 				rang = out.ok ? ` ${theirName} has been told.` : ` (${theirName} couldn’t be told just now: ${out.says})`;
 			}
 			done = { tone: 'good', says: `Linked. ${theirName}’s card is in your contacts.${rang}` };

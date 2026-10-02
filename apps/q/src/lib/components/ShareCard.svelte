@@ -12,7 +12,7 @@
 	import CardFace from '$lib/components/CardFace.svelte';
 	import ShareLink from '$lib/components/ShareLink.svelte';
 	import { makeCardLink } from '$lib/cardlink';
-	import { bellConfig } from '$lib/bellboy';
+	import { myInbox } from '$lib/messages';
 	import { allDetails, withLabels, type OwnDetail } from '$lib/profile';
 
 	let {
@@ -47,7 +47,7 @@
 		making = true;
 		says = '';
 		try {
-			link = await makeCardLink(name, picked, bellConfig()?.inbox);
+			link = await makeCardLink(name, picked, (await myInbox())?.id);
 		} catch (e) {
 			says = e instanceof Error ? e.message : 'The link couldn’t be made.';
 		}

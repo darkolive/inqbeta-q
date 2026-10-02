@@ -96,6 +96,29 @@ export async function checkDrop(r, now = Date.now()) {
 	return null;
 }
 
+/*
+ * Inboxes (2 October 2026): a message sealed to someone waits here until
+ * they collect it. The gate can't read it; it checks the sender signed the
+ * post, that it's addressed to this inbox, small, and says when it may go.
+ * Only the inbox's owner can list, collect and let go: their key hashes to
+ * the inbox's id, and nobody else can make that key.
+ */
+const POST_BYTES = 1024 * 1024;
+const POSTS_PER_HOUR = 120;
+export async function ownsInbox(id, key) {
+	if (typeof key !== 'string' || key.length < 20) return false;
+	const d = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(key)));
+	return Buffer.from(d).toString('base64url').slice(0, 22) === id;
+}
+export async function checkPost(r, inbox, now = Date.now()) {
+	if (!(await signedReceipt(r))) return 'It isn’t signed.';
+	const c = r.content;
+	if (c.schema !== 'inqbeta.post/1' || c.to !== inbox || c.sealed?.schema !== 'dostudy.sealed/1') return 'That isn’t a post for this inbox.';
+	const until = Date.parse(c.until);
+	if (!Number.isFinite(until) || until < now || until > now + DROP_DAYS * 86400000 + 60000) return `It must say when it can go, within ${DROP_DAYS} days.`;
+	return null;
+}
+
 /* ---- the checks ---- */
 export async function checkSubmission(did, body, held, now = Date.now()) {
 	const { file, publication } = body ?? {};
@@ -143,23 +166,70 @@ async function storeDrop(id, body) {
 }
 /* A light hand on the tap: so many drops an hour from one address. */
 const recent = new Map();
-function tooMany(ip, now = Date.now()) {
+function tooMany(ip, now = Date.now(), most = DROPS_PER_HOUR) {
 	const list = (recent.get(ip) ?? []).filter((t) => now - t < 3600000);
 	list.push(now);
 	recent.set(ip, list);
-	return list.length > DROPS_PER_HOUR;
+	return list.length > most;
+}
+
+const inboxDir = (id) => `${FILER}/inbox/${id}/`;
+async function inboxList(id) {
+	const r = await fetch(inboxDir(id), { headers: { accept: 'application/json' } }).catch(() => null);
+	if (!r?.ok) return [];
+	const j = await r.json().catch(() => ({}));
+	return (j.Entries ?? []).map((e) => String(e.FullPath ?? '').split('/').pop()).filter((n) => n.endsWith('.json')).map((n) => n.slice(0, -5));
+}
+function pingInbox(id) {
+	if (!MQTT.password) return;
+	const p = spawn('mosquitto_pub', ['-h', MQTT.host, '-u', MQTT.user, '-P', MQTT.password, '-q', '1', '-t', `q/inbox/${id}`, '-m', JSON.stringify({ schema: 'inqbeta.inbox-ping/1', at: new Date().toISOString() })]);
+	p.on('error', () => {});
 }
 
 /* ---- HTTP ---- */
 function send(res, origin, status, body) {
 	const headers = { 'content-type': 'application/json', 'cache-control': 'no-store' };
-	if (ORIGINS.has(origin)) Object.assign(headers, { 'access-control-allow-origin': origin, 'access-control-allow-methods': 'GET, POST, OPTIONS', 'access-control-allow-headers': 'content-type', vary: 'origin' });
+	if (ORIGINS.has(origin)) Object.assign(headers, { 'access-control-allow-origin': origin, 'access-control-allow-methods': 'GET, POST, DELETE, OPTIONS', 'access-control-allow-headers': 'content-type, x-inbox-key', vary: 'origin' });
 	res.writeHead(status, headers);
 	res.end(status === 204 ? undefined : JSON.stringify(body));
 }
 
 const ROUTE = /^\/fed\/(did:key:z[1-9A-HJ-NP-Za-km-z]+)\/announcements\.json$/;
 const DROP = /^\/drop(?:\/([A-Za-z0-9_-]{16,64}))?$/;
+const INBOX = /^\/inbox\/([A-Za-z0-9_-]{22})(?:\/([A-Za-z0-9_-]{16,64}))?$/;
+
+async function inboxes(req, res, origin, id, item) {
+	if (req.method === 'POST' && !item) {
+		if (tooMany(`post:${req.socket.remoteAddress ?? ''}`, Date.now(), POSTS_PER_HOUR)) return send(res, origin, 429, { says: 'Too many at once. Try again in a while.' });
+		const raw = await readBody(req, POST_BYTES);
+		if (raw === null) return send(res, origin, 413, { says: 'Too big.' });
+		let body;
+		try { body = JSON.parse(raw); } catch { return send(res, origin, 400, { says: 'That isn’t JSON.' }); }
+		const wrong = await checkPost(body, id);
+		if (wrong) return send(res, origin, 403, { says: wrong });
+		const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(body.signature)));
+		const postId = Buffer.from(digest.slice(0, 16)).toString('base64url');
+		const form = new FormData();
+		form.append('file', new Blob([JSON.stringify(body)], { type: 'application/json' }), `${postId}.json`);
+		const r = await fetch(`${inboxDir(id)}${postId}.json`, { method: 'POST', body: form }).catch((e) => ({ ok: false, status: e.message }));
+		if (!r.ok) return send(res, origin, 502, { says: `Couldn’t keep it: ${r.status}` });
+		pingInbox(id);
+		return send(res, origin, 200, { ok: true, id: postId });
+	}
+	/* Everything else is the owner's: list, collect, let go. */
+	if (!(await ownsInbox(id, req.headers['x-inbox-key']))) return send(res, origin, 403, { says: 'That isn’t your inbox.' });
+	if (req.method === 'GET' && !item) return send(res, origin, 200, { ids: await inboxList(id) });
+	if (req.method === 'GET') {
+		const r = await fetch(`${inboxDir(id)}${item}.json`).catch(() => null);
+		const held = r?.ok ? await r.json().catch(() => null) : null;
+		return held ? send(res, origin, 200, held) : send(res, origin, 404, { says: 'Not here.' });
+	}
+	if (req.method === 'DELETE' && item) {
+		await fetch(`${inboxDir(id)}${item}.json`, { method: 'DELETE' }).catch(() => null);
+		return send(res, origin, 200, { ok: true });
+	}
+	return send(res, origin, 405, { says: 'Not like that.' });
+}
 
 async function readBody(req, most) {
 	let raw = '';
@@ -203,6 +273,8 @@ export const server = http.createServer(async (req, res) => {
 	if (req.method === 'OPTIONS') return send(res, origin, 204);
 	const d = DROP.exec(new URL(req.url, 'http://gate').pathname);
 	if (d) return drops(req, res, origin, d[1]);
+	const ib = INBOX.exec(new URL(req.url, 'http://gate').pathname);
+	if (ib) return inboxes(req, res, origin, ib[1], ib[2]);
 	if (!m) return send(res, origin, 404, { says: 'Nothing here.' });
 	const did = m[1];
 	if (!FEDERATIONS.has(did)) return send(res, origin, 404, { says: 'This node doesn’t serve that federation.' });
