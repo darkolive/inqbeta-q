@@ -40,7 +40,8 @@
 	} from '$lib/federations';
 	import type { Found } from '$lib/features/registry';
 	import { standingAt } from '@inqbeta/q-core/membership';
-	import { reachIndex, reachPostOffice, reachStorage, type Reach } from '$lib/node-health';
+	import { reachIndex, reachPostOffice, reachStorage, reachSwitchboard, type Reach } from '$lib/node-health';
+	import { iceServers } from '$lib/call/connection';
 	import { readHome, HOME_SCHEMA, type Home, type HomeFile } from '$lib/home';
 	import { makeAnnouncement, makePublication, type Announcement } from '@inqbeta/q-core/announcements';
 	import { openFederationKey } from '@inqbeta/q-core/membership';
@@ -103,15 +104,24 @@
 		const items = nodeItems.map((f) => f.item);
 		void Promise.all(items.map(recordFrom)).then((rs) => (nodes = rs.filter(isNodeRecord).filter((n) => !n.withdrawn)));
 	});
-	let reach = $state<Record<string, { index?: Reach; postOffice?: Reach; storage?: Reach; asking: boolean; at?: string }>>({});
+	let reach = $state<Record<string, { index?: Reach; postOffice?: Reach; storage?: Reach; relay?: Reach; asking: boolean; at?: string }>>({});
+	/* The switchboard is checked the way a call uses it: with a real call's credentials. */
+	async function askSwitchboard(n: NodeRecord): Promise<Reach | undefined> {
+		const sb = n.services.relay;
+		if (!sb) return undefined;
+		if (!identity) return { is: 'cannot-ask', says: 'Sign in to check it.' };
+		const { servers } = await iceServers(identity);
+		return reachSwitchboard(servers, sb.host, sb.port);
+	}
 	async function ask(n: NodeRecord) {
 		reach[n.mesh] = { ...reach[n.mesh], asking: true };
-		const [index, postOffice, storage] = await Promise.all([
+		const [index, postOffice, storage, relay] = await Promise.all([
 			n.services.index ? reachIndex(n.mesh, n.services.index.port) : Promise.resolve(undefined),
 			n.services.postOffice ? reachPostOffice(n.mesh, n.services.postOffice.port) : Promise.resolve(undefined),
-			n.services.storage ? reachStorage(n.mesh, n.services.storage.port) : Promise.resolve(undefined)
+			n.services.storage ? reachStorage(n.mesh, n.services.storage.port) : Promise.resolve(undefined),
+			askSwitchboard(n)
 		]);
-		reach[n.mesh] = { index, postOffice, storage, asking: false, at: new Date().toLocaleTimeString('en-GB') };
+		reach[n.mesh] = { index, postOffice, storage, relay, asking: false, at: new Date().toLocaleTimeString('en-GB') };
 	}
 	$effect(() => {
 		for (const n of nodes) if (!untrack(() => reach[n.mesh])) void ask(n);
@@ -126,6 +136,32 @@
 	let nodeHasPostOffice = $state(true);
 	let nodeHasIndex = $state(true);
 	let nodeHasStorage = $state(true);
+	let nodeHasRelay = $state(true);
+	let nodeRelayHost = $state('');
+	/* The switchboard's public address: usually the lighthouse's, without its port. */
+	const hostOf = (lighthouse?: string) => (lighthouse ?? '').replace(/:\d+$/, '');
+	/* A node listed before the switchboard: add it, keeping everything else. */
+	let addingRelayTo = $state<string | null>(null);
+	let relayHost = $state('');
+	async function addSwitchboard(n: NodeRecord) {
+		if (!own || !relayHost.trim()) return;
+		busy = 'node';
+		said = null;
+		const out = await listNode(own, {
+			called: n.called,
+			mesh: n.mesh,
+			lighthouse: n.lighthouse,
+			postOffice: n.services.postOffice?.port,
+			index: n.services.index?.port,
+			storage: n.services.storage?.port,
+			relay: { host: relayHost.trim(), port: 3478 }
+		});
+		busy = null;
+		if (!out.ok) return void (said = { tone: 'bad', text: out.says });
+		said = { tone: 'good', text: `${n.called} now lists its switchboard. Checking it…` };
+		addingRelayTo = null;
+		await refreshLedger();
+	}
 	async function addNode() {
 		if (!own) return;
 		busy = 'node';
@@ -136,7 +172,8 @@
 			lighthouse: nodeLighthouse,
 			postOffice: nodeHasPostOffice ? 9001 : undefined,
 			index: nodeHasIndex ? 8080 : undefined,
-			storage: nodeHasStorage ? 8888 : undefined
+			storage: nodeHasStorage ? 8888 : undefined,
+			relay: nodeHasRelay && (nodeRelayHost.trim() || hostOf(nodeLighthouse)) ? { host: nodeRelayHost.trim() || hostOf(nodeLighthouse), port: 3478 } : undefined
 		});
 		busy = null;
 		if (!out.ok) return void (said = { tone: 'bad', text: out.says });
@@ -915,6 +952,9 @@
 										<button type="button" class="btn btn-sm preset-tonal min-h-11" disabled={r?.asking} onclick={() => ask(n)}>
 											{r?.asking ? 'Checking…' : 'Check again'}
 										</button>
+										{#if !n.services.relay}
+											<button type="button" class="btn btn-sm preset-tonal min-h-11" disabled={busy !== null} onclick={() => ((addingRelayTo = n.mesh), (relayHost = hostOf(n.lighthouse)))}>Add its switchboard…</button>
+										{/if}
 										<button type="button" class="btn btn-sm preset-tonal min-h-11" disabled={busy !== null} onclick={() => withdraw(n)}>Withdraw</button>
 									</span>
 								</div>
@@ -934,7 +974,22 @@
 									<dd><Status tone={toneOf(r?.storage)}>{r?.asking ? 'Checking' : wordOf(r?.storage)}</Status></dd>
 									<dd class="text-sm">{r?.storage?.is === 'cannot-ask' ? '' : (r?.storage?.says ?? '')} <span class="role-token text-xs opacity-60">http :{n.services.storage.port}</span></dd>
 								{/if}
+								{#if n.services.relay}
+									<dt class="flex items-center gap-2"><Icon name="switchboard" />Switchboard</dt>
+									<dd><Status tone={toneOf(r?.relay)}>{r?.asking ? 'Checking' : wordOf(r?.relay)}</Status></dd>
+									<dd class="text-sm">{r?.relay?.says ?? ''} <span class="role-token text-xs opacity-60">turn {n.services.relay.host}:{n.services.relay.port} · public</span></dd>
+								{/if}
 								</dl>
+								{#if addingRelayTo === n.mesh}
+									<div class="card preset-tonal p-3 flex flex-col gap-2">
+										<p class="text-sm">The switchboard is on the node’s <strong>public</strong> address, so callers anywhere can reach it.</p>
+										<label class="label max-w-sm"><span class="label-text">Its public address</span><input class="input role-token" type="text" bind:value={relayHost} placeholder="135.181.156.21" /></label>
+										<div class="flex flex-wrap gap-2">
+											<button type="button" class="btn btn-sm preset-filled-primary-500 min-h-11" disabled={busy !== null || !relayHost.trim()} onclick={() => void addSwitchboard(n)}>{busy === 'node' ? 'Listing…' : 'Add it'}</button>
+											<button type="button" class="btn btn-sm preset-tonal min-h-11" onclick={() => (addingRelayTo = null)}>Not now</button>
+										</div>
+									</div>
+								{/if}
 								{#if [r?.postOffice, r?.index, r?.storage].some((x) => x?.is === 'cannot-ask')}
 									<p class="text-sm">Not checked from here: a secure (https) page can’t reach the federation’s private mesh. They’re checked from Q on a computer that’s on the mesh.</p>
 								{:else if r?.at}<p class="text-xs opacity-60">Checked from this device at {r.at}.</p>{/if}
@@ -962,7 +1017,14 @@
 								<label class="flex items-center gap-2"><input class="checkbox" type="checkbox" bind:checked={nodeHasPostOffice} /><Icon name="bellboy" /> Bellboy (port 9001)</label>
 								<label class="flex items-center gap-2"><input class="checkbox" type="checkbox" bind:checked={nodeHasIndex} /><Icon name="directory" /> Directory (port 8080)</label>
 							<label class="flex items-center gap-2"><input class="checkbox" type="checkbox" bind:checked={nodeHasStorage} /><Icon name="storage-unit" /> Storage unit (port 8888)</label>
+							<label class="flex items-center gap-2"><input class="checkbox" type="checkbox" bind:checked={nodeHasRelay} /><Icon name="switchboard" /> Switchboard (public, port 3478)</label>
 							</fieldset>
+							{#if nodeHasRelay}
+								<label class="label max-w-sm">
+									<span class="label-text">The switchboard’s public address (blank: the lighthouse’s)</span>
+									<input class="input role-token" type="text" bind:value={nodeRelayHost} placeholder={hostOf(nodeLighthouse) || '135.181.156.21'} />
+								</label>
+							{/if}
 							<div class="flex flex-wrap gap-3">
 								<button type="button" class="btn preset-filled-primary-500 min-h-11" disabled={busy !== null || !nodeCalled.trim()} onclick={addNode}>
 									{busy === 'node' ? 'Listing…' : 'List it'}

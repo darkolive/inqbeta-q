@@ -453,6 +453,13 @@ export interface NodeRecord {
 		index?: { port: number };
 		/** The storage unit: SeaweedFS's filer (ADR-Q-014), the holding bay. */
 		storage?: { port: number };
+		/**
+		 * The switchboard (2 October 2026): coturn, a TURN relay. It connects a call
+		 * when two devices can't reach each other, and can't listen in. Unlike the
+		 * others it's on the node's PUBLIC address, not the mesh, because callers
+		 * anywhere must reach it.
+		 */
+		relay?: { host: string; port: number };
 	};
 	at: string;
 	withdrawn?: string;
@@ -467,12 +474,13 @@ const MESH_ADDRESS = /^(10|172|192)\.\d{1,3}\.\d{1,3}\.\d{1,3}$/;
 /** Write down a node the federation runs. Only its caretaker can. */
 export async function listNode(
 	record: FederationRecord,
-	o: { called: string; mesh: string; lighthouse?: string; postOffice?: number; index?: number; storage?: number }
+	o: { called: string; mesh: string; lighthouse?: string; postOffice?: number; index?: number; storage?: number; relay?: { host: string; port: number } }
 ): Promise<Outcome<{ node: NodeRecord }>> {
 	try {
 		const mesh = o.mesh.trim();
 		if (!MESH_ADDRESS.test(mesh)) return { ok: false, says: 'The mesh address is a private address like 10.42.0.1 — the one in the node’s Nebula certificate.' };
 		if (!o.called.trim()) return { ok: false, says: 'Give it a name you’ll recognise.' };
+		if (o.relay && !/^[a-z0-9.-]+$/i.test(o.relay.host.trim())) return { ok: false, says: 'The switchboard’s address is the node’s public address, like 135.181.156.21.' };
 		const node: NodeRecord = {
 			schema: NODE_RECORD_SCHEMA,
 			source: 'inqbeta:q/federation-node',
@@ -483,7 +491,8 @@ export async function listNode(
 			services: {
 				...(o.postOffice ? { postOffice: { port: o.postOffice } } : {}),
 				...(o.index ? { index: { port: o.index } } : {}),
-				...(o.storage ? { storage: { port: o.storage } } : {})
+				...(o.storage ? { storage: { port: o.storage } } : {}),
+				...(o.relay?.host.trim() ? { relay: { host: o.relay.host.trim(), port: o.relay.port } } : {})
 			},
 			at: new Date().toISOString()
 		};

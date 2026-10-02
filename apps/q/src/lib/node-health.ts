@@ -89,3 +89,46 @@ export function reachPostOffice(mesh: string, port: number): Promise<Reach> {
 function unreached(): Reach {
 	return { is: 'unreached', says: 'No answer from this device. Is this device on the federation’s mesh (Nebula running)?' };
 }
+
+/*
+ * The switchboard (coturn) is on the node's PUBLIC address, and speaks TURN,
+ * not http, so it's checked the way a call uses it: ask Q for the call
+ * credentials (the same ones a real call gets), then ask the browser to gather
+ * a "relay" candidate through it alone. One appearing means a call could be
+ * connected through it, from here, now. Works from https pages too.
+ */
+export async function reachSwitchboard(
+	servers: RTCIceServer[],
+	host: string,
+	port: number
+): Promise<Reach> {
+	if (typeof RTCPeerConnection === 'undefined') return { is: 'cannot-ask', says: 'This browser can’t make calls, so it can’t check.' };
+	const mine = servers.filter((s) => (Array.isArray(s.urls) ? s.urls : [s.urls]).some((u) => u.includes(`${host}:${port}`)));
+	if (!mine.length) return { is: 'cannot-ask', says: 'Q isn’t set to use this switchboard yet: add Q_TURN_URLS and Q_TURN_SECRET in your host’s Services, and send them to the live site.' };
+	const pc = new RTCPeerConnection({ iceServers: mine, iceTransportPolicy: 'relay' });
+	try {
+		pc.createDataChannel('check');
+		const found = new Promise<boolean>((done) => {
+			const timer = setTimeout(() => done(false), 6000);
+			pc.onicecandidate = (e) => {
+				const c = e.candidate;
+				if (c && (c.type === 'relay' || / typ relay /.test(c.candidate))) {
+					clearTimeout(timer);
+					done(true);
+				}
+				if (!c) {
+					clearTimeout(timer);
+					done(false);
+				}
+			};
+		});
+		await pc.setLocalDescription(await pc.createOffer());
+		return (await found)
+			? { is: 'reached', says: 'Open: it can connect a call between devices that can’t reach each other.' }
+			: { is: 'unreached', says: 'No answer. Check the node’s firewall lets in UDP 3478 and 49160–49999, and that the switchboard is running.' };
+	} catch {
+		return { is: 'unreached', says: 'It couldn’t be asked from this browser.' };
+	} finally {
+		pc.close();
+	}
+}
