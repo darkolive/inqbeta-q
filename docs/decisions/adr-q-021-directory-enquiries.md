@@ -43,9 +43,26 @@ A host or federation is found by its **listing card**: a card with a purpose
 | Kind | Host, or club inside a host |
 | Under | For a club: its host |
 | How people join | Open, ask to join, by invitation |
-| Where, roughly | Optional: a town or country, never an exact address |
+| Where | Optional: a town or country, and/or a **map pin** (§1a) |
 | Tags | A few words people search by ("photography", "allotments") |
 | Powered by Q | Its core status (ADR-Q-019 §3) and its authenticated host receipt |
+
+### 1a. Pins, and finding things near you
+
+Darren, 2 October: *"The location-based aspect, that's where pinning is really
+fantastic. And Dgraph has latitude, longitude function in it."*
+
+- A listing can carry a **map pin**: the latitude and longitude where the club
+  meets, or the host is based. The same pin the Personal card already offers.
+- The directory stores it as a Dgraph **geo** point with a geo index, so Find
+  can ask *near* ("within 10 miles of here") and *within* ("in Shropshire")
+  without anything extra.
+- **A pin is coarse unless the founder says otherwise.** By default it's
+  rounded to about a kilometre, so a club run from someone's front room
+  doesn't publish their house. A founder can mark it a **public place** (a
+  village hall, a shop) to pin it exactly.
+- Find shows results on a map as well as a list, and **Just a part** (§5) can be
+  an area: "copy everything within 50 miles".
 
 ### 2. Listing: sent, checked, kept fresh
 
@@ -146,10 +163,10 @@ directory is never stretched across homes (`q/home-node.md` §5).
 
 ## Build order
 
-1. **The listing card**, made from a host's own page; sent to the gate;
+1. **The listing card** (with its optional pin), made from a host's own page; sent to the gate;
    checked (authenticated host, signatures); kept in Incubator's directory.
 2. **Expiry, renewal and withdrawal.**
-3. **Find on Incubator**, searching its directory.
+3. **Find on Incubator**, searching its directory by words and by place (near, within), with a map.
 4. **Signed releases**: root fingerprint, release number, the changes since
    the last.
 5. **Copy the directory**, the whole or a part, into a host's own node;
