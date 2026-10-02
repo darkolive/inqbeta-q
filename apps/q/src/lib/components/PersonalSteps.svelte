@@ -20,8 +20,7 @@
 	import { untrack } from 'svelte';
 	import type { Identity } from '@inqbeta/q-core/passkey';
 	import type { AnswerValue } from '@inqbeta/q-core/questions';
-	import ChooseShown from '$lib/components/ChooseShown.svelte';
-	import { allDetails, ownDetails, justForMe, asText, saveProfile, nameFrom, businessesFrom, businessesAsDetails, blankBusiness, BIZ_PARTS, LABEL, type Business } from '$lib/profile';
+	import { allDetails, ownDetails, justForMe, asText, saveProfile, nameFrom, businessesFrom, businessesAsDetails, blankBusiness, BIZ_PARTS, LABEL, ADDRESS_PARTS, addressFrom, directionsTo, SOCIALS, COMPANY_TYPES, type Business } from '$lib/profile';
 	import { smallPicture, PICTURE, COVER } from '$lib/pictures';
 	import { saveCard } from '$lib/cards';
 	import { watchFolder, chooseFolder, wakeFolder, type FolderState } from '@inqbeta/q-core/folder';
@@ -70,7 +69,31 @@
 		values['q:person/first'] = values['q:person/called'];
 		values['q:person/called'] = '';
 	}
+	/* An address written before it had fields: its lines go into the fields once. */
+	if (values['q:person/address'] && !ADDRESS_PARTS.some((p) => values[p.id])) {
+		const lines = values['q:person/address'].split(/\n|,\s*/).map((l) => l.trim()).filter(Boolean);
+		['q:address/line1', 'q:address/line2', 'q:address/town', 'q:address/county', 'q:address/postcode', 'q:address/country'].forEach((id, i) => lines[i] && (values[id] = lines[i]));
+	}
 	let businesses = $state<Business[]>(businessesFrom(start, startOwn));
+
+	/* A pin where you are now: for directions to your door. */
+	let pinning = $state(false);
+	function dropPin() {
+		says = '';
+		if (!navigator.geolocation) return void (says = 'This device can’t tell where it is.');
+		pinning = true;
+		navigator.geolocation.getCurrentPosition(
+			(p) => {
+				values['q:address/pin'] = `${p.coords.latitude.toFixed(5)},${p.coords.longitude.toFixed(5)}`;
+				pinning = false;
+			},
+			(e) => {
+				pinning = false;
+				says = e.code === 1 ? 'Your browser wasn’t allowed to say where you are. You can allow it in its settings, or leave the pin out.' : 'Couldn’t find where you are just now.';
+			},
+			{ enableHighAccuracy: true, timeout: 15000 }
+		);
+	}
 	let adding = $state<Business | null>(null);
 	let sameAsPhone = $state(!!values['q:person/whatsapp'] && values['q:person/whatsapp'] === values['q:person/phone']);
 	const DEFAULT_SHOWN = ['q:person/cover', 'q:person/picture', 'q:person/called', 'q:person/email', 'q:person/phone', 'q:person/whatsapp'];
@@ -83,8 +106,9 @@
 	const STEPS = [
 		{ title: 'You', says: 'Your name, and how you look on your card.' },
 		{ title: 'Contact', says: 'How people reach you. Fill in what you like.' },
-		{ title: 'Work', says: 'Where you work or what you run. Add as many as you like, or skip this.' },
-		{ title: 'Your card', says: 'Switch on what people see. Everything else stays with you.' }
+		{ title: 'Home', says: 'Your address, and a pin for directions. Only shown if you switch it on.' },
+		{ title: 'Social', says: 'The places people find you online. Leave any you don’t use.' },
+		{ title: 'Work', says: 'Where you work or what you run. Add as many as you like, or skip this.' }
 	];
 
 	async function pick(e: Event, id: string, size: { w: number; h: number }) {
@@ -130,9 +154,19 @@
 			busy = false;
 			return void (says = out.says.join(' '));
 		}
-		const card = await saveCard(identity, 'Personal', shows.filter((id) => values[id] || id === 'q:person/called'), [], 'personal');
+		/*
+		 * The first time, your Personal card is made with the usual things on
+		 * it; after that it's left as you set it. Either way you land on the
+		 * card itself, where the switches decide what people see.
+		 */
+		if (!shown.length) {
+			const card = await saveCard(identity, 'Personal', shows.filter((id) => cardValues[id]), [], 'personal');
+			if (!card.ok) {
+				busy = false;
+				return void (says = card.says);
+			}
+		}
 		busy = false;
-		if (!card.ok) return void (says = card.says);
 		onDone();
 	}
 
@@ -143,11 +177,7 @@
 	}
 
 	/* For the last step: what could go on a Personal card, with your name made from first and last. */
-	const cardValues = $derived({ ...values, 'q:person/called': name, 'q:person/whatsapp': sameAsPhone ? values['q:person/phone'] : values['q:person/whatsapp'] });
-	const OPTIONS = ['q:person/cover', 'q:person/picture', 'q:person/called', 'q:person/birthday', 'q:person/email', 'q:person/phone', 'q:person/whatsapp', 'q:person/address'].map((id) => ({
-		id,
-		label: id === 'q:person/called' ? 'Your name' : LABEL[id]
-	}));
+	const cardValues = $derived<Record<string, string>>({ ...values, 'q:person/called': name, 'q:person/address': addressFrom(values), 'q:person/whatsapp': sameAsPhone ? values['q:person/phone'] : values['q:person/whatsapp'] });
 </script>
 
 <div class="card preset-outlined-surface-200-800 bg-surface-50-950 p-4 sm:p-6 flex flex-col gap-6">
@@ -192,7 +222,11 @@
 					<label class="label"><span class="label-text">First name</span><input class="input preset-outlined-surface-300-700" bind:value={values['q:person/first']} autocomplete="given-name" /></label>
 					<label class="label"><span class="label-text">Last name</span><input class="input preset-outlined-surface-300-700" bind:value={values['q:person/last']} autocomplete="family-name" /></label>
 				</div>
-				<label class="label sm:w-60"><span class="label-text">Date of birth</span><input class="input preset-outlined-surface-300-700" type="date" bind:value={values['q:person/birthday']} autocomplete="bday" /></label>
+				<div class="grid gap-4 sm:grid-cols-3">
+					<label class="label"><span class="label-text">Date of birth</span><input class="input preset-outlined-surface-300-700" type="date" bind:value={values['q:person/birthday']} autocomplete="bday" /></label>
+					<label class="label"><span class="label-text">Gender</span><input class="input preset-outlined-surface-300-700" bind:value={values['q:person/gender']} placeholder="In your own words" /></label>
+					<label class="label"><span class="label-text">Pronouns</span><input class="input preset-outlined-surface-300-700" bind:value={values['q:person/pronouns']} placeholder="she/her, they/them…" /></label>
+				</div>
 			</div>
 		</Steps.Content>
 
@@ -207,12 +241,47 @@
 						<label class="label"><span class="label-text">WhatsApp</span><input class="input preset-outlined-surface-300-700" type="tel" bind:value={values['q:person/whatsapp']} placeholder="+44 7…" /></label>
 					{/if}
 				</div>
-				<label class="label"><span class="label-text">Home address</span><textarea class="textarea preset-outlined-surface-300-700" rows="3" bind:value={values['q:person/address']} autocomplete="street-address"></textarea></label>
 			</div>
 		</Steps.Content>
 
-		<!-- 3. Work: one business at a time -->
+		<!-- 3. Home: the address in its own fields, and a pin -->
 		<Steps.Content index={2}>
+			<div class="flex flex-col gap-4 max-w-xl">
+				<label class="label"><span class="label-text">First line</span><input class="input preset-outlined-surface-300-700" bind:value={values['q:address/line1']} autocomplete="address-line1" /></label>
+				<label class="label"><span class="label-text">Second line</span><input class="input preset-outlined-surface-300-700" bind:value={values['q:address/line2']} autocomplete="address-line2" /></label>
+				<div class="grid gap-4 sm:grid-cols-2">
+					<label class="label"><span class="label-text">Town or city</span><input class="input preset-outlined-surface-300-700" bind:value={values['q:address/town']} autocomplete="address-level2" /></label>
+					<label class="label"><span class="label-text">County or region</span><input class="input preset-outlined-surface-300-700" bind:value={values['q:address/county']} autocomplete="address-level1" /></label>
+					<label class="label"><span class="label-text">Postcode</span><input class="input preset-outlined-surface-300-700" bind:value={values['q:address/postcode']} autocomplete="postal-code" /></label>
+					<label class="label"><span class="label-text">Country</span><input class="input preset-outlined-surface-300-700" bind:value={values['q:address/country']} autocomplete="country-name" /></label>
+				</div>
+				<div class="card preset-tonal-surface p-4 flex flex-col gap-3">
+					<p class="font-bold flex items-center gap-2"><Icon name="map" /> A pin for directions</p>
+					{#if values['q:address/pin']}
+						<p class="text-sm">Pin set. <a class="anchor" href={directionsTo(values['q:address/pin'])} target="_blank" rel="noreferrer noopener">Check it on the map</a></p>
+						<div class="flex flex-wrap gap-3">
+							<button type="button" class="btn preset-tonal min-h-11" disabled={pinning} onclick={dropPin}>{pinning ? 'Finding you…' : 'Move it to where I am now'}</button>
+							<button type="button" class="btn preset-tonal min-h-11" onclick={() => (values['q:address/pin'] = '')}>Remove the pin</button>
+						</div>
+					{:else}
+						<p class="text-sm opacity-80">Standing at home? Drop a pin, and a Directions button on your card takes people straight to your door.</p>
+						<button type="button" class="btn preset-tonal min-h-11 self-start" disabled={pinning} onclick={dropPin}>{pinning ? 'Finding you…' : 'Drop a pin where I am'}</button>
+					{/if}
+				</div>
+			</div>
+		</Steps.Content>
+
+		<!-- 4. Social -->
+		<Steps.Content index={3}>
+			<div class="grid gap-4 sm:grid-cols-2 max-w-xl">
+				{#each SOCIALS as so (so.kind)}
+					<label class="label"><span class="label-text">{so.label}</span><input class="input preset-outlined-surface-300-700" bind:value={values[`q:social/${so.kind}`]} placeholder={so.hint} autocapitalize="off" /></label>
+				{/each}
+			</div>
+		</Steps.Content>
+
+		<!-- 5. Work: one business at a time -->
+		<Steps.Content index={4}>
 			<div class="flex flex-col gap-4 max-w-xl">
 				{#each businesses as b, i (b.slug || b.name + i)}
 					<div class="card preset-tonal-surface p-4 flex items-center justify-between gap-3">
@@ -233,9 +302,18 @@
 				{#if adding}
 					<div class="card preset-outlined-primary-500 p-4 flex flex-col gap-3">
 						{#each BIZ_PARTS as p (p.part)}
+							{#if p.part === 'site'}<p class="font-bold mt-2">How to reach it</p>{/if}
+							{#if p.part === 'linkedin'}<p class="font-bold mt-2">Its pages</p>{/if}
 							<label class="label">
 								<span class="label-text">{p.label}</span>
-								<input class="input preset-outlined-surface-300-700" bind:value={adding[p.part]} placeholder={p.hint ?? ''} type={p.part === 'email' ? 'email' : p.part === 'phone' ? 'tel' : 'text'} />
+								{#if p.part === 'type'}
+									<select class="select preset-outlined-surface-300-700" bind:value={adding.type}>
+										<option value="">Choose…</option>
+										{#each COMPANY_TYPES as ct (ct)}<option value={ct}>{ct}</option>{/each}
+									</select>
+								{:else}
+									<input class="input preset-outlined-surface-300-700" bind:value={adding[p.part]} placeholder={p.hint ?? ''} type={p.part === 'email' ? 'email' : p.part === 'phone' ? 'tel' : 'text'} />
+								{/if}
 							</label>
 						{/each}
 						<div class="flex flex-wrap gap-3">
@@ -252,10 +330,6 @@
 			</div>
 		</Steps.Content>
 
-		<!-- 4. Your card -->
-		<Steps.Content index={3}>
-			<ChooseShown did={identity.did} badge="Personal" options={OPTIONS} values={cardValues} bind:shows />
-		</Steps.Content>
 	</Steps>
 
 	<footer class="flex flex-wrap items-center justify-between gap-3 border-t border-surface-200-800 pt-4">
@@ -269,7 +343,7 @@
 		{#if step < STEPS.length - 1}
 			<button type="button" class="btn preset-filled-primary-500 min-h-11" disabled={busy || !canGoOn || !!adding} onclick={() => void next()}>{busy ? 'Keeping it…' : 'Next'}</button>
 		{:else}
-			<button type="button" class="btn preset-filled-primary-500 min-h-11" disabled={busy || !shows.length} onclick={() => void finish()}>{busy ? 'Making your card…' : 'Make my card'}</button>
+			<button type="button" class="btn preset-filled-primary-500 min-h-11" disabled={busy || !!adding} onclick={() => void finish()}>{busy ? 'Keeping it…' : shown.length ? 'Done' : 'Done: see my card'}</button>
 		{/if}
 	</footer>
 	{#if step === 0 && !name}<p class="text-sm opacity-70 -mt-3">Your first name, and Next wakes up.</p>{/if}

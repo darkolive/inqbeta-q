@@ -200,6 +200,13 @@
 			{/if}
 		</Section>
 
+		<Section title="News for members" description="Will it send its members news: what’s new, things to try, asking what they think? If yes, members get a switch for it on their notifications card. If not, it never adds to their list.">
+			<div class="flex flex-wrap gap-3" role="radiogroup" aria-label="Does it send members news">
+				<button type="button" role="radio" aria-checked={!!draft.notifies} class="btn min-h-11 {draft.notifies ? 'preset-filled-primary-500' : 'preset-outlined-surface-500'}" onclick={() => (draft.notifies = true)}>Yes, it sends news</button>
+				<button type="button" role="radio" aria-checked={!draft.notifies} class="btn min-h-11 {!draft.notifies ? 'preset-filled-primary-500' : 'preset-outlined-surface-500'}" onclick={() => (draft.notifies = false)}>No</button>
+			</div>
+		</Section>
+
 		<Section title="The agreement" description="Every member signs this when they join. Keep it short and plain.">
 			<textarea class="textarea" rows="4" bind:value={draft.agreement}></textarea>
 			{#if draft.agreement.trim() !== SUGGESTED_AGREEMENT}

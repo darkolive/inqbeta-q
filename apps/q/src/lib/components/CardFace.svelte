@@ -7,8 +7,8 @@
 	 * It draws ONLY what it is given. What a card may show is decided by
 	 * cardView in q-core and nowhere else; this just makes it look like you.
 	 */
-	import { Avatar, Icon } from '@inqbeta/q-ui';
-	import { LABEL, LABELS_KEY } from '$lib/profile';
+	import { Avatar, Icon, FaIcon } from '@inqbeta/q-ui';
+	import { LABEL, LABELS_KEY, SOCIALS, socialUrl, directionsTo, type SocialKind } from '$lib/profile';
 
 	let {
 		details,
@@ -42,6 +42,22 @@
 	const email = $derived(bz('email') || details['q:person/email']);
 	const phone = $derived(bz('phone') || details['q:person/phone']);
 	const whatsapp = $derived(details['q:person/whatsapp']);
+	const address = $derived(details['q:person/address']);
+	const pin = $derived(details['q:address/pin']);
+	const orgType = $derived(bz('type'));
+	/* Social links: the platform's own mark, opening their page. A business card shows the business's pages. */
+	const socials = $derived.by(() => {
+		const out: { kind: SocialKind; label: string; href: string }[] = [];
+		for (const s of SOCIALS) {
+			const personal = details[`q:social/${s.kind}`];
+			if (personal) out.push({ kind: s.kind, label: s.label, href: socialUrl(s.kind, personal) });
+		}
+		for (const kind of ['linkedin', 'facebook', 'instagram'] as SocialKind[]) {
+			const v = bz(kind);
+			if (v) out.push({ kind, label: SOCIALS.find((s) => s.kind === kind)!.label, href: socialUrl(kind, v, kind === 'linkedin' ? 'https://linkedin.com/company/' : undefined) });
+		}
+		return out;
+	});
 	const digits = (n: string) => n.replace(/[^\d+]/g, '');
 
 	/*
@@ -49,7 +65,7 @@
 	 * profile details, and details people added themselves, whose labels
 	 * travel with the card (LABELS_KEY) so any Q can draw them.
 	 */
-	const DRAWN = new Set(['q:person/cover', 'q:person/picture', 'q:person/called', 'q:person/first', 'q:person/last', 'q:person/pronouns', 'q:person/role', 'q:org/name', 'q:person/near', 'q:person/site', 'q:person/about', 'q:person/email', 'q:person/phone', 'q:person/whatsapp', LABELS_KEY]);
+	const DRAWN = new Set(['q:person/cover', 'q:person/picture', 'q:person/called', 'q:person/first', 'q:person/last', 'q:person/pronouns', 'q:person/role', 'q:org/name', 'q:person/near', 'q:person/site', 'q:person/about', 'q:person/email', 'q:person/phone', 'q:person/whatsapp', 'q:person/address', 'q:address/pin', ...SOCIALS.map((s) => `q:social/${s.kind}`), LABELS_KEY]);
 	const carried = $derived.by<Record<string, { label: string; kind: string }>>(() => {
 		try {
 			return JSON.parse(details[LABELS_KEY] ?? '{}');
@@ -96,6 +112,7 @@
 		{#if role || org}
 			<p class="opacity-80">{[role, org].filter(Boolean).join(' · ')}</p>
 		{/if}
+		{#if orgType}<span class="badge preset-tonal-surface mt-1">{orgType}</span>{/if}
 		{#if near}<p class="text-sm opacity-60">{near}</p>{/if}
 		{#if about}<p class="mt-3">{about}</p>{/if}
 		{#if site}
@@ -113,14 +130,23 @@
 				{/each}
 			</dl>
 		{/if}
-		{#if email || phone || whatsapp}
+		{#if address}<p class="mt-3 text-sm whitespace-pre-line">{address}</p>{/if}
+		{#if email || phone || whatsapp || pin}
 			<div class="mt-4 flex flex-wrap gap-2" aria-label="Ways to reach {name ?? 'them'}">
 				{#if phone}<a class="btn preset-tonal min-h-11" href="tel:{digits(phone)}"><Icon name="phone" size={18} /> Call</a>{/if}
 				{#if whatsapp}<a class="btn preset-tonal min-h-11" href="https://wa.me/{digits(whatsapp).replace('+', '')}" target="_blank" rel="noreferrer noopener"><Icon name="message" size={18} /> WhatsApp</a>{/if}
 				{#if email}<a class="btn preset-tonal min-h-11" href="mailto:{email}"><Icon name="mail" size={18} /> Email</a>{/if}
+				{#if pin}<a class="btn preset-tonal min-h-11" href={directionsTo(pin)} target="_blank" rel="noreferrer noopener"><Icon name="map" size={18} /> Directions</a>{/if}
 			</div>
 		{/if}
-		{#if !name && !role && !about && !near && !site && !others.length}
+		{#if socials.length}
+			<div class="mt-3 flex flex-wrap gap-2" aria-label="{name || 'Their'} on social media">
+				{#each socials as so (so.href)}
+					<a class="btn-icon preset-tonal min-h-11 min-w-11" href={so.href} target="_blank" rel="noreferrer noopener" aria-label={so.label} title={so.label}><FaIcon name={so.kind} size="lg" /></a>
+				{/each}
+			</div>
+		{/if}
+		{#if !name && !role && !about && !near && !site && !others.length && !socials.length && !address}
 			<p class="text-sm opacity-60">Nothing in words on this card yet.</p>
 		{/if}
 		{#if missing.length}

@@ -117,6 +117,12 @@ export interface FederationDraft {
 	caretakerMonths: number;
 	/** Events only: the last day, YYYY-MM-DD. */
 	endsOn?: string;
+	/**
+	 * Whether it sends its members news (2 October 2026). Only a federation
+	 * that says yes appears on a member's notifications card, with a switch;
+	 * one that never notifies doesn't add to the list.
+	 */
+	notifies?: boolean;
 	/** The federation's own consent blocks, in the order a joiner sees them. */
 	consent?: ConsentBlock[];
 	started: string;
@@ -187,6 +193,8 @@ export interface FederationManifest {
 		joinPolicy: JoinPolicy;
 		caretakerMonths: number;
 		endsOn?: string;
+		/** It sends members news, so it appears on their notifications card. Absent means no. */
+		notifies?: boolean;
 		/** The federation's own consent blocks. Absent in manifests from before 28 September. */
 		consent?: ConsentBlock[];
 	};
@@ -204,6 +212,7 @@ export function manifestOf(d: FederationDraft): FederationManifest {
 			joinPolicy: d.joinPolicy,
 			caretakerMonths: d.caretakerMonths,
 			...(d.strand === 'event' && d.endsOn ? { endsOn: d.endsOn } : {}),
+			...(d.notifies ? { notifies: true } : {}),
 			consent: (d.consent ?? []).map((b) => ({ id: b.id, title: b.title.trim(), says: b.says.trim() }))
 		}
 	};

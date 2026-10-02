@@ -2,42 +2,36 @@
 	/*
 	 * You and your cards.
 	 *
-	 * Rebuilt 1 October 2026 after Darren tried the long profile form: "way too
-	 * much … I want to go into personal card and have the very basic form
-	 * first, and then the next stage … my identity … my contact details …
-	 * then businesses."
+	 * 2 October 2026 (Darren): not lots of cards — "I think we focus purely on
+	 * your personal card … when you click on personal, it shows your personal
+	 * card and you select which ones go on the card. When you select business,
+	 * it shows your business card."
 	 *
-	 * So there is no profile form any more. Your profile is built by making
-	 * your Personal card, in four short steps (PersonalSteps). Business cards
-	 * come from the work you added; anything else is a card you build. One
-	 * thing on screen at a time, a clear next step, nothing to scroll past.
-	 *
+	 * So each tab IS a card: the switches beside it decide what people see,
+	 * and it's kept as you go (LiveCard). Your details are filled in by the
+	 * Personal card's steps (PersonalSteps): you, contact, home, social, work.
 	 * Underneath nothing changed: a card names details, never copies them, and
-	 * cardView in q-core is the one thing that decides what leaves.
+	 * cardView in q-core decides what leaves.
 	 */
 	import { Empty, Icon, Page } from '@inqbeta/q-ui';
 	import { Tabs } from '@skeletonlabs/skeleton-svelte';
-	import type { Snippet } from 'svelte';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import SignIn from '$lib/components/SignIn.svelte';
-	import CardFace from '$lib/components/CardFace.svelte';
 	import PersonalSteps from '$lib/components/PersonalSteps.svelte';
-	import ChooseShown from '$lib/components/ChooseShown.svelte';
-	import CardBuilder from '$lib/components/CardBuilder.svelte';
-	import ShareCard from '$lib/components/ShareCard.svelte';
+	import LiveCard from '$lib/components/LiveCard.svelte';
 	import MembershipCard from '$lib/components/MembershipCard.svelte';
 	import NotificationsCard from '$lib/components/NotificationsCard.svelte';
 	import { watch, type Identity } from '@inqbeta/q-core/passkey';
 	import { watchFolder, type FolderState } from '@inqbeta/q-core/folder';
-	import { cardView, newestPerCard, type Card } from '@inqbeta/q-core/cards';
+	import { newestPerCard } from '@inqbeta/q-core/cards';
 	import type { AnswerSet } from '@inqbeta/q-core/questions';
 	import { standingAt } from '@inqbeta/q-core/membership';
 	import { answersFrom } from '$lib/answers';
-	import { cardFrom, saveCard, type KindCard } from '$lib/cards';
+	import { cardFrom, type KindCard } from '$lib/cards';
 	import { watchLedger, refreshLedger, type Ledger } from '$lib/ledger';
 	import { newestPerKey } from '$lib/features/dostudy';
-	import { LABEL, profileNow, justForMe, asText, ownDetails, withLabels, businessesFrom, BIZ_PARTS, type Business } from '$lib/profile';
+	import { LABEL, profileNow, justForMe, asText, ownDetails, businessesFrom, BIZ_PARTS, PERSONAL_OPTIONS, type Business } from '$lib/profile';
 	import { recordFrom, isMembershipRecord, isFederationRecord, type MembershipRecord, type FederationRecord } from '$lib/federations';
 	import { readHome } from '$lib/home';
 
@@ -60,7 +54,7 @@
 		void Promise.all(found.filter((f) => f.kind === 'card').map((f) => cardFrom(f.item))).then((l) => (cards = newestPerCard(l.filter((c): c is KindCard => !!c)) as KindCard[]));
 	});
 
-	/* Memberships (ADR-Q-015 §5): yours, and the federations you look after. */
+	/* Memberships: yours, and the federations you look after. */
 	let memberships = $state<MembershipRecord[]>([]);
 	let looking = $state<FederationRecord[]>([]);
 	$effect(() => {
@@ -68,12 +62,20 @@
 		void Promise.all(found.filter((f) => f.kind === 'membership').map((f) => recordFrom(f.item))).then((l) => (memberships = l.filter(isMembershipRecord)));
 		void Promise.all(found.filter((f) => f.kind === 'federation').map((f) => recordFrom(f.item))).then((l) => (looking = l.filter(isFederationRecord)));
 	});
-	let home = $state<{ did: string; name: string } | null>(null);
-	$effect(() => {
-		void readHome().then((h) => (home = h.ok ? { did: h.federation, name: h.name } : null));
-	});
-	const reaching = $derived(
-		home && [...memberships.map((m) => m.joining.federation), ...looking.map((f) => f.founding.federation)].includes(home.did) ? [home] : []
+	/*
+	 * Federations that send news, for the notifications card: only those whose
+	 * manifest says so (notifies), and Q's home federation, which announces
+	 * through its storage unit. One that never notifies isn't listed.
+	 */
+	let homeDid = $state('');
+	$effect(() => void readHome().then((h) => (homeDid = h.ok ? h.federation : '')));
+	const federations = $derived(
+		[
+			...looking.map((f) => ({ did: f.founding.federation, name: f.founding.name, notifies: !!f.manifest.constitution.notifies })),
+			...memberships.map((m) => ({ did: m.joining.federation, name: m.founding.name, notifies: !!m.manifest.constitution.notifies }))
+		]
+			.filter((f) => f.notifies || f.did === homeDid)
+			.filter((f, i, all) => all.findIndex((x) => x.did === f.did) === i)
 	);
 	const fedHref = (did: string) => `/federations/one?id=${encodeURIComponent(did)}`;
 
@@ -82,9 +84,10 @@
 	const mine = $derived(justForMe(now));
 	const own = $derived(ownDetails(now));
 	const businesses = $derived(businessesFrom(now, own));
+	const values = $derived(Object.fromEntries(Object.entries(now).map(([k, v]) => [k, asText(v)])));
 
 	/* ---- Tabs, kept in the address so the bell can open one ---- */
-	const TABS = ['personal', 'business', 'own', 'memberships', 'notifications'] as const;
+	const TABS = ['personal', 'business', 'memberships', 'notifications'] as const;
 	type Tab = (typeof TABS)[number];
 	const asked = $derived(page.url.searchParams.get('tab') as Tab);
 	const tab = $derived<Tab>(TABS.includes(asked) ? asked : 'personal');
@@ -94,76 +97,25 @@
 		void goto(url, { replaceState: true, noScroll: true, keepFocus: true });
 	}
 
-	/* A card's face: exactly what cardView lets out. */
-	function faceOf(card: Card) {
-		const view = cardView(card, answers);
-		return withLabels(Object.fromEntries(view.shown.map((s) => [s.question, asText(s.value)])), own);
-	}
-
 	/* ---- Personal ---- */
 	const personal = $derived(cards.find((c) => c.kind === 'personal' && c.name === 'Personal') ?? cards.find((c) => c.kind === 'personal'));
 	let stepping = $state<number | null>(null);
+	const WORK_STEP = 4;
 
 	/* ---- Business: one card per business ---- */
 	const bizCard = (b: Business) => cards.find((c) => c.kind === 'business' && c.shows.includes(`q:biz/${b.slug}/name`));
-	let choosing = $state<{ biz: Business; shows: string[] } | null>(null);
-	let bizSays = $state('');
-	let bizBusy = $state(false);
-	function chooseFor(b: Business) {
-		const had = bizCard(b);
-		sharing = null;
-		choosing = {
-			biz: b,
-			shows: had ? [...had.shows] : ['q:person/cover', 'q:person/picture', 'q:person/called', ...BIZ_PARTS.map((p) => `q:biz/${b.slug}/${p.part}`)]
-		};
-	}
 	const bizOptions = (b: Business) => [
 		{ id: 'q:person/cover', label: 'Cover image' },
 		{ id: 'q:person/picture', label: 'Your photo' },
 		{ id: 'q:person/called', label: 'Your name' },
-		...BIZ_PARTS.map((p) => ({ id: `q:biz/${b.slug}/${p.part}`, label: p.label }))
+		...BIZ_PARTS.filter((p) => p.part !== 'name').map((p) => ({ id: `q:biz/${b.slug}/${p.part}`, label: p.label }))
 	];
-	const nowText = $derived(Object.fromEntries(Object.entries(now).map(([k, v]) => [k, asText(v)])));
-	async function makeBizCard() {
-		if (!identity || !choosing) return;
-		bizBusy = true;
-		bizSays = '';
-		const out = await saveCard(identity, choosing.biz.name, [...new Set([`q:biz/${choosing.biz.slug}/name`, ...choosing.shows])].filter((id) => nowText[id] && !mine.includes(id)), [], 'business');
-		bizBusy = false;
-		if (!out.ok) return void (bizSays = out.says);
-		choosing = null;
-		await refreshLedger();
-	}
-
-	/* ---- Your own cards ---- */
-	let building = $state(false);
-
-	/* ---- Sharing: tick what this person gets, then send a signed link ---- */
-	let sharing = $state<{ key: string; name: string; details: Record<string, string> } | null>(null);
-	function share(card: Card) {
-		const d = Object.fromEntries(Object.entries(faceOf(card)).filter(([k]) => k !== 'q:card/labels'));
-		sharing = sharing?.key === card.id ? null : { key: card.id, name: card.name, details: d };
-	}
+	const bizDefault = (b: Business) => ['q:person/cover', 'q:person/picture', 'q:person/called', ...BIZ_PARTS.map((p) => `q:biz/${b.slug}/${p.part}`)];
 </script>
 
 <svelte:head><title>You and your cards — Q</title></svelte:head>
 
-{#snippet oneCard(card: KindCard, extra?: Snippet)}
-	<div class="flex flex-col gap-3 max-w-md">
-		<CardFace details={faceOf(card)} did={card.did} badge={card.name} />
-		<div class="flex flex-wrap gap-3">
-			<button type="button" class="btn preset-filled-primary-500 min-h-11" onclick={() => share(card)}><Icon name="share" size={16} /> Share with someone</button>
-			{@render extra?.()}
-		</div>
-	</div>
-	{#if sharing?.key === card.id}
-		<div class="mt-4">
-			<ShareCard did={card.did} name={sharing.name} details={sharing.details} {own} onDone={() => (sharing = null)} />
-		</div>
-	{/if}
-{/snippet}
-
-<Page title="You and your cards" lead="Make your Personal card first. Everything else grows from it.">
+<Page title="You and your cards" lead="One card for you, one for each place you work. You choose what each one shows.">
 	{#if !identity}
 		<div class="panel"><SignIn /></div>
 	{:else if folder.kind !== 'ready'}
@@ -177,20 +129,19 @@
 			<Tabs.List class="mb-6 flex-wrap">
 				<Tabs.Trigger value="personal" class="min-h-11">Personal</Tabs.Trigger>
 				<Tabs.Trigger value="business" class="min-h-11">Business</Tabs.Trigger>
-				<Tabs.Trigger value="own" class="min-h-11">Your own</Tabs.Trigger>
 				<Tabs.Trigger value="memberships" class="min-h-11">Memberships</Tabs.Trigger>
 				<Tabs.Trigger value="notifications" class="min-h-11">Notifications</Tabs.Trigger>
 				<Tabs.Indicator />
 			</Tabs.List>
 
-			<!-- Personal: four short steps, then your card. -->
+			<!-- Personal: your card, with its switches. -->
 			<Tabs.Content value="personal">
 				{#if stepping !== null}
 					<PersonalSteps
 						{identity}
 						{now}
 						shown={personal?.shows ?? []}
-						startAt={stepping ?? 0}
+						startAt={stepping}
 						onDone={async () => {
 							stepping = null;
 							await refreshLedger();
@@ -198,82 +149,45 @@
 						onCancel={() => (stepping = null)}
 					/>
 				{:else if personal}
-					{#snippet change()}
-						<button type="button" class="btn preset-tonal min-h-11" onclick={() => { sharing = null; stepping = 0; }}>Change my details</button>
-					{/snippet}
-					{@render oneCard(personal, change)}
+					{#key personal.id}
+						<LiveCard {identity} name="Personal" kind="personal" options={PERSONAL_OPTIONS} {values} {own} shown={personal.shows}>
+							<button type="button" class="btn preset-tonal min-h-11" onclick={() => (stepping = 0)}>Change my details</button>
+						</LiveCard>
+					{/key}
 				{:else}
-					<Empty icon="card" title="Make your Personal card" description="Four short steps: you, how to reach you, your work, then what people see.">
+					<Empty icon="card" title="Make your Personal card" description="A few short steps: you, how to reach you, your home, your socials, your work. Then you choose what people see.">
 						<button type="button" class="btn preset-filled-primary-500 min-h-11" onclick={() => (stepping = 0)}>Start</button>
 					</Empty>
 				{/if}
 			</Tabs.Content>
 
-			<!-- Business: one card for each business you added. -->
+			<!-- Business: a card for each business. -->
 			<Tabs.Content value="business">
-				{#if choosing}
-					<div class="card preset-outlined-surface-200-800 bg-surface-50-950 p-4 sm:p-6 flex flex-col gap-5">
-						<header>
-							<h2 class="h3">{choosing.biz.name}</h2>
-							<p class="opacity-70">Switch on what people see.</p>
-						</header>
-						<ChooseShown did={identity.did} badge={choosing.biz.name} options={bizOptions(choosing.biz)} values={nowText} {own} bind:shows={choosing.shows} />
-						<footer class="flex flex-wrap justify-between gap-3 border-t border-surface-200-800 pt-4">
-							<button type="button" class="btn preset-tonal min-h-11" onclick={() => (choosing = null)}>Not now</button>
-							<button type="button" class="btn preset-filled-primary-500 min-h-11" disabled={bizBusy || !choosing.shows.length} onclick={() => void makeBizCard()}>{bizBusy ? 'Making…' : 'Make this card'}</button>
-						</footer>
-						{#if bizSays}<p class="text-sm card preset-tonal-error p-3">{bizSays}</p>{/if}
-					</div>
-				{:else if !businesses.length}
-					<Empty icon="card" title="No work added yet" description="Add a business, and its card is made here.">
-						<button type="button" class="btn preset-filled-primary-500 min-h-11" onclick={() => { openTab('personal'); stepping = 2; }}>Add my work</button>
+				{#if !businesses.length}
+					<Empty icon="card" title="No work added yet" description="Add where you work or what you run, and its card appears here.">
+						<button type="button" class="btn preset-filled-primary-500 min-h-11" onclick={() => { openTab('personal'); stepping = WORK_STEP; }}>Add my work</button>
 					</Empty>
 				{:else}
 					<div class="flex flex-col gap-8">
 						{#each businesses as b (b.slug)}
 							{@const card = bizCard(b)}
-							{#if card}
-								{#snippet edit()}
-									<button type="button" class="btn preset-tonal min-h-11" onclick={() => chooseFor(b)}>Change what it shows</button>
-								{/snippet}
-								{@render oneCard(card, edit)}
-							{:else}
-								<div class="card preset-tonal-surface p-4 flex flex-wrap items-center justify-between gap-3 max-w-md">
-									<span class="font-bold">{b.name}</span>
-									<button type="button" class="btn preset-filled-primary-500 min-h-11" onclick={() => chooseFor(b)}>Make its card</button>
-								</div>
-							{/if}
+							{#key card?.id ?? b.slug}
+								<LiveCard
+									{identity}
+									name={b.name}
+									kind="business"
+									options={bizOptions(b)}
+									{values}
+									{own}
+									shown={card?.shows ?? bizDefault(b)}
+									always={[`q:biz/${b.slug}/name`]}
+								>
+									<button type="button" class="btn preset-tonal min-h-11" onclick={() => { openTab('personal'); stepping = WORK_STEP; }}>Change its details</button>
+								</LiveCard>
+							{/key}
 						{/each}
-						<button type="button" class="btn preset-tonal min-h-11 self-start" onclick={() => { openTab('personal'); stepping = 2; }}><Icon name="plus" size={16} /> Add a business</button>
+						<button type="button" class="btn preset-tonal min-h-11 self-start" onclick={() => { openTab('personal'); stepping = WORK_STEP; }}><Icon name="plus" size={16} /> Add a business</button>
 					</div>
-				{/if}
-			</Tabs.Content>
-
-			<!-- Your own: a card for anything, built row by row. -->
-			<Tabs.Content value="own">
-				{#if building}
-					<CardBuilder
-						{identity}
-						{now}
-						onMade={async () => {
-							building = false;
-							await refreshLedger();
-						}}
-						onCancel={() => (building = false)}
-					/>
-				{:else}
-					{@const list = cards.filter((c) => c.kind === 'own')}
-					{#if list.length}
-						<div class="flex flex-col gap-8">
-							{#each list as card (card.id)}{@render oneCard(card)}{/each}
-							<button type="button" class="btn preset-tonal min-h-11 self-start" onclick={() => { sharing = null; building = true; }}><Icon name="plus" size={16} /> Build another</button>
-						</div>
-					{:else}
-						<Empty icon="card" title="A card for anything" description="A club, a team, a hobby. Pick details you already have, or add something new.">
-							<button type="button" class="btn preset-filled-primary-500 min-h-11" disabled={!now['q:person/called']} onclick={() => (building = true)}>Build a card</button>
-						</Empty>
-						{#if !now['q:person/called']}<p class="text-sm opacity-70 text-center">Make your Personal card first.</p>{/if}
-					{/if}
 				{/if}
 			</Tabs.Content>
 
@@ -318,7 +232,7 @@
 			</Tabs.Content>
 
 			<Tabs.Content value="notifications">
-				<NotificationsCard federations={reaching} />
+				<NotificationsCard {federations} />
 			</Tabs.Content>
 		</Tabs>
 	{/if}

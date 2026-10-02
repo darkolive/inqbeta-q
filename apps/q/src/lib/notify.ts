@@ -14,10 +14,14 @@ export type Reach = 'ring' | 'quiet' | 'off';
 /** 'people', or 'fed:<federation DID>'. Card updates and system come later. */
 export type Source = 'people' | `fed:${string}`;
 
-/** What each source may choose. People can be quiet, never off: a message needs you. */
+/**
+ * What each source may choose. 2 October 2026 (Darren): "it's either you get
+ * notified of things from that source, or you don't." So: on (the bell rings
+ * and counts) or off. A choice of "quiet" kept from before counts as on.
+ */
 export const CHOICES: Record<'people' | 'fed', Reach[]> = {
-	people: ['ring', 'quiet'],
-	fed: ['ring', 'quiet', 'off']
+	people: ['ring', 'off'],
+	fed: ['ring', 'off']
 };
 
 export const SAYS: Record<Reach, { label: string; means: string }> = {
@@ -28,7 +32,7 @@ export const SAYS: Record<Reach, { label: string; means: string }> = {
 
 /* Belongs to whoever is signed in, so it goes when they sign out (q-core storage.ts). */
 const KEY = 'q.notify';
-const DEFAULTS = { people: 'ring', fed: 'quiet' } as const;
+const DEFAULTS = { people: 'ring', fed: 'ring' } as const;
 
 function readAll(): Record<string, Reach> {
 	try {
@@ -40,7 +44,7 @@ function readAll(): Record<string, Reach> {
 
 export function reachFor(source: Source, all: Record<string, Reach> = readAll()): Reach {
 	const kind = source === 'people' ? 'people' : 'fed';
-	const chosen = all[source];
+	const chosen = all[source] === 'quiet' ? 'ring' : all[source];
 	return chosen && CHOICES[kind].includes(chosen) ? chosen : DEFAULTS[kind];
 }
 

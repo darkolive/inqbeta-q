@@ -13,7 +13,8 @@
 		options,
 		values,
 		own = [],
-		shows = $bindable([])
+		shows = $bindable([]),
+		below
 	}: {
 		did: string;
 		badge: string;
@@ -23,6 +24,8 @@
 		values: Record<string, string>;
 		own?: OwnDetail[];
 		shows?: string[];
+		/** Under the card: sharing it, say. */
+		below?: import('svelte').Snippet;
 	} = $props();
 
 	const filled = $derived(options.filter((o) => values[o.id]));
@@ -37,7 +40,7 @@
 				<Switch checked={shows.includes(o.id)} onCheckedChange={(d) => set(o.id, d.checked)} class="flex items-center justify-between gap-4 min-h-11">
 					<Switch.Label class="flex flex-col">
 						<span>{o.label}</span>
-						{#if !values[o.id].startsWith('data:')}<span class="text-sm opacity-60 truncate max-w-64">{values[o.id]}</span>{/if}
+						{#if o.id === 'q:address/pin'}<span class="text-sm opacity-60">Pin set</span>{:else if !values[o.id].startsWith('data:')}<span class="text-sm opacity-60 truncate max-w-64">{values[o.id].replace(/\n/g, ', ')}</span>{/if}
 					</Switch.Label>
 					<Switch.Control><Switch.Thumb /></Switch.Control>
 					<Switch.HiddenInput />
@@ -48,5 +51,6 @@
 	<aside class="flex flex-col gap-2 md:sticky md:top-4 self-start">
 		<p class="text-sm opacity-70">What people will see.</p>
 		<CardFace details={preview} {did} {badge} />
+		{@render below?.()}
 	</aside>
 </div>

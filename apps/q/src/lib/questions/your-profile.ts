@@ -76,6 +76,83 @@ export const YOUR_PROFILE: QuestionSet = {
 			asks: { 'en-GB': 'Your home address' },
 			optional: true
 		},
+		/*
+		 * 2 October 2026: the home address in proper fields, a pin for
+		 * directions, and the social platforms people use (Darren). The whole
+		 * address is also kept as one answer (q:person/address) for drawing.
+		 */
+		{
+			id: 'q:address/line1',
+			answer: 'text',
+			asks: { 'en-GB': 'Address, first line' },
+			optional: true
+		},
+		{
+			id: 'q:address/line2',
+			answer: 'text',
+			asks: { 'en-GB': 'Address, second line' },
+			optional: true
+		},
+		{
+			id: 'q:address/town',
+			answer: 'text',
+			asks: { 'en-GB': 'Town or city' },
+			optional: true
+		},
+		{
+			id: 'q:address/county',
+			answer: 'text',
+			asks: { 'en-GB': 'County or region' },
+			optional: true
+		},
+		{
+			id: 'q:address/postcode',
+			answer: 'text',
+			asks: { 'en-GB': 'Postcode' },
+			optional: true
+		},
+		{
+			id: 'q:address/country',
+			answer: 'text',
+			asks: { 'en-GB': 'Country' },
+			optional: true
+		},
+		{
+			id: 'q:address/pin',
+			answer: 'text',
+			asks: { 'en-GB': 'A pin on the map (latitude, longitude)' },
+			optional: true
+		},
+		{
+			id: 'q:social/instagram',
+			answer: 'text',
+			asks: { 'en-GB': 'Instagram' },
+			optional: true
+		},
+		{
+			id: 'q:social/facebook',
+			answer: 'text',
+			asks: { 'en-GB': 'Facebook' },
+			optional: true
+		},
+		{
+			id: 'q:social/linkedin',
+			answer: 'text',
+			asks: { 'en-GB': 'LinkedIn' },
+			optional: true
+		},
+		{
+			id: 'q:social/x',
+			answer: 'text',
+			asks: { 'en-GB': 'X (Twitter)' },
+			optional: true
+		},
+		{
+			id: 'q:social/tiktok',
+			answer: 'text',
+			asks: { 'en-GB': 'TikTok' },
+			optional: true
+		},
 		{
 			/* Your own details: what each is called and what kind it is. */
 			id: 'q:profile/own-details',

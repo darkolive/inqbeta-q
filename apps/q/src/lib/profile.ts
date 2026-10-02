@@ -27,18 +27,55 @@ export const DETAILS: Detail[] = [
 	{ id: 'q:person/last', label: 'Last name', kind: 'text' },
 	{ id: 'q:person/called', label: 'What people call you', kind: 'text', hint: 'Leave it empty and your card says your first and last name.' },
 	{ id: 'q:person/pronouns', label: 'Pronouns', kind: 'text', hint: '“she/her”, “he/him”, “they/them” — however you say them.' },
-	{ id: 'q:person/gender', label: 'Gender', kind: 'text', hint: 'In your own words. Starts just for you.' },
+	{ id: 'q:person/gender', label: 'Gender', kind: 'text', hint: 'In your own words.' },
 	{ id: 'q:person/birthday', label: 'Date of birth', kind: 'date' },
 	{ id: 'q:person/role', label: 'What you do', kind: 'text', hint: 'However you’d say it out loud: “sound engineer”.' },
 	{ id: 'q:org/name', label: 'Who for', kind: 'text', hint: 'A company, a practice, or your own name.' },
 	{ id: 'q:person/near', label: 'Roughly where you are', kind: 'text', hint: 'A town or a region.' },
-	{ id: 'q:person/address', label: 'Home address', kind: 'longtext', hint: 'Starts just for you. Only on a card if you put it there.' },
+	{ id: 'q:person/address', label: 'Home address', kind: 'longtext' },
+	{ id: 'q:address/pin', label: 'Map pin', kind: 'text' },
 	{ id: 'q:person/about', label: 'About you', kind: 'longtext' },
 	{ id: 'q:person/email', label: 'Email', kind: 'text', hint: 'A button on your card opens their email to you.' },
 	{ id: 'q:person/phone', label: 'Phone', kind: 'text', hint: 'A Call button on your card. Include +44 if you’ll share it abroad.' },
 	{ id: 'q:person/whatsapp', label: 'WhatsApp', kind: 'text', hint: 'A WhatsApp button on your card. The number, with +44.' },
-	{ id: 'q:person/site', label: 'Website', kind: 'link', hint: '“darkolive.co.uk” is enough.' }
+	{ id: 'q:person/site', label: 'Website', kind: 'link', hint: '“darkolive.co.uk” is enough.' },
+	{ id: 'q:social/instagram', label: 'Instagram', kind: 'text' },
+	{ id: 'q:social/facebook', label: 'Facebook', kind: 'text' },
+	{ id: 'q:social/linkedin', label: 'LinkedIn', kind: 'text' },
+	{ id: 'q:social/x', label: 'X (Twitter)', kind: 'text' },
+	{ id: 'q:social/tiktok', label: 'TikTok', kind: 'text' }
 ];
+
+/* ---- The home address, in proper fields (2 October 2026) ---- */
+export const ADDRESS_PARTS: { id: string; label: string; auto: string; short?: boolean }[] = [
+	{ id: 'q:address/line1', label: 'First line', auto: 'address-line1' },
+	{ id: 'q:address/line2', label: 'Second line', auto: 'address-line2' },
+	{ id: 'q:address/town', label: 'Town or city', auto: 'address-level2' },
+	{ id: 'q:address/county', label: 'County or region', auto: 'address-level1' },
+	{ id: 'q:address/postcode', label: 'Postcode', auto: 'postal-code', short: true },
+	{ id: 'q:address/country', label: 'Country', auto: 'country-name', short: true }
+];
+/** The parts as one block of lines, for drawing on a card. */
+export const addressFrom = (v: Record<string, string>) =>
+	ADDRESS_PARTS.map((p) => v[p.id]?.trim()).filter(Boolean).join('\n');
+/** A pin, "lat,lng", to a directions link anyone's phone opens in its maps app. */
+export const directionsTo = (pin: string) => `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(pin.replace(/\s/g, ''))}`;
+
+/* ---- Social platforms: a handle or a link, made into a link ---- */
+export type SocialKind = 'instagram' | 'facebook' | 'linkedin' | 'x' | 'tiktok';
+export const SOCIALS: { kind: SocialKind; label: string; base: string; hint: string }[] = [
+	{ kind: 'instagram', label: 'Instagram', base: 'https://instagram.com/', hint: '@yourname' },
+	{ kind: 'facebook', label: 'Facebook', base: 'https://facebook.com/', hint: 'yourname, or the link' },
+	{ kind: 'linkedin', label: 'LinkedIn', base: 'https://linkedin.com/in/', hint: 'the link to your profile' },
+	{ kind: 'x', label: 'X (Twitter)', base: 'https://x.com/', hint: '@yourname' },
+	{ kind: 'tiktok', label: 'TikTok', base: 'https://tiktok.com/@', hint: '@yourname' }
+];
+export function socialUrl(kind: SocialKind, value: string, base?: string): string {
+	const v = value.trim();
+	if (/^https?:\/\//i.test(v)) return v;
+	if (/^[a-z0-9-]+\.[a-z]{2,}\//i.test(v)) return `https://${v}`;
+	return `${base ?? SOCIALS.find((s) => s.kind === kind)!.base}${v.replace(/^@/, '')}`;
+}
 
 /** Sharper details start as just for you, so filling one in never shows it. */
 export const QUIET = ['q:person/address', 'q:person/gender', 'q:person/birthday'];
@@ -119,6 +156,9 @@ export async function saveProfile(identity: Identity, values: Record<string, str
 		if (!v) continue;
 		clean[d.id] = d.kind === 'yesno' ? v === 'yes' : v;
 	}
+	/* The address parts, also kept as one block for drawing. */
+	const whole = addressFrom(values);
+	if (whole) clean['q:person/address'] = whole;
 	/* Your card always has a name: what people call you, else first and last. */
 	const name = nameFrom(values);
 	if (name) clean['q:person/called'] = name;
@@ -134,15 +174,20 @@ export async function saveProfile(identity: Identity, values: Record<string, str
  * Each is a handful of details of your own, `q:biz/<slug>/<part>`, so a
  * Business card names them like any other detail.
  * ------------------------------------------------------------------ */
-export type Business = { slug: string; name: string; role: string; site: string; email: string; phone: string };
-export const BIZ_PARTS: { part: keyof Omit<Business, 'slug'>; label: string; kind: OwnKind; hint?: string }[] = [
-	{ part: 'name', label: 'Business name', kind: 'text' },
-	{ part: 'role', label: 'What you do there', kind: 'text', hint: '“Director”, “Sound engineer”' },
+export type Business = { slug: string; name: string; role: string; type: string; site: string; email: string; phone: string; linkedin: string; facebook: string; instagram: string };
+export const COMPANY_TYPES = ['Private company', 'Sole trader', 'Partnership', 'Charity', 'Community interest company', 'Co-operative', 'Public sector', 'Other'];
+export const BIZ_PARTS: { part: keyof Omit<Business, 'slug'>; label: string; kind: OwnKind; hint?: string; social?: SocialKind }[] = [
+	{ part: 'name', label: 'Who you work for', kind: 'text', hint: 'A company, a charity, or your own name' },
+	{ part: 'role', label: 'Job title', kind: 'text', hint: '“Director”, “Sound engineer”' },
+	{ part: 'type', label: 'Type of organisation', kind: 'text' },
 	{ part: 'site', label: 'Website', kind: 'link', hint: '“darkolive.co.uk” is enough' },
 	{ part: 'email', label: 'Work email', kind: 'text' },
-	{ part: 'phone', label: 'Work phone', kind: 'text' }
+	{ part: 'phone', label: 'Work phone', kind: 'text' },
+	{ part: 'linkedin', label: 'LinkedIn page', kind: 'text', hint: 'the link to the page', social: 'linkedin' },
+	{ part: 'facebook', label: 'Facebook page', kind: 'text', hint: 'the page name, or the link', social: 'facebook' },
+	{ part: 'instagram', label: 'Instagram', kind: 'text', hint: '@name', social: 'instagram' }
 ];
-export const blankBusiness = (): Business => ({ slug: '', name: '', role: '', site: '', email: '', phone: '' });
+export const blankBusiness = (): Business => ({ slug: '', name: '', role: '', type: '', site: '', email: '', phone: '', linkedin: '', facebook: '', instagram: '' });
 
 export function businessesFrom(now: Record<string, AnswerValue>, own: OwnDetail[]): Business[] {
 	const by = new Map<string, Business>();
@@ -177,3 +222,10 @@ export function businessesAsDetails(list: Business[], own: OwnDetail[]): { own: 
 	}
 	return { own: out, values };
 }
+
+/** What can go on a Personal card, in the order it reads. */
+export const PERSONAL_OPTIONS: { id: string; label: string }[] = [
+	'q:person/cover', 'q:person/picture', 'q:person/called', 'q:person/pronouns', 'q:person/gender', 'q:person/birthday',
+	'q:person/email', 'q:person/phone', 'q:person/whatsapp', 'q:person/address', 'q:address/pin',
+	'q:social/instagram', 'q:social/facebook', 'q:social/linkedin', 'q:social/x', 'q:social/tiktok'
+].map((id) => ({ id, label: id === 'q:person/called' ? 'Your name' : id === 'q:address/pin' ? 'Map pin (a Directions button)' : (LABEL[id] ?? id) }));
