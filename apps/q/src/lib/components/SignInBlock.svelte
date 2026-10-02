@@ -38,8 +38,9 @@
 	let {
 		logo = '/inqbeta.svg',
 		title,
-		line
-	}: { logo?: string; title?: string; line?: string } = $props();
+		line,
+		stay = false
+	}: { logo?: string; title?: string; line?: string; /** Stay on this page after signing in (a shared card waiting to open). */ stay?: boolean } = $props();
 
 	/* The three places, said as briefly as they can be — in the chosen language. */
 	/* `say` and `sayHint` are the i18n keys, which read-aloud uses to find each line's recording. */
@@ -118,7 +119,7 @@
 			return;
 		}
 		needsBackup = false;
-		goto('/');
+		if (!stay) goto('/');
 	}
 
 	/* A way-back-in passkey: the backup zip carries the continuity file. */
@@ -155,7 +156,7 @@
 		});
 		const restored = await restoreVault([file]);
 		says = restored.ok ? '' : restored.says;
-		goto('/');
+		if (!stay) goto('/');
 	}
 </script>
 

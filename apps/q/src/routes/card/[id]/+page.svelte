@@ -6,15 +6,16 @@
 	 *
 	 * Signed in, it opens in a drawer over your Overview — the way the bell's
 	 * drawer opens a receipt (Darren: "that would look lovely in the drawer, a
-	 * card opening like that"). Not signed in yet, it's a page, with the
-	 * sign-in right beside the card.
+	 * card opening like that"). Not signed in, nothing of theirs is shown:
+	 * "someone wants to connect", and the sign-in. Opening claims it, so only
+	 * the first person to open it (and whoever made it) ever can.
 	 */
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
-	import { Page } from '@inqbeta/q-ui';
 	import { Dialog, Portal } from '@skeletonlabs/skeleton-svelte';
 	import { watch, type Identity } from '@inqbeta/q-core/passkey';
 	import CardArrived from '$lib/components/CardArrived.svelte';
+	import SomeoneWants from '$lib/components/SomeoneWants.svelte';
 	import { openCardDrop } from '$lib/cardlink';
 
 	let identity = $state<Identity | null>(null);
@@ -50,7 +51,6 @@
 		</Portal>
 	</Dialog>
 {:else if answered}
-	<Page title="A card for you" lead="Someone sent you their card, signed by them.">
-		<CardArrived {open} />
-	</Page>
+	<!-- Signed out: who it's from stays hidden until you sign in. -->
+	<SomeoneWants />
 {/if}

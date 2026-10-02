@@ -11,7 +11,7 @@
  * stays behind, the link has to fit in a message), your DID, and your bellboy
  * inbox, so their Q can ring you back when they link up.
  */
-import { seal, checkReceipt } from '@inqbeta/q-core/seal';
+import { seal, sealWith, checkReceipt } from '@inqbeta/q-core/seal';
 import { b64url, unb64url } from '@inqbeta/q-core/canonical';
 import { thumbnail } from '$lib/pictures';
 import { current } from '@inqbeta/q-core/passkey';
@@ -54,9 +54,14 @@ export async function openCardDrop(id: string, fragment: string): Promise<Opened
 	if (!key) return { ok: false, says: 'This link is missing its key. Ask them to send it again.' };
 	const storage = await storageUnit();
 	if (!storage) return { ok: false, says: 'Q can’t find where cards are kept just now. Try again in a moment.' };
+	/* Opening is for one person: a fresh claim, signed by you. The first to open it keeps it. */
+	const me = current();
+	if (!me) return { ok: false, says: 'Sign in to see who it’s from.' };
 	try {
-		const res = await fetch(`${storage}/drop/${encodeURIComponent(id)}`, { signal: AbortSignal.timeout(15_000) });
+		const claim = await sealWith(me, { schema: 'inqbeta.drop-claim/1', source: 'inqbeta:q/drop-claim', drop: id, at: new Date().toISOString() });
+		const res = await fetch(`${storage}/drop/${encodeURIComponent(id)}`, { headers: { 'x-q-claim': b64url(new TextEncoder().encode(JSON.stringify(claim))) }, signal: AbortSignal.timeout(15_000) });
 		if (res.status === 404) return { ok: false, says: 'This card has gone: shared cards are only kept for 30 days. Ask them to send it again.' };
+		if (res.status === 401 || res.status === 403) return { ok: false, says: String(((await res.json().catch(() => ({}))) as { says?: string }).says ?? 'This card wasn’t meant for you.') };
 		if (!res.ok) return { ok: false, says: `Couldn’t fetch the card (${res.status}).` };
 		const drop = (await res.json()) as { content?: { box?: Box } };
 		if (!drop.content?.box) return { ok: false, says: 'This link isn’t a card.' };

@@ -189,7 +189,7 @@ function pingInbox(id) {
 /* ---- HTTP ---- */
 function send(res, origin, status, body) {
 	const headers = { 'content-type': 'application/json', 'cache-control': 'no-store' };
-	if (ORIGINS.has(origin)) Object.assign(headers, { 'access-control-allow-origin': origin, 'access-control-allow-methods': 'GET, POST, DELETE, OPTIONS', 'access-control-allow-headers': 'content-type, x-inbox-key', vary: 'origin' });
+	if (ORIGINS.has(origin)) Object.assign(headers, { 'access-control-allow-origin': origin, 'access-control-allow-methods': 'GET, POST, DELETE, OPTIONS', 'access-control-allow-headers': 'content-type, x-inbox-key, x-q-claim', vary: 'origin' });
 	res.writeHead(status, headers);
 	res.end(status === 204 ? undefined : JSON.stringify(body));
 }
@@ -240,13 +240,50 @@ async function readBody(req, most) {
 	return raw;
 }
 
+/*
+ * Opening a drop is for one person (2 October 2026). Darren opened a shared
+ * card as two different people, and signed out: a link alone must not be
+ * enough. So opening needs a fresh signed claim, and the FIRST person to open
+ * it keeps it: after that only they (and whoever made it) can fetch it. A
+ * forwarded or leaked link opens nothing for anyone else.
+ */
+const CLAIM_FRESH_MS = 5 * 60 * 1000;
+export async function checkClaim(claim, id, now = Date.now()) {
+	if (!(await signedReceipt(claim))) return null;
+	const c = claim.content;
+	if (c.schema !== 'inqbeta.drop-claim/1' || c.drop !== id) return null;
+	const at = Date.parse(c.at);
+	if (!Number.isFinite(at) || Math.abs(now - at) > CLAIM_FRESH_MS) return null;
+	return claim.did;
+}
+/** Who may have it: the one who made it, or the one who claimed it first (claiming it now if nobody has). */
+export function mayOpen(held, did) {
+	if (!did) return { ok: false, says: 'Sign in to open this.' };
+	if (did === held.did) return { ok: true };
+	if (!held.claimedBy) return { ok: true, claim: true };
+	return held.claimedBy === did ? { ok: true } : { ok: false, says: 'This was meant for someone else, and they’ve already opened it. Ask them to send you your own.' };
+}
+
 async function drops(req, res, origin, id) {
 	if (req.method === 'GET') {
 		if (!id) return send(res, origin, 404, { says: 'Nothing here.' });
 		const r = await fetch(dropPath(id)).catch(() => null);
 		const held = r?.ok ? await r.json().catch(() => null) : null;
 		if (!held || Date.parse(held.content?.until) < Date.now()) return send(res, origin, 404, { says: 'This has gone: it was only kept for a while.' });
-		return send(res, origin, 200, held);
+		let claim = null;
+		try { claim = JSON.parse(Buffer.from(String(req.headers['x-q-claim'] ?? ''), 'base64url').toString('utf8')); } catch { claim = null; }
+		const did = claim ? await checkClaim(claim, id) : null;
+		const may = mayOpen(held, did);
+		if (!may.ok) return send(res, origin, did ? 403 : 401, { says: may.says });
+		if (may.claim) {
+			try {
+				await storeDrop(id, { ...held, claimedBy: did, claimedAt: new Date().toISOString() });
+			} catch {
+				return send(res, origin, 502, { says: 'Couldn’t open it just now. Try again.' });
+			}
+		}
+		const { claimedBy, claimedAt, ...drop } = held;
+		return send(res, origin, 200, { ...drop, opened: may.claim ? 'now' : did === held.did ? 'yours' : 'before' });
 	}
 	if (req.method !== 'POST' || id) return send(res, origin, 405, { says: 'Only GET and POST.' });
 	if (tooMany(req.socket.remoteAddress ?? '')) return send(res, origin, 429, { says: 'Too many at once. Try again in a while.' });
