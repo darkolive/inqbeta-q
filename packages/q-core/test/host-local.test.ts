@@ -99,3 +99,55 @@ test('a setting changed in .env but not yet running says restart; set dates come
 	assert.equal(endsOf('re_abcdefghijkl9999', true), '9999');
 	assert.equal(endsOf('Q <q@x.org>', false), 'Q <q@x.org>');
 });
+
+import { SENDABLE } from '../../../apps/q/src/lib/host-services';
+import { sendToVercel, vercelSettings } from '../../../apps/q/src/lib/server/vercel';
+
+test('Vercel’s own token, project and team can never be sent; Q’s service keys can', () => {
+	for (const k of ['VERCEL_TOKEN', 'VERCEL_PROJECT', 'VERCEL_TEAM', 'PUBLIC_BELLBOY_URL', 'PUBLIC_BELLBOY_PASSWORD']) assert.ok(!SENDABLE.has(k), k);
+	for (const k of ['RESEND_API_KEY', 'Q_SERVICE_SEED', 'GOOGLE_CLIENT_SECRET']) assert.ok(SENDABLE.has(k), k);
+	const v = servicesFrom({ VERCEL_TOKEN: 'vercel_token_abcd', VERCEL_PROJECT: 'inqbeta' }).find((x) => x.id === 'vercel')!;
+	assert.equal(v.is, 'on', 'the team is optional');
+	assert.equal(v.localOnly, true);
+});
+
+function fakeVercel(envs: { id: string; key: string; type: string; target: string[] }[]) {
+	const calls: { method: string; url: string; body?: unknown }[] = [];
+	const real = globalThis.fetch;
+	globalThis.fetch = (async (url: string, init?: { method?: string; body?: string }) => {
+		calls.push({ method: init?.method ?? 'GET', url: String(url), body: init?.body ? JSON.parse(init.body) : undefined });
+		const body = (init?.method ?? 'GET') === 'GET' ? { envs } : {};
+		return new Response(JSON.stringify(body), { status: 200, headers: { 'content-type': 'application/json' } });
+	}) as typeof fetch;
+	return { calls, restore: () => (globalThis.fetch = real) };
+}
+
+test('sending changes every live entry in place, and leaves development-only ones alone', async () => {
+	const f = fakeVercel([
+		{ id: 'e1', key: 'RESEND_API_KEY', type: 'encrypted', target: ['production'] },
+		{ id: 'e2', key: 'RESEND_API_KEY', type: 'encrypted', target: ['preview'] },
+		{ id: 'e3', key: 'RESEND_API_KEY', type: 'encrypted', target: ['development'] }
+	]);
+	try {
+		const n = await sendToVercel({ token: 't', project: 'inqbeta', team: 'team_123' }, 'RESEND_API_KEY', 're_new', true);
+		assert.equal(n, 2);
+		const patches = f.calls.filter((c) => c.method === 'PATCH');
+		assert.deepEqual(patches.map((c) => c.url.split('/env/')[1]), ['e1?teamId=team_123', 'e2?teamId=team_123']);
+		assert.deepEqual(patches[0].body, { value: 're_new' });
+	} finally {
+		f.restore();
+	}
+});
+
+test('a key the live site hasn’t got is added as sensitive, for production and preview', async () => {
+	const f = fakeVercel([]);
+	try {
+		await sendToVercel({ token: 't', project: 'inqbeta' }, 'AI_GATEWAY_API_KEY', 'k', true);
+		const post = f.calls.find((c) => c.method === 'POST')!;
+		assert.match(post.url, /\/v10\/projects\/inqbeta\/env$/);
+		assert.deepEqual({ ...(post.body as object), comment: undefined }, { key: 'AI_GATEWAY_API_KEY', value: 'k', type: 'sensitive', target: ['production', 'preview'], comment: undefined });
+		assert.equal((await vercelSettings({ token: 't', project: 'inqbeta' })).length, 0);
+	} finally {
+		f.restore();
+	}
+});

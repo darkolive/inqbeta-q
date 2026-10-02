@@ -12,7 +12,7 @@ import { sealWith } from '@inqbeta/q-core/seal';
 import type { Identity } from '@inqbeta/q-core/passkey';
 import { foundFromDraft, invite } from '$lib/federations';
 import { HOME_SCHEMA, type HomeFile } from '$lib/home';
-import { HOST_SERVICE_SCHEMA, endsOf, isSecret, type HostServiceRecord, type ServiceState } from '$lib/host-services';
+import { HOST_SENT_SCHEMA, HOST_SERVICE_SCHEMA, endsOf, isSecret, type HostSentRecord, type HostServiceRecord, type ServiceState } from '$lib/host-services';
 
 export interface LocalHost {
 	local: true;
@@ -170,4 +170,32 @@ export function madeForYou(setting: string): string {
 export async function renewHost(file: HomeFile): Promise<{ ok: true } | { ok: false; says: string }> {
 	const r = await fetch('/api/host', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'renew', file }) });
 	return r.ok ? { ok: true } : { ok: false, says: await said(r) };
+}
+
+export interface VercelView {
+	connected: boolean;
+	project?: string;
+	says?: string;
+	settings?: { key: string; target: string[]; type: string; updatedAt?: number }[];
+	others?: number;
+}
+
+/** What the live site's Vercel project has, by name only. Null on a deployed site. */
+export async function hostVercel(): Promise<VercelView | null> {
+	if (!dev) return null;
+	try {
+		const r = await fetch('/api/host/vercel', { cache: 'no-store' });
+		return r.ok ? ((await r.json()) as VercelView) : null;
+	} catch {
+		return null;
+	}
+}
+
+/** Send one setting from this computer's .env to the live site. The page signs; it never sees the key. */
+export async function sendSetting(identity: Identity, host: string, setting: string, ends: string, project: string): Promise<{ ok: true; places: number } | { ok: false; says: string }> {
+	const record: HostSentRecord = { schema: HOST_SENT_SCHEMA, source: 'inqbeta:q/host', host, setting, ends, to: 'vercel', project, at: new Date().toISOString() };
+	const signed = await sealWith(identity, record);
+	const r = await fetch('/api/host/vercel', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ record: signed }) });
+	if (!r.ok) return { ok: false, says: await said(r) };
+	return { ok: true, places: ((await r.json()) as { places: number }).places };
 }

@@ -8,13 +8,14 @@
  *   POST  { record, value } — set one. `record` is a service record signed by
  *         this host's founder in the last five minutes, naming this host, the
  *         setting and endsOf(value). Then the value goes into .env, and the
- *         record (no secret in it) into static/host/services.json.
+ *         record (no secret in it) into static/host/services.json — except for
+ *         settings that stay on this computer, which aren't published at all.
  */
 import { error, json, type RequestHandler } from '@sveltejs/kit';
 import { dev } from '$app/environment';
 import { env } from '$env/dynamic/private';
 import { checkReceipt } from '@inqbeta/q-core/seal';
-import { HOST_SERVICE_SCHEMA, HOST_SERVICES, SETTABLE, endsOf, isSecret, servicesFrom, type HostServiceRecord } from '$lib/host-services';
+import { HOST_SERVICE_SCHEMA, HOST_SERVICES, SETTABLE, endsOf, isLocalOnly, isSecret, servicesFrom, type HostServiceRecord } from '$lib/host-services';
 import { readEnvFile, setEnvValue } from '$lib/server/env-file';
 import { keepServiceRecord, readMark, readServicesFile } from '$lib/server/host';
 
@@ -57,6 +58,7 @@ export const POST: RequestHandler = async ({ request, url }) => {
 	} catch (e) {
 		error(400, e instanceof Error ? e.message : 'It couldn’t be saved.');
 	}
-	keepServiceRecord(mark.federation, body!.record as never);
+	/* What stays on this computer (Vercel's token) isn't published, even as a record. */
+	if (!isLocalOnly(c.setting)) keepServiceRecord(mark.federation, body!.record as never);
 	return json({ ok: true, restart: true });
 };

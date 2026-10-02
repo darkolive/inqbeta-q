@@ -27,11 +27,20 @@ export interface ServiceState {
 	/** Who provides it, in a word. */
 	from: string;
 	settings: ServiceSetting[];
-	/** 'on' when every setting is set; 'part' when some are; 'off' when none. */
+	/** 'on' when every setting it needs is set; 'part' when some are; 'off' when none. */
 	is: 'on' | 'part' | 'off';
+	/** Stays on this computer: never sent to Vercel, never in the public records. */
+	localOnly?: boolean;
 }
 
-export const HOST_SERVICES: { id: string; called: string; what: string; from: string; settings: { name: string; secret: boolean }[] }[] = [
+export const HOST_SERVICES: {
+	id: string;
+	called: string;
+	what: string;
+	from: string;
+	localOnly?: boolean;
+	settings: { name: string; secret: boolean; optional?: boolean }[];
+}[] = [
 	{ id: 'email', called: 'Email', what: 'Sign-in codes and messages.', from: 'Resend', settings: [{ name: 'RESEND_API_KEY', secret: true }, { name: 'Q_MAIL_FROM', secret: false }] },
 	{ id: 'voice', called: 'Voice', what: 'Reading aloud.', from: 'ElevenLabs', settings: [{ name: 'ELEVENLABS_API_KEY', secret: true }, { name: 'ELEVENLABS_VOICE_ID', secret: false }] },
 	{ id: 'ai', called: 'AI', what: 'Help writing and checking.', from: 'Vercel AI Gateway', settings: [{ name: 'AI_GATEWAY_API_KEY', secret: true }] },
@@ -50,8 +59,24 @@ export const HOST_SERVICES: { id: string; called: string; what: string; from: st
 			{ name: 'MICROSOFT_CLIENT_SECRET', secret: true }
 		]
 	},
-	{ id: 'own', called: 'Q’s own', what: 'Sending sign-in codes to people who aren’t signed in yet.', from: 'Made on this computer', settings: [{ name: 'Q_SERVICE_SEED', secret: true }, { name: 'Q_OTP_SECRET', secret: true }] }
+	{ id: 'own', called: 'Q’s own', what: 'Sending sign-in codes to people who aren’t signed in yet.', from: 'Made on this computer', settings: [{ name: 'Q_SERVICE_SEED', secret: true }, { name: 'Q_OTP_SECRET', secret: true }] },
+	{
+		id: 'vercel',
+		called: 'Vercel',
+		what: 'Where your live site runs. This stays on this computer: it’s how keys are sent there.',
+		from: 'Vercel',
+		localOnly: true,
+		settings: [
+			{ name: 'VERCEL_TOKEN', secret: true },
+			{ name: 'VERCEL_PROJECT', secret: false },
+			{ name: 'VERCEL_TEAM', secret: false, optional: true }
+		]
+	}
 ];
+
+/** Settings that may be sent to the live site: everything except what stays on this computer. */
+export const SENDABLE = new Set(HOST_SERVICES.filter((s) => !s.localOnly).flatMap((s) => s.settings.map((x) => x.name)));
+export const isLocalOnly = (name: string) => !SENDABLE.has(name);
 
 /** What a setting may show: the last four of a long secret, nothing of a short one, all of a plain value. */
 export function endsOf(value: string, secret: boolean): string {
@@ -97,7 +122,26 @@ export function servicesFrom(
 			if (!v) return { name: x.name, secret: x.secret, set: false, ...extra };
 			return { name: x.name, secret: x.secret, set: true, shows: endsOf(v, x.secret), ...extra };
 		});
-		const n = settings.filter((x) => x.set).length;
-		return { id: s.id, called: s.called, what: s.what, from: s.from, settings, is: n === settings.length ? 'on' : n ? 'part' : 'off' };
+		const needed = s.settings.filter((x) => !x.optional).map((x) => x.name);
+		const n = settings.filter((x) => x.set && needed.includes(x.name)).length;
+		const is = n === needed.length ? 'on' : n || settings.some((x) => x.set) ? 'part' : 'off';
+		return { id: s.id, called: s.called, what: s.what, from: s.from, settings, is, ...(s.localOnly ? { localOnly: true } : {}) };
 	});
+}
+
+/*
+ * A key sent to the live site: "RESEND_API_KEY · ending 4f2a · sent to Vercel
+ * project inqbeta by the founder". Signed, so only the founder can send; the
+ * value itself is read from .env on this computer and never passes the page.
+ */
+export const HOST_SENT_SCHEMA = 'inqbeta.host-sent/1';
+export interface HostSentRecord {
+	schema: typeof HOST_SENT_SCHEMA;
+	source: 'inqbeta:q/host';
+	host: string;
+	setting: string;
+	ends: string;
+	to: 'vercel';
+	project: string;
+	at: string;
 }
