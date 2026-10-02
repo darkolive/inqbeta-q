@@ -2,9 +2,11 @@
 # Check the relay (node/coturn): run on the node, after
 #   docker compose --profile relay up -d relay
 #
-# Mints a credential the way Q does (lib/server/turn.ts), asks the relay for an
-# allocation, and sends test packets through it. Then checks the relay refuses
-# a wrong password and refuses to relay into the mesh.
+# What can be checked from the node itself: that it's running, listens on the
+# public address only, refuses a wrong password, and is set to refuse private
+# networks and the mesh. Whether calls get through is checked from OUTSIDE,
+# from a browser: the last thing this prints is a short-lived username and
+# password for that (they expire in ten minutes).
 set -uo pipefail
 cd "$(dirname "$0")/.."
 set -a; [ -f .env ] && . ./.env; set +a
@@ -16,24 +18,31 @@ bad() { echo "FAIL  $1"; fail=$((fail+1)); }
 [ -n "${TURN_SECRET:-}" ] && ok "TURN_SECRET is set in node/.env" || { bad "TURN_SECRET is set in node/.env"; exit 1; }
 HOST="${TURN_PUBLIC_IP:-135.181.156.21}"
 
+docker compose ps relay --status running -q | grep -q . && ok "the relay is running" || bad "the relay is running"
+
+listening="$(ss -lnu | awk '$4 ~ /:3478$/ {print $4}' | sort -u)"
+if [ -n "$listening" ] && ! echo "$listening" | grep -vq "^$HOST:3478$"; then ok "it listens on the public address only ($HOST:3478)"
+else bad "it listens on the public address only (found: $(echo $listening))"; fi
+
 user="$(( $(date +%s) + 600 )):check"
 cred="$(printf %s "$user" | openssl dgst -sha1 -hmac "$TURN_SECRET" -binary | base64)"
-
-uclient() { docker run --rm --network host coturn/coturn:latest turnutils_uclient "$@" 2>&1; }
-
-out="$(uclient -y -n 5 -c -u "$user" -w "$cred" "$HOST")"
-if echo "$out" | grep -qE "Total lost packets 0"; then ok "a call's packets go through the relay, none lost"
-else bad "a call's packets go through the relay"; echo "$out" | grep -iE "lost|send|recv|error|alloc" | tail -6 | sed 's/^/      /'; fi
-
-out="$(uclient -y -n 2 -c -u "$user" -w "not-the-password" "$HOST")"
+out="$(docker run --rm --network host coturn/coturn:latest turnutils_uclient -y -n 1 -u "$user" -w "not-the-password" "$HOST" 2>&1)"
 echo "$out" | grep -qiE "401|unauthori|error" && ok "a wrong password is refused" || bad "a wrong password is refused"
 
-since="$(date -u +%Y-%m-%dT%H:%M:%S)"
-out="$(uclient -n 2 -c -u "$user" -w "$cred" -e 10.42.0.1 "$HOST")"
-logs="$(docker compose logs relay --since "$since" 2>&1)"
-if echo "$out$logs" | grep -qiE "403|forbidden|denied|not allowed"; then ok "relaying into the mesh (10.42.0.1) is refused"
-elif echo "$out" | grep -qE "Total lost packets 0"; then bad "relaying into the mesh (10.42.0.1) is refused: packets got through"
-else bad "relaying into the mesh (10.42.0.1) is refused: couldn't tell"; echo "$out" | tail -4 | sed 's/^/      /'; fi
+conf=coturn/turnserver.conf
+if grep -q '^denied-peer-ip=10.0.0.0-10.255.255.255' $conf && grep -q '^denied-peer-ip=192.168.0.0-192.168.255.255' $conf && grep -q '^no-loopback-peers' $conf
+then ok "it's set to refuse private networks and the mesh (10.42.0.0)"; else bad "it's set to refuse private networks and the mesh"; fi
 
 echo; echo "$pass passed, $fail failed"
+cat <<MSG
+
+Now the real test, from your own computer (outside the node):
+  Open https://webrtc.github.io/samples/src/content/peerconnection/trickle-ice/
+  Remove the Google server, then add:
+    URI:       turn:$HOST:3478
+    Username:  $user
+    Password:  $cred
+  Press "Gather candidates". A row of type "relay" with $HOST means calls can
+  bounce off this node. (This username and password stop working in 10 minutes.)
+MSG
 [ "$fail" -eq 0 ]
