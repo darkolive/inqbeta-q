@@ -34,6 +34,8 @@ export function activityFrom(ledger: Ledger | null, myDid: string): Activity[] {
 		const c = (r.json as { content?: { schema?: string; with?: string; card?: { details?: Card }; receipt?: { from?: string; card?: Card } } } | undefined)?.content;
 		if (c?.schema === 'inqbeta.linked/1' && c.with && c.card?.details) people.set(c.with, { name: nameOf(c.card.details) || 'Someone', picture: c.card.details['q:person/picture'] });
 		if (c?.schema === 'inqbeta.received/1' && c.receipt?.from && c.receipt.card) people.set(c.receipt.from, { name: nameOf(c.receipt.card) || 'Someone', picture: c.receipt.card['q:person/picture'] });
+		const j = r.json as { did?: string; content?: { schema?: string; kind?: string; card?: Card } } | undefined;
+		if (j?.content?.schema === 'inqbeta.message/1' && j.content.kind === 'linked-back' && j.did && j.content.card) people.set(j.did, { name: nameOf(j.content.card) || 'Someone', picture: j.content.card['q:person/picture'] });
 	}
 
 	let profile: Activity | null = null;
@@ -86,6 +88,21 @@ export function activityFrom(ledger: Ledger | null, myDid: string): Activity[] {
 		if (c?.setId === 'q/a-card') {
 			const n = c.answers?.['q:card/name']?.value;
 			out.push({ id: r.id, at: r.at, says: `You made your ${typeof n === 'string' ? n : ''} card`.replace('  ', ' '), icon: 'card', href: '/cards' });
+			continue;
+		}
+		/* Messages and link-ups through your inbox (2 October 2026). */
+		if (c?.schema === 'inqbeta.message/1') {
+			const m = c as { kind?: string; to?: string; text?: string; at?: string; card?: Card };
+			const sender = (json as { did?: string }).did ?? '';
+			const mine = sender === myDid;
+			const them = people.get(mine ? m.to ?? '' : sender) ?? (m.card ? { name: nameOf(m.card) || 'Someone', picture: m.card['q:person/picture'] } : undefined);
+			const name = them?.name ?? 'Someone';
+			/* Your own copy of a link-up you sent is already "You linked with…" above. */
+			if (m.kind === 'linked-back') {
+				if (!mine) out.push({ id: r.id, at: m.at ?? r.at, says: `${name} linked up with you`, more: 'You can message and call each other now', who: them, icon: 'contacts', href: '/contacts' });
+			}
+			else if (m.kind === 'message')
+				out.push({ id: r.id, at: m.at ?? r.at, says: mine ? `You wrote to ${name}` : `${name} wrote to you`, more: (m.text ?? '').slice(0, 80), who: them, icon: 'message', href: `/messages/${encodeURIComponent(mine ? m.to ?? '' : sender)}` });
 			continue;
 		}
 		/* Quiet housekeeping never makes the list. */

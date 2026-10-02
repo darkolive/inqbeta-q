@@ -2,9 +2,12 @@
  * Your inbox at the storage unit (2 October 2026): how a message reaches
  * someone, with or without the bell.
  *
- *   your inbox   an id only you can make: from a signature by your key over a
- *                fixed phrase (Ed25519 signatures are deterministic, so every
- *                device of yours makes the same one). The id goes on your
+ *   your inbox   an id only you can make: from your vault key, sealing a
+ *                fixed phrase in a fixed way, so every device of yours makes
+ *                the same one. (Not from a signature: Safari's Ed25519 adds
+ *                randomness to every signature, so a signature-based inbox
+ *                changed each sign-in and messages went to an inbox nobody
+ *                was checking — found 2 October 2026.) The id goes on your
  *                cards, so people you give a card to can write to you.
  *   the key      proves the inbox is yours: its hash IS the id. You show it
  *                to list, collect and let go of what's waiting; nobody else
@@ -37,10 +40,14 @@ export async function inboxIdFor(key: string): Promise<string> {
 	return b64url(await sha256(new TextEncoder().encode(key))).slice(0, 22);
 }
 
-/** Your inbox: its id (to share) and its key (to keep). */
-export async function inboxOf(identity: Pick<Identity, 'signing'>): Promise<{ id: string; key: string }> {
-	const sig = new Uint8Array(await crypto.subtle.sign({ name: 'Ed25519' }, identity.signing.privateKey, new TextEncoder().encode(canonical(INBOX_PHRASE))));
-	const key = b64url(await sha256(sig));
+/** Your inbox: its id (to share) and its key (to keep). The same on every device and every browser. */
+export async function inboxOf(identity: Pick<Identity, 'vault'>): Promise<{ id: string; key: string }> {
+	/* A fixed phrase, sealed with a fixed (all-zero) nonce under your vault key:
+	 * the same bytes every time, and nobody without your key can make them.
+	 * The vault key's own files always use fresh random nonces, so this one
+	 * fixed use never meets them. */
+	const sealed = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv: new Uint8Array(12) }, identity.vault, new TextEncoder().encode(canonical(INBOX_PHRASE))));
+	const key = b64url(await sha256(sealed));
 	return { id: await inboxIdFor(key), key };
 }
 

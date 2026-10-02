@@ -391,12 +391,18 @@
 	});
 	const unreadMessages = $derived.by(() => {
 		const me = identity?.did;
-		const out: { id: string; did: string; name: string; picture?: string; text: string; at: string }[] = [];
+		const out: { id: string; did: string; name: string; picture?: string; text: string; at: string; href: string }[] = [];
 		for (const r of ledger?.receipts ?? []) {
 			const m = r.json as Signed | undefined;
-			if (m?.content?.schema !== 'inqbeta.message/1' || m.content.kind !== 'message' || m.did === me || seen.has(m.contentHash)) continue;
+			const kind = m?.content?.kind;
+			if (m?.content?.schema !== 'inqbeta.message/1' || (kind !== 'message' && kind !== 'linked-back') || m.did === me || seen.has(m.contentHash)) continue;
 			const p = people.find((x) => x.did === m.did);
-			out.push({ id: m.contentHash, did: m.did, name: p?.name ?? 'Someone', picture: p?.picture, text: m.content.text ?? '', at: m.content.at });
+			/* Someone linking up with your card is news too: who, and that they're in your address book now. */
+			out.push(
+				kind === 'linked-back'
+					? { id: m.contentHash, did: m.did, name: p?.name ?? 'Someone', picture: p?.picture, text: 'Linked up with you. They’re in your address book.', at: m.content.at, href: '/contacts' }
+					: { id: m.contentHash, did: m.did, name: p?.name ?? 'Someone', picture: p?.picture, text: m.content.text ?? '', at: m.content.at, href: `/messages/${encodeURIComponent(m.did)}` }
+			);
 		}
 		return out.sort((a, b) => b.at.localeCompare(a.at));
 	});
@@ -679,11 +685,11 @@
 			<Icon name="settings" class="size-4" /> Choose what reaches you
 		</a>
 		{#if unreadMessages.length}
-			<p class="px-3 pt-3 text-xs font-bold uppercase opacity-60">Messages</p>
+			<p class="px-3 pt-3 text-xs font-bold uppercase opacity-60">People</p>
 			<ul class="divide-y divide-surface-200-800 border-b border-surface-200-800">
 				{#each unreadMessages.slice(0, 5) as m (m.id)}
 					<li>
-						<a href="/messages/{encodeURIComponent(m.did)}" class="w-full p-3 text-left hover:bg-surface-100-900 flex items-start gap-3 min-h-11" onclick={() => (notificationsOpen = false)}>
+						<a href={m.href} class="w-full p-3 text-left hover:bg-surface-100-900 flex items-start gap-3 min-h-11" onclick={() => { notificationsOpen = false; if (m.href === '/contacts') markRead(m.id); }}>
 							<span class="size-8 shrink-0 overflow-hidden rounded-full bg-surface-100-900 flex items-center justify-center">
 								{#if m.picture}<img src={m.picture} alt="" class="size-full object-cover" />{:else}<span class="text-sm font-bold">{m.name.slice(0, 1)}</span>{/if}
 							</span>
