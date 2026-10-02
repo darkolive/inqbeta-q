@@ -242,3 +242,30 @@ echo 'GATE_FEDERATIONS=<the federation DID>' >> .env
 mkdir -p caddy/data caddy/config
 docker compose up -d && docker compose restart mosquitto
 ```
+
+## Step 6 — the relay for calls (ADR-Q-004 §3, ADR-Q-017 §3), 2 October 2026
+
+The fourth job: **coturn**, so calls between devices that can't reach each
+other bounce off the host's own node instead of Cloudflare. It carries only
+encrypted media it can't read, and refuses to relay into private networks or
+the mesh (`coturn/turnserver.conf`). Not run yet.
+
+Hetzner firewall, add: **UDP and TCP 3478**, and **UDP 49160-49999**.
+
+On the server, in `/srv/node`:
+
+```sh
+echo "TURN_SECRET=$(openssl rand -base64 48 | tr -d '\n=+/')" >> .env
+docker compose --profile relay up -d relay
+bin/check-relay.sh                                 # packets through; wrong password and the mesh refused
+grep TURN_SECRET .env                              # copy the value for Q, below
+```
+
+In Q on your own computer: your host → **Services** → **Calls**:
+
+- `Q_TURN_URLS`: `turn:135.181.156.21:3478?transport=udp,turn:135.181.156.21:3478?transport=tcp`
+- `Q_TURN_SECRET`: the same value as the node's `TURN_SECRET`
+
+Then **Send to live site** for both. Q offers the node's relay first and
+Cloudflare's after it, if that's set too. Not yet: `turns:` on 443 (TLS), for
+networks that only allow web traffic.

@@ -11,12 +11,16 @@
  * Credentials are minted per call and short-lived, so none sits in the page.
  * The request is signed by a DID, as every request that spends something is.
  *
- * Without CF_TURN_KEY_ID / CF_TURN_KEY_TOKEN set, this returns STUN only and
- * says so — calls still work on most networks.
+ * Which relay, in order (ADR-Q-017 §2: mine → my federation's → the commons):
+ *   1. the host's own relay on its node (Q_TURN_URLS + Q_TURN_SECRET, coturn),
+ *   2. Cloudflare's (CF_TURN_KEY_ID + CF_TURN_KEY_TOKEN),
+ *   3. none: STUN only, and it says so. Calls still work on most networks.
+ * When both are set, both are offered, the host's own first.
  */
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { env } from '$env/dynamic/private';
 import { signedBy } from '$lib/server/signed';
+import { relayCredentials, relayUrls } from '$lib/server/turn';
 
 export const prerender = false;
 
@@ -39,9 +43,22 @@ export const POST: RequestHandler = async ({ request }) => {
 	const asked = Date.parse(at);
 	if (!Number.isFinite(asked) || Math.abs(Date.now() - asked) > 5 * 60 * 1000) return json({ ok: false, error: 'That request is too old.' }, { status: 400 });
 
+	/* 1. The host's own relay, on its node. */
+	type Ice = { urls: string[]; username?: string; credential?: string };
+	const own: Ice[] = [];
+	const ownUrls = relayUrls(env.Q_TURN_URLS).filter(usable);
+	if (ownUrls.length && env.Q_TURN_SECRET) {
+		const c = await relayCredentials(env.Q_TURN_SECRET, did);
+		own.push({ urls: ownUrls, username: c.username, credential: c.credential });
+	}
+
 	const id = env.CF_TURN_KEY_ID;
 	const token = env.CF_TURN_KEY_TOKEN;
-	if (!id || !token) return json({ ok: true, iceServers: STUN_ONLY, relay: false });
+	if (!id || !token) {
+		return own.length
+			? json({ ok: true, iceServers: [...own, ...STUN_ONLY], relay: true, via: 'own' })
+			: json({ ok: true, iceServers: STUN_ONLY, relay: false });
+	}
 
 	try {
 		const res = await fetch(`https://rtc.live.cloudflare.com/v1/turn/keys/${id}/credentials/generate-ice-servers`, {
@@ -55,8 +72,9 @@ export const POST: RequestHandler = async ({ request }) => {
 		const iceServers = list
 			.map((s) => ({ ...s, urls: (Array.isArray(s.urls) ? s.urls : [s.urls]).filter(usable) }))
 			.filter((s) => s.urls.length);
-		return json({ ok: true, iceServers, relay: true });
+		return json({ ok: true, iceServers: [...own, ...iceServers], relay: true, via: own.length ? 'own+cloudflare' : 'cloudflare' });
 	} catch {
+		if (own.length) return json({ ok: true, iceServers: [...own, ...STUN_ONLY], relay: true, via: 'own' });
 		return json({ ok: true, iceServers: STUN_ONLY, relay: false, says: 'The relay could not be reached; calling without one.' });
 	}
 };

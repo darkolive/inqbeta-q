@@ -151,3 +151,23 @@ test('a key the live site hasn’t got is added as sensitive, for production and
 		f.restore();
 	}
 });
+
+import { relayCredentials, relayUrls } from '../../../apps/q/src/lib/server/turn';
+import { createHmac } from 'node:crypto';
+
+test('the host’s own relay: a credential coturn can check by itself, and no DID in it', async () => {
+	const c = await relayCredentials('s3cret', 'did:key:z6MkExample', { now: 1_800_000_000_000, ttlSeconds: 600 });
+	assert.equal(c.expires, 1_800_000_600);
+	assert.match(c.username, /^1800000600:[A-Za-z0-9]{1,16}$/);
+	assert.ok(!c.username.includes('did:'), 'the relay’s logs never hold a DID');
+	assert.equal(c.credential, createHmac('sha1', 's3cret').update(c.username).digest('base64'), 'exactly what coturn computes');
+	assert.deepEqual(relayUrls(' turn:1.2.3.4:3478?transport=udp, nonsense, turns:relay.example:443 '), ['turn:1.2.3.4:3478?transport=udp', 'turns:relay.example:443']);
+});
+
+test('calls are on with either relay complete, and partly set with half of one', () => {
+	const calls = (e: Record<string, string>) => servicesFrom(e).find((x) => x.id === 'calls')!.is;
+	assert.equal(calls({}), 'off');
+	assert.equal(calls({ Q_TURN_URLS: 'turn:x:3478', Q_TURN_SECRET: 'abcdefghijkl' }), 'on');
+	assert.equal(calls({ CF_TURN_KEY_ID: 'id', CF_TURN_KEY_TOKEN: 'tokentokentoken' }), 'on');
+	assert.equal(calls({ CF_TURN_KEY_ID: 'id' }), 'part');
+});

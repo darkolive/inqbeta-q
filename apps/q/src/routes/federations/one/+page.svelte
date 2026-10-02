@@ -261,8 +261,10 @@
 		serviceSays = { tone: 'good', text: `${name} is saved on this computer, and signed by you.` };
 		await loadServices();
 	}
-	const serviceTone = (s: ServiceState) => (s.is === 'on' ? 'good' : s.is === 'part' ? 'waiting' : 'plain');
-	const serviceWord = (s: ServiceState) => (s.is === 'on' ? 'On' : s.is === 'part' ? 'Partly set' : 'Not set');
+	/* Vercel is only green once Vercel itself has answered, not just when the boxes are filled in. */
+	const vercelRefused = (s: ServiceState) => s.id === 'vercel' && s.is === 'on' && !vercel?.connected;
+	const serviceTone = (s: ServiceState) => (vercelRefused(s) ? 'needs-you' : s.is === 'on' ? 'good' : s.is === 'part' ? 'waiting' : 'plain');
+	const serviceWord = (s: ServiceState) => (vercelRefused(s) ? (vercel?.says ? 'Vercel said no' : 'Checking…') : s.is === 'on' ? (s.id === 'vercel' ? 'Connected' : 'On') : s.is === 'part' ? 'Partly set' : 'Not set');
 
 	/* ---- Communication (ADR-Q-016 §6): announcements to members ---- */
 	let announcements = $state<Announcement[]>([]);

@@ -39,12 +39,28 @@ export const HOST_SERVICES: {
 	what: string;
 	from: string;
 	localOnly?: boolean;
-	settings: { name: string; secret: boolean; optional?: boolean }[];
+	/**
+	 * A setting can be optional. Settings in a `group` are alternatives: the
+	 * service is on when any one group is complete (calls: your own relay, or
+	 * Cloudflare's).
+	 */
+	settings: { name: string; secret: boolean; optional?: boolean; group?: string }[];
 }[] = [
 	{ id: 'email', called: 'Email', what: 'Sign-in codes and messages.', from: 'Resend', settings: [{ name: 'RESEND_API_KEY', secret: true }, { name: 'Q_MAIL_FROM', secret: false }] },
 	{ id: 'voice', called: 'Voice', what: 'Reading aloud.', from: 'ElevenLabs', settings: [{ name: 'ELEVENLABS_API_KEY', secret: true }, { name: 'ELEVENLABS_VOICE_ID', secret: false }] },
 	{ id: 'ai', called: 'AI', what: 'Help writing and checking.', from: 'Vercel AI Gateway', settings: [{ name: 'AI_GATEWAY_API_KEY', secret: true }] },
-	{ id: 'calls', called: 'Calls', what: 'A relay for calls when two devices can’t reach each other.', from: 'Cloudflare', settings: [{ name: 'CF_TURN_KEY_ID', secret: false }, { name: 'CF_TURN_KEY_TOKEN', secret: true }] },
+	{
+		id: 'calls',
+		called: 'Calls',
+		what: 'A relay for calls when two devices can’t reach each other. Your node’s own relay first; Cloudflare’s if you have no node.',
+		from: 'Your node, or Cloudflare',
+		settings: [
+			{ name: 'Q_TURN_URLS', secret: false, group: 'own' },
+			{ name: 'Q_TURN_SECRET', secret: true, group: 'own' },
+			{ name: 'CF_TURN_KEY_ID', secret: false, group: 'cloudflare' },
+			{ name: 'CF_TURN_KEY_TOKEN', secret: true, group: 'cloudflare' }
+		]
+	},
 	{
 		id: 'backups',
 		called: 'Backups',
@@ -88,7 +104,7 @@ export const SETTABLE = new Set(HOST_SERVICES.flatMap((s) => s.settings.map((x) 
 export const isSecret = (name: string) => HOST_SERVICES.some((s) => s.settings.some((x) => x.name === name && x.secret));
 
 /** Settings Q makes for you: random, so nobody has to invent one. */
-export const MADE_FOR_YOU = new Set(['Q_SERVICE_SEED', 'Q_OTP_SECRET']);
+export const MADE_FOR_YOU = new Set(['Q_SERVICE_SEED', 'Q_OTP_SECRET', 'Q_TURN_SECRET']);
 
 /*
  * A service record (ADR-Q-018 §4): "Email: Resend · ending 4f2a · set 2 Oct by
@@ -122,9 +138,12 @@ export function servicesFrom(
 			if (!v) return { name: x.name, secret: x.secret, set: false, ...extra };
 			return { name: x.name, secret: x.secret, set: true, shows: endsOf(v, x.secret), ...extra };
 		});
-		const needed = s.settings.filter((x) => !x.optional).map((x) => x.name);
-		const n = settings.filter((x) => x.set && needed.includes(x.name)).length;
-		const is = n === needed.length ? 'on' : n || settings.some((x) => x.set) ? 'part' : 'off';
+		const isSet = (name: string) => settings.some((x) => x.name === name && x.set);
+		const groups = [...new Set(s.settings.filter((x) => x.group).map((x) => x.group!))];
+		const needed = s.settings.filter((x) => !x.optional && !x.group).map((x) => x.name);
+		const groupDone = !groups.length || groups.some((g) => s.settings.filter((x) => x.group === g).every((x) => isSet(x.name)));
+		const any = settings.some((x) => x.set);
+		const is = needed.every(isSet) && groupDone && (needed.length > 0 || any) ? 'on' : any ? 'part' : 'off';
 		return { id: s.id, called: s.called, what: s.what, from: s.from, settings, is, ...(s.localOnly ? { localOnly: true } : {}) };
 	});
 }
