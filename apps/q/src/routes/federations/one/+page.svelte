@@ -48,7 +48,7 @@
 	import { readAnnouncements, announcementsFile, publishAnnouncements } from '$lib/announcements';
 	import { untrack } from 'svelte';
 	import { dev } from '$app/environment';
-	import { hostServices, madeForYou, renewHost, setService } from '$lib/host-setup';
+	import { hostServices, hostVercel, madeForYou, renewHost, sendSetting, setService, type VercelView } from '$lib/host-setup';
 	import { MADE_FOR_YOU, type ServiceState } from '$lib/host-services';
 
 	let identity = $state<Identity | null>(null);
@@ -161,6 +161,13 @@
 	let home = $state<Home | null>(null);
 	$effect(() => void readHome().then((h) => (home = h)));
 	const isHome = $derived(!!home?.ok && home.federation === id);
+	/*
+	 * The host's founder, proved by the host file's own signed founding — not by
+	 * the federation record in this browser's vault. So on a fresh localhost,
+	 * where the vault may not have been brought across, the founder still gets
+	 * Website and Services (both only need the founder's passkey to sign).
+	 */
+	const hostFounder = $derived(isHome && !!home?.ok && !!identity && identity.did === home.founder);
 	let homeFile = $state<{ url: string; until: string } | null>(null);
 	/* Where this federation's services answer from the internet (ADR-Q-016 step 5). */
 	let svcStorage = $state('https://storage.135-181-156-21.sslip.io');
@@ -208,13 +215,35 @@
 	/* ---- Your host (ADR-Q-018 §3): its website and its services ---- */
 	let services = $state<ServiceState[] | null>(null);
 	let restartWaiting = $state(false);
+	let vercel = $state<VercelView | null>(null);
 	async function loadServices() {
 		const got = await hostServices();
 		services = got?.services ?? null;
 		restartWaiting = !!got?.restart;
+		vercel = services?.find((s) => s.id === 'vercel')?.is === 'on' ? await hostVercel() : null;
+	}
+	/* Where a setting is on the live site: the newest change among its live entries. */
+	function onVercel(name: string): { at?: number } | null {
+		const live = (vercel?.settings ?? []).filter((e) => e.key === name && e.target.some((t) => t === 'production' || t === 'preview'));
+		return live.length ? { at: Math.max(...live.map((e) => e.updatedAt ?? 0)) || undefined } : null;
+	}
+	/* Replacing one of Q's own secrets on a live site is asked twice. */
+	let confirming = $state<string | null>(null);
+	async function send(name: string, ends: string) {
+		if (!identity || !home?.ok || !vercel?.project) return;
+		if (MADE_FOR_YOU.has(name) && onVercel(name) && confirming !== name) return void (confirming = name);
+		confirming = null;
+		busy = 'send';
+		serviceSays = null;
+		const out = await sendSetting(identity, home.federation, name, ends, vercel.project);
+		busy = null;
+		serviceSays = out.ok
+			? { tone: 'good', text: `${name} is on your live site now. It’s used from the next deploy: redeploy on Vercel, or push a commit.` }
+			: { tone: 'bad', text: out.says };
+		if (out.ok) vercel = await hostVercel();
 	}
 	$effect(() => {
-		if (isHome && own && dev) void loadServices();
+		if (isHome && (own || hostFounder) && dev) void loadServices();
 	});
 	/* One setting at a time: which one is open, and what's being typed. */
 	let editing = $state<string | null>(null);
@@ -464,7 +493,7 @@
 		<Tabs value={tab} onValueChange={(d) => (tab = d.value)}>
 			<Tabs.List class="mb-6">
 				<Tabs.Trigger value="home" class="min-h-11">Home</Tabs.Trigger>
-				{#if isHome && own}
+				{#if isHome && (own || hostFounder)}
 					<Tabs.Trigger value="website" class="min-h-11">Website</Tabs.Trigger>
 					<Tabs.Trigger value="services" class="min-h-11">Services</Tabs.Trigger>
 				{/if}
@@ -508,7 +537,7 @@
 			</Tabs.Content>
 
 			<!-- Your host's website (ADR-Q-018 §3, §5): what people see, and going live. -->
-			{#if isHome && own && home?.ok}
+			{#if isHome && (own || hostFounder) && home?.ok}
 				<Tabs.Content value="website">
 					<Section title="What people see" description="The front of your host. Every page of it is a receipt, signed by the host.">
 						<div class="card preset-outlined-surface-200-800 p-6 flex flex-col items-center text-center gap-3 max-w-xl">
@@ -560,6 +589,24 @@
 															</span>
 														{/if}
 													</div>
+													{#if vercel?.connected && x.set && !s.localOnly}
+														{@const there = onVercel(x.name)}
+														<div class="flex flex-wrap items-center gap-2 text-xs">
+															<span class="opacity-70">{there ? `On your live site${there.at ? ` · changed ${onDay(new Date(there.at).toISOString())}` : ''}` : 'Not on your live site yet'}</span>
+															<button type="button" class="btn btn-sm preset-tonal min-h-11 ml-auto" disabled={busy !== null} onclick={() => void send(x.name, x.shows ?? '')}>
+																{busy === 'send' ? 'Sending…' : there ? 'Send again' : 'Send to live site'}
+															</button>
+														</div>
+														{#if confirming === x.name}
+															<div class="card preset-tonal-warning p-3 flex flex-col gap-2 text-sm" role="alertdialog" aria-label="Replace on the live site">
+																<p>Your live site already has its own {x.name}. Replacing it means anything made with the old one stops working: sign-in codes in flight, and channels sealed to it.</p>
+																<div class="flex flex-wrap gap-2">
+																	<button type="button" class="btn btn-sm preset-filled-error-500 min-h-11" onclick={() => void send(x.name, x.shows ?? '')}>Replace it</button>
+																	<button type="button" class="btn btn-sm preset-tonal min-h-11" onclick={() => (confirming = null)}>Keep the live one</button>
+																</div>
+															</div>
+														{/if}
+													{/if}
 													{#if editing === x.name}
 														<div class="flex flex-wrap items-center gap-2">
 															<input
@@ -582,6 +629,13 @@
 									</li>
 								{/each}
 							</ul>
+							{#if vercel?.connected}
+								<p class="text-sm mt-4"><Status tone="good">Connected to Vercel</Status> <span class="opacity-80">Project {vercel.project}. Send each key when you’re ready; nothing goes until you press it.</span></p>
+							{:else if vercel?.says}
+								<p class="text-sm card preset-tonal-error p-3 mt-4">{vercel.says}</p>
+							{:else}
+								<p class="text-sm opacity-70 mt-4">Fill in the Vercel card to send keys to your live site.</p>
+							{/if}
 							{#if serviceSays}<p class="text-sm card p-3 mt-4 {serviceSays.tone === 'good' ? 'preset-tonal-success' : 'preset-tonal-error'}" aria-live="polite">{serviceSays.text}</p>{/if}
 							{#if restartWaiting}
 								<div class="card preset-tonal-warning p-4 mt-4 max-w-2xl">
