@@ -17,6 +17,7 @@
 	import type { Found } from '$lib/features/registry';
 	import { readHome, type Home } from '$lib/home';
 	import { offersFederations } from '$lib/offers';
+	import FederationStory from '$lib/components/FederationStory.svelte';
 	/* Federations are a plugin the host turns on (ADR-Q-020). Off: no new clubs here. */
 	const clubs = offersFederations();
 
@@ -65,6 +66,9 @@
 <svelte:head><title>Federations — Q</title></svelte:head>
 
 <Page title="Federations" lead="Groups that vouch for each other's evidence. Each one can add its own screens to Q.">
+	<!-- What a federation is, as pictures: the same story style as the home page. -->
+	<FederationStory />
+
 	{#if home?.ok}
 		<Section title="Your host" description="The federation this copy of Q belongs to. Signing up is joining it.">
 			<a href={hostHref} class="card preset-outlined-surface-200-800 hover:preset-tonal p-4 sm:p-6 flex items-center gap-4 max-w-3xl">
