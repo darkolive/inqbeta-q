@@ -44,7 +44,7 @@
 	import { readHome } from '$lib/home';
 	import { readAnnouncements, readIds, markRead, restoreRead } from '$lib/announcements';
 	import { keptFrom, knownKept, keepSoon } from '$lib/kept-settings';
-	import { startMessaging, watchArrivals, type Signed } from '$lib/messages';
+	import { startMessaging, watchArrivals, sendTo, type Signed } from '$lib/messages';
 	import { peopleFrom } from '$lib/people';
 	import type { Announcement } from '@inqbeta/q-core/announcements';
 	import { reachFor, watchReach, restoreReach, type Reach } from '$lib/notify';
@@ -359,17 +359,26 @@
 	 * bell (if Messages is on); a call rings with Answer.
 	 */
 	let calling = $state<{ from: string; did: string; inbox?: string; link: string } | null>(null);
+	/* Calls that rang while you were away: kept here until you call back or close them. */
+	let missed = $state<{ did: string; name: string; at: string }[]>([]);
 	$effect(() => {
 		if (!identity || !folderReady) return;
 		const stopArrivals = watchArrivals((m: Signed) => {
 			const who = peopleFrom(ledger, identity?.did).find((p) => p.did === m.did)?.name ?? (m.content.card?.['q:person/called'] || 'Someone');
 			if (m.content.kind === 'call' && m.content.link) {
+				/* A call only rings while it's happening: one that waited for you to sign in is a missed call. */
+				if (Date.now() - Date.parse(m.content.at) > 90_000) {
+					missed = [{ did: m.did, name: who, at: m.content.at }, ...missed.filter((x) => x.did !== m.did)];
+					announce = `Missed call from ${who}`;
+					if (reachFor('people') === 'ring') ring();
+					return;
+				}
 				calling = { from: who, did: m.did, inbox: m.content.replyTo, link: m.content.link };
 				announce = `${who} is calling`;
 				ring();
 				return;
 			}
-			if (m.content.kind === 'call-reply') return;
+			if (m.content.kind === 'call-reply' || m.content.kind === 'call-declined') return;
 			announce = m.content.kind === 'linked-back' ? `${who} linked with you` : `New message from ${who}`;
 			if (reachFor('people') === 'ring') ring();
 		});
@@ -414,9 +423,17 @@
 		} catch {
 			/* the reply goes back by link instead */
 		}
-		const link = calling.link;
+		const link = new URL(calling.link);
 		calling = null;
-		location.assign(link);
+		/* Within Q, not a reload: you stay signed in and the camera check starts straight away. */
+		void goto(`${link.pathname}${link.hash}`);
+	}
+	function declineCall() {
+		if (!calling) return;
+		const c = calling;
+		calling = null;
+		/* Tell them, so their screen doesn't just keep ringing. */
+		if (c.inbox) void sendTo({ did: c.did, inbox: c.inbox }, { kind: 'call-declined' });
 	}
 
 
@@ -610,9 +627,9 @@
 					focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary-500"
 			>
 				<Icon name="bell" class="size-7" stroke={2} />
-				{#if unreadCount + newNotices + unheard + unreadCountMessages > 0}
+				{#if unreadCount + newNotices + unheard + unreadCountMessages + missed.length > 0}
 					<span class="absolute -right-2 -top-2 badge-icon preset-filled-error-500 text-xs">
-						{unreadCount + newNotices + unheard + unreadCountMessages > 9 ? '9+' : unreadCount + newNotices + unheard + unreadCountMessages}
+						{unreadCount + newNotices + unheard + unreadCountMessages + missed.length > 9 ? '9+' : unreadCount + newNotices + unheard + unreadCountMessages + missed.length}
 					</span>
 				{/if}
 			</button>
@@ -684,6 +701,21 @@
 		<a href="/cards?tab=notifications" class="flex items-center gap-2 px-3 py-2 text-sm border-b border-surface-200-800 hover:bg-surface-100-900 min-h-11" onclick={() => (notificationsOpen = false)}>
 			<Icon name="settings" class="size-4" /> Choose what reaches you
 		</a>
+		{#if missed.length}
+			<p class="px-3 pt-3 text-xs font-bold uppercase opacity-60">Missed calls</p>
+			<ul class="divide-y divide-surface-200-800 border-b border-surface-200-800">
+				{#each missed as c (c.did)}
+					<li class="p-3 flex items-center gap-3">
+						<Icon name="phone" class="shrink-0" />
+						<span class="flex-1 min-w-0">
+							<span class="block text-sm font-bold">{c.name}</span>
+							<span class="block text-xs opacity-60">{new Date(c.at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
+						</span>
+						<a class="btn btn-sm preset-filled-primary-500 min-h-11" href="/call?with={encodeURIComponent(c.did)}" onclick={() => { notificationsOpen = false; missed = missed.filter((x) => x.did !== c.did); }}>Call back</a>
+					</li>
+				{/each}
+			</ul>
+		{/if}
 		{#if unreadMessages.length}
 			<p class="px-3 pt-3 text-xs font-bold uppercase opacity-60">People</p>
 			<ul class="divide-y divide-surface-200-800 border-b border-surface-200-800">
@@ -770,7 +802,7 @@
 				{/each}
 			</ul>
 		{/if}
-		{#if notifications.length === 0 && waiting.length === 0 && captured.length === 0 && heard.length === 0 && unreadMessages.length === 0}
+		{#if notifications.length === 0 && waiting.length === 0 && captured.length === 0 && heard.length === 0 && unreadMessages.length === 0 && missed.length === 0}
 			<div class="p-4 text-center text-sm opacity-60">No notifications</div>
 		{:else}
 			<ul class="divide-y divide-surface-200-800">
@@ -795,7 +827,7 @@
 		<Icon name="phone" class="motion-safe:animate-bounce" />
 		<span class="font-bold">{calling.from} is calling</span>
 		<button type="button" class="btn btn-sm preset-filled-success-500 min-h-11" onclick={answerCall}>Answer</button>
-		<button type="button" class="btn btn-sm preset-tonal min-h-11" onclick={() => (calling = null)}>Not now</button>
+		<button type="button" class="btn btn-sm preset-tonal min-h-11" onclick={declineCall}>Not now</button>
 	</div>
 {/if}
 

@@ -60,8 +60,14 @@
 	$effect(() =>
 		watchArrivals((m) => {
 			if (m.content.kind === 'call-reply' && m.content.link && call && phase === 'waiting' && (!withDid || m.did === withDid)) {
+				ringing = `${callee?.name ?? 'They'} answered. Connecting…`;
+				void connectReply(m.content.link).then(() => (ringing = ''));
+			}
+			/* They pressed Not now: say so, and stop ringing. */
+			if (m.content.kind === 'call-declined' && call && phase === 'waiting' && (!withDid || m.did === withDid)) {
 				ringing = '';
-				void connectReply(m.content.link);
+				problem = `${callee?.name ?? 'They'} can’t answer right now. Try a message instead.`;
+				void hangUp();
 			}
 		})
 	);
@@ -369,6 +375,15 @@
 		};
 	});
 
+	/* Answered from Q's ring: no second button. Join as soon as the camera's ready. */
+	let autoJoined = false;
+	$effect(() => {
+		if (answering && incoming && local && !call && !autoJoined) {
+			autoJoined = true;
+			void join();
+		}
+	});
+
 	let hashRead = false;
 	$effect(() => {
 		if (identity && !hashRead) {
@@ -530,6 +545,11 @@
 				<p><Status tone="good">Checked</Status> {incoming.says}</p>
 				<p class="mt-1 text-sm">From <Text role="token">{short(incoming.h.step.did)}</Text>{incoming.h.step.content.to ? ' · made for you' : ''}</p>
 				<button class="btn preset-filled-primary-500 mt-3" disabled={!local} onclick={() => void join()}><Icon name="video" size={18} /> Join</button>
+			</Section>
+		{:else if replyLink && answering?.inbox && !problem}
+			<Section title="Connecting to {answering.name ?? 'them'}…" description="You answered. Your reply has gone back to them through Q, and the call starts the moment it reaches them.">
+				<p class="text-sm"><Status tone="waiting">{phase === 'connecting' ? 'Connecting' : phase}</Status> {phaseSays}</p>
+				<button class="btn btn-sm preset-tonal mt-3" onclick={() => void hangUp()}>Cancel</button>
 			</Section>
 		{:else if replyLink}
 			<Section title="Send this reply back" description="You accepted: that is your receipt, following theirs. Send the link back the same way the call came. The call starts the moment they open it.">

@@ -55,7 +55,7 @@ export async function inboxOf(identity: Pick<Identity, 'vault'>): Promise<{ id: 
 export interface Message {
 	schema: typeof MESSAGE_SCHEMA;
 	source: 'inqbeta:q/message';
-	kind: 'message' | 'linked-back' | 'call' | 'call-reply';
+	kind: 'message' | 'linked-back' | 'call' | 'call-reply' | 'call-declined';
 	/** Whose it is: the DID it was sealed for. */
 	to: string;
 	/** Where to write back. */
