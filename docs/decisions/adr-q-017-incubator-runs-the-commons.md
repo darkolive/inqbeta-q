@@ -1,6 +1,6 @@
 ---
 status: proposed
-implementation: none
+implementation: started — usage drawn from receipts (dashboard, lib/usage.ts) and the storage allowance at the gate (GET /terms, per-inbox and per-day limits), 2 October 2026
 updated: 2026-10-02
 ---
 

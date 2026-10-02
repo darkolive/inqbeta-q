@@ -108,6 +108,36 @@ export async function checkDrop(r, now = Date.now()) {
 /* 2 MB: room for a 2-minute voice message at 48 kbps once sealed (ADR-Q-022). */
 const POST_BYTES = 2 * 1024 * 1024;
 const POSTS_PER_HOUR = 120;
+
+/*
+ * The free allowance (ADR-Q-017 §4 and its 2 October addendum): storage is a
+ * holding bay for passing things between people, not a place to keep them.
+ * Two published limits, both set by the host:
+ *   - what one inbox may hold at once, uncollected (so a forgotten inbox
+ *     can't fill the unit);
+ *   - what one person may send through storage in a day (so heavy use is
+ *     what credits are for, once they exist).
+ * Counted in totals only: nothing about who wrote to whom is kept.
+ */
+const MB = 1024 * 1024;
+export const TERMS = {
+	schema: 'inqbeta.storage-terms/1',
+	postBytes: POST_BYTES,
+	inboxHoldsBytes: Number(process.env.GATE_INBOX_HOLDS_MB ?? 25) * MB,
+	sendBytesPerDay: Number(process.env.GATE_SEND_MB_PER_DAY ?? 50) * MB,
+	postDays: 30
+};
+const sentToday = new Map();
+/** Adds this post to the sender's day, unless it goes over. Returns whether it fits. */
+export function fitsToday(did, bytes, now = Date.now(), terms = TERMS) {
+	const day = new Date(now).toISOString().slice(0, 10);
+	const had = sentToday.get(did);
+	const used = had?.day === day ? had.bytes : 0;
+	if (used + bytes > terms.sendBytesPerDay) return false;
+	sentToday.set(did, { day, bytes: used + bytes });
+	if (sentToday.size > 50_000) for (const [k, v] of sentToday) if (v.day !== day) sentToday.delete(k);
+	return true;
+}
 export async function ownsInbox(id, key) {
 	if (typeof key !== 'string' || key.length < 20) return false;
 	const d = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(key)));
@@ -177,11 +207,19 @@ function tooMany(ip, now = Date.now(), most = DROPS_PER_HOUR) {
 }
 
 const inboxDir = (id) => `${FILER}/inbox/${id}/`;
-async function inboxList(id) {
+async function inboxEntries(id) {
 	const r = await fetch(inboxDir(id), { headers: { accept: 'application/json' } }).catch(() => null);
 	if (!r?.ok) return [];
 	const j = await r.json().catch(() => ({}));
-	return (j.Entries ?? []).map((e) => String(e.FullPath ?? '').split('/').pop()).filter((n) => n.endsWith('.json')).map((n) => n.slice(0, -5));
+	return (j.Entries ?? [])
+		.map((e) => ({ name: String(e.FullPath ?? '').split('/').pop(), size: Number(e.FileSize ?? e.chunks?.reduce?.((n, c) => n + (c.size ?? 0), 0) ?? 0) }))
+		.filter((e) => e.name.endsWith('.json'));
+}
+async function inboxList(id) {
+	return (await inboxEntries(id)).map((e) => e.name.slice(0, -5));
+}
+async function inboxHeld(id) {
+	return (await inboxEntries(id)).reduce((n, e) => n + e.size, 0);
 }
 function pingInbox(id) {
 	if (!MQTT.password) return;
@@ -210,6 +248,10 @@ async function inboxes(req, res, origin, id, item) {
 		try { body = JSON.parse(raw); } catch { return send(res, origin, 400, { says: 'That isn’t JSON.' }); }
 		const wrong = await checkPost(body, id);
 		if (wrong) return send(res, origin, 403, { says: wrong });
+		if ((await inboxHeld(id)) + raw.length > TERMS.inboxHoldsBytes)
+			return send(res, origin, 507, { says: 'Their inbox is full just now. It empties as they collect what’s waiting, so try again later.', full: 'inbox' });
+		if (!fitsToday(body.did, raw.length))
+			return send(res, origin, 429, { says: 'You’ve sent today’s free amount through storage. It starts again tomorrow.', full: 'day' });
 		const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(body.signature)));
 		const postId = Buffer.from(digest.slice(0, 16)).toString('base64url');
 		const form = new FormData();
@@ -356,6 +398,8 @@ async function health() {
 export const server = http.createServer(async (req, res) => {
 	const origin = req.headers.origin ?? '';
 	if (req.method === 'GET' && new URL(req.url, 'http://gate').pathname === '/health') return send(res, origin, 200, await health());
+	/* The free allowance, published: Q shows it beside your usage. */
+	if (req.method === 'GET' && new URL(req.url, 'http://gate').pathname === '/terms') return send(res, origin, 200, TERMS);
 	const m = ROUTE.exec(decodeURIComponent(new URL(req.url, 'http://gate').pathname));
 	if (req.method === 'OPTIONS') return send(res, origin, 204);
 	const d = DROP.exec(new URL(req.url, 'http://gate').pathname);

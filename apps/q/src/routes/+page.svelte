@@ -23,6 +23,7 @@
 	import SupportQ from '$lib/components/SupportQ.svelte';
 	import SecurityStandards from '$lib/components/SecurityStandards.svelte';
 	import Credits from '$lib/components/Credits.svelte';
+	import UsageCard from '$lib/components/UsageCard.svelte';
 
 	/* What people use Q for — the home page's uses, in order (29 September). */
 	const USES: { key: string; icon: IconName }[] = [
@@ -142,6 +143,7 @@
 			</div>
 		{/if}
 	{#if identity}<ActivityFeed {ledger} did={identity.did} />{/if}
+	{#if identity}<UsageCard {ledger} did={identity.did} />{/if}
 
 	<Section title="Everything" description="Every part of Q, and how each stands.">
 	<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

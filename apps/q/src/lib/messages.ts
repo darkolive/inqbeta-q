@@ -53,7 +53,8 @@ export async function sendTo(
 	const mine = await myInbox(me);
 	const content: Message = { schema: MESSAGE_SCHEMA, source: 'inqbeta:q/message', to: to.did, replyTo: mine?.id, at: new Date().toISOString(), ...what };
 	const signed = (await sealWith(me, content)) as Signed;
-	const { sealed } = await sealTo(signed, [to.did], 'message');
+	/* Compressed first: a voice message's base64 comes out about a quarter smaller. */
+	const { sealed } = await sealTo(signed, [to.did], 'message', { zip: true });
 	const post = await makePost(me, to.inbox, sealed);
 	try {
 		const res = await fetch(`${storage}/inbox/${to.inbox}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(post), signal: AbortSignal.timeout(15_000) });

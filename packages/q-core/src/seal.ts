@@ -23,6 +23,13 @@ export interface SealedToPeople {
 	iv: string;
 	ciphertext: string;
 	forWhom: string;
+	/**
+	 * 'gzip' when the content was compressed before it was sealed (2 October
+	 * 2026). Big things that are mostly text — a voice message's audio written
+	 * as base64 — come out about a quarter smaller. Absent on older seals,
+	 * which open as before.
+	 */
+	zip?: 'gzip';
 	/** One entry per person. The content key, wrapped so only they can unwrap it. */
 	recipients: { did: string; ephemeral: string; iv: string; wrapped: string }[];
 }
@@ -81,10 +88,16 @@ async function wrappingKey(shared: ArrayBuffer, ephemeral: Uint8Array, recipient
 	);
 }
 
+async function squeeze(bytes: Uint8Array, how: 'gzip' | 'gunzip'): Promise<Uint8Array<ArrayBuffer>> {
+	const stream = new Blob([bytes as Uint8Array<ArrayBuffer>]).stream().pipeThrough(how === 'gzip' ? new CompressionStream('gzip') : new DecompressionStream('gzip'));
+	return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+
 export async function sealTo(
 	body: unknown,
 	people: string[],
-	forWhom: string
+	forWhom: string,
+	opts: { zip?: boolean } = {}
 ): Promise<{ sealed: SealedToPeople; contentHash: string }> {
 	const dids = [...new Set(people.map((p) => p.trim()).filter(Boolean).map(toDid))];
 	if (!dids.length) throw new Error('Sealing to people needs at least one person.');
@@ -93,7 +106,8 @@ export async function sealTo(
 	const contentKey = crypto.getRandomValues(new Uint8Array(new ArrayBuffer(32)));
 	const aes = await crypto.subtle.importKey('raw', contentKey, 'AES-GCM', false, ['encrypt']);
 	const iv = crypto.getRandomValues(new Uint8Array(new ArrayBuffer(12)));
-	const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, aes, enc.encode(plain));
+	const raw = enc.encode(plain);
+	const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, aes, opts.zip ? await squeeze(raw, 'gzip') : raw);
 
 	const recipients: SealedToPeople['recipients'] = [];
 	for (const did of dids) {
@@ -110,7 +124,7 @@ export async function sealTo(
 	contentKey.fill(0);
 
 	return {
-		sealed: { schema: SEAL_SCHEMA, alg: TO_PEOPLE_ALG, iv: b64url(iv), ciphertext: b64url(ciphertext), forWhom, recipients },
+		sealed: { schema: SEAL_SCHEMA, alg: TO_PEOPLE_ALG, iv: b64url(iv), ciphertext: b64url(ciphertext), forWhom, ...(opts.zip ? { zip: 'gzip' as const } : {}), recipients },
 		contentHash: await sha256(plain)
 	};
 }
@@ -209,7 +223,8 @@ export async function openWith(sealed: SealedToPeople, key: { did: string; openi
 			const kek = await wrappingKey(shared, ephRaw, myX);
 			const contentKey = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64url(r.iv) }, kek, unb64url(r.wrapped));
 			const aes = await crypto.subtle.importKey('raw', contentKey, 'AES-GCM', false, ['decrypt']);
-			const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64url(sealed.iv) }, aes, unb64url(sealed.ciphertext));
+			const opened = new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: unb64url(sealed.iv) }, aes, unb64url(sealed.ciphertext)));
+			const plain = sealed.zip === 'gzip' ? await squeeze(opened, 'gunzip') : opened;
 			return { ok: true, body: JSON.parse(dec.decode(plain)), says: 'Opened with your passkey.' };
 		} catch {
 			/* try the next entry, if there is one */

@@ -5,7 +5,7 @@
  *
  * Recorded as Opus where the browser can, AAC on Safari, at 48 kbps: a warm,
  * full voice (24 kbps sounded flat, Darren, 2 October). Two minutes is about
- * 720 KB, about 1.3 MB once signed and sealed, inside the storage's 2 MB limit
+ * 720 KB, about 1 MB once signed, compressed and sealed, inside the storage's 2 MB limit
  * for a post. Storage only holds it until it's collected.
  *
  * Echo cancellation stays on; noise suppression and automatic volume are off,

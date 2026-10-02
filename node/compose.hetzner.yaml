@@ -80,6 +80,8 @@ services:
     environment:
       GATE_FEDERATIONS: ${GATE_FEDERATIONS:-}
       GATE_MQTT_PASSWORD: ${GATE_MQTT_PASSWORD:-}
+      GATE_INBOX_HOLDS_MB: ${GATE_INBOX_HOLDS_MB:-25}
+      GATE_SEND_MB_PER_DAY: ${GATE_SEND_MB_PER_DAY:-50}
       GATE_ORIGINS: https://inqbeta.com,https://inqbeta.dev,http://localhost:3100
     volumes:
       - ./gate:/gate:ro
