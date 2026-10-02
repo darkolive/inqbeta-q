@@ -106,6 +106,8 @@ services:
   # it can't read, and refuses to relay into private networks or the mesh.
   # Host networking, because a relay needs a large range of UDP ports.
   # Q points at it with Q_TURN_URLS and the same secret as Q_TURN_SECRET.
+  # It listens and relays on the public address only: never on the mesh
+  # (10.42.0.1) or Docker's own networks, which it would otherwise pick up.
   # Started on its own: docker compose --profile relay up -d relay
   relay:
     image: coturn/coturn:latest   # pin to the digest after the first pull
@@ -116,5 +118,7 @@ services:
       -c /etc/coturn/turnserver.conf
       --static-auth-secret=${TURN_SECRET:-}
       --external-ip=${TURN_PUBLIC_IP:-135.181.156.21}
+      --listening-ip=${TURN_PUBLIC_IP:-135.181.156.21}
+      --relay-ip=${TURN_PUBLIC_IP:-135.181.156.21}
     volumes:
       - ./coturn/turnserver.conf:/etc/coturn/turnserver.conf:ro
