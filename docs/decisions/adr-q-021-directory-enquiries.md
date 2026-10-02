@@ -1,7 +1,7 @@
 ---
 status: proposed
 implementation: none
-updated: 2026-10-02
+updated: 2026-10-03
 ---
 
 # ADR-Q-021 — Directory Enquiries
@@ -208,6 +208,53 @@ directory is never stretched across homes (`q/home-node.md` §5).
 7. **Events, courses and promotions** as listing kinds; bookings and invitations as receipts (tickets).
 8. **Public cards for people**, opt-in.
 9. **Treaties between directories.**
+
+## Addendum, 3 October 2026: wanted cards, alerts, and Keep
+
+Darren:
+
+> "You want to offer a service, fill in this card, that then just gets
+> indexed … I'm looking for CPUs that come up on this directory that are
+> under a pound a unit. Get notified."
+
+> "You don't want to be receipting everything you looked at. But what you
+> search for, helpful … you only keep what you are interested in … if you
+> save a search, then by default that should download that page receipt …
+> and then it's offline in your local storage."
+
+**Offers and wants are cards.**
+
+- **Offering a service** (a CPU hour, a GB held, a render minute) is a
+  listing card: what, the unit, the price in credits, where, how to book.
+  Signed, it's indexed like any listing (§1b).
+- **Wanting something** is a card too: a **saved search** ("CPU hours, under
+  £1 a unit, within 50 miles"). When a new listing matches, the bellboy rings
+  you with the card. Dgraph's number, date and place indexes make it one
+  query, run against each listing as it arrives.
+- **Taking it up is a trade**, signed by both, inspected by Cedar (ADR-Q-023);
+  the receipt is the booking.
+- **Saved searches are private.** They run on your own Q or node, against your
+  copy of the directory (§5), so nobody, Incubator included, learns what
+  you're looking for.
+
+**Looking leaves no trace; keeping does.**
+
+- **Searching records nothing**, for you or anyone.
+- **Keep is one button.** It makes a signed receipt: what it was, where from,
+  when you saw it, and a fingerprint of what it said then. If it changes or
+  goes, you can still show what you saw.
+- **Keeping downloads it.** A listing or card is already a signed receipt, so
+  the whole of it comes into your vault: instant, offline, still checkable.
+  For a page from elsewhere, **the seed rules decide** (Cedar): a full copy
+  for your own reference where that's allowed, otherwise the link, the
+  fingerprint and your notes. Never republished.
+- **A saved search keeps its latest results offline**, refreshed when you're
+  online.
+- **What you keep becomes your knowledge**: in your vault, searchable, and
+  usable as context by your own AI on your own device (ADR-Q-013).
+
+Build order, added: (10) **Keep**, with offline copies; (11) **saved searches
+and alerts**; (12) **offers of capacity** as listings.
 
 ## Non-claims
 

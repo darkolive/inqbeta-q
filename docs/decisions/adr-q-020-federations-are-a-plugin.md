@@ -1,7 +1,7 @@
 ---
 status: proposed
 implementation: started — the host's Federations switch (build step 1), 2 October 2026
-updated: 2026-10-02
+updated: 2026-10-03
 ---
 
 # ADR-Q-020 — Federations are a plugin a host chooses to offer
@@ -88,6 +88,56 @@ The result is the club's **card**, and a club page with a proper
 3. **The allowance and spending** on the host's services.
 4. **The Federation card** steps and the club page.
 5. **Real payments** (Stripe), behind the same receipts.
+
+## Addendum, 3 October 2026: hosts offer, members choose; hosts can specialise
+
+Darren, after the Installed page let him switch plugins on and off and drag
+them into order:
+
+> "That's down to the admin what plugins are available, and then for the user
+> to choose which ones they want … hosts can specialise, and hosts can invest
+> in AI, modelling, CPU … chunky Mac Studios … all linked up, so that if you're
+> an animator club, you could make production stuff really cheap because the
+> resources are in-house."
+
+**Two layers.**
+
+1. **The host decides what's offered.** Installing a plugin puts code on the
+   host's site and may use its storage, switchboard, AI or machines, so it's
+   the founder's choice: a **Plugins offered** setting in Services, with a
+   signed record like the other services (ADR-Q-018 §4). Members never add
+   code to a host's site; the core stays protected (ADR-Q-019).
+2. **Each member chooses from what's offered**: on or off, and the order they
+   appear in the menu (built 3 October: `lib/plugins.svelte.ts`, kept in the
+   vault as `q:settings/plugins`).
+
+- **Choices travel with the person.** On another host, your order and your
+  offs apply to what that host offers; a plugin it doesn't offer simply
+  doesn't show.
+- **People piggyback hosts for what they offer.** Keys and receipts are the
+  person's; a host is joined for its domain, its reach and its resources.
+- **A club can narrow, never widen**, what its host offers to its members,
+  like a treaty tightening rules.
+- **Plugins that cost the host something** follow the commons: an allowance,
+  then credits (ADR-Q-017, ADR-Q-023).
+
+**Specialised hosts.** A host can invest in capacity, such as GPUs, Mac Studios
+or local AI models, and offer it as a plugin: rendering, training, transcoding.
+Its members pay in credits at what it really costs; members of other hosts use
+it under a treaty, inspected by Cedar; members who lend spare machine hours
+are rewarded for delivered work (ADR-Q-023 §6); it's found through Directory
+Enquiries (ADR-Q-021). To design honestly:
+
+- **Compute can't run on sealed data.** The page says who can see your work
+  while it runs, and that it's deleted after, with a receipt for both.
+- **Credits buy a turn, not a time slot.** Busy machines mean a queue, shown
+  plainly (the white paper's eligibility units).
+- **The published price covers power and bandwidth**, or the speciality
+  won't last.
+
+Build order, added: (6) **Plugins offered** in Services, and the Installed
+page showing only those; (7) a first **compute plugin**, sketched with a club
+that has the machines.
 
 ## Non-claims
 
