@@ -33,6 +33,9 @@ async function services() {
 	return h?.ok ? { storage: h.services.storage?.replace(/\/$/, ''), bellboy: h.services.bellboy } : { storage: undefined, bellboy: undefined };
 }
 
+/* What's conversation, and so kept in both vaults: words, linking up, and voice messages. */
+const kept = (k: Message['kind']) => k === 'message' || k === 'linked-back' || k === 'voicemail';
+
 async function keep(signed: SealedReceipt) {
 	await saveLocked('messages', `message-${signed.contentHash.slice(0, 20)}.json`, JSON.stringify(signed, null, 2), 'application/json');
 }
@@ -40,7 +43,7 @@ async function keep(signed: SealedReceipt) {
 /** Write to someone you're linked with. Your signed copy is kept in your vault. */
 export async function sendTo(
 	to: { did: string; inbox?: string },
-	what: Pick<Message, 'kind'> & Partial<Pick<Message, 'text' | 'card' | 'link'>>
+	what: Pick<Message, 'kind'> & Partial<Pick<Message, 'text' | 'card' | 'link' | 'audio' | 'seconds' | 'call'>>
 ): Promise<{ ok: true; signed: Signed } | { ok: false; says: string }> {
 	const me = current();
 	if (!me) return { ok: false, says: 'Sign in first.' };
@@ -60,7 +63,7 @@ export async function sendTo(
 		return { ok: false, says: 'The storage didn’t answer. Try again in a moment.' };
 	}
 	/* Calls' handshakes aren't conversation: only real words are kept as yours. */
-	if (what.kind === 'message' || what.kind === 'linked-back') await keep(signed).catch(() => {});
+	if (kept(what.kind)) await keep(signed).catch(() => {});
 	return { ok: true, signed };
 }
 
@@ -95,7 +98,7 @@ export function collectInbox(): Promise<number> {
 				const signed = opened.body as Signed;
 				const check = await checkReceipt(signed);
 				if (!check.ok || signed.content?.schema !== MESSAGE_SCHEMA || signed.content.to !== me.did) continue;
-				if (signed.content.kind === 'message' || signed.content.kind === 'linked-back') await keep(signed);
+				if (kept(signed.content.kind)) await keep(signed);
 				/* Custody passes: it's in your vault now, so the storage can let its copy go. */
 				await fetch(`${storage}/inbox/${mine.id}/${pid}`, { method: 'DELETE', headers: head }).catch(() => {});
 				for (const fn of listeners) fn(signed);
@@ -140,7 +143,7 @@ export function threadWith(receipts: { json?: unknown }[], me: string, them: str
 	const seen = new Set<string>();
 	for (const r of receipts) {
 		const s = r.json as Signed | undefined;
-		if (s?.content?.schema !== MESSAGE_SCHEMA || s.content.kind !== 'message' || seen.has(s.signature)) continue;
+		if (s?.content?.schema !== MESSAGE_SCHEMA || (s.content.kind !== 'message' && s.content.kind !== 'voicemail') || seen.has(s.signature)) continue;
 		if ((s.did === me && s.content.to === them) || (s.did === them && s.content.to === me)) {
 			seen.add(s.signature);
 			out.push(s);

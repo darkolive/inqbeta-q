@@ -55,7 +55,7 @@ export async function inboxOf(identity: Pick<Identity, 'vault'>): Promise<{ id: 
 export interface Message {
 	schema: typeof MESSAGE_SCHEMA;
 	source: 'inqbeta:q/message';
-	kind: 'message' | 'linked-back' | 'call' | 'call-reply' | 'call-declined';
+	kind: 'message' | 'linked-back' | 'call' | 'call-reply' | 'call-declined' | 'voicemail';
 	/** Whose it is: the DID it was sealed for. */
 	to: string;
 	/** Where to write back. */
@@ -65,6 +65,10 @@ export interface Message {
 	card?: Record<string, string>;
 	/** A call's invitation or reply link. */
 	link?: string;
+	/** A voice message (ADR-Q-022): the recording as a data: URL, its length, and the call it follows. */
+	audio?: string;
+	seconds?: number;
+	call?: string;
 	at: string;
 }
 

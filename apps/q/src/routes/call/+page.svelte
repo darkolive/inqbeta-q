@@ -32,7 +32,8 @@
 	} from '$lib/call/media';
 	import { Call, iceServers, type Far, type Health, type Phase } from '$lib/call/connection';
 	import { page } from '$app/state';
-	import { watchLedger, type Ledger } from '$lib/ledger';
+	import { watchLedger, refreshLedger, type Ledger } from '$lib/ledger';
+	import { canRecord, startRecording, tooBig, lengthOf, saveCopy, MOST_SECONDS, type Recording } from '$lib/voicemail';
 	import { peopleFrom, type Person } from '$lib/people';
 	import { sendTo, watchArrivals } from '$lib/messages';
 
@@ -83,6 +84,52 @@
 		sealFor = '';
 		if (page.url.search) void goto('/call');
 	}
+	/* ---------- a voice message, when they didn't answer (ADR-Q-022) ---------- */
+	let vm = $state<'idle' | 'recording' | 'ready' | 'sending' | 'sent'>('idle');
+	let vmSeconds = $state(0);
+	let vmRec = $state<Recording | null>(null);
+	let vmSays = $state('');
+	let recorder: Awaited<ReturnType<typeof startRecording>> | null = null;
+	async function recordStart() {
+		vmSays = '';
+		vmRec = null;
+		vmSeconds = 0;
+		try {
+			recorder = await startRecording({ mic: choice.mic, onTick: (n) => (vmSeconds = n), onLimit: () => void recordStop() });
+			vm = 'recording';
+		} catch (e) {
+			vmSays = explainMediaError(e);
+			vm = 'idle';
+		}
+	}
+	async function recordStop() {
+		if (!recorder || vm !== 'recording') return;
+		const r = recorder;
+		recorder = null;
+		vmRec = await r.stop();
+		vm = 'ready';
+		if (tooBig(vmRec)) vmSays = 'That one is too long to send. Record a shorter one.';
+	}
+	function recordAgain() {
+		vmRec = null;
+		vmSays = '';
+		void recordStart();
+	}
+	async function sendVoicemail() {
+		if (!leaveFor || !vmRec || tooBig(vmRec)) return;
+		vm = 'sending';
+		vmSays = '';
+		const out = await sendTo(leaveFor, { kind: 'voicemail', audio: vmRec.audio, seconds: vmRec.seconds, call: record?.steps[0]?.content.call });
+		if (out.ok) {
+			vm = 'sent';
+			void refreshLedger();
+		} else {
+			vm = 'ready';
+			vmSays = out.says;
+		}
+	}
+	const clock = (n: number) => `${Math.floor(n / 60)}:${String(n % 60).padStart(2, '0')}`;
+
 	const when = (at: string) => new Date(at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
 	/* Answering a call that rang in Q: who to send the reply back to. */
 	let answering = $state<{ did: string; inbox?: string; name?: string } | null>(null);
@@ -331,6 +378,12 @@
 		recordSays = saved = keptAs = '';
 		micOn = camOn = true;
 		linkMode = false;
+		recorder?.cancel();
+		recorder = null;
+		vm = 'idle';
+		vmRec = null;
+		vmSays = '';
+		vmSeconds = 0;
 		stopAll(local);
 		local = null;
 		if (page.url.search) void goto('/call');
@@ -424,6 +477,7 @@
 			window.removeEventListener('pagehide', leave);
 			chan?.close();
 			stopMeter();
+			recorder?.cancel();
 			call?.close();
 			stopAll(local);
 		};
@@ -451,6 +505,9 @@
 	const inCall = $derived(phase === 'live' || phase === 'reconnecting');
 	/* Somewhere in making or answering a call, rather than at the page's home. */
 	const flowing = $derived(!!(withDid || linkMode || incoming || inviteLink || replyLink || answering || call));
+	/* A call you made that wasn't answered: you can leave them a voice message. */
+	const answeredCall = $derived(!!record?.steps.some((st) => st.content.event === 'call.accepted'));
+	const leaveFor = $derived(callee?.inbox && record && !answeredCall && record.steps[0]?.did === identity?.did ? callee : undefined);
 	const STEP = { 'call.placed': 'Placed', 'call.accepted': 'Accepted', 'call.ended': 'Closed' } as const;
 	const HOW = { 'hung-up': 'hung up', 'they-left': 'the other side left', dropped: 'connection lost', cancelled: 'cancelled', 'no-answer': 'no answer' } as const;
 	const QUALITIES: { id: Quality; label: string; hint: string }[] = [
@@ -578,6 +635,30 @@
 	{#if !identity}
 		<SignIn />
 	{:else if phase === 'ended'}
+		{#if leaveFor && canRecord()}
+			<Section title="Leave {leaveFor.name} a message?" description="They didn’t answer. Record a voice message and it waits for them, sealed so only they can hear it.">
+				{#if vm === 'idle'}
+					<button type="button" class="btn btn-lg preset-filled-primary-500" onclick={() => void recordStart()}><Icon name="mic" size={20} /> Record a message</button>
+				{:else if vm === 'recording'}
+					<div class="flex items-center gap-4" role="status">
+						<span class="size-3 rounded-full bg-error-500 motion-safe:animate-pulse" aria-hidden="true"></span>
+						<span class="h3 tabular-nums">{clock(vmSeconds)}</span>
+						<span class="text-sm text-surface-700-300">Recording · up to {MOST_SECONDS / 60} minutes</span>
+					</div>
+					<button type="button" class="btn btn-lg preset-filled-error-500 mt-4" onclick={() => void recordStop()}>Stop</button>
+				{:else if vmRec && (vm === 'ready' || vm === 'sending')}
+					<p class="mb-2">Listen to it first if you like.</p>
+					<audio controls src={vmRec.audio} class="w-full max-w-md"></audio>
+					<div class="mt-4 flex flex-wrap gap-2">
+						<button type="button" class="btn preset-tonal" disabled={vm === 'sending'} onclick={recordAgain}><Icon name="replay" size={18} /> Record again</button>
+						<button type="button" class="btn preset-filled-primary-500" disabled={vm === 'sending' || tooBig(vmRec)} onclick={() => void sendVoicemail()}>{vm === 'sending' ? 'Sending…' : 'Send'}</button>
+					</div>
+				{:else if vm === 'sent'}
+					<p><Status tone="good">Sent</Status> {leaveFor.name} will find it in their bell. You both keep a signed copy.</p>
+				{/if}
+				{#if vmSays}<p class="mt-3"><Status tone="bad">Not sent</Status> {vmSays}</p>{/if}
+			</Section>
+		{/if}
 		<Section title="Call ended">
 			{#if record}
 				<p>{recordSays}</p>
@@ -634,8 +715,15 @@
 											<span class="block font-semibold truncate">{p?.name ?? 'Someone'}</span>
 											<span class="block text-sm text-surface-700-300">
 												{#if !c.answered}{c.outgoing ? 'No answer' : 'Missed'}{:else}{c.outgoing ? 'You called' : 'They called'} · {howLong(c.seconds)}{/if}
+												{#if c.voicemail}· {c.voicemail.did === identity?.did ? 'you left a message' : 'left a message'}{/if}
 												· {when(c.at)}
 											</span>
+											{#if c.voicemail?.content.audio}
+												<span class="mt-2 flex flex-wrap items-center gap-2">
+													<audio controls preload="none" src={c.voicemail.content.audio} class="h-10 max-w-full" aria-label="Voice message, {lengthOf(c.voicemail.content.seconds ?? 0)}"></audio>
+													<button type="button" class="btn btn-sm preset-tonal" onclick={() => c.voicemail?.content.audio && saveCopy(c.voicemail.content.audio, `voice-message-${c.at.slice(0, 10)}`)}><Icon name="download" size={16} /> Save</button>
+												</span>
+											{/if}
 										</span>
 										{#if p}
 											<a class="btn-icon preset-tonal-primary" href="/call?with={encodeURIComponent(p.did)}" aria-label="Call {p.name}"><Icon name="video" size={20} /></a>

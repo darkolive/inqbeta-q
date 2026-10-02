@@ -1,6 +1,6 @@
 ---
 status: proposed
-implementation: none
+implementation: started — Part A build steps 1–2 and saving a copy, 2 October 2026 (lib/voicemail.ts, routes/call, messages)
 updated: 2026-10-02
 ---
 
@@ -35,15 +35,18 @@ the business itself, and by saying so before anyone speaks.
 1. **When a call isn't answered** (no answer, or they press Not now), Q offers
    **Leave a message** beside Try again and Send a message.
 2. **Recorded in the browser**, as Opus audio (what browsers record by
-   themselves: small and clear for voice). A limit on length, a few minutes to
-   start. Listen back, record again, or Send.
+   themselves: small and clear for voice; AAC on Safari). Up to 2 minutes at a
+   voice bitrate, so the sealed post stays under the storage's 1 MB limit.
+   Listen back, record again, or Send.
 3. **Sent like any message** (ADR-Q-010, ADR-Q-014): sealed to them, put in
    storage, and the bellboy rings with a notice of kind `voicemail`: who it's
    from and how long, opened on their device.
 4. **They tap it, Q collects and checks it, and it plays.** Both keep a signed
    copy. It joins the call's record: Your calls shows **Missed · left a
-   message** with a play button.
-5. **MP3 on request.** Anyone can save a copy as MP3; Q doesn't send MP3.
+   message** with a play button. It also appears in the conversation with
+   that person.
+5. **MP3 on request.** Anyone can save a copy; today in the format it was
+   recorded in, MP3 later. Q doesn't send MP3.
 6. **Read aloud's other half** (ADR-Q-011): a voice message can be shown as
    text on the listener's own device, never on a server, for people who'd
    rather read.
@@ -75,8 +78,8 @@ the business itself, and by saying so before anyone speaks.
 
 ## Build order
 
-1. **Leave a message** after an unanswered call: record, listen, send.
-2. **The `voicemail` notice**, collect and play; Your calls shows it.
+1. **Leave a message** after an unanswered call: record, listen, send. *(Built.)*
+2. **The `voicemail` notice**, collect and play; Your calls shows it. *(Built.)*
 3. **Save as MP3**; shown as text on the listener's device.
 4. **The receptionist's notice on business cards** (the words, before Call).
 5. **The receptionist**: identity and permission from the business; take a

@@ -47,6 +47,7 @@
 	import { readAnnouncements, readIds, markRead, restoreRead } from '$lib/announcements';
 	import { keptFrom, knownKept, keepSoon } from '$lib/kept-settings';
 	import { startMessaging, watchArrivals, sendTo, type Signed } from '$lib/messages';
+	import { lengthOf } from '$lib/voicemail';
 	import { peopleFrom } from '$lib/people';
 	import type { Announcement } from '@inqbeta/q-core/announcements';
 	import { reachFor, watchReach, restoreReach, type Reach } from '$lib/notify';
@@ -381,7 +382,7 @@
 				return;
 			}
 			if (m.content.kind === 'call-reply' || m.content.kind === 'call-declined') return;
-			announce = m.content.kind === 'linked-back' ? `${who} linked with you` : `New message from ${who}`;
+			announce = m.content.kind === 'linked-back' ? `${who} linked with you` : m.content.kind === 'voicemail' ? `Voice message from ${who}` : `New message from ${who}`;
 			if (reachFor('people') === 'ring') ring();
 		});
 		const stop = startMessaging((n) => n && void refreshLedger());
@@ -406,13 +407,15 @@
 		for (const r of ledger?.receipts ?? []) {
 			const m = r.json as Signed | undefined;
 			const kind = m?.content?.kind;
-			if (m?.content?.schema !== 'inqbeta.message/1' || (kind !== 'message' && kind !== 'linked-back') || m.did === me || seen.has(m.contentHash)) continue;
+			if (m?.content?.schema !== 'inqbeta.message/1' || (kind !== 'message' && kind !== 'linked-back' && kind !== 'voicemail') || m.did === me || seen.has(m.contentHash)) continue;
 			const p = people.find((x) => x.did === m.did);
 			/* Someone linking up with your card is news too: who, and that they're in your address book now. */
 			out.push(
 				kind === 'linked-back'
 					? { id: m.contentHash, did: m.did, name: p?.name ?? 'Someone', picture: p?.picture, text: 'Linked up with you. They’re in your address book.', at: m.content.at, href: '/contacts' }
-					: { id: m.contentHash, did: m.did, name: p?.name ?? 'Someone', picture: p?.picture, text: m.content.text ?? '', at: m.content.at, href: `/messages/${encodeURIComponent(m.did)}` }
+					: kind === 'voicemail'
+						? { id: m.contentHash, did: m.did, name: p?.name ?? 'Someone', picture: p?.picture, text: `Voice message, ${lengthOf(m.content.seconds ?? 0)}`, at: m.content.at, href: `/messages/${encodeURIComponent(m.did)}` }
+						: { id: m.contentHash, did: m.did, name: p?.name ?? 'Someone', picture: p?.picture, text: m.content.text ?? '', at: m.content.at, href: `/messages/${encodeURIComponent(m.did)}` }
 			);
 		}
 		return out.sort((a, b) => b.at.localeCompare(a.at));

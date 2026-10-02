@@ -33,7 +33,7 @@
 		const by = new Map<string, { last: Signed; unread: number }>();
 		for (const r of ledger?.receipts ?? []) {
 			const m = r.json as Signed | undefined;
-			if (m?.content?.schema !== MESSAGE_SCHEMA || m.content.kind !== 'message') continue;
+			if (m?.content?.schema !== MESSAGE_SCHEMA || (m.content.kind !== 'message' && m.content.kind !== 'voicemail')) continue;
 			const them = m.did === me ? m.content.to : m.did;
 			const t = by.get(them) ?? { last: m, unread: 0 };
 			if (m.content.at > t.last.content.at) t.last = m;
@@ -74,7 +74,7 @@
 							{@render face(t.person)}
 							<span class="flex-1 min-w-0">
 								<span class="block {t.unread ? 'font-bold' : ''}">{t.person?.name ?? 'Someone'}</span>
-								<span class="block text-sm opacity-70 truncate">{t.last.did === identity.did ? 'You: ' : ''}{t.last.content.text}</span>
+								<span class="block text-sm opacity-70 truncate">{t.last.did === identity.did ? 'You: ' : ''}{t.last.content.kind === 'voicemail' ? 'Voice message' : t.last.content.text}</span>
 							</span>
 							<span class="flex flex-col items-end gap-1 shrink-0">
 								<span class="text-xs opacity-60">{when(t.last.content.at)}</span>

@@ -13,6 +13,7 @@
 	import { watchLedger, refreshLedger, type Ledger } from '$lib/ledger';
 	import { peopleFrom } from '$lib/people';
 	import { sendTo, threadWith } from '$lib/messages';
+	import { lengthOf } from '$lib/voicemail';
 	import { markRead } from '$lib/announcements';
 
 	let identity = $state<Identity | null>(null);
@@ -85,7 +86,15 @@
 			{#each thread as m (m.signature)}
 				{@const mine = m.did === identity.did}
 				<div class="max-w-[80%] {mine ? 'self-end' : 'self-start'}">
-					<p class="card px-4 py-2 whitespace-pre-line {mine ? 'preset-filled-primary-500' : 'preset-tonal-surface'}">{m.content.text}</p>
+					{#if m.content.kind === 'voicemail' && m.content.audio}
+						<!-- A voice message (ADR-Q-022), left after a call wasn't answered. -->
+						<div class="card px-4 py-3 space-y-2 {mine ? 'preset-filled-primary-500' : 'preset-tonal-surface'}">
+							<p class="flex items-center gap-2 text-sm font-semibold"><Icon name="mic" size={16} /> Voice message · {lengthOf(m.content.seconds ?? 0)}</p>
+							<audio controls preload="none" src={m.content.audio} class="max-w-full"></audio>
+						</div>
+					{:else}
+						<p class="card px-4 py-2 whitespace-pre-line {mine ? 'preset-filled-primary-500' : 'preset-tonal-surface'}">{m.content.text}</p>
+					{/if}
 					<p class="text-xs opacity-50 mt-1 {mine ? 'text-right' : ''}">{time(m.content.at)}</p>
 				</div>
 			{/each}

@@ -6,6 +6,8 @@
 import { isCallChain } from '@inqbeta/q-core/calls';
 import type { Ledger } from './ledger';
 import { oneRowPerCall } from './receipts';
+import { voicemailsIn } from './voicemail';
+import type { Signed } from './messages';
 
 export interface CallLogRow {
 	call: string;
@@ -15,6 +17,8 @@ export interface CallLogRow {
 	answered: boolean;
 	at: string;
 	seconds: number;
+	/** A voice message left after it wasn't answered (ADR-Q-022). */
+	voicemail?: Signed;
 }
 
 export function callLog(ledger: Ledger | null, me: string): CallLogRow[] {
@@ -30,6 +34,15 @@ export function callLog(ledger: Ledger | null, me: string): CallLogRow[] {
 		const ends = steps.filter((s) => s.content.event === 'call.ended').map((s) => Date.parse(s.content.at));
 		const seconds = accepted && ends.length ? Math.max(0, Math.round((Math.max(...ends) - Date.parse(accepted.content.at)) / 1000)) : 0;
 		rows.push({ call: placed.content.call, other, outgoing, answered: !!accepted, at: placed.content.at, seconds });
+	}
+	/* Voice messages join the call they followed; one for a call you never saw ring is its own line. */
+	for (const v of voicemailsIn(ledger?.receipts ?? [])) {
+		const row = v.content.call ? rows.find((r) => r.call === v.content.call) : undefined;
+		if (row) row.voicemail = v;
+		else {
+			const mine = v.did === me;
+			rows.push({ call: v.content.call ?? v.contentHash, other: mine ? v.content.to : v.did, outgoing: mine, answered: false, at: v.content.at, seconds: 0, voicemail: v });
+		}
 	}
 	return rows.sort((a, b) => b.at.localeCompare(a.at));
 }
