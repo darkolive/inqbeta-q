@@ -52,6 +52,7 @@
 	import { hostServices, hostVercel, madeForYou, renewHost, sendSetting, setService, type VercelView } from '$lib/host-setup';
 	import { MADE_FOR_YOU, type ServiceState } from '$lib/host-services';
 	import { FEDERATIONS_SETTING } from '$lib/offers';
+	import IntroSlides from '$lib/components/IntroSlides.svelte';
 
 	let identity = $state<Identity | null>(null);
 	let ledger = $state<Ledger | null>(null);
@@ -83,6 +84,9 @@
 	let own = $state<FederationRecord | null>(null);
 	let mine = $state<MembershipRecord | null>(null);
 	let members = $state<MemberRecord[]>([]);
+	/* The club's card and its Home (2 October 2026). The founder is member one. */
+	const memberCount = $derived(1 + members.filter((m) => !m.removed).length);
+	const newMembers = $derived(members.filter((m) => !m.removed && Date.now() - Date.parse(m.joining.at) < 7 * 24 * 3600 * 1000));
 
 	$effect(() => {
 		const item = ownItem?.item;
@@ -501,7 +505,7 @@
 
 <svelte:head><title>{founding?.name ?? 'Federation'} — Q</title></svelte:head>
 
-<Page title={founding?.name ?? 'Federation'} lead={c?.purpose ?? ''}>
+<Page title={founding?.name ?? 'Federation'}>
 	{#if !identity}
 		<SignIn />
 	{:else if ledger?.state !== 'ready'}
@@ -510,8 +514,24 @@
 		<Empty icon="federations" title="Not found" description="This federation isn't in your folder." />
 		<a class="btn preset-tonal mt-4" href="/federations">Back to federations</a>
 	{:else}
-		<div class="mb-6 flex flex-wrap items-center gap-3">
-			{#if isHome && home?.ok && home.logo}<img src={home.logo} alt="" class="h-10 w-auto object-contain" />{/if}
+		<!-- The club's card (2 October 2026): cover, picture, what it's for, and where you stand. -->
+		<section class="card preset-outlined-surface-200-800 overflow-hidden mb-6">
+			<div class="h-28 sm:h-36 preset-tonal-primary" aria-hidden="true"></div>
+			<div class="flex flex-wrap items-end gap-4 px-5 sm:px-7 pb-5 -mt-12">
+				{#if isHome && home?.ok && home.logo}
+					<img src={home.logo} alt="" class="size-24 rounded-full object-contain bg-surface-50-950 border-4 border-surface-50-950" />
+				{:else}
+					<span class="size-24 shrink-0 rounded-full bg-primary-500 text-white border-4 border-surface-50-950 flex items-center justify-center h2" aria-hidden="true">{founding.name.slice(0, 1)}</span>
+				{/if}
+				<div class="flex-1 min-w-60 flex flex-col gap-2 pb-1">
+					<p class="text-lg">{c.purpose}</p>
+					<div class="flex flex-wrap gap-2">
+						{#if own}<span class="badge preset-tonal-primary">{memberCount} {memberCount === 1 ? 'member' : 'members'}</span>{/if}
+						<span class="badge preset-tonal-primary">{JOIN_POLICIES.find((p) => p.id === c.joinPolicy)?.called}</span>
+						<span class="badge preset-tonal-surface">{STRANDS.find((x) => x.id === c.strand)?.called}{c.endsOn ? `, until ${onDay(c.endsOn)}` : ''}</span>
+					</div>
+				</div>
+				<div class="flex flex-wrap items-center gap-2 pb-1">
 			{#if isHome}<Status tone="good">Your host</Status>{/if}
 			{#if own}
 				<Status tone="good">You look after it</Status>
@@ -536,6 +556,8 @@
 				<Status tone="waiting">Waiting to be accepted</Status>
 			{/if}
 		</div>
+			</div>
+		</section>
 
 		{#if said}
 			<div class="card p-4 mb-6 {said.tone === 'good' ? 'preset-tonal-success' : 'preset-tonal-error'}" role="status">
@@ -557,37 +579,67 @@
 				<Tabs.Indicator />
 			</Tabs.List>
 
-			<!-- Home: what it is, what members agree to, what can never change. -->
+			<!-- Home: a live information portal (2 October 2026). -->
 			<Tabs.Content value="home">
-				<Section title="About it">
-					<dl class="grid gap-2 sm:grid-cols-[12rem_1fr]">
-						<dt class="opacity-60">Kind</dt>
-						<dd>{STRANDS.find((s) => s.id === c.strand)?.called}{c.endsOn ? `, ending ${onDay(c.endsOn)}` : ''}</dd>
-						<dt class="opacity-60">How people join</dt>
-						<dd>{JOIN_POLICIES.find((p) => p.id === c.joinPolicy)?.means}</dd>
-						<dt class="opacity-60">Founded</dt>
-						<dd>{onDay(founding.at)}</dd>
-						<dt class="opacity-60">Its key</dt>
-						<dd class="role-token text-xs break-all">{founding.federation}</dd>
-					</dl>
-				</Section>
-
-				<Section title="What members agree to" description="Each of these is a step a new member agrees to, one at a time.">
-					<ol class="flex flex-col gap-3 list-decimal pl-6">
-						<li><p class="font-bold">The agreement</p><p>{c.agreement}</p></li>
-						{#each c.consent ?? [] as b (b.id)}
-							<li><p class="font-bold">{b.title}</p><p class="whitespace-pre-line">{b.says}</p></li>
-						{/each}
-						<li><p class="font-bold">What can never change</p><p class="text-sm">Shown below.</p></li>
-					</ol>
-				</Section>
-
-				<Section title="What can never change" description="Every federation carries these. No vote can remove them.">
-					<ul class="list-disc pl-6 space-y-1">
-						{#each PRINCIPLES as p (p.id)}<li>{p.says}</li>{/each}
-					</ul>
-				</Section>
-
+				<IntroSlides
+					id="federation-home"
+					section="Home"
+					slides={[
+						{ title: `This is ${founding.name}’s home`, says: 'Everything happening in the club, live: what’s coming up, news from the club, and who has just joined.' },
+						{ title: 'How it works', says: 'News and events are signed by the club, so you know they really came from it, not from someone pretending.' },
+						{ title: 'What you can do', says: 'Read the latest, see what’s coming up, and say hi to new members. The other tabs are for the people, getting word to the club, and how it runs.' }
+					]}
+				/>
+				<div class="flex flex-wrap gap-6">
+					<div class="flex-[999_1_32rem] min-w-0 flex flex-col">
+						<Section title="Coming up">
+							<Empty icon="festival" title="No events yet" description="Events are coming soon. The club will list them here, with a time and a place, and you’ll be able to say you’re going." />
+						</Section>
+						<Section title="News from the club">
+							{#if !announcements.length}
+								<Empty icon="bell" title="Nothing yet" description="When the club has news, it appears here and in members’ bells. Meeting minutes and posts are coming soon." />
+							{:else}
+								<ul class="flex flex-col gap-4">
+									{#each announcements.slice(0, 5) as a (a.id)}
+										<li class="flex flex-col gap-1 pb-4 border-b border-surface-200-800">
+											<span class="text-xs font-bold text-primary-700-300">News · {onDay(a.at)}</span>
+											<span class="font-bold text-lg">{a.title}</span>
+											<p class="whitespace-pre-line">{a.says}</p>
+											{#if a.action}<a class="btn btn-sm preset-tonal min-h-11 self-start mt-1" href={a.action.href}>{a.action.label}</a>{/if}
+										</li>
+									{/each}
+								</ul>
+							{/if}
+						</Section>
+					</div>
+					<aside class="flex-[1_1_16rem] flex flex-col gap-6">
+						{#if own && newMembers.length}
+							<section class="card preset-outlined-secondary-500 p-4 flex flex-col gap-3">
+								<h2 class="h5">New this week</h2>
+								<ul class="flex flex-col gap-2">
+									{#each newMembers as m (m.joining.member)}
+										<li class="flex items-center gap-3">
+											{#if m.picture}<img src={m.picture} alt="" class="size-10 rounded-full" />{:else}<span class="size-10 rounded-full preset-tonal-primary" aria-hidden="true"></span>{/if}
+											<span><strong>{m.called ?? 'Someone'}</strong> joined {onDay(m.joining.at)}</span>
+										</li>
+									{/each}
+								</ul>
+							</section>
+						{/if}
+						<section class="card preset-outlined-surface-200-800 p-4 flex flex-col gap-2">
+							<h2 class="h5">About the club</h2>
+							<dl class="flex flex-col gap-1 text-sm">
+								<dt class="opacity-70">How people join</dt>
+								<dd class="mb-2">{JOIN_POLICIES.find((p) => p.id === c.joinPolicy)?.means}</dd>
+								<dt class="opacity-70">Founded</dt>
+								<dd class="mb-2">{onDay(founding.at)}</dd>
+								{#if own}<dt class="opacity-70">You look after it until</dt><dd class="mb-2">{onDay(new Date(own.caretakerUntil * 1000).toISOString())}</dd>{/if}
+								<dt class="opacity-70">Its key</dt>
+								<dd class="role-token text-xs break-all">{founding.federation}</dd>
+							</dl>
+						</section>
+					</aside>
+				</div>
 			</Tabs.Content>
 
 			<!-- Your host's website (ADR-Q-018 §3, §5): what people see, and going live. -->
@@ -717,6 +769,15 @@
 
 			<!-- Members: inviting and looking after people (caretaker); your own membership. -->
 			<Tabs.Content value="members">
+				<IntroSlides
+					id="federation-members"
+					section="Members"
+					slides={[
+						{ title: 'The people in the club', says: 'Your own membership, and what every member agreed to when they joined.' },
+						{ title: 'You choose how you’re known', says: 'Anonymous, by name, or by name and picture: you chose when you joined, and the club never owns your identity.' },
+						{ title: 'Leaving is always yours', says: 'You can leave at any time, alone, and keep every receipt you had. Nobody has to say yes.' }
+					]}
+				/>
 				{#if own}
 					<Section title="Invite someone" description="Make a link, or a code they can scan. It is signed by the federation and runs out on its own.">
 						<div class="flex flex-col gap-4 sm:flex-row sm:items-end">
@@ -865,10 +926,35 @@
 						{/if}
 					</Section>
 				{/if}
+				<Section title="What members agree to" description="Each of these is a step a new member agrees to, one at a time.">
+					<ol class="flex flex-col gap-3 list-decimal pl-6">
+						<li><p class="font-bold">The agreement</p><p>{c.agreement}</p></li>
+						{#each c.consent ?? [] as b (b.id)}
+							<li><p class="font-bold">{b.title}</p><p class="whitespace-pre-line">{b.says}</p></li>
+						{/each}
+						<li><p class="font-bold">What can never change</p><p class="text-sm">Shown below.</p></li>
+					</ol>
+				</Section>
+
+				<Section title="What can never change" description="Every federation carries these. No vote can remove them.">
+					<ul class="list-disc pl-6 space-y-1">
+						{#each PRINCIPLES as p (p.id)}<li>{p.says}</li>{/each}
+					</ul>
+				</Section>
+
 			</Tabs.Content>
 
 			<!-- Communication: announcements to members (ADR-Q-016 §6). -->
 			<Tabs.Content value="communication">
+				<IntroSlides
+					id="federation-communication"
+					section="Communication"
+					slides={[
+						{ title: 'Getting word to and from the club', says: 'News the club sends to its members, and soon, messages to the secretary and questions to the club.' },
+						{ title: 'How it works', says: 'Everything the club announces is signed by it, and stays in members’ bells until its time is over.' },
+						{ title: 'What’s coming', says: 'Message the secretary, ask the club a question, and answers everyone can see so nobody asks twice.' }
+					]}
+				/>
 				{#if own}
 					<Section title="Tell your members" description="An announcement is signed by the federation and stays in members’ bells, read or not, until its time is over.">
 						<div class="flex flex-col gap-4 max-w-2xl">
@@ -935,6 +1021,15 @@
 			<!-- Settings: the machines it runs. Caretaker only. -->
 			{#if own}
 				<Tabs.Content value="settings">
+				<IntroSlides
+					id="federation-settings"
+					section="Settings"
+					slides={[
+						{ title: 'How the club runs', says: isHome ? 'Your host’s invitation, and the machines it runs.' : 'Who carries the club’s messages and calls, and the machines it runs.' },
+						{ title: 'Changes are receipts', says: 'Every change is signed, so members can always see what changed, and when.' },
+						{ title: 'What can never change', says: 'Anyone may leave at any time and keep their receipts. No vote can remove that.' }
+					]}
+				/>
 				<!--
 					Only the host itself has a standing invitation for everyone who signs up
 					(ADR-Q-016). A club founded inside it never sees this: which federation is
