@@ -95,6 +95,80 @@ Darren, 2 October:
 - **A checked badge adds trust, not friction.** A host has nothing to lose by
   showing it, and its members gain a reason to trust it.
 
+### 3a. The core list: what "unchanged" is checked against
+
+Darren, 2 October: *"The website is made up of blocks of receipts, and the
+whole website is a receipt … if its initial foundation creation gets
+authenticated … any update to the website is a new receipt and that new
+receipt can again be authenticated against the original and still check it's
+valid."*
+
+- **The website is already a chain.** Every site release is signed and names
+  the one before it (`previous`, `site.ts` and `releases.ts`), back to the
+  founding.
+- **The core is the kernel** (`docs/identity/kernel.md`): the receipt kernel,
+  the verifier, sealing, keys and signing in, and the consent steps.
+- **For each master release, the master publishes a core list**: every core
+  file and its fingerprint, signed by Incubator.
+- **Every site release names the core release it runs.** A release is valid
+  when all three hold, checked by anyone, offline:
+  1. it follows, link by link, from a founding Incubator authenticated;
+  2. its core is one the master published;
+  3. it's signed by the site's own authority.
+- **Check against the master's list, not the original.** A copy that could
+  only ever match its founding's core could never take a security fix. When
+  the master publishes a new core, copies update and stay valid. A copy left
+  on a core with a known problem shows **"Out of date"**.
+- Changing a core function fails check 2 at once: **"Core changed"**. Pages,
+  layout and words aren't on the list, so they change freely.
+
+### 3b. The authenticated host receipt
+
+Darren, 2 October: *"To register your version authenticated, it needs a
+receipt from Incubator that confirms the code is the same … all the
+authentication requires is to sign in on the incubator site and with your
+passkeys, link it … the benefit … they get on the listing and notified
+updates and whatever back channel."*
+
+1. The copy's founder signs in on Incubator with their passkey and **links
+   their copy**: the same identity, linked the way ADR-Q-018 does.
+2. Incubator **fetches the live site's code** and compares it with the core
+   list (§3a).
+3. Incubator issues the **authenticated host receipt**
+   (`inqbeta.host-authenticated/1`), signed by Incubator's federation key.
+   It names the domain, the host's DID, the founder, the core release, when
+   it was checked and until when.
+
+What it says, and what it can't:
+
+- **It says what was served, not what's inside the server.** Nobody can see
+  inside someone else's server. Q signs, seals and holds keys in the browser,
+  so the code a site sends out is the part that matters, and that can be
+  checked.
+- **It's short-lived** (around 30 days) and renews when rechecks pass. A
+  failed recheck withdraws it.
+- **Your own Q and the app check it too**, every visit, so a copy can't show
+  Incubator a clean version and visitors another.
+- **Every authentication and every withdrawal is a public receipt**, and a
+  withdrawal gives its reason. Incubator is the trust anchor for copies, and
+  says so openly.
+
+What it gives the copy: the **Powered by Q · authenticated** badge, a
+**listing**, **update notices** through the bellboy (Incubator is a federation
+that notifies, ADR-Q-016 §6), and a **back channel** to Incubator.
+
+What it gates, and what it never does:
+
+- **Still works everywhere:** anything a person signed. It's checked and
+  shown, with "Made on a host that isn't authenticated". The person sits above
+  every federation (ADR-Q-007, Layer A), so no host can void a person's own
+  signature.
+- **Needs an authenticated host:** anything that asks others to trust the
+  **host itself**: its founding and federations being recognised elsewhere,
+  its plugins' receipts counting as listed, treaties, the commons services.
+- In the kernel's terms (`kernel.md`), authentication answers **"Does anybody
+  vouch for them?"** It never changes **"Does it hold up?"**
+
 ### 4. A copy can be an overarching body with clubs inside
 
 A copy's federations don't have to be strangers. A copy can be:
@@ -164,10 +238,12 @@ within a website is ordinary, and every layer can be checked.
 
 ## Build order
 
-1. **Core release fingerprints**: the master publishes the hashes of each
-   release's core, signed.
+1. **The core list**: the master publishes each release's core files and
+   fingerprints, signed. Site releases name the core release they run.
 2. **The "Powered by Q" check** at the foot of every copy, and the warning
    before opening your vault on a copy whose core has changed.
+2a. **The authenticated host receipt**: link your copy on Incubator; the
+   check, the receipt, rechecks and withdrawal.
 3. **"Where it lives"** labels on federations shown across copies.
 4. **"Signed, but this copy doesn't know this kind yet"** for unknown
    receipts, and **"Made with … · Open it there"** for plugin receipts.
@@ -185,6 +261,46 @@ This does **not**:
 - decide how a changed core can apply to be recognised;
 - give legal advice. The licensing points (§6, §7) and contributor agreements
   need a lawyer's check before the app ships.
+
+## Challenges still to solve
+
+The easier a copy is to make, the faster Q spreads. These are what could
+slow that down, or make it unsafe:
+
+1. **Setting up still needs skills most people don't have.** Localhost first
+   (ADR-Q-018) means Node, GitHub and Vercel today. The answer is likely
+   **"Start your own host" inside the Q app**, so set-up is the cards and
+   nothing else. That's one more reason people get the app.
+2. **Browsers can't check a page's code before running it.** A host could
+   serve different code to one visitor. Rechecks and the badge narrow this;
+   **the app closes it**, because it signs with its own code, not the site's.
+3. **Updates at scale.** Copies lag behind. Security fixes need a fast path
+   from the master to every copy (an update notice, then one click), and core
+   changes must never strand older receipts.
+4. **Who decides the core.** New receipt kinds from copies need a home that
+   doesn't fork the schema: names that carry the host's DID, and a way to
+   propose one to the master.
+5. **Incubator as the trust anchor.** If Incubator's key were stolen, or
+   Incubator closed, copies must keep working, just unvouched. That needs a
+   key kept offline, more than one signer for authentications, and a written
+   plan for handing the role on.
+6. **Bad hosts.** An authenticated copy could carry harmful content or
+   scams. The Federation code needs a fair process: a warning, withdrawal
+   with a reason, and an appeal.
+7. **The law follows each host.** Each copy's founder is responsible for
+   their own host: the data it holds (UK GDPR) and, because hosts carry
+   messages between people, possibly online safety duties. The Federation code
+   should say plainly that Incubator vouches for the code, not for each
+   host's running of it. A lawyer should check this.
+8. **Lookalikes.** Copies named to look like Incubator, on lookalike
+   domains. The badge must show the real domain and the host's DID, never
+   just a name.
+9. **Plugins near keys.** Plugins must never touch the core: they run
+   apart, ask for permissions, and can't sign as the person without asking.
+10. **Two-way site sync clashes.** Two people editing the same page on the
+    live site and the founder's computer at once. Nothing is lost, because
+    both versions are receipts, but someone has to choose. That needs a
+    simple "which one?" screen.
 
 ## Open question
 
