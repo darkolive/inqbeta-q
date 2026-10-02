@@ -10,6 +10,8 @@
 	import { onMount } from 'svelte';
 	import { page, updated } from '$app/state';
 	import { goto } from '$app/navigation';
+	import { dev } from '$app/environment';
+	import { localHost } from '$lib/host-setup';
 	import { Navigation, Dialog, Portal } from '@skeletonlabs/skeleton-svelte';
 	import { Icon, FaIcon, Status, type IconName } from '@inqbeta/q-ui';
 	import { watch, remembered, resumeSession, type Identity } from '@inqbeta/q-core/passkey';
@@ -497,6 +499,20 @@
 			remembered: !!(identity?.did ?? remembered())
 		});
 		if (to) void goto(to);
+	});
+
+	/*
+	 * A fresh copy opens on set-up (ADR-Q-018 §1). Development only, and asked
+	 * once per load: a copy whose host isn't set up on this computer goes to
+	 * /setup, whatever page was asked for.
+	 */
+	let hostAsked = false;
+	$effect(() => {
+		if (!dev || hostAsked) return;
+		hostAsked = true;
+		void localHost().then((h) => {
+			if (h && !h.mark && location.pathname !== '/setup') void goto('/setup');
+		});
 	});
 
 	/*

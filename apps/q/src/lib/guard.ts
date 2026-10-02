@@ -25,11 +25,11 @@
  */
 
 /** Pages a person may be on with no keys held and nothing remembered. */
-export const OPEN_PATHS = ['/', '/data', '/user', '/contact', '/legal', '/docs', '/link'];
+export const OPEN_PATHS = ['/', '/data', '/user', '/contact', '/legal', '/docs', '/link', '/setup'];
 
 /** Pages anyone may read, shown with a plain header and the footer rather than the dashboard. */
 export function isPublicPage(path: string): boolean {
-	return path === '/contact' || path === '/docs' || path === '/legal' || path.startsWith('/legal/') || path === '/link' || path.startsWith('/card/');
+	return path === '/setup' || path === '/contact' || path === '/docs' || path === '/legal' || path.startsWith('/legal/') || path === '/link' || path.startsWith('/card/');
 }
 
 /**
@@ -58,6 +58,12 @@ export const OPEN_PREFIXES = ['/c/', '/card/', '/channels/', '/federations/join'
  * the one-time code Google had just handed back, and the page showed nothing.
  * The page exchanges the code first and asks for the passkey itself
  * (routes/channels/google). Found 25 September.
+ */
+
+/*
+ * '/setup' — setting up a fresh copy's host (ADR-Q-018). Its first card makes
+ * the passkey, so it has to be reachable before there is one. Only a
+ * development copy does anything there.
  */
 
 export function isOpenPath(path: string): boolean {

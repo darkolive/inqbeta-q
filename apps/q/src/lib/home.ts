@@ -26,10 +26,16 @@ export interface HomeFile {
 	 * against the federation's signature. Step 3 makes this a signed list.
 	 */
 	services?: { storage?: string; bellboy?: string };
+	/**
+	 * The host's logo (ADR-Q-018 §2), a path on this site with its fingerprint:
+	 * /host/logo.webp?v=<first 12 of its sha256>. Not signed yet; only ever an
+	 * image of the host's own choosing.
+	 */
+	logo?: string;
 }
 
 export type Home =
-	| { ok: true; federation: string; name: string; purpose: string; joinHref: string; until: string; services: { storage?: string; bellboy?: string } }
+	| { ok: true; federation: string; name: string; purpose: string; joinHref: string; until: string; services: { storage?: string; bellboy?: string }; logo?: string; founder: string }
 	| { ok: false; says: string };
 
 /** Read /incubator.json and check it. Never throws. */
@@ -48,7 +54,18 @@ export async function readHome(): Promise<Home> {
 			...(typeof f.services?.storage === 'string' && /^https:\/\//.test(f.services.storage) ? { storage: f.services.storage.replace(/\/$/, '') } : {}),
 			...(typeof f.services?.bellboy === 'string' && /^wss:\/\//.test(f.services.bellboy) ? { bellboy: f.services.bellboy } : {})
 		};
-		return { ok: true, federation: f.federation, name: inv.founding.name, purpose: inv.manifest.constitution.purpose, joinHref: `/federations/join#${f.invitation}`, until: f.until, services };
+		const logo = typeof f.logo === 'string' && /^\/host\/logo\.(webp|png|jpg|svg)(\?v=[0-9a-f]+)?$/.test(f.logo) ? f.logo : undefined;
+		return {
+			ok: true,
+			federation: f.federation,
+			name: inv.founding.name,
+			purpose: inv.manifest.constitution.purpose,
+			joinHref: `/federations/join#${f.invitation}`,
+			until: f.until,
+			services,
+			...(logo ? { logo } : {}),
+			founder: inv.founding.root
+		};
 	} catch {
 		return { ok: false, says: 'The home federation couldn’t be read.' };
 	}

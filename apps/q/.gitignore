@@ -8,3 +8,6 @@ node_modules
 
 # Folders on your own disk that Write may edit (see local-sites.example.json)
 local-sites.json
+
+# This computer's own host (ADR-Q-018): which host this copy runs, and who founded it.
+host.local.json
