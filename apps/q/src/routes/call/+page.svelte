@@ -8,8 +8,19 @@
 	 * signed. Every press is a receipt in one chain: Call (placed), Join
 	 * (accepted), and End on each side (each person's own closing). Kept in the
 	 * vault as it grows. Who, when, how long — never what was said.
+	 *
+	 * The page's home (2 October 2026): warm and plain. A picture story of how
+	 * a call works, then two tabs. Call: one big Find someone, which opens a
+	 * search of your people, and Your calls underneath. Camera and sound: see
+	 * yourself and test the microphone. The browser is only asked for the
+	 * camera when that tab is opened, or when a call is made or answered —
+	 * never just for arriving here.
 	 */
-	import { onMount } from 'svelte';
+	import { onMount, untrack } from 'svelte';
+	import { Tabs, Dialog, Portal } from '@skeletonlabs/skeleton-svelte';
+	import { goto } from '$app/navigation';
+	import CallStory from '$lib/components/CallStory.svelte';
+	import { callLog, howLong } from '$lib/call-log';
 	import { Page, Section, Status, Empty, Text, Icon } from '@inqbeta/q-ui';
 	import SignIn from '$lib/components/SignIn.svelte';
 	import { watch, openerFor, type Identity } from '@inqbeta/q-core/passkey';
@@ -43,6 +54,36 @@
 	const withDid = $derived(page.url.searchParams.get('with') ?? '');
 	const callee = $derived<Person | undefined>(withDid ? peopleFrom(ledger, identity?.did ?? '').find((p) => p.did === withDid) : undefined);
 	let ringing = $state('');
+
+	/* ---------- the home: find someone, your calls ---------- */
+	let tab = $state('call');
+	let finding = $state(false);
+	let query = $state('');
+	/* Calling someone who isn't in Q yet: the link way. */
+	let linkMode = $state(false);
+	const people = $derived(peopleFrom(ledger, identity?.did ?? ''));
+	const matches = $derived.by(() => {
+		const q = query.trim().toLowerCase();
+		const list = q ? people.filter((p) => p.name.toLowerCase().includes(q) || p.cardName.toLowerCase().includes(q)) : people;
+		return [...list].sort((a, b) => a.name.localeCompare(b.name));
+	});
+	const calls = $derived(callLog(ledger, identity?.did ?? ''));
+	const personOf = (did: string) => people.find((p) => p.did === did);
+	function choose(p: Person) {
+		finding = false;
+		query = '';
+		void goto(`/call?with=${encodeURIComponent(p.did)}`);
+	}
+	function byLink() {
+		finding = false;
+		linkMode = true;
+	}
+	function back() {
+		linkMode = false;
+		sealFor = '';
+		if (page.url.search) void goto('/call');
+	}
+	const when = (at: string) => new Date(at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
 	/* Answering a call that rang in Q: who to send the reply back to. */
 	let answering = $state<{ did: string; inbox?: string; name?: string } | null>(null);
 	$effect(() => {
@@ -106,8 +147,19 @@
 		choice = { ...choice, ...patch };
 		saveChoice($state.snapshot(choice));
 		if (call?.phase === 'live' || call?.phase === 'reconnecting') void swapMidCall(patch);
-		else void open();
+		else if (local) void open();
 	}
+
+	/* The camera is asked for here, on the tab, and let go when you leave it. */
+	$effect(() => {
+		if (call || phase !== 'new') return;
+		if (tab === 'camera' && !flowing) untrack(() => void open());
+		else if (local && !flowing) {
+			stopMeter();
+			stopAll(local);
+			local = null;
+		}
+	});
 
 	/* ---------- the call ---------- */
 	let call = $state<Call | null>(null);
@@ -278,7 +330,10 @@
 		record = null;
 		recordSays = saved = keptAs = '';
 		micOn = camOn = true;
-		void open();
+		linkMode = false;
+		stopAll(local);
+		local = null;
+		if (page.url.search) void goto('/call');
 	}
 
 	function download() {
@@ -352,7 +407,6 @@
 
 	onMount(() => {
 		choice = loadChoice();
-		void open();
 		const refresh = () => void listDevices().then((d) => (devices = d));
 		navigator.mediaDevices?.addEventListener('devicechange', refresh);
 		try {
@@ -378,7 +432,7 @@
 	/* Answered from Q's ring: no second button. Join as soon as the camera's ready. */
 	let autoJoined = false;
 	$effect(() => {
-		if (answering && incoming && local && !call && !autoJoined) {
+		if (answering && incoming && !call && !autoJoined) {
 			autoJoined = true;
 			void join();
 		}
@@ -395,6 +449,8 @@
 	const short = (did: string) => `${did.slice(8, 14)}…${did.slice(-6)}`;
 	const gradeTone = (g: Health['grade']): 'good' | 'needs-you' | 'bad' | 'plain' => (g === 'good' ? 'good' : g === 'fair' ? 'needs-you' : g === 'poor' ? 'bad' : 'plain');
 	const inCall = $derived(phase === 'live' || phase === 'reconnecting');
+	/* Somewhere in making or answering a call, rather than at the page's home. */
+	const flowing = $derived(!!(withDid || linkMode || incoming || inviteLink || replyLink || answering || call));
 	const STEP = { 'call.placed': 'Placed', 'call.accepted': 'Accepted', 'call.ended': 'Closed' } as const;
 	const HOW = { 'hung-up': 'hung up', 'they-left': 'the other side left', dropped: 'connection lost', cancelled: 'cancelled', 'no-answer': 'no answer' } as const;
 	const QUALITIES: { id: Quality; label: string; hint: string }[] = [
@@ -435,6 +491,51 @@
 	</div>
 {/snippet}
 
+{#snippet face(p: { name: string; picture?: string } | undefined)}
+	<span class="size-12 shrink-0 overflow-hidden rounded-full bg-surface-100-900 flex items-center justify-center">
+		{#if p?.picture}<img src={p.picture} alt="" class="size-full object-cover" />{:else}<span class="font-bold opacity-70">{(p?.name ?? '?').slice(0, 1)}</span>{/if}
+	</span>
+{/snippet}
+
+{#snippet check()}
+	<Section title="How you look and sound" description="Only you can see this. What you choose is remembered on this device.">
+		<div class="grid gap-4 md:grid-cols-2">
+			<div class="relative aspect-video overflow-hidden rounded-container bg-surface-900">
+				{#if !inCall}
+					<!-- svelte-ignore a11y_media_has_caption -->
+					<video bind:this={selfEl} autoplay playsinline muted class="h-full w-full object-cover {choice.quality === 'voice' ? 'hidden' : ''}" style="transform: scaleX(-1)"></video>
+				{/if}
+				{#if choice.quality === 'voice' || !local}
+					<div class="absolute inset-0 flex flex-col items-center justify-center gap-2 text-surface-300">
+						<Icon name={opening ? 'sync' : choice.quality === 'voice' ? 'mic' : 'video-off'} size={36} />
+						<span class="text-sm">{opening ? 'Opening…' : choice.quality === 'voice' ? 'Voice only' : 'No picture yet'}</span>
+					</div>
+				{/if}
+			</div>
+			<div class="space-y-4">
+				{@render deviceChoices()}
+				<fieldset>
+					<legend class="label-text mb-1">Quality</legend>
+					<div class="flex flex-wrap gap-1" role="radiogroup">
+						{#each QUALITIES as q (q.id)}
+							<button role="radio" aria-checked={choice.quality === q.id} title={q.hint} class="btn btn-sm {choice.quality === q.id ? 'preset-filled-primary-500' : 'preset-tonal'}" onclick={() => pick({ quality: q.id })}>{q.label}</button>
+						{/each}
+					</div>
+				</fieldset>
+				<label class="flex items-start gap-2 text-sm">
+					<input type="checkbox" class="checkbox mt-0.5" checked={choice.cleanup} onchange={(e) => pick({ cleanup: e.currentTarget.checked })} />
+					<span>Voice clean-up — removes echo and background noise. Turn off only to play music.</span>
+				</label>
+			</div>
+		</div>
+		{#if mediaError}
+			<p class="mt-3"><Status tone="bad">Camera / microphone</Status> {mediaError}</p>
+			<button class="btn btn-sm preset-tonal mt-2" onclick={() => void open()}>Try again</button>
+		{/if}
+		<p class="mt-3 text-sm text-surface-700-300">For the clearest sound use headphones: then nothing you hear can reach your microphone.</p>
+	</Section>
+{/snippet}
+
 {#if inCall}
 	<!-- In the call: the whole screen, nothing else. -->
 	<div class="fixed inset-0 z-50 flex flex-col bg-surface-950 text-surface-50">
@@ -473,7 +574,7 @@
 	</div>
 {/if}
 
-<Page title="Video call" lead="Straight from your device to theirs, encrypted to the two of you. Calling, joining and each of you leaving is a signed receipt, chained together: who, when and how long — never what was said.">
+<Page title="Video call" lead="Call the people you know, face to face. Only the two of you can hear.">
 	{#if !identity}
 		<SignIn />
 	{:else if phase === 'ended'}
@@ -502,49 +603,69 @@
 				<button class="btn preset-filled-primary-500 mt-3" onclick={reset}>Start again</button>
 			{/if}
 		</Section>
-	{:else}
-		<Section title="Check how you look and sound" description="Choose here before anyone joins. What you pick is remembered on this device.">
-			<div class="grid gap-4 md:grid-cols-2">
-				<div class="relative aspect-video overflow-hidden rounded-container bg-surface-900">
-					{#if !inCall}
-						<!-- svelte-ignore a11y_media_has_caption -->
-						<video bind:this={selfEl} autoplay playsinline muted class="h-full w-full object-cover {choice.quality === 'voice' ? 'hidden' : ''}" style="transform: scaleX(-1)"></video>
-					{/if}
-					{#if choice.quality === 'voice' || !local}
-						<div class="absolute inset-0 flex flex-col items-center justify-center gap-2 text-surface-300">
-							<Icon name={opening ? 'sync' : choice.quality === 'voice' ? 'mic' : 'video-off'} size={36} />
-							<span class="text-sm">{opening ? 'Opening…' : choice.quality === 'voice' ? 'Voice only' : 'No picture yet'}</span>
-						</div>
-					{/if}
-				</div>
-				<div class="space-y-4">
-					{@render deviceChoices()}
-					<fieldset>
-						<legend class="label-text mb-1">Quality</legend>
-						<div class="flex flex-wrap gap-1" role="radiogroup">
-							{#each QUALITIES as q (q.id)}
-								<button role="radio" aria-checked={choice.quality === q.id} title={q.hint} class="btn btn-sm {choice.quality === q.id ? 'preset-filled-primary-500' : 'preset-tonal'}" onclick={() => pick({ quality: q.id })}>{q.label}</button>
-							{/each}
-						</div>
-					</fieldset>
-					<label class="flex items-start gap-2 text-sm">
-						<input type="checkbox" class="checkbox mt-0.5" checked={choice.cleanup} onchange={(e) => pick({ cleanup: e.currentTarget.checked })} />
-						<span>Voice clean-up — removes echo and background noise. Turn off only to play music.</span>
-					</label>
-				</div>
-			</div>
-			{#if mediaError}
-				<p class="mt-3"><Status tone="bad">Camera / microphone</Status> {mediaError}</p>
-				<button class="btn btn-sm preset-tonal mt-2" onclick={() => void open()}>Try again</button>
-			{/if}
-			<p class="mt-3 text-sm text-surface-700-300">For the clearest sound use headphones: then nothing you hear can reach your microphone.</p>
-		</Section>
+	{:else if !flowing}
+		<CallStory />
 
+		<div class="mt-8">
+			<Tabs value={tab} onValueChange={(d) => (tab = d.value)}>
+				<Tabs.List class="mb-6">
+					<Tabs.Trigger value="call" class="min-h-11">Call</Tabs.Trigger>
+					<Tabs.Trigger value="camera" class="min-h-11">Camera and sound</Tabs.Trigger>
+					<Tabs.Indicator />
+				</Tabs.List>
+
+				<Tabs.Content value="call">
+					<div class="card preset-tonal-primary p-6 sm:p-8 flex flex-col items-center gap-4 text-center max-w-3xl">
+						<Icon name="video" size={36} />
+						<p class="h3">Who would you like to call?</p>
+						<button type="button" class="btn btn-lg preset-filled-primary-500 min-h-11" onclick={() => (finding = true)}>
+							<Icon name="search" size={20} stroke={2.5} /> Find someone
+						</button>
+					</div>
+
+					<Section title="Your calls">
+						{#if calls.length}
+							<ul class="card preset-outlined-surface-200-800 bg-surface-50-950 divide-y divide-surface-200-800 overflow-hidden max-w-3xl">
+								{#each calls as c (c.call)}
+									{@const p = personOf(c.other)}
+									<li class="flex items-center gap-4 p-4">
+										{@render face(p)}
+										<span class="flex-1 min-w-0">
+											<span class="block font-semibold truncate">{p?.name ?? 'Someone'}</span>
+											<span class="block text-sm text-surface-700-300">
+												{#if !c.answered}{c.outgoing ? 'No answer' : 'Missed'}{:else}{c.outgoing ? 'You called' : 'They called'} · {howLong(c.seconds)}{/if}
+												· {when(c.at)}
+											</span>
+										</span>
+										{#if p}
+											<a class="btn-icon preset-tonal-primary" href="/call?with={encodeURIComponent(p.did)}" aria-label="Call {p.name}"><Icon name="video" size={20} /></a>
+										{/if}
+									</li>
+								{/each}
+							</ul>
+						{:else}
+							<Empty icon="video" title="No calls yet" description="When you call someone, or they call you, it’s listed here: who, when, and how long." />
+						{/if}
+					</Section>
+				</Tabs.Content>
+
+				<Tabs.Content value="camera">
+					{@render check()}
+				</Tabs.Content>
+			</Tabs>
+		</div>
+	{:else}
+		{#if phase === 'new' && !inviteLink && !replyLink}
+			<button type="button" class="btn btn-sm preset-tonal mb-4" onclick={back}><Icon name="arrowLeft" size={16} /> Back</button>
+		{/if}
+		{#if mediaError}
+			<p class="mb-3"><Status tone="bad">Camera / microphone</Status> {mediaError}</p>
+		{/if}
 		{#if incoming && !replyLink}
 			<Section title="You have been invited">
 				<p><Status tone="good">Checked</Status> {incoming.says}</p>
 				<p class="mt-1 text-sm">From <Text role="token">{short(incoming.h.step.did)}</Text>{incoming.h.step.content.to ? ' · made for you' : ''}</p>
-				<button class="btn preset-filled-primary-500 mt-3" disabled={!local} onclick={() => void join()}><Icon name="video" size={18} /> Join</button>
+				<button class="btn preset-filled-primary-500 mt-3" onclick={() => void join()}><Icon name="video" size={18} /> Join</button>
 			</Section>
 		{:else if replyLink && answering?.inbox && !problem}
 			<Section title="Connecting to {answering.name ?? 'them'}…" description="You answered. Your reply has gone back to them through Q, and the call starts the moment it reaches them.">
@@ -582,13 +703,16 @@
 		{:else}
 			<Section title={callee ? `Call ${callee.name}` : 'Start a call'}>
 				{#if callee}
-					<p>It rings on {callee.name}’s Q. When they answer, the call starts by itself.</p>
+					<div class="flex items-center gap-4">
+						{@render face(callee)}
+						<p>It rings on {callee.name}’s Q. When they answer, the call starts by itself. Your browser will ask to use your camera and microphone.</p>
+					</div>
 				{:else}
 					<label class="label"><span class="label-text">Their Q identity (optional) — seals the link so only they can open it</span>
 						<input class="input font-mono text-xs" bind:value={sealFor} />
 					</label>
 				{/if}
-				<button class="btn preset-filled-primary-500 mt-3" disabled={!local} onclick={() => void startCall()}><Icon name="video" size={18} /> Call</button>
+				<button class="btn btn-lg preset-filled-primary-500 mt-4" disabled={opening} onclick={() => void startCall()}><Icon name="video" size={18} /> Call</button>
 			</Section>
 		{/if}
 
@@ -605,3 +729,43 @@
 		</Section>
 	{/if}
 </Page>
+
+<!-- Find someone: a simple search of your people. -->
+<Dialog open={finding} onOpenChange={(e) => (finding = e.open)}>
+	<Portal>
+		<Dialog.Backdrop class="fixed inset-0 z-50 bg-surface-50-950/50" />
+		<Dialog.Positioner class="fixed inset-0 z-50 flex items-start justify-center p-4 pt-[10vh]">
+			<Dialog.Content class="card bg-surface-50-950 w-full max-w-md p-4 sm:p-6 space-y-4 shadow-xl">
+				<header class="flex items-center justify-between gap-2">
+					<Dialog.Title class="h4">Find someone to call</Dialog.Title>
+					<button type="button" class="btn-icon preset-tonal" aria-label="Close" onclick={() => (finding = false)}><Icon name="close" size={18} /></button>
+				</header>
+				<label class="label">
+					<span class="label-text">Their name</span>
+					<input class="input" type="search" autocomplete="off" bind:value={query} />
+				</label>
+				{#if matches.length}
+					<ul class="max-h-[50vh] overflow-y-auto divide-y divide-surface-200-800">
+						{#each matches as p (p.did)}
+							<li>
+								<button type="button" class="w-full flex items-center gap-3 p-2 rounded-base hover:preset-tonal text-left min-h-11" onclick={() => choose(p)}>
+									{@render face(p)}
+									<span class="flex-1 min-w-0">
+										<span class="block font-semibold truncate">{p.name}</span>
+										<span class="block text-sm text-surface-700-300 truncate">{p.cardName}</span>
+									</span>
+									<Icon name="video" size={20} />
+								</button>
+							</li>
+						{/each}
+					</ul>
+				{:else if people.length}
+					<p class="text-sm text-surface-700-300">Nobody by that name in your people.</p>
+				{:else}
+					<p class="text-sm text-surface-700-300">Your people appear here once you’ve swapped cards with someone.</p>
+				{/if}
+				<button type="button" class="btn btn-sm preset-tonal w-full" onclick={byLink}>Someone not in Q yet? Make a call link</button>
+			</Dialog.Content>
+		</Dialog.Positioner>
+	</Portal>
+</Dialog>
