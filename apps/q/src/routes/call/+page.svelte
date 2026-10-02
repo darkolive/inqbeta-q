@@ -572,7 +572,7 @@
 					{#if canShare()}<button class="btn preset-tonal" onclick={() => void share(inviteLink, 'Join my Q call')}>Share</button>{/if}
 				</div>
 				<label class="label mt-4"><span class="label-text">Their reply — paste the link they send back</span>
-					<textarea class="textarea font-mono text-xs" rows="3" bind:value={pasted} placeholder="…/call#a=…"></textarea>
+					<textarea class="textarea font-mono text-xs" rows="3" bind:value={pasted}></textarea>
 				</label>
 				<div class="mt-2 flex gap-2">
 					<button class="btn preset-filled-primary-500" disabled={!pasted.trim() || phase === 'connecting'} onclick={() => void connectReply()}>{phase === 'connecting' ? 'Connecting…' : 'Connect'}</button>
@@ -585,7 +585,7 @@
 					<p>It rings on {callee.name}’s Q. When they answer, the call starts by itself.</p>
 				{:else}
 					<label class="label"><span class="label-text">Their Q identity (optional) — seals the link so only they can open it</span>
-						<input class="input font-mono text-xs" bind:value={sealFor} placeholder="did:key:z6Mk…" />
+						<input class="input font-mono text-xs" bind:value={sealFor} />
 					</label>
 				{/if}
 				<button class="btn preset-filled-primary-500 mt-3" disabled={!local} onclick={() => void startCall()}><Icon name="video" size={18} /> Call</button>

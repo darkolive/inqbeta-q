@@ -149,12 +149,12 @@
 			<div class="flex flex-col gap-4 max-w-xl">
 				<label class="label">
 					<span class="label-text font-bold">What’s the name of your host?</span>
-					<input class="input preset-outlined-surface-300-700 min-h-11" bind:value={name} placeholder="Incubator" maxlength="60" />
+					<input class="input min-h-11" bind:value={name} maxlength="60" />
 					<span class="text-sm opacity-70">Ours is Incubator. Members see this when they join.</span>
 				</label>
 				<label class="label">
 					<span class="label-text font-bold">What is it for, in one sentence?</span>
-					<input class="input preset-outlined-surface-300-700 min-h-11" bind:value={purpose} placeholder="Where our members keep their evidence and meet." maxlength="160" />
+					<input class="input min-h-11" bind:value={purpose} maxlength="160" />
 				</label>
 				<div class="flex flex-col gap-2">
 					<span class="font-bold">Your logo</span>
@@ -177,7 +177,7 @@
 			<div class="flex flex-col gap-4 max-w-xl">
 				<label class="label">
 					<span class="label-text font-bold">Everyone who joins signs this</span>
-					<textarea class="textarea preset-outlined-surface-300-700" rows="4" bind:value={agreement}></textarea>
+					<textarea class="textarea" rows="4" bind:value={agreement}></textarea>
 					<span class="text-sm opacity-70">This is a starting draft. Change it to your own words.</span>
 				</label>
 				<div class="card preset-tonal-surface p-4 flex flex-col gap-2">

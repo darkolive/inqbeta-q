@@ -195,7 +195,7 @@
 			<div class="panel-quiet stack-tight">
 				<label class="block">
 					<span class="text-sm text-surface-900-100">A name for it in your keychain</span>
-					<input class="input mt-1" bind:value={label} placeholder="e.g. Darren — Q" />
+					<input class="input mt-1" bind:value={label} />
 				</label>
 				<p class="hint">
 					{place === 'device'

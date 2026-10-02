@@ -147,7 +147,7 @@
 					<div class="mt-4 space-y-2">
 						<input 
 							type="email" 
-							placeholder="your@email.com"
+ aria-label="Email address"
 							bind:value={setupEmail}
 							class="input input-sm"
 						/>
@@ -193,7 +193,7 @@
 							autocomplete="email"
 							class="input mt-1"
 							bind:value={newAddress}
-							placeholder="you@example.com"
+ aria-label="Email address"
 							disabled={claiming}
 							onkeydown={(e) => e.key === 'Enter' && void askForChannel()}
 						/>

@@ -663,7 +663,7 @@
 													{#if editing === x.name}
 														<div class="flex flex-wrap items-center gap-2">
 															<input
-																class="input preset-outlined-surface-300-700 min-h-11 flex-1 min-w-48 {x.secret ? 'role-token' : ''}"
+																class="input min-h-11 flex-1 min-w-48 {x.secret ? 'role-token' : ''}"
 																type={x.secret ? 'password' : 'text'}
 																autocomplete="off"
 																spellcheck="false"
@@ -709,7 +709,7 @@
 						<div class="flex flex-col gap-4 sm:flex-row sm:items-end">
 							<label class="label">
 								<span class="label-text">Who it’s for (a note, optional)</span>
-								<input class="input" type="text" bind:value={inviteFor} placeholder="Theo" />
+								<input class="input" type="text" bind:value={inviteFor} />
 							</label>
 							<label class="label max-w-40">
 								<span class="label-text">Good for</span>
@@ -859,11 +859,11 @@
 				{#if own}
 					<Section title="Tell your members" description="An announcement is signed by the federation and stays in members’ bells, read or not, until its time is over.">
 						<div class="flex flex-col gap-4 max-w-2xl">
-							<label class="label"><span class="label-text">Title</span><input class="input" bind:value={annTitle} placeholder="We’ve just done a big update" /></label>
+							<label class="label"><span class="label-text">Title</span><input class="input" bind:value={annTitle} /></label>
 							<label class="label"><span class="label-text">What you want to say</span><textarea class="textarea" rows="4" bind:value={annSays}></textarea></label>
 							<div class="grid gap-4 sm:grid-cols-2">
-								<label class="label"><span class="label-text">A button (optional)</span><input class="input" bind:value={annLabel} placeholder="Try it" /></label>
-								<label class="label"><span class="label-text">Where it goes</span><input class="input" bind:value={annHref} placeholder="/cards" /></label>
+								<label class="label"><span class="label-text">A button (optional)</span><input class="input" bind:value={annLabel} /></label>
+								<label class="label"><span class="label-text">Where it goes</span><input class="input" bind:value={annHref} /></label>
 							</div>
 							<label class="label max-w-48"><span class="label-text">Shows for</span>
 								<select class="select" bind:value={annDays}>
@@ -1024,7 +1024,7 @@
 								{#if addingRelayTo === n.mesh}
 									<div class="card preset-tonal p-3 flex flex-col gap-2">
 										<p class="text-sm">The switchboard is on the node’s <strong>public</strong> address, so callers anywhere can reach it.</p>
-										<label class="label max-w-sm"><span class="label-text">Its public address</span><input class="input role-token" type="text" bind:value={relayHost} placeholder="135.181.156.21" /></label>
+										<label class="label max-w-sm"><span class="label-text">Its public address</span><input class="input role-token" type="text" bind:value={relayHost} /></label>
 										<div class="flex flex-wrap gap-2">
 											<button type="button" class="btn btn-sm preset-filled-primary-500 min-h-11" disabled={busy !== null || !relayHost.trim()} onclick={() => void addSwitchboard(n)}>{busy === 'node' ? 'Listing…' : 'Add it'}</button>
 											<button type="button" class="btn btn-sm preset-tonal min-h-11" onclick={() => (addingRelayTo = null)}>Not now</button>
@@ -1043,15 +1043,15 @@
 							<p class="font-bold">List a node</p>
 							<label class="label">
 								<span class="label-text">What you call it</span>
-								<input class="input" type="text" bind:value={nodeCalled} placeholder="Hetzner, Helsinki" />
+								<input class="input" type="text" bind:value={nodeCalled} />
 							</label>
 							<label class="label">
 								<span class="label-text">Its address on the mesh</span>
-								<input class="input role-token" type="text" bind:value={nodeMesh} placeholder="10.42.0.1" />
+								<input class="input role-token" type="text" bind:value={nodeMesh} />
 							</label>
 							<label class="label">
 								<span class="label-text">If it’s the mesh’s lighthouse, its public address (optional)</span>
-								<input class="input role-token" type="text" bind:value={nodeLighthouse} placeholder="135.181.156.21:4242" />
+								<input class="input role-token" type="text" bind:value={nodeLighthouse} />
 							</label>
 							<fieldset class="flex flex-wrap gap-4">
 								<legend class="label-text mb-1">What it runs</legend>
@@ -1063,7 +1063,7 @@
 							{#if nodeHasRelay}
 								<label class="label max-w-sm">
 									<span class="label-text">The switchboard’s public address (blank: the lighthouse’s)</span>
-									<input class="input role-token" type="text" bind:value={nodeRelayHost} placeholder={hostOf(nodeLighthouse) || '135.181.156.21'} />
+									<input class="input role-token" type="text" bind:value={nodeRelayHost} />
 								</label>
 							{/if}
 							<div class="flex flex-wrap gap-3">

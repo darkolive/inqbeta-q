@@ -220,7 +220,7 @@
 				{#if mode === 'new'}
 					<label class="label w-full text-left">
 						<span class="label-text font-semibold">{t('signin.nameIt')}</span>
-						<input class="input text-lg" bind:value={name} placeholder={t('signin.namePlaceholder')} autocomplete="off" />
+						<input class="input text-lg" bind:value={name} autocomplete="off" />
 					</label>
 				{/if}
 				<!--

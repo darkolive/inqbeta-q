@@ -219,13 +219,13 @@
 					</label>
 				</div>
 				<div class="mt-10 grid gap-4 sm:grid-cols-2">
-					<label class="label"><span class="label-text">First name</span><input class="input preset-outlined-surface-300-700" bind:value={values['q:person/first']} autocomplete="given-name" /></label>
-					<label class="label"><span class="label-text">Last name</span><input class="input preset-outlined-surface-300-700" bind:value={values['q:person/last']} autocomplete="family-name" /></label>
+					<label class="label"><span class="label-text">First name</span><input class="input" bind:value={values['q:person/first']} autocomplete="given-name" /></label>
+					<label class="label"><span class="label-text">Last name</span><input class="input" bind:value={values['q:person/last']} autocomplete="family-name" /></label>
 				</div>
 				<div class="grid gap-4 sm:grid-cols-3">
-					<label class="label"><span class="label-text">Date of birth</span><input class="input preset-outlined-surface-300-700" type="date" bind:value={values['q:person/birthday']} autocomplete="bday" /></label>
-					<label class="label"><span class="label-text">Gender</span><input class="input preset-outlined-surface-300-700" bind:value={values['q:person/gender']} placeholder="In your own words" /></label>
-					<label class="label"><span class="label-text">Pronouns</span><input class="input preset-outlined-surface-300-700" bind:value={values['q:person/pronouns']} placeholder="she/her, they/them…" /></label>
+					<label class="label"><span class="label-text">Date of birth</span><input class="input" type="date" bind:value={values['q:person/birthday']} autocomplete="bday" /></label>
+					<label class="label"><span class="label-text">Gender</span><input class="input" bind:value={values['q:person/gender']} /></label>
+					<label class="label"><span class="label-text">Pronouns</span><input class="input" bind:value={values['q:person/pronouns']} /></label>
 				</div>
 			</div>
 		</Steps.Content>
@@ -233,12 +233,12 @@
 		<!-- 2. Contact -->
 		<Steps.Content index={1}>
 			<div class="flex flex-col gap-4 max-w-xl">
-				<label class="label"><span class="label-text">Email</span><input class="input preset-outlined-surface-300-700" type="email" bind:value={values['q:person/email']} autocomplete="email" /></label>
-				<label class="label"><span class="label-text">Phone</span><input class="input preset-outlined-surface-300-700" type="tel" bind:value={values['q:person/phone']} autocomplete="tel" placeholder="+44 7…" /></label>
+				<label class="label"><span class="label-text">Email</span><input class="input" type="email" bind:value={values['q:person/email']} autocomplete="email" /></label>
+				<label class="label"><span class="label-text">Phone</span><input class="input" type="tel" bind:value={values['q:person/phone']} autocomplete="tel" /></label>
 				<div class="flex flex-col gap-2">
 					<label class="flex items-center gap-3 min-h-11"><input type="checkbox" class="checkbox" bind:checked={sameAsPhone} /> My WhatsApp is the same number</label>
 					{#if !sameAsPhone}
-						<label class="label"><span class="label-text">WhatsApp</span><input class="input preset-outlined-surface-300-700" type="tel" bind:value={values['q:person/whatsapp']} placeholder="+44 7…" /></label>
+						<label class="label"><span class="label-text">WhatsApp</span><input class="input" type="tel" bind:value={values['q:person/whatsapp']} /></label>
 					{/if}
 				</div>
 			</div>
@@ -247,13 +247,13 @@
 		<!-- 3. Home: the address in its own fields, and a pin -->
 		<Steps.Content index={2}>
 			<div class="flex flex-col gap-4 max-w-xl">
-				<label class="label"><span class="label-text">First line</span><input class="input preset-outlined-surface-300-700" bind:value={values['q:address/line1']} autocomplete="address-line1" /></label>
-				<label class="label"><span class="label-text">Second line</span><input class="input preset-outlined-surface-300-700" bind:value={values['q:address/line2']} autocomplete="address-line2" /></label>
+				<label class="label"><span class="label-text">First line</span><input class="input" bind:value={values['q:address/line1']} autocomplete="address-line1" /></label>
+				<label class="label"><span class="label-text">Second line</span><input class="input" bind:value={values['q:address/line2']} autocomplete="address-line2" /></label>
 				<div class="grid gap-4 sm:grid-cols-2">
-					<label class="label"><span class="label-text">Town or city</span><input class="input preset-outlined-surface-300-700" bind:value={values['q:address/town']} autocomplete="address-level2" /></label>
-					<label class="label"><span class="label-text">County or region</span><input class="input preset-outlined-surface-300-700" bind:value={values['q:address/county']} autocomplete="address-level1" /></label>
-					<label class="label"><span class="label-text">Postcode</span><input class="input preset-outlined-surface-300-700" bind:value={values['q:address/postcode']} autocomplete="postal-code" /></label>
-					<label class="label"><span class="label-text">Country</span><input class="input preset-outlined-surface-300-700" bind:value={values['q:address/country']} autocomplete="country-name" /></label>
+					<label class="label"><span class="label-text">Town or city</span><input class="input" bind:value={values['q:address/town']} autocomplete="address-level2" /></label>
+					<label class="label"><span class="label-text">County or region</span><input class="input" bind:value={values['q:address/county']} autocomplete="address-level1" /></label>
+					<label class="label"><span class="label-text">Postcode</span><input class="input" bind:value={values['q:address/postcode']} autocomplete="postal-code" /></label>
+					<label class="label"><span class="label-text">Country</span><input class="input" bind:value={values['q:address/country']} autocomplete="country-name" /></label>
 				</div>
 				<div class="card preset-tonal-surface p-4 flex flex-col gap-3">
 					<p class="font-bold flex items-center gap-2"><Icon name="map" /> A pin for directions</p>
@@ -275,7 +275,7 @@
 		<Steps.Content index={3}>
 			<div class="grid gap-4 sm:grid-cols-2 max-w-xl">
 				{#each SOCIALS as so (so.kind)}
-					<label class="label"><span class="label-text">{so.label}</span><input class="input preset-outlined-surface-300-700" bind:value={values[`q:social/${so.kind}`]} placeholder={so.hint} autocapitalize="off" /></label>
+					<label class="label"><span class="label-text">{so.label}</span><input class="input" bind:value={values[`q:social/${so.kind}`]} autocapitalize="off" /></label>
 				{/each}
 			</div>
 		</Steps.Content>
@@ -307,12 +307,12 @@
 							<label class="label">
 								<span class="label-text">{p.label}</span>
 								{#if p.part === 'type'}
-									<select class="select preset-outlined-surface-300-700" bind:value={adding.type}>
+									<select class="select" bind:value={adding.type}>
 										<option value="">Choose…</option>
 										{#each COMPANY_TYPES as ct (ct)}<option value={ct}>{ct}</option>{/each}
 									</select>
 								{:else}
-									<input class="input preset-outlined-surface-300-700" bind:value={adding[p.part]} placeholder={p.hint ?? ''} type={p.part === 'email' ? 'email' : p.part === 'phone' ? 'tel' : 'text'} />
+									<input class="input" bind:value={adding[p.part]} type={p.part === 'email' ? 'email' : p.part === 'phone' ? 'tel' : 'text'} />
 								{/if}
 							</label>
 						{/each}

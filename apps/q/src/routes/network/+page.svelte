@@ -262,7 +262,7 @@
 				<div class="card preset-outlined-surface-200-800 bg-surface-50-950 mt-3 flex flex-col gap-3 p-4">
 					<label class="label">
 						<span class="label-text">What do you call it?</span>
-						<input class="input" bind:value={newName} placeholder="Flash drive 2026" />
+						<input class="input" bind:value={newName} />
 					</label>
 					<label class="label">
 						<span class="label-text">What kind of place is it?</span>

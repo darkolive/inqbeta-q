@@ -29,10 +29,10 @@
 	{#if project}
 		<fieldset class="grid gap-3 sm:grid-cols-2">
 			<legend class="label-text mb-1">Credits</legend>
-			<label class="label"><span class="label-text text-xs">Our role</span><input class="input input-sm" bind:value={form.role} placeholder="Production Management" /></label>
+			<label class="label"><span class="label-text text-xs">Our role</span><input class="input input-sm" bind:value={form.role} /></label>
 			<label class="label"><span class="label-text text-xs">Where</span><input class="input input-sm" bind:value={form.location} /></label>
-			<label class="label"><span class="label-text text-xs">With</span><input class="input input-sm" bind:value={form.partner} placeholder="Walk The Plank / Unboxed" /></label>
-			<label class="label"><span class="label-text text-xs">When, as shown</span><input class="input input-sm" bind:value={form.dateShown} placeholder="July – September 2022" /></label>
+			<label class="label"><span class="label-text text-xs">With</span><input class="input input-sm" bind:value={form.partner} /></label>
+			<label class="label"><span class="label-text text-xs">When, as shown</span><input class="input input-sm" bind:value={form.dateShown} /></label>
 		</fieldset>
 
 		<div class="grid gap-3 sm:grid-cols-[auto_1fr]">

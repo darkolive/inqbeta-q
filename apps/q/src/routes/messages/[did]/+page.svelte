@@ -94,10 +94,10 @@
 		<!-- Write. Enter sends; Shift+Enter is a new line. -->
 		<form class="flex items-end gap-2" onsubmit={(e) => { e.preventDefault(); void send(); }}>
 			<textarea
-				class="textarea preset-outlined-surface-300-700 flex-1"
+				class="textarea flex-1"
 				rows="2"
 				bind:value={text}
-				placeholder="Write to {person.name.split(' ')[0]}…"
+ aria-label="Write to {person.name.split(' ')[0]}"
 				aria-label="Your message"
 				onkeydown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send(); } }}
 			></textarea>

@@ -87,7 +87,7 @@
 					<textarea
 						class="textarea mt-2"
 						rows="3"
-						placeholder="One per line"
+ aria-label="One per line"
 						value={(Array.isArray(values[q.id]) ? (values[q.id] as string[]) : []).join('\n')}
 						oninput={(e) => put(q.id, e.currentTarget.value.split('\n').map((s) => s.trim()).filter(Boolean))}
 					></textarea>

@@ -140,7 +140,7 @@
 									<summary class="cursor-pointer">Keep a Vercel token in your vault instead</summary>
 									<p class="mt-2">Make one at vercel.com → Account settings → Tokens, scoped to the team the site is in. It is sealed to your passkey, so only you can open it — and it goes with the site if you hand the site on.</p>
 									<div class="mt-2 flex flex-wrap gap-2">
-										<input class="input input-sm min-w-64 flex-1" type="password" autocomplete="off" placeholder="Vercel token" bind:value={tokens[record.founding.site]} />
+										<input class="input input-sm min-w-64 flex-1" type="password" autocomplete="off" aria-label="Vercel token" bind:value={tokens[record.founding.site]} />
 										<button class="btn btn-sm preset-filled-primary-500" disabled={!tokens[record.founding.site]} onclick={() => void keepToken(record)}>Seal and keep it</button>
 									</div>
 									{#if tokenSays[record.founding.site]}<p class="mt-1">{tokenSays[record.founding.site]}</p>{/if}
@@ -169,8 +169,8 @@
 
 		<Section title="Found a site" description="You sign it into being, and so does its new key. Nothing is sent anywhere.">
 			<div class="grid gap-3 sm:grid-cols-2">
-				<label class="label"><span class="label-text">What it is called</span><input class="input" bind:value={name} placeholder="Dark Olive" /></label>
-				<label class="label"><span class="label-text">Its domain</span><input class="input" bind:value={domain} placeholder="darkolive.co.uk" /></label>
+				<label class="label"><span class="label-text">What it is called</span><input class="input" bind:value={name} /></label>
+				<label class="label"><span class="label-text">Its domain</span><input class="input" bind:value={domain} /></label>
 			</div>
 			<p class="hint mt-1">Its own name — darkolive.co.uk — even if that does not point at the new site yet. Not a link your host gave you.</p>
 			{#if hostedAddress(domain.trim().toLowerCase().replace(/^https?:\/\//, '').replace(/\/.*$/, ''))}

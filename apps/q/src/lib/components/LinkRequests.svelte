@@ -123,7 +123,7 @@
 <div class="stack-tight">
 	<label class="label">
 		<span class="label-text">Paste a link request</span>
-		<textarea class="textarea role-token" rows="3" bind:value={text} placeholder="C…  (the line of text the site showed you)"></textarea>
+		<textarea class="textarea role-token" rows="3" bind:value={text}></textarea>
 	</label>
 	<div class="actions">
 		<button type="button" class="btn btn-sm preset-outlined-surface-500" disabled={!text.trim()} onclick={() => void read(text)}>Check it</button>

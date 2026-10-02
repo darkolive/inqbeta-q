@@ -106,7 +106,7 @@
 			<div class="grid gap-3 sm:grid-cols-2">
 				<label class="label">
 					<span class="label-text">What is it called?</span>
-					<input class="input" bind:value={newLabel} placeholder="Shoe size, Instagram, Allotment number…" />
+					<input class="input" bind:value={newLabel} />
 				</label>
 				<label class="label">
 					<span class="label-text">What kind of thing?</span>

@@ -180,7 +180,7 @@ Anyone holding it can sign as you. Keep it offline, somewhere safe. Never photog
 				</p>
 				<label class="label">
 					<span class="text-sm">What to call it</span>
-					<input class="input" placeholder={adding === 'security-key' ? 'YubiKey on my keys' : 'My iPad'} bind:value={label} />
+					<input class="input" bind:value={label} />
 				</label>
 				<div class="actions">
 					<button type="button" class="btn preset-filled-primary-500" disabled={working} onclick={() => void addKey()}>{working ? 'Working…' : 'Add it'}</button>

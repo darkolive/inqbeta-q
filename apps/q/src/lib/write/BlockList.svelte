@@ -234,7 +234,7 @@
 					<span class="label-text text-xs">Paste its link — YouTube, Vimeo, Dailymotion or SoundCloud</span>
 					<input
 						class="input input-sm"
-						placeholder="https://www.youtube.com/watch?v=…"
+
 						value={links[b.id] ?? current}
 						oninput={(e) => {
 							links[b.id] = e.currentTarget.value;
@@ -270,8 +270,8 @@
 				</select>
 			{:else if b.kind === 'button'}
 				<div class="grid gap-2 sm:grid-cols-2">
-					<label class="label"><span class="label-text text-xs">What it says</span><input class="input input-sm" value={say(b, 'says')} placeholder="See our work" oninput={(e) => set(b, 'says', e.currentTarget.value)} /></label>
-					<label class="label"><span class="label-text text-xs">Where it goes</span><input class="input input-sm" value={say(b, 'to')} placeholder="/our-work or https://…" oninput={(e) => set(b, 'to', e.currentTarget.value)} /></label>
+					<label class="label"><span class="label-text text-xs">What it says</span><input class="input input-sm" value={say(b, 'says')} oninput={(e) => set(b, 'says', e.currentTarget.value)} /></label>
+					<label class="label"><span class="label-text text-xs">Where it goes</span><input class="input input-sm" value={say(b, 'to')} oninput={(e) => set(b, 'to', e.currentTarget.value)} /></label>
 				</div>
 			{:else if b.kind === 'section'}
 				{@const arrange = say(b, 'arrange') || 'grid'}
@@ -281,7 +281,7 @@
 				{:else if arrange === 'disclosure'}
 					<label class="label mb-2">
 						<span class="label-text text-xs">What it says when folded</span>
-						<input class="input input-sm" value={say(b, 'says')} placeholder="Read the full credits" oninput={(e) => set(b, 'says', e.currentTarget.value)} />
+						<input class="input input-sm" value={say(b, 'says')} oninput={(e) => set(b, 'says', e.currentTarget.value)} />
 					</label>
 					<div class="border-l-2 border-surface-300-700 pl-3">
 						<Self bind:blocks={b.children!} {ctx} depth={depth + 1} />

@@ -34,3 +34,45 @@
 	--typo-base--font-family: 'Lexend', 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans SC', 'Microsoft YaHei', system-ui, sans-serif;
 	--typo-heading--font-family: 'Lexend', 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans SC', 'Microsoft YaHei', system-ui, sans-serif;
 }
+
+/*
+ * Fields you type in (Darren, 2 October 2026): "the fields are really hard to
+ * see … can we give input fields a border? Quite thick, not ridiculously
+ * thick, but not faint … brand orange or brand olive green." And no
+ * placeholder words, which look like an answer is already there.
+ *
+ * Every text field, text area and select: 2px in the olive (primary), lighter
+ * in dark mode so it shows against the dark surface; the orange (secondary)
+ * while you're typing in it. Outside any layer on purpose, so it wins over
+ * Skeleton's own field styles everywhere.
+ */
+.input,
+.textarea,
+.select,
+.input-group {
+	border-width: 2px;
+	border-style: solid;
+	border-color: var(--color-primary-500);
+}
+.dark .input,
+.dark .textarea,
+.dark .select,
+.dark .input-group {
+	border-color: var(--color-primary-300);
+}
+.input:focus,
+.input:focus-visible,
+.textarea:focus,
+.textarea:focus-visible,
+.select:focus,
+.select:focus-visible,
+.input-group:focus-within {
+	border-color: var(--color-secondary-500);
+	outline: 2px solid var(--color-secondary-500);
+	outline-offset: 1px;
+}
+.input:disabled,
+.textarea:disabled,
+.select:disabled {
+	border-color: var(--color-surface-400);
+}

@@ -168,11 +168,11 @@
 			<div class="flex flex-col gap-4">
 				<label class="label">
 					<span class="label-text">Name</span>
-					<input class="input" type="text" bind:value={draft.name} placeholder="Wem Stamp Club" />
+					<input class="input" type="text" bind:value={draft.name} />
 				</label>
 				<label class="label">
 					<span class="label-text">What it is for</span>
-					<input class="input" type="text" bind:value={draft.purpose} placeholder="Swapping and looking after stamps." />
+					<input class="input" type="text" bind:value={draft.purpose} />
 				</label>
 			</div>
 		</Section>

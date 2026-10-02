@@ -46,7 +46,7 @@
 					type="email"
 					required
 					autocomplete="email"
-					placeholder={t('beta.email')}
+					aria-label={t('beta.email')}
 					bind:value={email}
 					disabled={stage === 'sending'}
 				/>

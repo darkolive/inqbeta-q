@@ -387,7 +387,7 @@
 							<option value="projects">Project (Our work)</option>
 						</select>
 					</label>
-					<label class="label min-w-64 flex-1"><span class="label-text">Title</span><input class="input" bind:value={newTitle} placeholder="Ten years, and the part that comes next" /></label>
+					<label class="label min-w-64 flex-1"><span class="label-text">Title</span><input class="input" bind:value={newTitle} /></label>
 					<button class="btn preset-filled-primary-500" disabled={!newTitle.trim()} onclick={startNew}>Start writing</button>
 				</div>
 				{#if newTitle.trim()}<p class="hint mt-2">Its address will be <Text role="token">{(newSection === 'posts' ? '/blog/' : '/our-work/') + slugOf(newTitle)}</Text></p>{/if}

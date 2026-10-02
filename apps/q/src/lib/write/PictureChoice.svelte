@@ -45,7 +45,7 @@
 {#if open}
 	<div class="mt-2 rounded-base border border-surface-200-800 p-2">
 		<div class="mb-2 flex items-center gap-2">
-			<input class="input input-sm" placeholder="Find by name or project — e.g. lantern, aura" bind:value={filter} />
+			<input class="input input-sm" aria-label="Find by name or project — e.g. lantern, aura" bind:value={filter} />
 			<button type="button" class="btn btn-sm preset-tonal" onclick={() => (open = false)}>Close</button>
 		</div>
 		<div class="grid max-h-80 grid-cols-3 gap-2 overflow-y-auto sm:grid-cols-4 lg:grid-cols-6">

@@ -171,7 +171,7 @@
 			<div class="flex gap-2">
 				<input
 					type="search"
-					placeholder="Search receipts..."
+ aria-label="Search receipts"
 					bind:value={searchQuery}
 					class="input input-sm flex-1"
 				/>

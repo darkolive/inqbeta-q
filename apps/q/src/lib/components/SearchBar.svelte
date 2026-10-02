@@ -135,7 +135,7 @@
 			onblur={handleBlur}
 			oninput={handleInput}
 			onkeydown={handleKeydown}
-			placeholder={isFocused ? '' : 'Search...'}
+			aria-label="Search"
 			class="flex-1 bg-transparent border-none outline-none text-base text-surface-900-100 placeholder:text-surface-600-400"
 		/>
 		
