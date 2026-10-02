@@ -7,6 +7,7 @@
 	 */
 	import { Page, Empty, Icon } from '@inqbeta/q-ui';
 	import SignIn from '$lib/components/SignIn.svelte';
+	import MessageStory from '$lib/components/MessageStory.svelte';
 	import { watch, type Identity } from '@inqbeta/q-core/passkey';
 	import { watchLedger, type Ledger } from '$lib/ledger';
 	import { peopleFrom } from '$lib/people';
@@ -59,6 +60,9 @@
 {/snippet}
 
 <Page title="Messages" lead="Sealed so only the person you write to can read them. Both of you keep a signed copy.">
+	<!-- How a message gets there, as pictures: the same story style as the home and Federations pages. -->
+	<MessageStory />
+
 	{#if !identity}
 		<div class="panel"><SignIn /></div>
 	{:else}
