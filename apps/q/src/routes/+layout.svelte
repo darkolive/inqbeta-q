@@ -105,6 +105,7 @@
 	 * They stay in the bell, read or not, until their time is over.
 	 */
 	let homeName = $state('');
+	let ledger = $state<Ledger | null>(null);
 	let homeDid = $state('');
 	let announcements = $state<Announcement[]>([]);
 	let seen = $state<Set<string>>(new Set());
@@ -351,7 +352,6 @@
 	 * Offered, not forced: it is a link, it can be ignored for ever, and nothing
 	 * else waits on it.
 	 */
-	let ledger = $state<Ledger | null>(null);
 	let askedAlready = $state<boolean | null>(null);
 	$effect(() => watchLedger((l) => (ledger = l)));
 

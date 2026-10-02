@@ -16,6 +16,7 @@
  */
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
+import { Buffer } from 'node:buffer';
 import path from 'node:path';
 import type { HomeFile } from '$lib/home';
 
