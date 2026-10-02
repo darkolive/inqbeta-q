@@ -227,6 +227,61 @@ within a website is ordinary, and every layer can be checked.
 - Copies that don't join still work. They just carry no badge, no listing and
   no treaty. People can see the difference, so they can choose.
 
+### 8. Incubator is the platform, like WordPress
+
+Darren, 2 October: *"It's no different to what WordPress must do … They're
+not responsible for every WordPress website created … if the authentication
+requires a passkey with the incubator site … and that step in the
+attestation clearly states incubator's core principles and rules, code of
+conduct, then if someone as a bad actor … they're in breach of their
+incubator membership."*
+
+- **For the code, Incubator is a platform**, like WordPress. It isn't
+  responsible for every copy, any more than WordPress is for every site.
+- **What Incubator does give, it can take back.** The badge, the listing,
+  treaties and the commons services are Incubator's, so Incubator answers for
+  them by withdrawing them.
+- **Authenticating is joining.** The authentication step (§3b) shows
+  Incubator's principles and the Federation code, and the founder signs them
+  with their passkey. A bad actor is then in breach of their membership.
+
+### 9. Compliance: reported in the portal, decided by the same engine
+
+Darren, 2 October: *"Just as … reporting code issues, we can have compliance
+reporting a bad actor. And that can be actioned through an agent AI to
+suspend, because it's not just kick out … it will be exercised by exactly
+the same rule engine as every other incubator site running … proof of
+concept is it's doing it itself."*
+
+- **Report a host** sits in Incubator's portal, beside reporting a code
+  problem. Anyone can report. The report is a receipt, sealed so only
+  Incubator's compliance role can read it.
+- **An AI agent does the legwork.** It gathers the evidence, checks it
+  against the Federation code, and drafts the decision, citing the clause.
+  **The AI drafts; people sign** (ADR-Q-007 §2). A person holding Incubator's
+  compliance mandate signs it, so no one is suspended by a machine alone.
+- **The steps are the ones every federation already has** (ADR-Q-007, built
+  28 September):
+  - **Suspension** (`federation.suspend`): still a member, paused until a
+    date, citing a clause and saying why. It must end within a year, can't be
+    backdated, can be lifted early, and never stops someone leaving.
+  - **Removal** (`federation.remove`): ends belonging, citing a clause.
+  - **Lifting**: early, signed.
+- **While a host's founder is suspended or removed**, its authentication is
+  paused or withdrawn, so the badge, the listing, treaties and the commons
+  services stop with it.
+- **The founder can appeal**, and the appeal is a receipt too. It's decided
+  by someone other than whoever signed the suspension.
+- **A failed core recheck isn't a judgment.** It withdraws authentication
+  automatically (§3b), because it's a fact anyone can check, not a decision
+  about a person.
+- **What no decision can do:** stop the copy running (the code is free) or
+  touch anyone's own receipts. The host becomes an island, visibly
+  unvouched.
+- **It's the same rule engine** (ADR-Q-009, Cedar) every copy runs for its
+  own federations. Incubator policing itself with the tools it gives
+  everyone else is the proof that the tools work.
+
 ## Consequences
 
 - **Replication is growth, not a threat.** Every copy that joins strengthens
@@ -248,6 +303,8 @@ within a website is ordinary, and every layer can be checked.
 4. **"Signed, but this copy doesn't know this kind yet"** for unknown
    receipts, and **"Made with … · Open it there"** for plugin receipts.
 5. **The Federation code**: host founders join and sign.
+5a. **Report a host** in Incubator's portal; the AI agent's draft; the
+   compliance mandate; suspension, removal and appeal.
 6. **The marketplace listing**, signed by Incubator.
 7. **Host-to-host treaties.**
 8. **The app**, built on the Apache libraries.
@@ -284,14 +341,14 @@ slow that down, or make it unsafe:
    Incubator closed, copies must keep working, just unvouched. That needs a
    key kept offline, more than one signer for authentications, and a written
    plan for handing the role on.
-6. **Bad hosts.** An authenticated copy could carry harmful content or
-   scams. The Federation code needs a fair process: a warning, withdrawal
-   with a reason, and an appeal.
+6. **Bad hosts: handled the way WordPress is, plus membership.** See §9
+   below. It's settled in principle; what's left is writing the Federation
+   code and building the compliance report.
 7. **The law follows each host.** Each copy's founder is responsible for
    their own host: the data it holds (UK GDPR) and, because hosts carry
    messages between people, possibly online safety duties. The Federation code
-   should say plainly that Incubator vouches for the code, not for each
-   host's running of it. A lawyer should check this.
+   says plainly that Incubator vouches for the code, not for each host's
+   running of it. A lawyer should check the wording.
 8. **Lookalikes.** Copies named to look like Incubator, on lookalike
    domains. The badge must show the real domain and the host's DID, never
    just a name.
