@@ -171,3 +171,10 @@ test('calls are on with either relay complete, and partly set with half of one',
 	assert.equal(calls({ CF_TURN_KEY_ID: 'id', CF_TURN_KEY_TOKEN: 'tokentokentoken' }), 'on');
 	assert.equal(calls({ CF_TURN_KEY_ID: 'id' }), 'part');
 });
+
+test('federations are a plugin: off until the host says on, and it can be sent to the live site', () => {
+	const f = (e: Record<string, string>) => servicesFrom(e).find((x) => x.id === 'federations')!;
+	assert.equal(f({}).is, 'off');
+	assert.equal(f({ PUBLIC_Q_FEDERATIONS: 'on' }).settings[0].shows, 'on');
+	assert.ok(SENDABLE.has('PUBLIC_Q_FEDERATIONS'));
+});

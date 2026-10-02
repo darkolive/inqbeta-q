@@ -64,6 +64,39 @@ fantastic. And Dgraph has latitude, longitude function in it."*
 - Find shows results on a map as well as a list, and **Just a part** (§5) can be
   an area: "copy everything within 50 miles".
 
+### 1b. Not just places: what's happening, when, where and how
+
+Darren, 2 October: *"It also complements and works with events and invites …
+and promotion … with pin location, time … you've got all sorts of directory
+listings. What's happening, when, where, how, which then becomes so easy for
+the courses run."*
+
+A listing card has a **kind**. The same card, signature, pin and release carry
+them all:
+
+| Kind | What it adds | When it goes |
+|---|---|---|
+| **Host or club** | §1 | When withdrawn, or not renewed |
+| **Event** | Start and end time, the pin (or "online"), how to come (open, ask, invite), cost if any, places left | **By itself, once the event has ended** |
+| **Course** | Dates or "start any time", where or online, places, who runs it (DoStudy and any course a host offers) | When the last date passes, or it's full and closed |
+| **Promotion** | An offer from a business card (ADR-Q-015): what, until when, where | At its end date, which it must have |
+
+- **Who can list what:** an event, course or promotion is listed **by a host or
+  club already listed**, under its signature, so it's always clear who's
+  behind it.
+- **Find answers all four questions together**: *what* (words, tags, kind),
+  *when* (this weekend, next month; Dgraph's datetime index), *where* (near,
+  within; §1a) and *how* (open, free, online). "Pottery courses within 20 miles
+  starting this month" is one search.
+- **Going is a receipt.** Booking a place, or accepting an invitation, makes a
+  signed receipt both sides keep: the ticket. It can be added to a calendar.
+- **Promotions are marked as promotions**, always, never mixed in as if they
+  were events, and a host can only have a few running at once, so Find can't
+  be flooded. People can hide promotions in Find.
+- **Events tie to the federation's event strand** (ADR-Q-007: a federation with
+  an end date): a festival can be a federation for its weekend, with its event
+  listing pointing to it.
+
 ### 2. Listing: sent, checked, kept fresh
 
 - A host sends its card to Incubator's **front door** (the gate), the way a
@@ -172,8 +205,9 @@ directory is never stretched across homes (`q/home-node.md` §5).
 5. **Copy the directory**, the whole or a part, into a host's own node;
    **keep it up to date**.
 6. **Mirrors**, and Find on every host asking several copies.
-7. **Public cards for people**, opt-in.
-8. **Treaties between directories.**
+7. **Events, courses and promotions** as listing kinds; bookings and invitations as receipts (tickets).
+8. **Public cards for people**, opt-in.
+9. **Treaties between directories.**
 
 ## Non-claims
 

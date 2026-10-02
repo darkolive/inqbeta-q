@@ -16,6 +16,9 @@
 	import { goto } from '$app/navigation';
 	import type { Found } from '$lib/features/registry';
 	import { readHome, type Home } from '$lib/home';
+	import { offersFederations } from '$lib/offers';
+	/* Federations are a plugin the host turns on (ADR-Q-020). Off: no new clubs here. */
+	const clubs = offersFederations();
 
 	/* Your host (ADR-Q-018 §3): always first, and it can't be hidden. */
 	let home = $state<Home | null>(null);
@@ -111,7 +114,7 @@
 
 	<Section title="Yours">
 		{#snippet actions()}
-			{#if identity}
+			{#if identity && clubs}
 				<button type="button" class="btn preset-filled-primary-500" onclick={() => goto('/federations/draft')}>
 					New federation
 				</button>
@@ -123,7 +126,9 @@
 			<Empty
 				icon="federations"
 				title="No federations yet"
-				description="Start one with New federation. It stays a draft — yours alone — until you found it. Federations you join show here too."
+				description={clubs
+					? 'Start one with New federation. It stays a draft — yours alone — until you found it. Federations you join show here too.'
+					: `${home?.ok ? home.name : 'This host'} is a single site: it doesn’t offer clubs. Federations you join elsewhere show here.`}
 			/>
 		{:else}
 			<!-- Table -->

@@ -97,7 +97,6 @@
 				class="textarea flex-1"
 				rows="2"
 				bind:value={text}
- aria-label="Write to {person.name.split(' ')[0]}"
 				aria-label="Your message"
 				onkeydown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send(); } }}
 			></textarea>

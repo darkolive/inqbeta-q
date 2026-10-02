@@ -51,6 +51,7 @@
 	import { dev } from '$app/environment';
 	import { hostServices, hostVercel, madeForYou, renewHost, sendSetting, setService, type VercelView } from '$lib/host-setup';
 	import { MADE_FOR_YOU, type ServiceState } from '$lib/host-services';
+	import { FEDERATIONS_SETTING } from '$lib/offers';
 
 	let identity = $state<Identity | null>(null);
 	let ledger = $state<Ledger | null>(null);
@@ -633,7 +634,19 @@
 														<span class="opacity-70">{!x.set ? 'not set' : x.secret ? (x.shows ? `set · ends ${x.shows}` : 'set') : x.shows}</span>
 														{#if x.setAt}<span class="text-xs opacity-60">· {onDay(x.setAt)}</span>{/if}
 														{#if x.restart}<Status tone="waiting">Restart to use</Status>{/if}
-														{#if editing !== x.name}
+														{#if x.name === FEDERATIONS_SETTING}
+															<!-- A plugin: on or off, nothing to type. -->
+															<span class="ml-auto flex gap-2" role="group" aria-label="Federations">
+																{#each ['on', 'off'] as v (v)}
+																	<button
+																		type="button"
+																		class="btn btn-sm min-h-11 {(x.shows ?? 'off') === v ? 'preset-filled-primary-500' : 'preset-tonal'}"
+																		aria-pressed={(x.shows ?? 'off') === v}
+																		disabled={busy !== null}
+																		onclick={() => void saveSetting(s, x.name, v)}>{v === 'on' ? 'On' : 'Off'}</button>
+																{/each}
+															</span>
+														{:else if editing !== x.name}
 															<span class="ml-auto flex gap-2">
 																{#if MADE_FOR_YOU.has(x.name) && !x.set}
 																	<button type="button" class="btn btn-sm preset-filled-primary-500 min-h-11" disabled={busy !== null} onclick={() => void saveSetting(s, x.name, madeForYou(x.name))}>Make for me</button>
@@ -959,18 +972,26 @@
 					title="Nodes"
 					description={isHome
 						? 'The machines this federation runs, on its own private mesh. Whether each service answers is checked from this device, now — never stored.'
-						: 'Machines this federation runs itself. Optional: most never need one.'}
+						: 'Who carries this federation’s messages and calls: its host’s services, or its own node.'}
 				>
 					{#if nodes.length === 0 && !adding}
 						{#if isHome}
 							<Empty icon="federations" title="No nodes yet" description="A node runs the federation’s bellboy, directory, storage and switchboard — any or all of them. List one when it’s on the mesh." />
 						{:else}
-							<!-- A club rides on its host's services (ADR-Q-017 §2: mine → my federation's → the host's). -->
-							<div class="card preset-tonal-success p-4 flex items-start gap-3 max-w-2xl">
-								<Icon name="check" class="mt-0.5 shrink-0" />
-								<div>
-									<p class="font-bold">{founding.name} uses {home?.ok ? home.name : 'your host'}’s services</p>
-									<p class="text-sm">Its bellboy, storage and switchboard carry your members’ messages and calls. You don’t need a machine of your own. Run your own node only if you want {founding.name} to look after these itself.</p>
+							<!-- The real choice, and what each costs (ADR-Q-020 §2). -->
+							<div class="grid gap-4 sm:grid-cols-2 max-w-3xl">
+								<div class="card preset-outlined-primary-500 p-4 flex flex-col gap-2">
+									<p class="font-bold flex items-center gap-2"><Status tone="good">In use</Status> {home?.ok ? home.name : 'Your host'}’s services</p>
+									<p class="text-sm">Its bellboy, storage and switchboard carry {founding.name}’s messages and calls.</p>
+									<ul class="text-sm list-disc pl-5 space-y-1">
+										<li>The bellboy is free.</li>
+										<li>Storage and the switchboard come with a free allowance each month, then credits.</li>
+									</ul>
+									<p class="text-xs opacity-70">Credits are coming next.</p>
+								</div>
+								<div class="card preset-outlined-surface-200-800 p-4 flex flex-col gap-2">
+									<p class="font-bold">Your own node</p>
+									<p class="text-sm">{founding.name}’s own machine runs its bellboy, storage and switchboard. Nothing is spent with {home?.ok ? home.name : 'the host'}; you look after it, from your own computer.</p>
 								</div>
 							</div>
 						{/if}

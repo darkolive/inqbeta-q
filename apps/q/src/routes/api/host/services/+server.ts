@@ -14,6 +14,7 @@
 import { error, json, type RequestHandler } from '@sveltejs/kit';
 import { dev } from '$app/environment';
 import { env } from '$env/dynamic/private';
+import { env as publicEnv } from '$env/dynamic/public';
 import { checkReceipt } from '@inqbeta/q-core/seal';
 import { HOST_SERVICE_SCHEMA, HOST_SERVICES, SETTABLE, endsOf, isLocalOnly, isSecret, servicesFrom, type HostServiceRecord } from '$lib/host-services';
 import { readEnvFile, setEnvValue } from '$lib/server/env-file';
@@ -34,7 +35,7 @@ function setAtNow(): Record<string, string> {
 
 export const GET: RequestHandler = ({ request, url }) => {
 	door(request, url);
-	const services = servicesFrom(readEnvFile(), { running: env, setAt: setAtNow() });
+	const services = servicesFrom(readEnvFile(), { running: { ...publicEnv, ...env }, setAt: setAtNow() });
 	return json({ services, restart: services.some((s) => s.settings.some((x) => x.restart)) });
 };
 

@@ -32,6 +32,7 @@
 		type FederationDraft
 	} from '@inqbeta/q-core/federations';
 	import { draftFrom, foundFromDraft, saveDraft } from '$lib/federations';
+	import { offersFederations } from '$lib/offers';
 
 	let identity = $state<Identity | null>(null);
 	let ledger = $state<Ledger | null>(null);
@@ -151,7 +152,10 @@
 	title={draft.name.trim() || 'New federation'}
 	lead="A draft is yours alone. Save it as often as you like and come back to it; nothing is final until you found it."
 >
-	{#if !identity}
+	{#if !offersFederations()}
+		<Empty icon="federations" title="This host doesn’t offer clubs" description="Founding a federation here is switched off. Its founder can turn Federations on in the host’s Services." />
+		<a class="btn preset-tonal mt-4 min-h-11" href="/federations">Back to federations</a>
+	{:else if !identity}
 		<SignIn />
 	{:else if !loaded}
 		<p class="opacity-60">Opening the draft…</p>

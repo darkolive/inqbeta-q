@@ -77,6 +77,13 @@ export const HOST_SERVICES: {
 	},
 	{ id: 'own', called: 'Q’s own', what: 'Sending sign-in codes to people who aren’t signed in yet.', from: 'Made on this computer', settings: [{ name: 'Q_SERVICE_SEED', secret: true }, { name: 'Q_OTP_SECRET', secret: true }] },
 	{
+		id: 'federations',
+		called: 'Federations',
+		what: 'Let your members found their own clubs inside your host. Off: your host is a single site with its own membership.',
+		from: 'Your host (a plugin)',
+		settings: [{ name: 'PUBLIC_Q_FEDERATIONS', secret: false }]
+	},
+	{
 		id: 'vercel',
 		called: 'Vercel',
 		what: 'Where your live site runs. This stays on this computer: it’s how keys are sent there.',
