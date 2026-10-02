@@ -26,6 +26,10 @@ const ORIGINS = new Set((process.env.GATE_ORIGINS ?? 'https://inqbeta.com,https:
 const MQTT = { host: process.env.GATE_MQTT_HOST ?? 'mosquitto', user: 'gate', password: process.env.GATE_MQTT_PASSWORD ?? '' };
 const MOST_BYTES = 64 * 1024;
 const FRESH_MS = 10 * 60 * 1000;
+/* Drops (cards shared by link): sealed, signed, and held only for a while. */
+const DROP_BYTES = 1024 * 1024;
+const DROP_DAYS = 30;
+const DROPS_PER_HOUR = 30;
 
 /* ---- canonical JSON and Ed25519, exactly as q-core does them ---- */
 export function canonical(value) {
@@ -66,6 +70,32 @@ export async function signedByFederation(x, did) {
 	}
 }
 
+/* A receipt as q-core seals it: Ed25519 over the canonical content, by its DID. */
+export async function signedReceipt(r) {
+	if (!r || typeof r !== 'object' || typeof r.did !== 'string' || typeof r.signature !== 'string' || !r.content) return false;
+	try {
+		const key = await crypto.subtle.importKey('raw', publicKeyFrom(r.did), { name: 'Ed25519' }, false, ['verify']);
+		return await crypto.subtle.verify({ name: 'Ed25519' }, key, unb64url(r.signature), new TextEncoder().encode(canonical(r.content)));
+	} catch {
+		return false;
+	}
+}
+
+/*
+ * A drop: a card (or later a message) shared by link. The gate can't read it
+ * — it's locked with a key that lives only in the link's #fragment, which no
+ * server ever sees — so all it checks is that someone signed for it, that it's
+ * small, and that it says when it may be let go.
+ */
+export async function checkDrop(r, now = Date.now()) {
+	if (!(await signedReceipt(r))) return 'It isn’t signed.';
+	const c = r.content;
+	if (c.schema !== 'inqbeta.drop/1' || typeof c.box?.iv !== 'string' || typeof c.box?.ct !== 'string') return 'That isn’t a drop.';
+	const until = Date.parse(c.until);
+	if (!Number.isFinite(until) || until < now || until > now + DROP_DAYS * 86400000 + 60000) return `It must say when it can go, within ${DROP_DAYS} days.`;
+	return null;
+}
+
 /* ---- the checks ---- */
 export async function checkSubmission(did, body, held, now = Date.now()) {
 	const { file, publication } = body ?? {};
@@ -104,6 +134,22 @@ function ping(did, at) {
 	p.on('error', () => {});
 }
 
+const dropPath = (id) => `${FILER}/drop/${id}.json`;
+async function storeDrop(id, body) {
+	const form = new FormData();
+	form.append('file', new Blob([JSON.stringify(body)], { type: 'application/json' }), `${id}.json`);
+	const r = await fetch(dropPath(id), { method: 'POST', body: form });
+	if (!r.ok) throw new Error(`storage said ${r.status}`);
+}
+/* A light hand on the tap: so many drops an hour from one address. */
+const recent = new Map();
+function tooMany(ip, now = Date.now()) {
+	const list = (recent.get(ip) ?? []).filter((t) => now - t < 3600000);
+	list.push(now);
+	recent.set(ip, list);
+	return list.length > DROPS_PER_HOUR;
+}
+
 /* ---- HTTP ---- */
 function send(res, origin, status, body) {
 	const headers = { 'content-type': 'application/json', 'cache-control': 'no-store' };
@@ -113,11 +159,50 @@ function send(res, origin, status, body) {
 }
 
 const ROUTE = /^\/fed\/(did:key:z[1-9A-HJ-NP-Za-km-z]+)\/announcements\.json$/;
+const DROP = /^\/drop(?:\/([A-Za-z0-9_-]{16,64}))?$/;
+
+async function readBody(req, most) {
+	let raw = '';
+	for await (const chunk of req) {
+		raw += chunk;
+		if (raw.length > most) return null;
+	}
+	return raw;
+}
+
+async function drops(req, res, origin, id) {
+	if (req.method === 'GET') {
+		if (!id) return send(res, origin, 404, { says: 'Nothing here.' });
+		const r = await fetch(dropPath(id)).catch(() => null);
+		const held = r?.ok ? await r.json().catch(() => null) : null;
+		if (!held || Date.parse(held.content?.until) < Date.now()) return send(res, origin, 404, { says: 'This has gone: it was only kept for a while.' });
+		return send(res, origin, 200, held);
+	}
+	if (req.method !== 'POST' || id) return send(res, origin, 405, { says: 'Only GET and POST.' });
+	if (tooMany(req.socket.remoteAddress ?? '')) return send(res, origin, 429, { says: 'Too many at once. Try again in a while.' });
+	const raw = await readBody(req, DROP_BYTES);
+	if (raw === null) return send(res, origin, 413, { says: 'Too big.' });
+	let body;
+	try { body = JSON.parse(raw); } catch { return send(res, origin, 400, { says: 'That isn’t JSON.' }); }
+	const wrong = await checkDrop(body);
+	if (wrong) return send(res, origin, 403, { says: wrong });
+	/* Named by what it holds, so the same drop twice is one file. */
+	const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(body.content.box.ct)));
+	const newId = Buffer.from(digest.slice(0, 16)).toString('base64url');
+	try {
+		await storeDrop(newId, body);
+	} catch (e) {
+		return send(res, origin, 502, { says: `Couldn’t keep it: ${e.message}` });
+	}
+	return send(res, origin, 200, { ok: true, id: newId });
+}
 
 export const server = http.createServer(async (req, res) => {
 	const origin = req.headers.origin ?? '';
 	const m = ROUTE.exec(decodeURIComponent(new URL(req.url, 'http://gate').pathname));
 	if (req.method === 'OPTIONS') return send(res, origin, 204);
+	const d = DROP.exec(new URL(req.url, 'http://gate').pathname);
+	if (d) return drops(req, res, origin, d[1]);
 	if (!m) return send(res, origin, 404, { says: 'Nothing here.' });
 	const did = m[1];
 	if (!FEDERATIONS.has(did)) return send(res, origin, 404, { says: 'This node doesn’t serve that federation.' });

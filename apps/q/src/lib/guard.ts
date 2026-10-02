@@ -25,11 +25,11 @@
  */
 
 /** Pages a person may be on with no keys held and nothing remembered. */
-export const OPEN_PATHS = ['/', '/data', '/user', '/contact', '/legal', '/docs'];
+export const OPEN_PATHS = ['/', '/data', '/user', '/contact', '/legal', '/docs', '/link'];
 
 /** Pages anyone may read, shown with a plain header and the footer rather than the dashboard. */
 export function isPublicPage(path: string): boolean {
-	return path === '/contact' || path === '/docs' || path === '/legal' || path.startsWith('/legal/');
+	return path === '/contact' || path === '/docs' || path === '/legal' || path.startsWith('/legal/') || path === '/link' || path.startsWith('/card/');
 }
 
 /**
@@ -37,7 +37,13 @@ export function isPublicPage(path: string): boolean {
  * reachable by someone who has not signed in — otherwise the link in an email
  * leads to a redirect instead of the receipt.
  */
-export const OPEN_PREFIXES = ['/c/', '/channels/', '/federations/join', '/legal/'];
+export const OPEN_PREFIXES = ['/c/', '/card/', '/channels/', '/federations/join', '/legal/'];
+
+/*
+ * '/link' and '/card/' — a card someone shared (ADR-Q-015). The person opening
+ * it is often new and not signed in; sending them home threw the card away.
+ * The page shows the card and asks for the passkey itself (2 October 2026).
+ */
 
 /*
  * '/federations/join' — an invitation link (ADR-Q-007 §4). Its packet is in the
