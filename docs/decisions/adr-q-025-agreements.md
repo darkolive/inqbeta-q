@@ -1,6 +1,6 @@
 ---
 status: proposed
-implementation: not started (3 October 2026)
+implementation: started — agreement receipts and standing (q-core agreements.ts), the six rules in Cedar (q-actions core/agreements.ts), 3 October 2026
 updated: 2026-10-03
 ---
 

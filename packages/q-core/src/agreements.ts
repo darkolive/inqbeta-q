@@ -170,6 +170,10 @@ export interface Standing {
 	evidence: string[];
 	/** Steps that were ignored, and why. */
 	problems: string[];
+	/** The open offer's hash, and the latest step's hash and time: what a next step must follow. */
+	offerHash?: string;
+	lastHash?: string;
+	lastAt?: string;
 }
 
 const other = (t: Terms, did: string) => (did === t.a ? t.b : t.a);
@@ -194,6 +198,12 @@ function withinAgreed(agreed: Terms, settled: Entry[][], next: Entry[]): string 
 		if (total.get(slot)! > limit) return 'That settles more than was agreed.';
 	}
 	return null;
+}
+
+/** Why these entries wouldn't fit what's agreed and already settled, or null if they would. */
+export function whySettlementDoesntFit(s: Standing, entries: Entry[]): string | null {
+	if (s.phase !== 'agreed' || !s.terms) return 'Only an agreed agreement can be settled.';
+	return withinAgreed(s.terms, s.settled, entries);
 }
 
 function settledInFull(agreed: Terms, settled: Entry[][]): boolean {
@@ -313,6 +323,9 @@ export function standingOf(receipts: AgreementReceipt[], now = Date.now()): Stan
 			}
 		}
 	}
+	s.offerHash = offerHash || undefined;
+	s.lastHash = lastHash || undefined;
+	s.lastAt = steps.at(-1)?.content.at;
 	if (s.phase === 'agreeing' && offerUntil && now > Date.parse(offerUntil)) {
 		s.phase = 'ended';
 		s.ended = 'expired';
