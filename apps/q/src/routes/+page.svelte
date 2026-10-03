@@ -1,7 +1,13 @@
 <script lang="ts">
 	/*
-	 * Overview — the map. Every tile is a place in the sidebar, in the same
-	 * order, with the one number that says how it stands.
+	 * Signed out: the front door. Signed in: You, your home page.
+	 *
+	 * You (3 October 2026). Darren: "visually and functionally really
+	 * beautiful", with news and updates. From the top: you (YouAtTop), a
+	 * greeting, news from Incubator and what's new in Q, your activity, your
+	 * people and your use this month, every picture story in one place, then
+	 * Everything — the map, every tile a place in the menu with the one number
+	 * that says how it stands — and, last on purpose, Leave no trace.
 	 */
 	import { Page, Section, Tile, Item, Status, Empty, Icon } from '@inqbeta/q-ui';
 	import { watch, type Identity } from '@inqbeta/q-core/passkey';
@@ -24,6 +30,9 @@
 	import SecurityStandards from '$lib/components/SecurityStandards.svelte';
 	import Credits from '$lib/components/Credits.svelte';
 	import UsageCard from '$lib/components/UsageCard.svelte';
+	import YouNews from '$lib/components/YouNews.svelte';
+	import YourPeople from '$lib/components/YourPeople.svelte';
+	import HowQWorks from '$lib/components/HowQWorks.svelte';
 
 	/* What people use Q for — the home page's uses, in order (29 September). */
 	const USES: { key: string; icon: IconName }[] = [
@@ -61,6 +70,17 @@
 		!!home?.ok && found.some((f) => (f.kind === 'membership' || f.kind === 'federation') && f.key.endsWith(`:${home!.ok ? home!.federation : ''}`))
 	);
 	const linked = $derived(ledger?.links.filter((l) => l.link.event === 'identity.linked').length ?? 0);
+
+	/* Said the way a person says it, by the clock on this device. */
+	function greet(): string {
+		const h = new Date().getHours();
+		return h < 5 ? 'Hello' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening';
+	}
+	let greeting = $state(greet());
+	$effect(() => {
+		const tick = setInterval(() => (greeting = greet()), 10 * 60 * 1000);
+		return () => clearInterval(tick);
+	});
 </script>
 
 <svelte:head><title>Q</title></svelte:head>
@@ -131,9 +151,9 @@
 	<div class="mb-4"><PointerNote /></div>
 	<YouAtTop {identity} {ledger} />
 
-	<Page title="Your activity" lead="What’s happened lately, from your own receipts.">
+	<Page title={greeting} lead="What’s new, the people you talk to, and what’s happened lately.">
 		{#if identity && home?.ok && !inHome}
-			<div class="card preset-outlined-primary-500 mb-6 p-5 flex flex-wrap items-center gap-4">
+			<div class="card preset-outlined-primary-500 p-5 flex flex-wrap items-center gap-4">
 				<div class="min-w-48 flex-1">
 					<p class="font-bold">Join {home.name}</p>
 					<p class="text-sm opacity-80">{home.purpose}</p>
@@ -142,8 +162,33 @@
 				<a class="btn preset-filled-primary-500 min-h-11" href={home.joinHref}>Read and join</a>
 			</div>
 		{/if}
-	{#if identity}<ActivityFeed {ledger} did={identity.did} />{/if}
-	{#if identity}<UsageCard {ledger} did={identity.did} />{/if}
+
+		<!-- Two columns on a wide screen: news and activity on the left, people
+		     and use on the right. One column, in that order, on a phone. -->
+		<div class="grid gap-8 lg:grid-cols-3 items-start">
+			<div class="lg:col-span-2 stack">
+				<Section title="News and updates" description="From Incubator, and what’s new in Q.">
+					<YouNews {home} member={inHome} />
+				</Section>
+				{#if identity}
+					<Section title="Your activity" description="What’s happened lately, from your own receipts.">
+						<ActivityFeed {ledger} did={identity.did} />
+					</Section>
+				{/if}
+			</div>
+			<div class="stack">
+				{#if identity}
+					<Section title="Your people" description="Tap a face to write to them.">
+						<YourPeople {ledger} did={identity.did} />
+					</Section>
+					<UsageCard {ledger} did={identity.did} />
+				{/if}
+			</div>
+		</div>
+
+		<Section id="how-q-works" title="How Q works" description="Choose a part of Q, and watch its six pictures.">
+			<HowQWorks />
+		</Section>
 
 	<Section title="Everything" description="Every part of Q, and how each stands.">
 	<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
