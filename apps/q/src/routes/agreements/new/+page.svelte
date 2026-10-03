@@ -294,7 +294,7 @@
 							<p class="text-sm opacity-80">{terms.business ? 'A job: pounds are recorded for both of your accounts.' : 'A personal swap.'}</p>
 						</div>
 						{#if problems.length}
-							<ul class="mt-4 card preset-tonal-error p-4 list-disc ps-8">{#each problems as p (p)}<li>{p}</li>{/each}</ul>
+							<ul class="mt-4 card preset-tonal-error p-4 list-disc ps-8">{#each problems as p, i (i)}<li>{p}</li>{/each}</ul>
 						{/if}
 						<p class="mt-4 text-sm text-surface-700-300">{withDid === SHOP && !answering ? 'Signed by you, checked by the agreement rules, and put in your shop. Anyone can buy it there until they’re gone.' : withDid === LINK && !answering ? 'Signed by you and checked by the agreement rules. Next, you’ll get a link to send, any way you like.' : `Signed by you, checked by the agreement rules, and sent sealed so only ${them?.name ?? 'they'} can read it.`} This is a record of what you both say, not legal advice.</p>
 					{/if}

@@ -112,7 +112,7 @@
 		<section aria-labelledby="changes-{receipt.id}" class="flex flex-col gap-2">
 			<h4 id="changes-{receipt.id}" class="h6">What it changes</h4>
 			<ul class="flex flex-wrap gap-2">
-				{#each read.changes as c (c)}<li class="chip preset-filled-surface-200-800 text-sm">{c}</li>{/each}
+				{#each read.changes as c, i (i)}<li class="chip preset-filled-surface-200-800 text-sm">{c}</li>{/each}
 			</ul>
 		</section>
 	{/if}

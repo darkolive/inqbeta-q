@@ -132,7 +132,8 @@ export function problemsWithTerms(t: Terms): string[] {
 	const ka = kindOf(t.aGives);
 	if (ka !== 'thing' && ka === kindOf(t.bGives)) p.push('Not the same kind both ways: credits for credits, or pounds for pounds, is a gift, not an agreement.');
 	if ('pence' in t.aGives || 'pence' in t.bGives) if (!t.business) p.push('Pounds are recorded only on business agreements.');
-	return p;
+	/* Each problem once: both sides empty is one thing to fix, not two. */
+	return [...new Set(p)];
 }
 
 /** The entries that settle these terms in full: each side's give, from them to the other. */

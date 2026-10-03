@@ -319,7 +319,7 @@
 				<div>
 					<p class="font-bold">Before it can be founded</p>
 					<ul class="list-disc pl-6 text-sm mt-1">
-						{#each missing as m (m)}<li>{m}</li>{/each}
+						{#each missing as m, i (i)}<li>{m}</li>{/each}
 					</ul>
 				</div>
 			{/if}

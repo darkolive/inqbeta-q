@@ -392,7 +392,7 @@
 					<Status tone="bad">Not made public</Status>
 					<p class="mt-2 text-sm"><strong>{refused.title}</strong>: {refused.says}</p>
 					{#if refused.wrong.length}
-						<ul class="mt-2 list-disc pl-5 text-sm">{#each refused.wrong as w (w)}<li>{w}</li>{/each}</ul>
+						<ul class="mt-2 list-disc pl-5 text-sm">{#each refused.wrong as w, i (i)}<li>{w}</li>{/each}</ul>
 					{/if}
 				{:else if made}
 					<Status tone={made.checked.ok ? 'good' : 'bad'}>{made.checked.ok ? 'Signed, and it checks out' : 'Does not hold up'}</Status>

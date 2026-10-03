@@ -446,7 +446,7 @@
 							{#if saying.log}<pre class="mt-2 max-h-40 overflow-auto rounded-base bg-surface-100-900 p-2 text-xs">{saying.log}</pre>{/if}
 						{/if}
 						{#if problems.length}
-							<ul class="list-disc pl-5 text-error-600-400">{#each problems as p (p)}<li>{p}</li>{/each}</ul>
+							<ul class="list-disc pl-5 text-error-600-400">{#each problems as p, i (i)}<li>{p}</li>{/each}</ul>
 						{/if}
 					</div>
 				{/if}
