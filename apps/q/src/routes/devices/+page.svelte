@@ -7,6 +7,7 @@
 	import { Dialog, Portal } from '@skeletonlabs/skeleton-svelte';
 	import { watch, keyPlace, KEY_PLACES, type Identity } from '@inqbeta/q-core/passkey';
 	import { watchLedger, type Ledger } from '$lib/ledger';
+	import DevicesStory from '$lib/components/DevicesStory.svelte';
 
 	let identity = $state<Identity | null>(null);
 	let ledger = $state<Ledger | null>(null);
@@ -55,6 +56,9 @@
 <svelte:head><title>Devices — Q</title></svelte:head>
 
 <Page title="Devices" lead="Every key that can act as you, and where it lives.">
+	<!-- How Q works across devices, as pictures: the same story style as Keys, Messages and Federations. -->
+	<DevicesStory />
+
 	<Section title="This device">
 		<Item icon="devices" title={platform} subtitle={host}>
 			{#snippet status()}<Status tone={identity ? 'good' : 'waiting'}>{identity ? 'Root key, signed in' : 'Not signed in'}</Status>{/snippet}
