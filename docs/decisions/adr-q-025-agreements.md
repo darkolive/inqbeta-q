@@ -70,24 +70,51 @@ screen each, no blank page:
    photos, a sign-off.
 6. **Read it back, and send.** The whole agreement as one sentence first.
 
-### 3. Every step is a receipt, said from your side
+### 3. Two phases: the agreement, then the settlement
+
+Darren, 3 October: "The agreement is first … where that agreement was settled,
+whether cancelled or accepted. That's the contract point. And then there's a
+settlement afterwards, which is the accounting. The accounting is the
+settlement period."
+
+**Phase 1, agreeing: the contract point.** Every step a receipt, said from
+the reader's side:
 
 | Step | Who signs | Said (to the person who made it) |
 |---|---|---|
 | **Proposed** | the proposer | "You proposed to Ben: cutting the grass, in exchange for 3 credits." |
 | **Countered** | the one countering | "Ben offered instead: cutting the grass, in exchange for 5 credits." |
-| **Accepted** | both (the second signature makes it binding) | "You and Ben agreed: …" |
-| **Done** (with evidence) | the one who delivered | "You said it's done, with 2 photos." |
-| **Completed** | both | "Ben confirmed it's done. The agreement is complete." |
+| **Agreed** | both (the second signature is the contract point) | "You and Ben agreed: …" |
 | Declined, withdrawn, expired | the one ending it, or nobody (time) | "Ben declined." / "You withdrew." / "It ran out on 12 October." |
 
 Each names the step before it, so an agreement is a hash-linked chain like a
-call (ADR-Q-004). A change after acceptance is a **variation**: a new counter
+call (ADR-Q-004). A change after agreeing is a **variation**: a new counter
 that both sign; the original stays.
 
-### 4. Double-entry: every agreement balances
+**Phase 2, settling: the accounting.** After the contract point:
 
-When an agreement completes, it writes its **entries**: for each kind of value,
+| Step | Who signs | Said |
+|---|---|---|
+| **Done** (optional evidence) | the one who delivered | "You said it's done, with 2 photos." |
+| **Settled** | both | "You and Ben settled: 3 credits from you to Ben, and the grass is cut." |
+
+A settlement receipt carries the **entries** (§4). A job may settle in parts
+(stages), each its own balanced settlement, until everything agreed is
+settled; then the agreement reads **complete**. Ended agreements (declined,
+withdrawn, expired) release anything committed and never settle.
+
+**Why settlement is its own receipt.** The Workhouse audit
+(`~/inQbeta/docs/architecture/workhouse-completion-settlement-seam-audit.md`)
+found settlement changed balances *without* a durable record of its own; only
+"complete" was written, afterwards. In Q, **balances are only ever added up
+from settlement receipts**, signed by both before anything counts. So there's
+no window where value has moved but isn't recorded: the record *is* the move.
+"Complete" isn't a separate write; it's read from the chain (everything agreed
+has been settled).
+
+### 4. Double-entry: every settlement balances
+
+A settlement writes its **entries**: for each kind of value,
 what one side gives the other receives, so each kind adds up to nothing across
 the two of them.
 
@@ -95,9 +122,10 @@ the two of them.
 - *Pounds* (business only, a record, never moved by Q): Ana paid £40, Ben received £40.
 - *Things done*: Ben gave "cut the grass", Ana received it. Counted, never valued.
 
-Before acceptance, what each side has promised is a **promise** on their
-balance sheet (ADR-Q-024); credits promised are **committed**, so they can't be
-offered twice. The rule engine refuses an agreement whose entries don't
+From the contract point until settlement, what each side has promised is a
+**promise** on their balance sheet (ADR-Q-024); credits promised are
+**committed**, so they can't be offered twice. An open offer commits the
+proposer's credits too, as in Workhouse. The rule engine refuses an agreement whose entries don't
 balance, and refuses credits beyond what's available.
 
 ### 5. Three kinds, one shape
@@ -112,26 +140,30 @@ An agreement shows as a **card** (ADR-Q-015): who, what for what, when, and
 where it stands, with its steps beneath as a timeline in plain sentences, each
 with a magnifier to open its receipt.
 
-### 6. The rules (Cedar): `agreement.propose`, `.counter`, `.accept`, `.done`, `.complete`, `.end`
+### 6. The rules (Cedar): `agreement.propose`, `.counter`, `.agree`, `.end`, `.done`, `.settle`
 
 Cannots, in plain words:
 
-- Accept your own offer.
-- Accept or complete without both signatures.
-- Change anything after acceptance except by a variation both sign.
-- Complete with entries that don't balance.
+- Agree to your own offer.
+- Agree or settle without both signatures.
+- Change anything after agreeing except by a variation both sign.
+- Settle an agreement that was never agreed, or has ended.
+- Settle with entries that don't balance, or more than was agreed.
 - Promise more credits than are available.
 - Trade the same kind both ways (credits for credits).
 - Across federations, agree outside a treaty (ADR-Q-023 §3).
 
 ## Build order
 
-1. **Agreement receipts** in q-core: the steps, the chain, the entries, with
-   tests (an agreement that balances; one that doesn't; a variation).
+1. **Agreement receipts** in q-core: the steps, the chain, where it stands,
+   the entries, with tests (an agreement that settles and balances; one that
+   doesn't balance; a counter; an ended one that can't settle; settling in
+   parts).
 2. **The rules** in q-actions, with tests.
 3. **Agreements** in the vault, and **Write an agreement** under You.
 4. **The sentences** in activity, from each reader's side, with the magnifier.
-5. **The balance sheet** reads promises and entries (ADR-Q-024).
+5. **The balance sheet** reads promises and settlements (ADR-Q-024): the
+   settlement period is the accounting.
 6. **The job kind**: site, dates, evidence from Files, sign-off.
 7. **Treaties.**
 
