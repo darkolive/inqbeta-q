@@ -17,6 +17,8 @@ export interface MintView {
 	mode: 'test' | 'live';
 	pencePerCredit: number;
 	publishedId: string | null;
+	/** Just after the latest step in the mint's books. */
+	lastAt?: string;
 	books: { minted: number; destroyed: number; circulation: number; cashReserve: number; capitalReserve: number; reconciled: boolean; backed: boolean; holders: number };
 }
 
@@ -55,7 +57,11 @@ export async function buyCredits(identity: Identity, mint: MintView, credits: nu
 
 /** Cash out: your signed ask; the mint destroys the credits and records the payout; both receipts kept. */
 export async function cashOut(identity: Identity, mint: MintView, credits: number): Promise<{ ok: true; burned: MintReceipt } | { ok: false; says: string }> {
-	const event: MintEvent = { schema: MINT_SCHEMA, source: MINT_SOURCE, mint: mint.mint, kind: 'cashout', credits, mode: mint.mode, from: identity.did, at: new Date().toISOString() };
+	/* Dated after the mint's latest step, even if this device's clock runs behind the mint's. */
+	const fresh = await readMint(true);
+	const after = Date.parse(fresh.view?.lastAt ?? '');
+	const at = new Date(Math.max(Date.now(), Number.isFinite(after) ? after : 0)).toISOString();
+	const event: MintEvent = { schema: MINT_SCHEMA, source: MINT_SOURCE, mint: mint.mint, kind: 'cashout', credits, mode: mint.mode, from: identity.did, at };
 	const ask = (await sealWith(identity, event)) as MintReceipt;
 	const r = await fetch('/api/mint', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ cashout: ask }) });
 	if (!r.ok) return { ok: false, says: await said(r) };

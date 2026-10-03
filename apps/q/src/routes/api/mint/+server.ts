@@ -35,6 +35,17 @@ async function context(origin: string) {
 	return { host, me, state, mode, pence };
 }
 
+/*
+ * When the mint signs: now, or just after the latest step it follows, whichever
+ * is later. A person's clock can run a little ahead of this server's, and a burn
+ * dated before the ask it answers was refused as backdated (3 October 2026).
+ */
+function stampAfter(times: (string | undefined)[]): string {
+	const latest = Math.max(0, ...times.map((t) => Date.parse(t ?? '')).filter(Number.isFinite));
+	return new Date(Math.max(Date.now(), latest + 1)).toISOString();
+}
+const latestIn = (ledger: unknown[]) => ledger.map((r) => (r as { content?: { at?: string } })?.content?.at);
+
 const refuse = (e: unknown, status = 409) => json({ ok: false, says: e instanceof Error ? e.message : String(e) }, { status: e instanceof MintRefused ? status : 500 });
 
 export const GET: RequestHandler = async ({ url }) => {
@@ -48,6 +59,8 @@ export const GET: RequestHandler = async ({ url }) => {
 			mode,
 			pencePerCredit: pence,
 			publishedId: state.publishedId ?? null,
+			/* The latest step in the mint's books: an ask signed on someone's device is dated after it. */
+			lastAt: stampAfter(latestIn(ledger)),
 			books: { minted: b.minted, destroyed: b.destroyed, circulation: b.circulation, cashReserve: b.cashReserve, capitalReserve: b.capitalReserve, reconciled: b.reconciled, backed: b.backed, holders: b.holders.size }
 		});
 	} catch (e) {
@@ -76,7 +89,7 @@ export const POST: RequestHandler = async ({ request, url }) => {
 			const credits = Math.trunc(Number(c.credits));
 			if (!(credits >= 1 && credits <= MOST_AT_ONCE)) throw new MintRefused(`Buy between 1 and ${MOST_AT_ONCE} credits at a time.`);
 			if (mode === 'live') throw new MintRefused('This host is live, and payments aren’t connected yet. Nothing has been charged.');
-			const event: MintEvent = { schema: MINT_SCHEMA, source: MINT_SOURCE, mint: me.did, kind: 'mint', credits, mode, to: r.did!, pence: credits * pence, cites: [`test-payment-${crypto.randomUUID()}`], at: new Date().toISOString() };
+			const event: MintEvent = { schema: MINT_SCHEMA, source: MINT_SOURCE, mint: me.did, kind: 'mint', credits, mode, to: r.did!, pence: credits * pence, cites: [`test-payment-${crypto.randomUUID()}`], at: stampAfter(latestIn(ledger)) };
 			const draft = { did: me.did, content: event, contentHash: '' } as MintReceipt;
 			const { facts } = mintFacts(ledger.map((json) => ({ json })), draft, pence);
 			const checked = await decideMint('credits.mint', me.did, me.did, facts);
@@ -94,7 +107,7 @@ export const POST: RequestHandler = async ({ request, url }) => {
 			const prior = ledger.map((json) => ({ json }));
 			const asked = mintFacts(prior, ask, pence);
 			await decideMint('credits.cashout', ask.did, me.did, asked.facts);
-			const burnEvent: MintEvent = { schema: MINT_SCHEMA, source: MINT_SOURCE, mint: me.did, kind: 'burn', credits: ask.content.credits, mode, from: ask.content.from, pence: ask.content.credits * pence, asks: ask.contentHash, payout: `test-payout-${crypto.randomUUID()}`, at: new Date().toISOString() };
+			const burnEvent: MintEvent = { schema: MINT_SCHEMA, source: MINT_SOURCE, mint: me.did, kind: 'burn', credits: ask.content.credits, mode, from: ask.content.from, pence: ask.content.credits * pence, asks: ask.contentHash, payout: `test-payout-${crypto.randomUUID()}`, at: stampAfter([...latestIn(ledger), ask.content.at]) };
 			const draft = { did: me.did, content: burnEvent, contentHash: '' } as MintReceipt;
 			const { facts } = mintFacts([...prior, { json: ask }], draft, pence);
 			const checked = await decideMint('credits.burn', me.did, me.did, facts);
