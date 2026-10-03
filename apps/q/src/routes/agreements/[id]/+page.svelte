@@ -20,7 +20,10 @@
 	import { watchLedger, type Ledger } from '$lib/ledger';
 	import { peopleFrom } from '$lib/people';
 	import type { Names } from '$lib/receipt-read';
-	import { agreementsFrom, takeStep, type StepInput } from '$lib/agreements';
+	import { agreementsFrom, needsMe, takeStep, type StepInput } from '$lib/agreements';
+	import { isOpenOffer } from '@inqbeta/q-core/agreements';
+	import { makeOfferLink } from '$lib/offerlink';
+	import ShareLink from '$lib/components/ShareLink.svelte';
 	import { readMint, type MintView } from '$lib/money';
 
 	let identity = $state<Identity | null>(null);
@@ -76,6 +79,27 @@
 		if (out.ok) note = '';
 	}
 
+	/* Your open offer: a link to send it with (ADR-Q-026). Made when asked, or straight away after writing it. */
+	let link = $state('');
+	let linkSays = $state('');
+	let making = $state(false);
+	async function makeLink() {
+		if (!view) return;
+		making = true;
+		linkSays = '';
+		const out = await makeOfferLink(view.steps[0], ledger);
+		making = false;
+		if (out.ok) link = out.link;
+		else linkSays = out.says;
+	}
+	let autoLinked = false;
+	$effect(() => {
+		if (!autoLinked && page.url.searchParams.get('share') && view && s && isOpenOffer(s) && s.offeredBy === me) {
+			autoLinked = true;
+			void makeLink();
+		}
+	});
+
 	const who = (d: string) => (d === me ? 'you' : themName);
 	const entryText = (e: Entry) => `${valueText(e.value)} from ${who(e.from)} to ${who(e.to)}`;
 </script>
@@ -100,7 +124,16 @@
 				<section class="card preset-outlined-surface-200-800 bg-surface-50-950 p-4 sm:p-5 flex flex-col gap-4" aria-labelledby="now">
 					<h2 id="now" class="h5">Now</h2>
 
-					{#if s.phase === 'agreeing' && s.waitingFor === me}
+					{#if isOpenOffer(s) && s.offeredBy === me}
+						<p>Your offer is open. Send the link any way you like: the first person to open it can accept, counteroffer or decline, and your bell rings when they do.</p>
+						{#if link}
+							<ShareLink {link} label="Your offer’s link" subject="An offer for you" message="I’ve made you an offer on Q. Open it to see it, and accept, counteroffer or decline." note="It opens for one person: whoever opens it first." />
+						{:else}
+							<button type="button" class="btn preset-filled-primary-500 min-h-11 self-start" disabled={making} onclick={() => void makeLink()}><Icon name="share" size={18} />{making ? 'Making the link…' : 'Make a link to send'}</button>
+						{/if}
+						{#if linkSays}<p class="text-sm card preset-tonal-warning p-3">{linkSays}</p>{/if}
+						<button type="button" class="btn preset-tonal min-h-11 self-start" disabled={!!busy} onclick={() => void act('Withdrawn', { step: 'withdrawn', parent: s.offerHash ?? null })}>{busy === 'Withdrawn' ? 'Checking…' : 'Withdraw my offer'}</button>
+					{:else if s.phase === 'agreeing' && needsMe(s, me)}
 						<p>{themName} has offered this. Agreeing is the contract point: from then on, it’s binding on you both.</p>
 						<div class="flex flex-wrap gap-3">
 							<button type="button" class="btn preset-filled-primary-500 min-h-11" disabled={!!busy} onclick={() => void act('Agreed', { step: 'agreed', parent: s.offerHash ?? null })}><Icon name="check" size={18} />{busy === 'Agreed' ? 'Checking…' : 'Agree'}</button>

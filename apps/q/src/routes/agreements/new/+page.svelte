@@ -49,6 +49,8 @@
 	}
 	const blank = (): Side => ({ kind: 'thing', thing: '', credits: 1, pounds: '' });
 
+	/* "Anyone I send a link to": an open offer (ADR-Q-026), shared like a card. */
+	const LINK = 'link';
 	let withDid = $state(page.url.searchParams.get('with') ?? '');
 	let business = $state(false);
 	let mine = $state<Side>(blank());
@@ -74,7 +76,7 @@
 		doneWhen = t.doneWhen ?? '';
 	});
 
-	const them = $derived(people.find((p) => p.did === withDid) ?? peopleFrom(ledger, me).find((p) => p.did === withDid));
+	const them = $derived(withDid === LINK ? { did: '', name: 'whoever opens your link', picture: undefined } : (people.find((p) => p.did === withDid) ?? peopleFrom(ledger, me).find((p) => p.did === withDid)));
 	const valueOf = (s: Side): Value =>
 		s.kind === 'credits' ? { credits: Math.trunc(Number(s.credits) || 0), mode, ...(mint ? { mint: mint.mint } : {}) } : s.kind === 'pounds' ? { pence: Math.round((Number(s.pounds) || 0) * 100) } : { thing: s.thing.trim() };
 
@@ -82,7 +84,8 @@
 		if (!me || !withDid) return null;
 		const base = answering?.standing.terms;
 		const a = base?.a ?? me;
-		const b = base?.b ?? withDid;
+		/* Answering an open offer names you; a new offer by link leaves the other side empty. */
+		const b = base ? base.b || (me !== base.a ? me : '') : withDid === LINK ? '' : withDid;
 		const mv = valueOf(mine);
 		const tv = valueOf(theirs);
 		return {
@@ -136,7 +139,7 @@
 		);
 		busy = false;
 		if (!out.ok) says = out.says;
-		else void goto(`/agreements/${encodeURIComponent(id)}${out.says ? `?said=${encodeURIComponent(out.says)}` : ''}`);
+		else void goto(`/agreements/${encodeURIComponent(id)}${withDid === LINK && !answering ? '?share=1' : out.says ? `?said=${encodeURIComponent(out.says)}` : ''}`);
 	}
 
 	const title = $derived(varying ? 'Change the agreement' : answering ? 'Make a counteroffer' : 'Write an agreement');
@@ -192,10 +195,17 @@
 				<Steps.Content index={0}>
 					{#if answering}
 						<p class="card preset-tonal-surface p-4">With {them?.name ?? 'the same person'}. The people in an agreement don’t change.</p>
-					{:else if !people.length}
-						<p class="card preset-tonal-surface p-4">Nobody to agree with yet. Share your card with someone, and when they link up, you can write agreements together.</p>
 					{:else}
 						<ul class="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label="Who with">
+							<li class="sm:col-span-2">
+								<button type="button" role="radio" aria-checked={withDid === LINK} class="card w-full p-3 flex items-center gap-3 text-left min-h-11 {withDid === LINK ? 'preset-filled-primary-500' : 'preset-tonal-surface hover:preset-tonal-primary'}" onclick={() => (withDid = LINK)}>
+									<span class="size-11 shrink-0 rounded-full preset-tonal-secondary flex items-center justify-center"><Icon name="share" size={20} /></span>
+									<span class="flex flex-col">
+										<span class="font-bold">Anyone I send a link to</span>
+										<span class="text-sm opacity-80">By email, WhatsApp or a code. The first person to open it can accept, counteroffer or decline.</span>
+									</span>
+								</button>
+							</li>
 							{#each people as p (p.did)}
 								<li>
 									<button type="button" role="radio" aria-checked={withDid === p.did} class="card w-full p-3 flex items-center gap-3 text-left min-h-11 {withDid === p.did ? 'preset-filled-primary-500' : 'preset-tonal-surface hover:preset-tonal-primary'}" onclick={() => (withDid = p.did)}>
@@ -259,7 +269,7 @@
 						{#if problems.length}
 							<ul class="mt-4 card preset-tonal-error p-4 list-disc ps-8">{#each problems as p (p)}<li>{p}</li>{/each}</ul>
 						{/if}
-						<p class="mt-4 text-sm text-surface-700-300">Signed by you, checked by the agreement rules, and sent sealed so only {them?.name ?? 'they'} can read it. This is a record of what you both say, not legal advice.</p>
+						<p class="mt-4 text-sm text-surface-700-300">{withDid === LINK && !answering ? 'Signed by you and checked by the agreement rules. Next, you’ll get a link to send, any way you like.' : `Signed by you, checked by the agreement rules, and sent sealed so only ${them?.name ?? 'they'} can read it.`} This is a record of what you both say, not legal advice.</p>
 					{/if}
 				</Steps.Content>
 			</Steps>
@@ -274,7 +284,7 @@
 					<button type="button" class="btn preset-filled-primary-500 min-h-11" disabled={!canGoOn} onclick={() => (step += 1)}>Next</button>
 				{:else}
 					<button type="button" class="btn preset-filled-primary-500 min-h-11" disabled={busy || !canGoOn} onclick={() => void send()}>
-						<Icon name="share" size={18} />{busy ? 'Checking and sending…' : answering ? 'Send the counteroffer' : 'Send the offer'}
+						<Icon name="share" size={18} />{busy ? 'Checking and sending…' : answering ? 'Send the counteroffer' : withDid === LINK ? 'Make the offer' : 'Send the offer'}
 					</button>
 				{/if}
 			</footer>

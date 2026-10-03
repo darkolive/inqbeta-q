@@ -119,3 +119,18 @@ test('across federations, only under a treaty', async () => {
 	assert.deepEqual((await decide([], p, w)).rules, ['agreement.propose/cannot/outside-treaty']);
 	assert.equal((await decide([], p, { ...w, underTreaty: true })).holds, true);
 });
+
+test('an open offer by link: anyone may answer first; after that, only the two of them', async () => {
+	const { ana, ben, cat } = await people();
+	const w = wallets({ [ana.did]: 10 });
+	const open: Terms = { kind: 'swap', a: ana.did, b: '', aGives: { credits: 2, mode: 'test' }, bGives: { thing: 'Walk the dog' } };
+	const p = await sign(ana, { step: 'proposed', parent: null, terms: open }, 'open-a');
+	assert.equal((await decide([], p, w)).holds, true, 'an open offer may be made');
+	const benYes = await sign(ben, { step: 'agreed', parent: p.contentHash }, 'open-a');
+	assert.equal((await decide([p], benYes, w)).holds, true, 'whoever opens it may agree');
+	const late = await sign(cat, { step: 'done', parent: benYes.contentHash }, 'open-a');
+	assert.equal((await decide([p, benYes], late, w)).holds, false, 'once it’s Ben’s, Cat isn’t in it');
+	const p2 = await sign(ana, { step: 'proposed', parent: null, terms: open }, 'open-b');
+	const counter = await sign(cat, { step: 'countered', parent: p2.contentHash, terms: { ...open, b: cat.did } }, 'open-b');
+	assert.equal((await decide([p2], counter, w)).holds, true, 'a counteroffer from the link, naming themselves');
+});

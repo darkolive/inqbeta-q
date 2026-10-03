@@ -23,6 +23,7 @@ import {
 	committedBy,
 	effectOf,
 	isAgreementStep,
+	isOpenOffer,
 	standingOf,
 	type AgreementReceipt,
 	type AgreementStep,
@@ -126,10 +127,12 @@ export async function takeStep(
 		/* Send it to the other person, if Q knows where they are. */
 		const terms: Terms | null | undefined = content.terms ?? standingOf(prior).terms;
 		const them = terms ? (terms.a === identity.did ? terms.b : terms.a) : '';
+		/* An open offer you've just made has nobody to send to yet: you share it by link. */
 		const person = people.find((p) => p.did === them);
 		let sent = false;
 		let says: string | undefined;
-		if (person?.inbox) {
+		if (!them) says = undefined;
+		else if (person?.inbox) {
 			const out = await sendTo(person, { kind: 'agreement', step: signed });
 			sent = out.ok;
 			if (!out.ok) says = `Kept in your vault, but not sent yet: ${out.says}`;
@@ -152,9 +155,14 @@ export async function takeStep(
 /** A new agreement's id. */
 export const newAgreementId = () => crypto.randomUUID();
 
+/** Does this agreement need your answer? (An open offer someone shared with you does, until you answer it.) */
+export const needsMe = (s: Standing, me: string) => s.waitingFor === me || (isOpenOffer(s) && s.offeredBy !== me);
+
 /** Where an agreement stands, in a few words, from your side. */
 export function standingWords(s: Standing, me: string): { text: string; tone: 'good' | 'waiting' | 'needs-you' | 'plain' | 'bad' } {
 	if (s.phase === 'complete') return { text: 'Settled', tone: 'good' };
+	if (isOpenOffer(s) && s.offeredBy === me) return { text: 'Shared by link', tone: 'waiting' };
+	if (isOpenOffer(s)) return { text: 'Your answer', tone: 'needs-you' };
 	if (s.phase === 'ended') return { text: s.ended === 'declined' ? 'Declined' : s.ended === 'withdrawn' ? 'Withdrawn' : 'Ran out', tone: 'plain' };
 	if (s.waitingFor === me) return { text: s.phase === 'agreeing' ? 'Your answer' : 'Confirm the settlement', tone: 'needs-you' };
 	if (s.phase === 'agreeing') return { text: 'Waiting for an answer', tone: 'waiting' };

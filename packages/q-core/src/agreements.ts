@@ -46,7 +46,11 @@ export type Value = { credits: number; mode: 'test' | 'live'; mint?: string } | 
 
 export interface Terms {
 	kind: AgreementKind;
-	/** The two parties, fixed for the life of the agreement. */
+	/**
+	 * The two parties, fixed for the life of the agreement. An open offer
+	 * (ADR-Q-026, shared by link) leaves `b` empty: the first person to answer
+	 * it becomes `b`, and from then on it's between the two of them.
+	 */
 	a: string;
 	b: string;
 	/** What each gives the other. */
@@ -113,7 +117,7 @@ export function valueText(v: Value): string {
 /** What's wrong with these terms, each a sentence. Empty when they're fine. */
 export function problemsWithTerms(t: Terms): string[] {
 	const p: string[] = [];
-	if (!t.a || !t.b || t.a === t.b) p.push('An agreement is between two different people.');
+	if (!t.a || t.a === t.b) p.push('An agreement is between two different people.');
 	for (const v of [t.aGives, t.bGives]) {
 		if ('credits' in v && (!Number.isInteger(v.credits) || v.credits < 1)) p.push('Credits are whole numbers, at least one.');
 		if ('pence' in v && (!Number.isInteger(v.pence) || v.pence < 1)) p.push('Pounds must be more than nothing.');
@@ -226,6 +230,9 @@ function settledInFull(agreed: Terms, settled: Entry[][]): boolean {
 	return entriesFor(agreed).every((w) => settled.flat().filter((e) => slotOf(e) === slotOf(w)).reduce((n, e) => n + amountOf(e.value), 0) >= amountOf(w.value));
 }
 
+/** Is this an open offer, still waiting for someone to answer it? */
+export const isOpenOffer = (s: Standing) => s.phase === 'agreeing' && !!s.terms && !s.terms.b;
+
 /**
  * Where an agreement stands, from its steps (any order, copies fine). Steps
  * that don't fit — wrong person, wrong moment, a parent that isn't there — are
@@ -246,6 +253,10 @@ export function standingOf(receipts: AgreementReceipt[], now = Date.now()): Stan
 		const c = r.content;
 		const by = r.did;
 		if (c.agreement !== s.agreement) { reject(r, 'belongs to another agreement.'); continue; }
+		/* An open offer: whoever answers it first (not its maker) becomes the other side. */
+		if (s.terms && !s.terms.b && by !== s.terms.a && (c.step === 'agreed' || c.step === 'countered' || c.step === 'declined') && s.phase === 'agreeing') {
+			s.terms = { ...s.terms, b: by };
+		}
 		if (s.phase === 'ended' || s.phase === 'complete') { reject(r, `the agreement had already ${s.phase === 'ended' ? 'ended' : 'been settled in full'}.`); continue; }
 		if (s.phase === 'agreeing' && offerUntil && Date.parse(c.at) > Date.parse(offerUntil) && c.step !== 'proposed') {
 			s.phase = 'ended';
@@ -269,7 +280,7 @@ export function standingOf(receipts: AgreementReceipt[], now = Date.now()): Stan
 			case 'countered': {
 				const base = agreed ?? s.terms;
 				if (!base || !c.terms) { reject(r, 'a counteroffer answers an offer, with new terms.'); break; }
-				if (c.terms.a !== base.a || c.terms.b !== base.b) { reject(r, 'the two people can’t change.'); break; }
+				if (c.terms.a !== base.a || c.terms.b !== (base.b || by)) { reject(r, 'the two people can’t change.'); break; }
 				if (!party(base, by)) { reject(r, 'only the two people can counter.'); break; }
 				if (s.phase === 'agreeing' && by === s.offeredBy) { reject(r, 'you can’t counter your own offer; withdraw it instead.'); break; }
 				if (c.parent !== (s.phase === 'agreeing' ? offerHash : lastHash)) { reject(r, 'it doesn’t answer the latest step.'); break; }
@@ -347,8 +358,8 @@ export function standingOf(receipts: AgreementReceipt[], now = Date.now()): Stan
 		s.ended = 'expired';
 	}
 	if (s.terms && s.offeredBy) {
-		if (s.phase === 'agreeing') s.waitingFor = other(s.terms, s.offeredBy);
-		else if (s.phase === 'agreed' && s.pending) s.waitingFor = other(s.terms, s.pending.by);
+		if (s.phase === 'agreeing') s.waitingFor = other(s.terms, s.offeredBy) || undefined;
+		else if (s.phase === 'agreed' && s.pending) s.waitingFor = other(s.terms, s.pending.by) || undefined;
 	}
 	return s;
 }
@@ -384,7 +395,7 @@ export function sayStep(r: AgreementReceipt, viewer: string, nameOf: (did: strin
 	};
 	switch (c.step) {
 		case 'proposed':
-			return `${Who(by)} proposed an offer to ${who(otherOf(by))} of ${offer(by)}.`;
+			return t && !t.b ? `${Who(by)} made an open offer of ${offer(by)}, shared by link.` : `${Who(by)} proposed an offer to ${who(otherOf(by))} of ${offer(by)}.`;
 		case 'countered':
 			return `${Who(by)} made a counteroffer: ${offer(by)}.`;
 		case 'agreed':

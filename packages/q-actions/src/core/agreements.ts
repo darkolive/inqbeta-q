@@ -185,7 +185,9 @@ export function agreementFacts(prior: AgreementReceipt[], next: AgreementReceipt
 	const actor = next.did;
 	const s = prior.length ? standingOf(prior, Date.parse(c.at)) : null;
 	const phase = s ? s.phase : 'none';
-	const base: Terms | null = s?.terms ?? null;
+	/* An open offer (ADR-Q-026): whoever answers it, other than its maker, becomes the other side. */
+	const opened = !!s?.terms && !s.terms.b && actor !== s.terms.a && s.phase === 'agreeing';
+	const base: Terms | null = s?.terms ? (opened ? { ...s.terms, b: actor } : s.terms) : null;
 	const terms = c.terms ?? base;
 	const person = (id: string) => ({ __entity: { type: 'Person', id } });
 
@@ -214,7 +216,7 @@ export function agreementFacts(prior: AgreementReceipt[], next: AgreementReceipt
 		ownOffer: !!s && s.offeredBy === actor,
 		offerExpired: !!s && s.phase === 'ended' && s.ended === 'expired',
 		partiesUnchanged: !t || !base || (t.a === base.a && t.b === base.b),
-		twoDifferentPeople: !t || (!!t.a && !!t.b && t.a !== t.b),
+		twoDifferentPeople: !t || (!!t.a && t.a !== t.b && (c.step === 'proposed' || !!t.b)),
 		termsDescribed: !t || (described(t.aGives) && described(t.bGives)),
 		sameKindBothWays: !!t && kind(t.aGives) !== 'thing' && kind(t.aGives) === kind(t.bGives),
 		poundsWithoutBusiness: !!t && !t.business && ('pence' in t.aGives || 'pence' in t.bGives),

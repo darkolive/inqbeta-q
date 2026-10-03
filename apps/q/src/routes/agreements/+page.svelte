@@ -13,7 +13,7 @@
 	import { watch, type Identity } from '@inqbeta/q-core/passkey';
 	import { watchLedger, type Ledger } from '$lib/ledger';
 	import { peopleFrom } from '$lib/people';
-	import { agreementsFrom } from '$lib/agreements';
+	import { agreementsFrom, needsMe } from '$lib/agreements';
 
 	let identity = $state<Identity | null>(null);
 	let ledger = $state<Ledger | null>(null);
@@ -23,8 +23,8 @@
 	const me = $derived(identity?.did ?? '');
 	const people = $derived(peopleFrom(ledger, me));
 	const all = $derived(agreementsFrom(ledger));
-	const yours = $derived(all.filter((a) => a.standing.waitingFor === me));
-	const going = $derived(all.filter((a) => a.standing.waitingFor !== me && (a.standing.phase === 'agreeing' || a.standing.phase === 'agreed')));
+	const yours = $derived(all.filter((a) => needsMe(a.standing, me)));
+	const going = $derived(all.filter((a) => !needsMe(a.standing, me) && (a.standing.phase === 'agreeing' || a.standing.phase === 'agreed')));
 	const settled = $derived(all.filter((a) => a.standing.phase === 'complete'));
 	const ended = $derived(all.filter((a) => a.standing.phase === 'ended'));
 	const href = (id: string) => `/agreements/${encodeURIComponent(id)}`;

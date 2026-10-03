@@ -1,6 +1,6 @@
 ---
 status: proposed
-implementation: not started (3 October 2026)
+implementation: offers by link working — open offers (anyone may answer first), shared like a card, opened, kept, linked up, answered as an agreement (q-core, q-actions, apps/q offerlink.ts, /offer/[id]), 3 October 2026. Not yet: standing offers (taken) and shops
 updated: 2026-10-03
 ---
 

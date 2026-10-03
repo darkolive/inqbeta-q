@@ -24,6 +24,14 @@ export interface NewThing {
 export const WHATS_NEW: NewThing[] = [
 	{
 		at: '2026-10-03',
+		title: 'Send an offer by link',
+		says: 'Write an offer for “anyone I send a link to”, and send it by email, WhatsApp or a code. Whoever opens it first can accept, counteroffer or decline.',
+		href: '/agreements/new',
+		go: 'Make an offer',
+		icon: 'share'
+	},
+	{
+		at: '2026-10-03',
 		title: 'Your host’s own credits',
 		says: 'Buy them and they’re minted; cash them out and they’re destroyed, so the books always balance. In test mode it all works and no money moves.',
 		href: '/balance',

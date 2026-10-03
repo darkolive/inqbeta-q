@@ -167,3 +167,27 @@ test('a variation after agreeing: agreed again on new terms; turned down, the or
 	assert.equal(varied.terms && 'credits' in varied.terms.aGives ? varied.terms.aGives.credits : 0, 4, 'the variation, agreed by both, is the agreement now');
 	assert.equal(varied.terms?.doneWhen, 'Edges trimmed too');
 });
+
+test('an open offer, shared by link: the first to answer becomes the other side, and nobody else can step in', async () => {
+	const { ana, ben, cat } = await people();
+	const id = 'open-1';
+	const open: Terms = { kind: 'swap', a: ana.did, b: '', aGives: { credits: 2, mode: 'test' }, bGives: { thing: 'Walk the dog' } };
+	assert.deepEqual(problemsWithTerms(open), [], 'an open offer is fine');
+	const p = await sign(ana, step({ agreement: id, step: 'proposed', parent: null, terms: open }));
+	let s = standingOf([p]);
+	assert.equal(s.phase, 'agreeing');
+	assert.equal(s.waitingFor, undefined, 'waiting for whoever opens the link');
+	const benYes = await sign(ben, step({ agreement: id, step: 'agreed', parent: p.contentHash }));
+	const catYes = await sign(cat, step({ agreement: id, step: 'agreed', parent: p.contentHash }));
+	s = standingOf([p, benYes, catYes]);
+	assert.equal(s.phase, 'agreed');
+	assert.equal(s.terms?.b, ben.did, 'Ben answered first, so it’s with Ben');
+	assert.equal(s.problems.length, 1, 'Cat’s comes too late');
+	assert.equal(sayStep(p, ben.did, (d) => (d === ana.did ? 'Ana' : 'Ben')), 'Ana made an open offer of 2 test credits in exchange for Walk the dog, shared by link.');
+
+	const p2 = await sign(ana, step({ agreement: 'open-2', step: 'proposed', parent: null, terms: open }));
+	const counter = await sign(cat, step({ agreement: 'open-2', step: 'countered', parent: p2.contentHash, terms: { ...open, b: cat.did, aGives: { credits: 3, mode: 'test' } } }));
+	s = standingOf([p2, counter]);
+	assert.equal(s.terms?.b, cat.did, 'a counteroffer from the link names the person making it');
+	assert.equal(s.waitingFor, ana.did);
+});
