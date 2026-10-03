@@ -6,8 +6,13 @@
 	 * "New federation" starts a DRAFT (ADR-Q-007): yours alone, saved as often
 	 * as you like, founded only when you say so — with two signatures and the
 	 * rule engine's check (lib/federations.ts).
+	 *
+	 * Built around its story (3 October 2026, StoryGuide): with no clubs yet,
+	 * the story comes first and, beside it, the two ways in — start one, or
+	 * join from an invitation. With clubs, they come first, as cards rather
+	 * than a table, and the story folds into one line.
 	 */
-	import { Page, Section, Item, Status, Empty, Tile, type Tone } from '@inqbeta/q-ui';
+	import { Page, Section, Status, Empty, Tile, type Tone } from '@inqbeta/q-ui';
 	import { Dialog, Portal } from '@skeletonlabs/skeleton-svelte';
 	import { watch, type Identity } from '@inqbeta/q-core/passkey';
 	import { watchLedger, type Ledger } from '$lib/ledger';
@@ -18,6 +23,8 @@
 	import { readHome, type Home } from '$lib/home';
 	import { offersFederations } from '$lib/offers';
 	import FederationStory from '$lib/components/FederationStory.svelte';
+	import StoryGuide from '$lib/components/StoryGuide.svelte';
+	import { Icon } from '@inqbeta/q-ui';
 	/* Federations are a plugin the host turns on (ADR-Q-020). Off: no new clubs here. */
 	const clubs = offersFederations();
 
@@ -39,6 +46,9 @@
 	const hostFirst = <T extends { key: string }>(l: T[]) => [...l.filter(isHostRow), ...l.filter((f) => !isHostRow(f))];
 	const founded = $derived(hostFirst(found.filter((f) => f.kind === 'federation')));
 	const memberships = $derived(hostFirst(found.filter((f) => f.kind === 'membership')));
+
+	const ready = $derived(ledger?.state === 'ready' || ledger?.state === 'no-folder');
+	const none = $derived(!founded.length && !memberships.length && !drafts.length);
 
 	// Drawer state
 	type FederationItem = { key: string; title: string; description?: string; meta?: string; kind: 'federation' | 'membership'; status?: { tone: Tone; text: string } };
@@ -65,9 +75,32 @@
 
 <svelte:head><title>Federations — Q</title></svelte:head>
 
-<Page title="Federations" lead="Groups that vouch for each other's evidence. Each one can add its own screens to Q.">
-	<!-- What a federation is, as pictures: the same story style as the home page. -->
-	<FederationStory />
+<!-- One club, as a card: founded ones filled, memberships tonal. -->
+{#snippet club(f: Found, kind: 'federation' | 'membership')}
+	<button
+		type="button"
+		class="card preset-outlined-surface-200-800 bg-surface-50-950 hover:preset-tonal-primary p-4 flex items-start gap-4 text-left min-h-11"
+		onclick={() => open(f, { key: f.key, title: f.title, description: f.description, meta: f.meta, kind, status: f.status })}
+	>
+		<span class="size-14 shrink-0 rounded-full {kind === 'federation' ? 'preset-filled-primary-500' : 'preset-tonal-primary'} flex items-center justify-center h4" aria-hidden="true">{f.title.slice(0, 1)}</span>
+		<span class="flex flex-col gap-1 min-w-0 flex-1">
+			<span class="font-bold">{f.title}</span>
+			{#if f.description}<span class="text-sm text-surface-700-300 line-clamp-2">{f.description}</span>{/if}
+			<span class="flex flex-wrap gap-2 mt-1">
+				{#if isHostRow(f)}<Status tone="good">Your host</Status>{/if}
+				<Status tone="plain">{kind === 'federation' ? 'You founded it' : 'Member'}</Status>
+				{#if f.status}<Status tone={f.status.tone}>{f.status.text}</Status>{/if}
+			</span>
+		</span>
+		<Icon name="chevronRight" size={18} class="self-center opacity-60" />
+	</button>
+{/snippet}
+
+<Page title="Federations" lead="Clubs and groups that vouch for each other's evidence. Each one can add its own screens to Q.">
+	<!-- What a federation is, as pictures: first for someone new, one line once they have clubs. -->
+	<StoryGuide title="What a federation is" ready={!identity || ready} empty={!identity || none}>
+		<FederationStory />
+	</StoryGuide>
 
 	{#if home?.ok}
 		<Section title="Your host" description="The federation this copy of Q belongs to. Signing up is joining it.">
@@ -89,91 +122,62 @@
 		</Section>
 	{/if}
 
-	{#if identity && drafts.length}
-		<Section title="Drafts" description="Yours alone until you found them. Open one to carry on.">
-			<div class="table-container">
-				<table class="table table-hover">
-					<thead>
-						<tr>
-							<th>Name</th>
-							<th>What it is for</th>
-							<th>Last saved</th>
-							<th>Status</th>
-						</tr>
-					</thead>
-					<tbody>
-						{#each drafts as d (d.key)}
-							<tr onclick={() => goto(draftHref(d.key))} class="cursor-pointer hover:preset-tonal-primary">
-								<td><a class="anchor" href={draftHref(d.key)}>{d.title}</a></td>
-								<td class="text-sm opacity-60">{d.description}</td>
-								<td class="text-sm">{d.meta?.replace(/^Last saved /, '')}</td>
-								<td><Status tone="waiting">Draft</Status></td>
-							</tr>
-						{/each}
-					</tbody>
-				</table>
+
+	{#if !identity}
+		<Empty icon="lock" title="Locked" description="Sign in to see your federations." />
+	{:else}
+		{#if founded.length || memberships.length}
+			<Section title="Your clubs" description="The ones you founded, then the ones you belong to.">
+				<div class="grid gap-4 sm:grid-cols-2">
+					{#each founded as f (f.key)}{@render club(f, 'federation')}{/each}
+					{#each memberships as m (m.key)}{@render club(m, 'membership')}{/each}
+				</div>
+			</Section>
+		{/if}
+
+		{#if drafts.length}
+			<Section title="Drafts" description="Yours alone until you found them. Open one to carry on.">
+				<div class="grid gap-4 sm:grid-cols-2">
+					{#each drafts as d (d.key)}
+						<a href={draftHref(d.key)} class="card preset-outlined-warning-500 bg-surface-50-950 hover:preset-tonal-warning p-4 flex items-start gap-4 min-h-11">
+							<span class="size-14 shrink-0 rounded-full border-2 border-dashed border-warning-500 flex items-center justify-center h4" aria-hidden="true">{d.title.slice(0, 1)}</span>
+							<span class="flex flex-col gap-1 min-w-0 flex-1">
+								<span class="font-bold">{d.title}</span>
+								{#if d.description}<span class="text-sm text-surface-700-300 line-clamp-2">{d.description}</span>{/if}
+								<span class="flex flex-wrap items-center gap-2 mt-1">
+									<Status tone="waiting">Draft</Status>
+									{#if d.meta}<span class="text-xs opacity-70">{d.meta}</span>{/if}
+								</span>
+							</span>
+							<span class="btn btn-sm preset-filled-warning-500 self-center pointer-events-none">Carry on</span>
+						</a>
+					{/each}
+				</div>
+			</Section>
+		{/if}
+
+		<!-- The two ways in, as the story tells them: start one, or join one. -->
+		<Section title={none ? 'Get started' : 'Start or join another'}>
+			<div class="grid gap-4 sm:grid-cols-2">
+				{#if clubs}
+					<div class="card preset-tonal-primary p-5 flex flex-col gap-3">
+						<span class="flex items-center gap-2 font-bold"><Icon name="plus" size={20} /> Start a club</span>
+						<p class="text-sm">Write down what you agree. It stays a draft, yours alone, until you found it with its own key.</p>
+						<button type="button" class="btn preset-filled-primary-500 min-h-11 self-start" onclick={() => goto('/federations/draft')}>New federation</button>
+					</div>
+				{:else}
+					<div class="card preset-tonal-surface p-5 flex flex-col gap-3">
+						<span class="flex items-center gap-2 font-bold"><Icon name="info" size={20} /> No new clubs here</span>
+						<p class="text-sm">{home?.ok ? home.name : 'This host'} is a single site: it doesn’t offer clubs. Clubs you join elsewhere show here.</p>
+					</div>
+				{/if}
+				<div class="card preset-outlined-surface-200-800 bg-surface-50-950 p-5 flex flex-col gap-3">
+					<span class="flex items-center gap-2 font-bold"><Icon name="mail" size={20} /> Join a club</span>
+					<p class="text-sm">Got an invitation? Open its link. You’ll read the club’s rules and agree to them one step at a time, and choose how members know you.</p>
+				</div>
 			</div>
 		</Section>
 	{/if}
-
-	<Section title="Yours">
-		{#snippet actions()}
-			{#if identity && clubs}
-				<button type="button" class="btn preset-filled-primary-500" onclick={() => goto('/federations/draft')}>
-					New federation
-				</button>
-			{/if}
-		{/snippet}
-		{#if !identity}
-			<Empty icon="lock" title="Locked" description="Sign in to see your federations." />
-		{:else if !founded.length && !memberships.length}
-			<Empty
-				icon="federations"
-				title="No federations yet"
-				description={clubs
-					? 'Start one with New federation. It stays a draft — yours alone — until you found it. Federations you join show here too.'
-					: `${home?.ok ? home.name : 'This host'} is a single site: it doesn’t offer clubs. Federations you join elsewhere show here.`}
-			/>
-		{:else}
-			<!-- Table -->
-			<div class="table-container">
-				<table class="table table-hover">
-					<thead>
-						<tr>
-							<th>Name</th>
-							<th>Description</th>
-							<th>Type</th>
-							<th>Status</th>
-						</tr>
-					</thead>
-					<tbody>
-						{#each founded as f (f.key)}
-							<tr onclick={() => open(f, { key: f.key, title: f.title, description: f.description, meta: f.meta, kind: 'federation', status: f.status })} class="cursor-pointer hover:preset-tonal-primary">
-								<td>{f.title}{#if isHostRow(f)} <Status tone="good">Your host</Status>{/if}</td>
-								<td class="text-sm opacity-60">{f.description}</td>
-								<td>Founded</td>
-								<td><Status tone={f.status?.tone ?? 'good'}>{f.status?.text ?? 'Founded'}</Status></td>
-							</tr>
-						{/each}
-						{#each memberships as m (m.key)}
-							<tr onclick={() => open(m, { key: m.key, title: m.title, description: m.description, meta: m.meta, kind: 'membership', status: m.status })} class="cursor-pointer hover:preset-tonal-primary">
-								<td>{m.title}{#if isHostRow(m)} <Status tone="good">Your host</Status>{/if}</td>
-								<td class="text-sm opacity-60">{m.description}</td>
-								<td>Member</td>
-								<td>
-									{#if m.status}
-										<Status tone={m.status.tone}>{m.status.text}</Status>
-									{:else}
-										<Status tone="plain">Active</Status>
-									{/if}
-								</td>
-							</tr>
-						{/each}
-					</tbody>
-				</table>
-			</div>
-		{/if}
-	</Section>
 
 	<Section title="Features" description="What each federation adds. Every feature uses the same headings, blocks and layout.">
 		<div class="grid gap-4 sm:grid-cols-2">

@@ -4,10 +4,16 @@
 	 * newest first. A conversation only opens with someone you're linked with —
 	 * there's a receipt between you already — so there's no "new message to
 	 * anyone" box: you start from a person.
+	 *
+	 * Built around its story (3 October 2026, StoryGuide): new to messages,
+	 * the story comes first; once you're writing, your conversations do, new
+	 * ones on top, and the story folds into one line. On a wide screen the
+	 * people you could write to sit beside your conversations.
 	 */
 	import { Page, Empty, Icon } from '@inqbeta/q-ui';
 	import SignIn from '$lib/components/SignIn.svelte';
 	import MessageStory from '$lib/components/MessageStory.svelte';
+	import StoryGuide from '$lib/components/StoryGuide.svelte';
 	import { watch, type Identity } from '@inqbeta/q-core/passkey';
 	import { watchLedger, type Ledger } from '$lib/ledger';
 	import { peopleFrom } from '$lib/people';
@@ -42,8 +48,11 @@
 		}
 		return [...by.entries()]
 			.map(([did, t]) => ({ did, ...t, person: people.find((p) => p.did === did) }))
-			.sort((a, b) => b.last.content.at.localeCompare(a.last.content.at));
+			/* Anything not yet read first, then the newest. */
+			.sort((a, b) => Number(!!b.unread) - Number(!!a.unread) || b.last.content.at.localeCompare(a.last.content.at));
 	});
+	const ready = $derived(ledger?.state === 'ready' || ledger?.state === 'no-folder');
+	const unread = $derived(threads.reduce((n, t) => n + t.unread, 0));
 	const notYet = $derived(people.filter((p) => p.inbox && !threads.some((t) => t.did === p.did)));
 	const when = (iso: string) => {
 		const d = new Date(iso);
@@ -60,50 +69,75 @@
 {/snippet}
 
 <Page title="Messages" lead="Sealed so only the person you write to can read them. Both of you keep a signed copy.">
-	<!-- How a message gets there, as pictures: the same story style as the home and Federations pages. -->
-	<MessageStory />
+	<!-- How a message gets there, as pictures: first for someone new, one line once they're writing. -->
+	<StoryGuide title="How a message gets there" ready={!identity || ready} empty={!identity || !threads.length}>
+		<MessageStory />
+	</StoryGuide>
 
 	{#if !identity}
 		<div class="panel"><SignIn /></div>
+	{:else if !threads.length && !notYet.length}
+		<Empty icon="message" title="No one to write to yet" description="Share your card with someone. When you've linked up, you can write to each other here.">
+			<a class="btn preset-filled-primary-500 min-h-11" href="/cards"><Icon name="share" size={16} /> Share my card</a>
+		</Empty>
 	{:else}
-		{#if threads.length}
-			<ul class="card preset-outlined-surface-200-800 bg-surface-50-950 divide-y divide-surface-200-800 overflow-hidden">
-				{#each threads as t (t.did)}
-					<li>
-						<a href="/messages/{encodeURIComponent(t.did)}" class="flex items-center gap-4 p-4 hover:bg-surface-100-900 min-h-11">
-							{@render face(t.person)}
-							<span class="flex-1 min-w-0">
-								<span class="block {t.unread ? 'font-bold' : ''}">{t.person?.name ?? 'Someone'}</span>
-								<span class="block text-sm opacity-70 truncate">{t.last.did === identity.did ? 'You: ' : ''}{t.last.content.kind === 'voicemail' ? 'Voice message' : t.last.content.text}</span>
-							</span>
-							<span class="flex flex-col items-end gap-1 shrink-0">
-								<span class="text-xs opacity-60">{when(t.last.content.at)}</span>
-								{#if t.unread}<span class="badge-icon preset-filled-primary-500 text-xs">{t.unread}</span>{/if}
-							</span>
-						</a>
-					</li>
-				{/each}
-			</ul>
-		{/if}
-
-		{#if notYet.length}
-			<section class="flex flex-col gap-3">
-				<h2 class="h5">Write to someone</h2>
-				<div class="flex flex-wrap gap-3">
-					{#each notYet as p (p.did)}
-						<a href="/messages/{encodeURIComponent(p.did)}" class="card preset-tonal-surface p-3 flex items-center gap-3 min-h-11 hover:preset-tonal-primary">
-							{@render face(p)}
-							<span class="font-bold">{p.name}</span>
-						</a>
-					{/each}
-				</div>
+		<div class="grid gap-8 lg:grid-cols-3 items-start">
+			<section class="lg:col-span-2 flex flex-col gap-3" aria-labelledby="conversations">
+				<h2 id="conversations" class="h4 flex items-center gap-3">
+					Conversations
+					{#if unread}<span class="badge preset-filled-primary-500">{unread} new</span>{/if}
+				</h2>
+				{#if threads.length}
+					<ul class="card preset-outlined-surface-200-800 bg-surface-50-950 divide-y divide-surface-200-800 overflow-hidden">
+						{#each threads as t (t.did)}
+							<li class={t.unread ? 'border-s-4 border-primary-500' : ''}>
+								<a href="/messages/{encodeURIComponent(t.did)}" class="flex items-center gap-4 p-4 hover:bg-surface-100-900 min-h-11">
+									{@render face(t.person)}
+									<span class="flex-1 min-w-0">
+										<span class="block {t.unread ? 'font-bold' : ''}">{t.person?.name ?? 'Someone'}</span>
+										<span class="flex items-center gap-1 text-sm opacity-70 truncate">
+											{#if t.last.content.kind === 'voicemail'}<Icon name="mic" size={14} />{/if}
+											{t.last.did === identity.did ? 'You: ' : ''}{t.last.content.kind === 'voicemail' ? 'Voice message' : t.last.content.text}
+										</span>
+									</span>
+									<span class="flex flex-col items-end gap-1 shrink-0">
+										<span class="text-xs opacity-60">{when(t.last.content.at)}</span>
+										{#if t.unread}<span class="badge-icon preset-filled-primary-500 text-xs">{t.unread}</span>{/if}
+									</span>
+								</a>
+							</li>
+						{/each}
+					</ul>
+				{:else}
+					<p class="card preset-tonal-surface p-4">No conversations yet. Choose someone to write to.</p>
+				{/if}
 			</section>
-		{/if}
 
-		{#if !threads.length && !notYet.length}
-			<Empty icon="message" title="No one to write to yet" description="Share your card with someone. When you've linked up, you can write to each other here.">
-				<a class="btn preset-filled-primary-500 min-h-11" href="/cards"><Icon name="share" size={16} /> Share my card</a>
-			</Empty>
-		{/if}
+			<aside class="flex flex-col gap-6">
+				{#if notYet.length}
+					<section class="flex flex-col gap-3" aria-labelledby="write-to">
+						<h2 id="write-to" class="h4">Write to someone</h2>
+						<ul class="card preset-outlined-surface-200-800 bg-surface-50-950 divide-y divide-surface-200-800 overflow-hidden">
+							{#each notYet as p (p.did)}
+								<li>
+									<a href="/messages/{encodeURIComponent(p.did)}" class="flex items-center gap-3 p-3 min-h-11 hover:preset-tonal-primary">
+										{@render face(p)}
+										<span class="flex-1 font-bold">{p.name}</span>
+										<Icon name="message" size={18} class="text-primary-700-300" />
+									</a>
+								</li>
+							{/each}
+						</ul>
+					</section>
+				{/if}
+				<a href="/communication" class="card preset-tonal-primary p-4 flex items-start gap-3 hover:preset-filled-primary-500">
+					<Icon name="lock" size={22} class="shrink-0 mt-0.5" />
+					<span class="flex flex-col gap-1">
+						<span class="font-bold">Only the two of you can read them</span>
+						<span class="text-sm">Locked before they leave your computer. See how.</span>
+					</span>
+				</a>
+			</aside>
+		</div>
 	{/if}
 </Page>
