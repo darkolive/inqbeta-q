@@ -109,7 +109,8 @@
 	});
 </script>
 
-<div class="flex-1 max-w-xl mx-4">
+<!-- On a phone it has its own row under the logo and switches (3 October 2026: the page slid sideways). -->
+<div class="order-last basis-full md:order-none md:basis-auto md:flex-1 max-w-xl md:mx-4 min-w-0">
 	<div class="flex items-center bg-surface-50-950 rounded-full border-2 border-surface-300-700 px-4 py-2.5 gap-3 {listening ? 'border-primary-500 ring-2 ring-primary-500/30' : ''}">
 		<!-- Microphone -->
 		<button type="button" onclick={toggleMic} class="shrink-0 p-2 rounded-full transition-colors {listening ? 'preset-filled-primary-500 animate-pulse' : 'hover:preset-tonal'}" aria-label={listening ? 'Stop' : 'Voice search'}>

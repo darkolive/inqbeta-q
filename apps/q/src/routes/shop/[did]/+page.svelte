@@ -82,7 +82,7 @@
 	{/snippet}
 
 	{#if !identity}
-		<div class="panel"><SignIn /></div>
+		<div class="panel"><SignIn stay /></div>
 	{:else if loading && !shop}
 		<p class="card preset-tonal-surface p-4" aria-live="polite">Opening the shop…</p>
 	{:else if problem}

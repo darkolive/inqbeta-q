@@ -642,7 +642,7 @@
 <!-- Section 1: Header (full width, sticky) -->
 <header class="sticky top-0 z-40 border-b border-surface-200-800/70 bg-surface-50-950/90 backdrop-blur">
 	<!-- Header container: margin = 50% of sidebar when open, centered when collapsed -->
-	<div class="relative flex items-center justify-between {navLayout === 'sidebar' ? 'mx-24 py-4' : 'mx-auto max-w-5xl px-6 py-4'}">
+	<div class="relative flex flex-wrap items-center justify-between gap-y-3 px-4 py-3 md:flex-nowrap {navLayout === 'sidebar' ? 'md:mx-24 md:px-0 md:py-4' : 'md:mx-auto md:max-w-5xl md:px-6 md:py-4'}">
 		<!-- Under the switches, only when this page is missing audio (lib/settings: coverage). -->
 		<div class="absolute right-0 top-full mt-2"><SpeechNote /></div>
 		<!-- Logo + Terminal Icon, and the Beta badge beside them -->
@@ -662,7 +662,7 @@
 			aloud — the same controls in the same corner, signed in or out — with
 			the notifications bell ahead of them. Signing out is on Keys.
 		-->
-		<div class="flex items-center gap-4">
+		<div class="flex items-center gap-1 sm:gap-4">
 			<!-- Backup nudge: only when something new has gone five minutes uncarried. -->
 			<BackupNeeded />
 			<!-- Notifications: no background, the brand orange bell, as tall as the switches.
