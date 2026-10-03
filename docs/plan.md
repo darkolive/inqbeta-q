@@ -69,9 +69,9 @@ exceptions.
    until it's held elsewhere).
 2. ✅ **Your own bucket** (S3-compatible), as a full copy or a pass-through;
    keys sealed in the vault and the vault pointer.
-3. **Settings → Backups** (built with the writer set): schedules within what
+3. ✅ **Settings → Backups**: schedules within what
    the host offers.
-4. **The download**, offered when due.
+4. ✅ **The download**, offered when due.
 5. **Opening from the newest copy** on a new device.
 
 ## Phase 3 — the price, from the flow

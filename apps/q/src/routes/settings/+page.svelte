@@ -12,6 +12,7 @@
 	import { channelFrom, claimChannel, updateChannelUses } from '$lib/channels';
 	import { watchLedger, refreshLedger, type Ledger } from '$lib/ledger';
 	import { newestPerKey } from '$lib/features/dostudy';
+	import BackupChoices from '$lib/components/BackupChoices.svelte';
 
 	let identity = $state<Identity | null>(null);
 	const accessLevel = $derived(getAccessLevel());
@@ -265,6 +266,10 @@
 		</Section>
 
 		<!-- Privacy -->
+		<Section title="Backups" description="When each copy of your vault happens. Your vault is sealed before any copy leaves this device.">
+			<BackupChoices />
+		</Section>
+
 		<Section title="Privacy">
 			<Item 
 				icon="eye-off" 

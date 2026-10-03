@@ -46,6 +46,7 @@
 	import { readHome } from '$lib/home';
 	import { readAnnouncements, readIds, markRead, restoreRead } from '$lib/announcements';
 	import { keptFrom, knownKept, keepSoon } from '$lib/kept-settings';
+	import { backups, restoreBackups } from '$lib/backups.svelte';
 	import { startMessaging, watchArrivals, sendTo, type Signed } from '$lib/messages';
 	import { lengthOf } from '$lib/voicemail';
 	import { plugins, restorePlugins } from '$lib/plugins.svelte';
@@ -487,6 +488,7 @@
 				seen = readIds();
 				restoreReach(k.notify);
 				restorePlugins(k.plugins);
+				restoreBackups(k.backups);
 			}
 			keptReady = true;
 		});
@@ -494,11 +496,12 @@
 	/* The bell's number, counted only once the read marks are back: never a number that then vanishes. */
 	const bellCount = $derived(keptReady ? unreadCount + newNotices + unheard + unreadCountMessages + missed.length : 0);
 	function keepSettings() {
-		if (identity && keptReady) keepSoon(identity, { read: [...readIds()], notify: reach, plugins: $state.snapshot(plugins.prefs) }, folderReady);
+		if (identity && keptReady) keepSoon(identity, { read: [...readIds()], notify: reach, plugins: $state.snapshot(plugins.prefs), backups: $state.snapshot(backups.choices) }, folderReady);
 	}
 	$effect(() => {
 		void reach;
 		void plugins.prefs;
+		void backups.choices;
 		keepSettings();
 	});
 

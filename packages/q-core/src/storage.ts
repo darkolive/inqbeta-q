@@ -46,6 +46,8 @@ export const STORED_KEYS: StoredKey[] = [
 	{ key: 'inqbeta-zk-2fa', where: 'local', kind: 'identity', holds: 'the zero-knowledge 2FA contact hash' },
 	{ key: 'inqbeta-zk-pending', where: 'local', kind: 'identity', holds: 'a zero-knowledge 2FA check part-way through' },
 	{ key: 'q-vault-synced', where: 'local', kind: 'identity', holds: 'that the person said their vault folder syncs somewhere' },
+	{ key: 'q-vault-downloaded', where: 'local', kind: 'identity', holds: 'when the whole vault was last downloaded as one sealed file, so Q knows when the next is due' },
+	{ key: 'q.backups', where: 'local', kind: 'identity', holds: 'when each copy of the vault happens (cloud, bucket, host pass-through, download) — also kept in the vault' },
 	{ key: 'q-vault-exported', where: 'local', kind: 'identity', holds: 'when the vault was last taken out of this browser' },
 	{ key: 'q.announcements.read', where: 'local', kind: 'identity', holds: 'which federation announcements the person has opened (their ids only)' },
 	{ key: 'q.notify', where: 'local', kind: 'identity', holds: 'the notifications card: what rings, what is quiet, what is off (ADR-Q-016 §6)' },

@@ -19,7 +19,9 @@
 	 * Only where the vault lives in the browser — a folder on disk is already
 	 * somewhere of its own.
 	 */
-	import { backupNow, unexported, watchBackup, watchFolder } from '@inqbeta/q-core/folder';
+	import { backupNow, unexported, watchBackup, watchDownload, watchFolder } from '@inqbeta/q-core/folder';
+	import { downloadDue } from '@inqbeta/q-core/backup-schedule';
+	import { backups } from '$lib/backups.svelte';
 	import { watch } from '@inqbeta/q-core/passkey';
 	import { Icon } from '@inqbeta/q-ui';
 	import { Dialog, Portal } from '@skeletonlabs/skeleton-svelte';
@@ -84,7 +86,21 @@
 		return () => clearInterval(tick);
 	});
 
-	const due = $derived(waiting > 0 && now - Math.max(at, since) >= WAIT_MS);
+	/* Your download, when Settings → Backups says it's due (ADR-Q-028): asked once, here, and nowhere else. */
+	let lastDl = $state(0);
+	let folderReady = $state(false);
+	$effect(() => watchDownload((t0) => (lastDl = t0)));
+	$effect(() => watchFolder((s) => (folderReady = s.kind === 'ready')));
+	/* Never downloaded: counted from your oldest receipt, so a new vault isn't nagged on its first day. */
+	let oldest = $state(0);
+	$effect(() =>
+		watchLedger((l) => {
+			const times = (l.receipts ?? []).map((r) => Date.parse(r.at)).filter(Number.isFinite);
+			oldest = times.length ? Math.min(...times) : 0;
+		})
+	);
+	const downloadIsDue = $derived(folderReady && !!(lastDl || oldest) && downloadDue(lastDl || oldest, backups.choices.download, now));
+	const due = $derived((waiting > 0 && now - Math.max(at, since) >= WAIT_MS) || downloadIsDue);
 
 	function ask() {
 		says = '';
@@ -108,7 +124,7 @@
 	}
 </script>
 
-{#if inBrowser && signedIn && (due || working || asking)}
+{#if signedIn && ((inBrowser && due) || downloadIsDue || working || asking)}
 	<button
 		type="button"
 		class="btn py-0 relative text-warning-500 cursor-pointer
@@ -151,6 +167,7 @@
 						</footer>
 					{/if}
 				{:else}
+					{#if downloadIsDue}<p class="text-sm font-semibold">Your {backups.choices.download === 'weekly' ? 'weekly' : backups.choices.download === 'quarterly' ? 'quarterly' : 'monthly'} download is due. You can change how often in Settings → Backups.</p>{/if}
 					<Dialog.Description>{t('backup.ask.body')}</Dialog.Description>
 					<!-- Visible, not only announced: a sighted person whose backup failed must see it. -->
 					{#if says}<p class="card preset-tonal-error p-3 text-sm" role="alert">{says}</p>{/if}

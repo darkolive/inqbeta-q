@@ -632,6 +632,7 @@ export async function backupNow(): Promise<
 			await nav.share({ files: [file], title: name });
 			await recordCopy({ how: 'share', root, files, bytes: bytes.length, name });
 			markExported();
+			markDownloaded();
 			return { ok: true, files, name, root, how: 'share' };
 		} catch (e) {
 			if (e instanceof DOMException && e.name === 'AbortError') {
@@ -647,6 +648,7 @@ export async function backupNow(): Promise<
 	}
 	await recordCopy({ how: 'download', root, files, bytes: bytes.length, name });
 	markExported();
+	markDownloaded();
 	return { ok: true, files, name, root, how: 'download' };
 }
 
@@ -680,6 +682,31 @@ export function setVaultSyncs(yes: boolean) {
 /* When the vault was last taken out of this browser. Best effort — if the
  * browser clears it, the count comes back high, which errs the safe way. */
 const EXPORTED_AT = 'q-vault-exported';
+/* When a download (a sealed file of the whole vault) was last made: the copy nobody else holds (ADR-Q-028). */
+const DOWNLOADED_AT = 'q-vault-downloaded';
+const downloadListeners = new Set<(at: number) => void>();
+function markDownloaded() {
+	try {
+		localStorage.setItem(DOWNLOADED_AT, String(Date.now()));
+	} catch {
+		/* then a download looks due again, which is the safe way round */
+	}
+	for (const fn of downloadListeners) fn(lastDownload());
+}
+/** When the last download of the whole vault was made in this browser. 0 for never. */
+export function lastDownload(): number {
+	try {
+		return Number(localStorage.getItem(DOWNLOADED_AT)) || 0;
+	} catch {
+		return 0;
+	}
+}
+/** Called now and after every download. */
+export function watchDownload(fn: (at: number) => void): () => void {
+	downloadListeners.add(fn);
+	fn(lastDownload());
+	return () => downloadListeners.delete(fn);
+}
 
 /*
  * Something new was written into the vault (2 October 2026). Darren ended a

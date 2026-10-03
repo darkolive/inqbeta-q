@@ -18,6 +18,7 @@ export interface KeptSettings {
 	read: string[];
 	notify: Record<string, Reach>;
 	plugins?: PluginPrefs;
+	backups?: unknown;
 }
 
 export function keptFrom(answers: AnswerSet[], did: string): KeptSettings | null {
@@ -37,11 +38,18 @@ export function keptFrom(answers: AnswerSet[], did: string): KeptSettings | null
 	} catch {
 		plugins = undefined;
 	}
-	return { read: Array.isArray(read) ? read : [], notify, plugins };
+	let backups: unknown;
+	try {
+		const raw = set.answers['q:settings/backups']?.value;
+		backups = raw ? JSON.parse(String(raw)) : undefined;
+	} catch {
+		backups = undefined;
+	}
+	return { read: Array.isArray(read) ? read : [], notify, plugins, backups };
 }
 
 const same = (a: KeptSettings, b: KeptSettings) =>
-	JSON.stringify([[...a.read].sort(), Object.entries(a.notify).sort(), a.plugins ?? null]) === JSON.stringify([[...b.read].sort(), Object.entries(b.notify).sort(), b.plugins ?? null]);
+	JSON.stringify([[...a.read].sort(), Object.entries(a.notify).sort(), a.plugins ?? null, a.backups ?? null]) === JSON.stringify([[...b.read].sort(), Object.entries(b.notify).sort(), b.plugins ?? null, b.backups ?? null]);
 
 let last: KeptSettings | null = null;
 let timer: ReturnType<typeof setTimeout> | null = null;
@@ -64,6 +72,7 @@ export function keepSoon(identity: Identity, next: KeptSettings, canSave: boolea
 		if (next.read.length) values['q:settings/read'] = next.read;
 		if (Object.keys(next.notify).length) values['q:settings/notify'] = JSON.stringify(next.notify);
 		if (next.plugins && (next.plugins.order.length || next.plugins.off.length)) values['q:settings/plugins'] = JSON.stringify(next.plugins);
+		if (next.backups) values['q:settings/backups'] = JSON.stringify(next.backups);
 		if (!Object.keys(values).length) return;
 		const out = await saveAnswers(identity, YOUR_SETTINGS, values).catch(() => null);
 		if (out?.ok) last = next;

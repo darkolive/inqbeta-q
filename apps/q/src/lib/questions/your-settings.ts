@@ -35,6 +35,13 @@ export const YOUR_SETTINGS: QuestionSet = {
 			answer: 'longtext',
 			asks: { 'en-GB': 'Which plugins show in your menu, and in what order' },
 			optional: true
+		},
+		{
+			/* When each copy of your vault happens (ADR-Q-028, 3 October 2026). */
+			id: 'q:settings/backups',
+			answer: 'longtext',
+			asks: { 'en-GB': 'When each copy of your vault happens' },
+			optional: true
 		}
 	]
 };
