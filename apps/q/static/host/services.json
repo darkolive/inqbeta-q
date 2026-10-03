@@ -25,6 +25,42 @@
       "source": "inqbeta:q/host",
       "did": "did:key:z6MkpdzRhpXvNuvxCfYHk1EX2h3kAe61tJbWi58ijkeg8pVc",
       "publicKey": "l1SZFrbv2cFP2Ld26PBEPu0RlkIlIYn6d01DMVHfsX8",
+      "signedAt": "2026-10-03T14:26:09.821Z",
+      "contentHash": "gGvIX5yLAUe6_Wzj3_ZSzl9JE5AIP7OZCcVk1Ppi2X4",
+      "signature": "zjpzJ3UNp5AFxRBmWYSO6jNrjVZZqlOYKoeO4wBQLScUXv9yMpsO46nmBAoQofDhP30ILZTOh4Gh2-ADNtmTBw",
+      "content": {
+        "schema": "inqbeta.host-service/1",
+        "source": "inqbeta:q/host",
+        "host": "did:key:z6Mkvo5GNipFGRo6v29PbHnFXjvh8UFjLuBDnXYpRGzB6GCP",
+        "service": "federations",
+        "setting": "PUBLIC_Q_FEDERATIONS",
+        "ends": "on",
+        "at": "2026-10-03T14:26:09.792Z"
+      }
+    },
+    {
+      "schema": "inqbeta.receipt/1",
+      "source": "inqbeta:q/host",
+      "did": "did:key:z6MkpdzRhpXvNuvxCfYHk1EX2h3kAe61tJbWi58ijkeg8pVc",
+      "publicKey": "l1SZFrbv2cFP2Ld26PBEPu0RlkIlIYn6d01DMVHfsX8",
+      "signedAt": "2026-10-03T14:27:25.972Z",
+      "contentHash": "GNY6EPSSSVBjGxTHLgu5mKxb6YyhJmhY2P4Pc4w7gw0",
+      "signature": "YHoaTakjH9_p1hP8N2G0KYBj23TmpwLAkdKcyu329Sd26xjP0LU8YiGATE6YLSZFFXA0dPTBUwIxWmNBbI1oDw",
+      "content": {
+        "schema": "inqbeta.host-service/1",
+        "source": "inqbeta:q/host",
+        "host": "did:key:z6Mkvo5GNipFGRo6v29PbHnFXjvh8UFjLuBDnXYpRGzB6GCP",
+        "service": "money",
+        "setting": "Q_CREDIT_PENCE",
+        "ends": "1",
+        "at": "2026-10-03T14:27:25.955Z"
+      }
+    },
+    {
+      "schema": "inqbeta.receipt/1",
+      "source": "inqbeta:q/host",
+      "did": "did:key:z6MkpdzRhpXvNuvxCfYHk1EX2h3kAe61tJbWi58ijkeg8pVc",
+      "publicKey": "l1SZFrbv2cFP2Ld26PBEPu0RlkIlIYn6d01DMVHfsX8",
       "signedAt": "2026-10-02T19:10:12.540Z",
       "contentHash": "-FYmJM3mZxFVkvKvYDOqxYGpPy7rrkCQ81PyzdAJO4Q",
       "signature": "ns7-n-PHB8W_RCJG17JaxV--E2NIhWe6z2gwb9hviLyy4hMvss7YOpkgMTnjx8XNaASkbrkVHjTsiszCJwjPDg",
@@ -36,6 +72,24 @@
         "setting": "Q_MAIL_FROM",
         "ends": "getintouch@darkolive.co.uk",
         "at": "2026-10-02T19:10:12.528Z"
+      }
+    },
+    {
+      "schema": "inqbeta.receipt/1",
+      "source": "inqbeta:q/host",
+      "did": "did:key:z6MkpdzRhpXvNuvxCfYHk1EX2h3kAe61tJbWi58ijkeg8pVc",
+      "publicKey": "l1SZFrbv2cFP2Ld26PBEPu0RlkIlIYn6d01DMVHfsX8",
+      "signedAt": "2026-10-03T14:26:46.814Z",
+      "contentHash": "Bi97pO38b_B8Y3tNIEwAdE30E7UDIw1JewLAZ1Wu2a4",
+      "signature": "jzuipMF9ZTAHfUirCtecksEROYXNPyI3lRbCGP9mptgiILt3Iznl9b5CKc1_ft3A5-AntlMy2AgaVwEZBs2FAw",
+      "content": {
+        "schema": "inqbeta.host-service/1",
+        "source": "inqbeta:q/host",
+        "host": "did:key:z6Mkvo5GNipFGRo6v29PbHnFXjvh8UFjLuBDnXYpRGzB6GCP",
+        "service": "money",
+        "setting": "Q_MINT_SEED",
+        "ends": "AhW8",
+        "at": "2026-10-03T14:26:46.791Z"
       }
     },
     {

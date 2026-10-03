@@ -69,6 +69,10 @@
 	$effect(() => watchReach((a) => (reach = a)));
 	const peopleReach = $derived(reachFor('people', reach));
 	function ring() {
+		/* Not while signing in: until your read marks are back from the vault,
+		 * everything old looks new (3 October 2026: the bell bounced, showed a
+		 * number, then went quiet). */
+		if (!keptReady) return;
 		ringing = true;
 		setTimeout(() => (ringing = false), 2400);
 	}
@@ -110,7 +114,8 @@
 	let ledger = $state<Ledger | null>(null);
 	let homeDid = $state('');
 	let announcements = $state<Announcement[]>([]);
-	let seen = $state<Set<string>>(new Set());
+	/* What's been read: this browser's marks straight away, the vault's once they're back. */
+	let seen = $state<Set<string>>(readIds());
 	let reading = $state<Announcement | null>(null);
 	let homeStorage = $state<string | undefined>(undefined);
 	let homeBellboy = $state<string | undefined>(undefined);
@@ -486,6 +491,8 @@
 			keptReady = true;
 		});
 	});
+	/* The bell's number, counted only once the read marks are back: never a number that then vanishes. */
+	const bellCount = $derived(keptReady ? unreadCount + newNotices + unheard + unreadCountMessages + missed.length : 0);
 	function keepSettings() {
 		if (identity && keptReady) keepSoon(identity, { read: [...readIds()], notify: reach, plugins: $state.snapshot(plugins.prefs) }, folderReady);
 	}
@@ -675,9 +682,9 @@
 					focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-primary-500"
 			>
 				<Icon name="bell" class="size-7" stroke={2} />
-				{#if unreadCount + newNotices + unheard + unreadCountMessages + missed.length > 0}
+				{#if bellCount > 0}
 					<span class="absolute -right-2 -top-2 badge-icon preset-filled-error-500 text-xs">
-						{unreadCount + newNotices + unheard + unreadCountMessages + missed.length > 9 ? '9+' : unreadCount + newNotices + unheard + unreadCountMessages + missed.length}
+						{bellCount > 9 ? '9+' : bellCount}
 					</span>
 				{/if}
 			</button>

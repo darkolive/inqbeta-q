@@ -39,6 +39,7 @@
 	const moves = $derived(mintMoves(ledger, mint, me));
 	const older = $derived(movesOf(ledger?.receipts ?? [], me).reverse());
 	const live = $derived(mint?.mode === 'live');
+	const notSetUp = $derived(/isn’t set up|no host set up/.test(mintSays));
 
 	const PACKS = [10, 50, 100];
 	let busy = $state('');
@@ -69,12 +70,17 @@
 <svelte:head><title>Credits — Q</title></svelte:head>
 
 <Page title="Credits" lead="Your host’s own credits: made when you buy them, destroyed when you cash out, passed between people by agreements.">
-	<CreditsStory />
-
 	{#if !identity}
 		<SignIn />
+	{:else if !mint && !mintSays}
+		<p class="card preset-tonal-surface p-4 max-w-3xl" aria-live="polite">Reading the mint…</p>
 	{:else if !mint}
-		<p class="card preset-tonal-surface p-4 max-w-3xl">{mintSays || 'Reading the mint…'}</p>
+		<!-- Said first and plainly (3 October 2026: the reason sat unnoticed under the pictures). -->
+		<div class="card preset-tonal-warning p-5 max-w-3xl flex flex-col gap-2" role="status">
+			<p class="h4">{notSetUp ? 'Credits aren’t switched on here yet' : 'Credits can’t be shown just now'}</p>
+			<p>{notSetUp ? 'Your host hasn’t set up its own credits yet. When it does, you can buy them, spend them in agreements and shops, and cash them out, all on this page.' : mintSays}</p>
+			{#if notSetUp}<p class="text-sm opacity-80">For the host: {mintSays}</p>{/if}
+		</div>
 	{:else}
 		<!-- Test or live, said first. -->
 		{#if live}
@@ -183,4 +189,8 @@
 			{/if}
 		</Section>
 	{/if}
+
+	<Section title="How credits work" description="Six pictures. Play them, or step through.">
+		<CreditsStory />
+	</Section>
 </Page>
