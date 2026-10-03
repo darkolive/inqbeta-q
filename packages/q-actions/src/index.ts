@@ -5,7 +5,7 @@ export { MONEY_SPEND } from './core/money-spend';
 export { FEDERATION_FOUND, foundingFacts } from './core/federation-found';
 export { CREDITS_BUY, CREDITS_SPEND, CREDITS_REWARD, CREDITS_TRADE, CREDIT_ACTIONS } from './core/credits';
 export { CREDITS_MINT, CREDITS_CASHOUT, CREDITS_BURN, MINT_ACTIONS, mintFacts } from './core/mint';
-export { AGREEMENT_PROPOSE, AGREEMENT_COUNTER, AGREEMENT_AGREE, AGREEMENT_END, AGREEMENT_DONE, AGREEMENT_SETTLE, AGREEMENT_ACTIONS, agreementFacts, type Wallets } from './core/agreements';
+export { AGREEMENT_PROPOSE, AGREEMENT_COUNTER, AGREEMENT_AGREE, AGREEMENT_END, AGREEMENT_DONE, AGREEMENT_SETTLE, AGREEMENT_TAKE, AGREEMENT_ACTIONS, agreementFacts, type Wallets } from './core/agreements';
 export { FEDERATION_JOIN, FEDERATION_LEAVE, FEDERATION_REMOVE, FEDERATION_SUSPEND, joinFacts, leaveFacts, removeFacts, suspendFacts } from './core/federation-membership';
 import { MONEY_SPEND } from './core/money-spend';
 import { FEDERATION_FOUND } from './core/federation-found';

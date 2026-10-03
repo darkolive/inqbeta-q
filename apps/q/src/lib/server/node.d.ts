@@ -37,6 +37,7 @@ declare module 'node:path' {
 		resolve(...parts: string[]): string;
 		join(...parts: string[]): string;
 		relative(from: string, to: string): string;
+		dirname(p: string): string;
 	};
 	export default path;
 }

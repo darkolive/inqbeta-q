@@ -8,6 +8,7 @@
  *   agreement.end       declined by the other side, or withdrawn by the one who offered
  *   agreement.done      one side says it's done, with evidence
  *   agreement.settle    the accounting: one side signs the entries, the other confirms the same
+ *   agreement.take      someone buys from a shop: takes a standing offer as it stands (ADR-Q-026)
  *
  * Cedar can't count or look things up, so agreementFacts (below) reads the
  * chain with q-core's standingOf and hands the engine plain facts. Many of the
@@ -17,9 +18,10 @@
  */
 import { ACTION_SCHEMA, type ActionDefinition, type Rule } from '../actions';
 import { CEDAR_VERSION } from '../version';
+import { canonical } from '@inqbeta/q-core/canonical';
 import { sameEntries, standingOf, whySettlementDoesntFit, type AgreementReceipt, type Entry, type Standing, type Terms, type Value } from '@inqbeta/q-core/agreements';
 
-const ACTIONS = ['agreement.propose', 'agreement.counter', 'agreement.agree', 'agreement.end', 'agreement.done', 'agreement.settle'] as const;
+const ACTIONS = ['agreement.propose', 'agreement.counter', 'agreement.agree', 'agreement.end', 'agreement.done', 'agreement.settle', 'agreement.take'] as const;
 type AgreementAction = (typeof ACTIONS)[number];
 
 /* One set of facts for every step, so the same chain reads the same way at each. */
@@ -57,6 +59,12 @@ action "${id}" appliesTo {
     payerCredits: Long,
     payerBalance: Long,
     datedBeforePrevious: Bool,
+    shopOffer: Bool,
+    namedAfterShop: Bool,
+    sameTermsAsShop: Bool,
+    soldOut: Bool,
+    stockKnown: Bool,
+    stockLeft: Long,
   }
 };`;
 
@@ -106,6 +114,7 @@ export const AGREEMENT_COUNTER = define('agreement.counter', 'Someone answers an
 	record('agreement.counter', 'Record a counteroffer, signed by one of the two people'),
 	forbid('agreement.counter', 'something-to-answer', 'must', 'Answer an open offer or an agreement', 'context.phase != "agreeing" && context.phase != "agreed"'),
 	latest('agreement.counter'),
+	forbid('agreement.counter', 'shop-offer', 'cannot', 'Counter a shop offer (it’s bought as it stands)', 'context.shopOffer'),
 	forbid('agreement.counter', 'own-offer', 'cannot', 'Counter your own offer (withdraw it instead)', 'context.phase == "agreeing" && context.ownOffer'),
 	forbid('agreement.counter', 'same-people', 'cannot', 'Change who the agreement is between', '!context.partiesUnchanged'),
 	...fairTerms('agreement.counter'),
@@ -119,17 +128,19 @@ export const AGREEMENT_AGREE = define('agreement.agree', 'The other side agrees 
 	forbid('agreement.agree', 'open-offer', 'must', 'Agree to an offer that is still open', 'context.phase != "agreeing" || context.offerExpired'),
 	latest('agreement.agree'),
 	forbid('agreement.agree', 'own-offer', 'cannot', 'Agree to your own offer', 'context.ownOffer'),
+	forbid('agreement.agree', 'shop-offer', 'cannot', 'Agree to a shop offer (buy it instead)', 'context.shopOffer'),
 	overPromise('agreement.agree'),
 	treaty('agreement.agree'),
 	backdate('agreement.agree')
 ]);
 
-export const AGREEMENT_END = define('agreement.end', 'An open offer is declined by the other side, or withdrawn by the one who made it.', [
+export const AGREEMENT_END = define('agreement.end', 'An open offer is declined by the other side, or withdrawn by the one who made it; a shop sale cancelled as sold out.', [
 	record('agreement.end', 'Record an ending, signed by one of the two people'),
-	forbid('agreement.end', 'open-offer', 'must', 'End an offer that is still open', 'context.phase != "agreeing"'),
+	forbid('agreement.end', 'open-offer', 'must', 'End an offer that is still open, or a shop sale not yet settled', 'context.phase != "agreeing" && !context.soldOut'),
 	latest('agreement.end'),
 	forbid('agreement.end', 'withdraw-others', 'cannot', 'Withdraw someone else’s offer', 'context.withdrawing && !context.ownOffer'),
-	forbid('agreement.end', 'decline-own', 'cannot', 'Decline your own offer (withdraw it instead)', '!context.withdrawing && context.ownOffer'),
+	forbid('agreement.end', 'decline-own', 'cannot', 'Decline your own offer (withdraw it instead)', '!context.withdrawing && context.ownOffer && !context.soldOut'),
+	forbid('agreement.end', 'decline-shop', 'cannot', 'Decline a shop offer (just don’t buy it)', '!context.withdrawing && context.shopOffer'),
 	backdate('agreement.end')
 ]);
 
@@ -151,7 +162,20 @@ export const AGREEMENT_SETTLE = define('agreement.settle', 'The accounting: one 
 	backdate('agreement.settle')
 ]);
 
-export const AGREEMENT_ACTIONS = [AGREEMENT_PROPOSE, AGREEMENT_COUNTER, AGREEMENT_AGREE, AGREEMENT_END, AGREEMENT_DONE, AGREEMENT_SETTLE];
+export const AGREEMENT_TAKE = define('agreement.take', 'Someone buys from a shop: they take a standing offer as it stands, and it’s agreed.', [
+	record('agreement.take', 'Record a purchase, signed by the person buying'),
+	forbid('agreement.take', 'shop-offer', 'must', 'Take a shop offer that is still open', '!context.shopOffer || context.offerExpired'),
+	forbid('agreement.take', 'named', 'must', 'Be its own agreement, named after the shop offer', '!context.namedAfterShop'),
+	latest('agreement.take'),
+	forbid('agreement.take', 'own-offer', 'cannot', 'Buy from your own shop', 'context.ownOffer'),
+	forbid('agreement.take', 'as-it-stands', 'must', 'Be on the shop offer’s own terms, by the person buying', '!context.sameTermsAsShop'),
+	forbid('agreement.take', 'in-stock', 'cannot', 'Buy something that has sold out', 'context.stockKnown && context.stockLeft < 1'),
+	overPromise('agreement.take'),
+	treaty('agreement.take'),
+	backdate('agreement.take')
+]);
+
+export const AGREEMENT_ACTIONS = [AGREEMENT_PROPOSE, AGREEMENT_COUNTER, AGREEMENT_AGREE, AGREEMENT_END, AGREEMENT_DONE, AGREEMENT_SETTLE, AGREEMENT_TAKE];
 
 /* ---- The facts, read from the chain ---- */
 
@@ -167,6 +191,8 @@ export interface Wallets {
 	balance: (did: string, mode: 'test' | 'live') => number;
 	crossFederation?: boolean;
 	underTreaty?: boolean;
+	/** For buying from a shop: how many are left, when known (the listing at the gate says). */
+	stockLeft?: number;
 }
 
 const ACTION_OF: Record<AgreementReceipt['content']['step'], AgreementAction> = {
@@ -176,7 +202,8 @@ const ACTION_OF: Record<AgreementReceipt['content']['step'], AgreementAction> = 
 	declined: 'agreement.end',
 	withdrawn: 'agreement.end',
 	done: 'agreement.done',
-	settled: 'agreement.settle'
+	settled: 'agreement.settle',
+	taken: 'agreement.take'
 };
 
 /** Which action a step is, and the facts to decide it on, given the steps before it. */
@@ -186,13 +213,14 @@ export function agreementFacts(prior: AgreementReceipt[], next: AgreementReceipt
 	const s = prior.length ? standingOf(prior, Date.parse(c.at)) : null;
 	const phase = s ? s.phase : 'none';
 	/* An open offer (ADR-Q-026): whoever answers it, other than its maker, becomes the other side. */
-	const opened = !!s?.terms && !s.terms.b && actor !== s.terms.a && s.phase === 'agreeing';
+	const shopOffer = !!s?.limit && s.phase === 'agreeing';
+	const opened = !shopOffer && !!s?.terms && !s.terms.b && actor !== s.terms.a && s.phase === 'agreeing';
 	const base: Terms | null = s?.terms ? (opened ? { ...s.terms, b: actor } : s.terms) : null;
 	const terms = c.terms ?? base;
 	const person = (id: string) => ({ __entity: { type: 'Person', id } });
 
 	/* What the actor promises by this step, if it's credits. */
-	const promising = c.step === 'proposed' || c.step === 'countered' || c.step === 'agreed' ? creditsIn(givesOf(terms, actor)) : null;
+	const promising = c.step === 'proposed' || c.step === 'countered' || c.step === 'agreed' || c.step === 'taken' ? creditsIn(givesOf(terms, actor)) : null;
 	const t = c.terms;
 
 	const entries: Entry[] = c.entries ?? [];
@@ -205,7 +233,10 @@ export function agreementFacts(prior: AgreementReceipt[], next: AgreementReceipt
 	/* Within what was agreed and already settled (whether another settlement is waiting is its own rule). */
 	const withinAgreed = c.step !== 'settled' || confirming || !s || s.phase !== 'agreed' || whySettlementDoesntFit(s, entries) === null;
 
-	const followsLatest = !s ? c.parent === null : c.step === 'agreed' || c.step === 'declined' || c.step === 'withdrawn' ? c.parent === s.offerHash : c.parent === (s.phase === 'agreeing' ? s.offerHash : s.lastHash);
+	/* Sold out: the seller cancels a shop sale before anything is settled. */
+	const soldOut = c.step === 'declined' && !!s?.takenFrom && s.phase === 'agreed' && !!s.terms && actor === s.terms.a && !s.settled.length && !s.pending;
+
+	const followsLatest = !s ? c.parent === null : soldOut ? c.parent === s.lastHash : c.step === 'agreed' || c.step === 'declined' || c.step === 'withdrawn' || c.step === 'taken' ? c.parent === s.offerHash : c.parent === (s.phase === 'agreeing' ? s.offerHash : s.lastHash);
 
 	const facts: Record<string, unknown> = {
 		actor: person(actor),
@@ -233,7 +264,13 @@ export function agreementFacts(prior: AgreementReceipt[], next: AgreementReceipt
 		settlementWaiting: !!pending && !confirming,
 		payerCredits,
 		payerBalance: credit ? w.balance(credit.from, payerMode) : 0,
-		datedBeforePrevious: !!s?.lastAt && c.at < s.lastAt
+		datedBeforePrevious: !!s?.lastAt && c.at < s.lastAt,
+		shopOffer,
+		namedAfterShop: c.step !== 'taken' || (!!s && c.agreement.startsWith(`${s.agreement}.`) && c.agreement.length > s.agreement.length + 1),
+		sameTermsAsShop: c.step !== 'taken' || (!!t && !!s?.terms && t.b === actor && canonical({ ...t, b: '' }) === canonical(s.terms)),
+		soldOut,
+		stockKnown: w.stockLeft !== undefined,
+		stockLeft: w.stockLeft ?? 0
 	};
 	return { action: ACTION_OF[c.step], facts, standing: s ?? standingOf([], Date.parse(c.at)) };
 }

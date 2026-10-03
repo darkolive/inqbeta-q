@@ -16,7 +16,7 @@
 	const nameOf = (d: string) => names.nameOf(d) ?? 'Someone';
 	const when = (iso: string) => new Date(iso).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' });
 	const receiptOf = (s: AgreementReceipt) => ledger?.receipts.find((r) => (r.json as { contentHash?: string } | undefined)?.contentHash === s.contentHash) ?? null;
-	const DOT: Record<string, string> = { proposed: 'bg-secondary-500', countered: 'bg-secondary-500', agreed: 'bg-primary-500', settled: 'bg-success-500', done: 'bg-primary-500', declined: 'bg-surface-400-600', withdrawn: 'bg-surface-400-600' };
+	const DOT: Record<string, string> = { proposed: 'bg-secondary-500', countered: 'bg-secondary-500', agreed: 'bg-primary-500', settled: 'bg-success-500', taken: 'bg-primary-500', done: 'bg-primary-500', declined: 'bg-surface-400-600', withdrawn: 'bg-surface-400-600' };
 
 	let opened = $state<ReceiptEntry | null>(null);
 	let open = $state(false);

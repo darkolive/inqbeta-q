@@ -1,12 +1,12 @@
 ---
-status: proposed
-implementation: offers by link working — open offers (anyone may answer first), shared like a card, opened, kept, linked up, answered as an agreement (q-core, q-actions, apps/q offerlink.ts, /offer/[id]), 3 October 2026. Not yet: standing offers (taken) and shops
+status: decided
+implementation: built 3 October 2026 — offers by link (open offers, /offer/[id]); standing offers with a limit and the taken step (q-core standingOf, q-actions agreement.take); sold-out cancel; shops held at the storage gate (/shop/<did>, stock counted one at a time); /shop/[did] with Buy; Your shop on Agreements. Not yet: a shop on a federation's page, pictures on listings
 updated: 2026-10-03
 ---
 
 # ADR-Q-026 — Offers by link: share an offer like a card, and a shop is a page of offers
 
-**Status: proposed, 3 October 2026.** An offer (ADR-Q-025's first receipt)
+**Status: decided and built, 3 October 2026.** An offer (ADR-Q-025's first receipt)
 can be shared the way a card is: by email, WhatsApp, a code, or through the
 address book. Whoever opens the link sees the offer as a card and can accept,
 counter or decline it, and the bellboy tells the offerer. An offer anyone can
@@ -103,6 +103,31 @@ offer's. A standing offer is otherwise held to every rule of
 2. **Share** under an offer: address book, email, WhatsApp, copy, QR.
 3. **Standing offers** and `taken`, with `agreement.take` in Cedar and tests.
 4. **A shop**: a page of standing offers, on a site or a club's page.
+
+## As built (3 October 2026)
+
+- **A standing offer** is a `proposed` step with `b` empty and `limit` (how
+  many). Answering it with `agreed`, `countered` or `declined` is refused:
+  it is bought as it stands, or not.
+- **A purchase** is a `taken` step signed by the buyer, in its own agreement
+  whose id is the listing's id, a dot, and the buyer's own part
+  (`jam.3f9a…`). Its parent is the listing's hash and its terms are the
+  listing's with the buyer as `b`. The chain reads listing → taken, and is
+  agreed at once.
+- **Sold out:** the seller can cancel a purchase (`declined`) until any
+  settling has begun; it ends as `sold-out` and goes back in stock.
+- **The shop is held at the storage gate** (`/shop/<seller's id>`): the
+  seller lists and withdraws; anyone else's purchase is checked against the
+  listing's terms and the stock, one at a time per shop, so the last one
+  can't be sold twice. The buyer's Q files the purchase at the gate *before*
+  keeping it: if the gate says sold out, nothing is kept. The seller's name
+  and inbox ride along with a listing, so purchases reach them through the
+  bellboy. The gate is a convenience that counts; every signature is checked
+  again in the buyer's browser.
+- **In Q:** the writer has "My shop: anyone can buy it" with how many;
+  `/shop/<id>` shows the shop with Buy; Agreements has a Your shop group;
+  each listing shows its sales and what's left, and can be taken out of the
+  shop.
 
 ## Non-claims
 

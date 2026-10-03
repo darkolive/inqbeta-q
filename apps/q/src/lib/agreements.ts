@@ -24,6 +24,7 @@ import {
 	effectOf,
 	isAgreementStep,
 	isOpenOffer,
+	isStandingOffer,
 	standingOf,
 	type AgreementReceipt,
 	type AgreementStep,
@@ -43,6 +44,8 @@ export interface AgreementView {
 	standing: Standing;
 	/** The newest step's time, for sorting. */
 	at: string;
+	/** A shop listing (a standing offer), rather than an agreement with someone. */
+	listing: boolean;
 }
 
 /** Every agreement in your vault, newest activity first. */
@@ -53,11 +56,20 @@ export function agreementsFrom(ledger: Ledger | null): AgreementView[] {
 		const id = r.json.content.agreement;
 		by.set(id, [...(by.get(id) ?? []), r.json]);
 	}
+	/* A purchase from a shop (ADR-Q-026) reads with the shop offer it took, which carries the listing's id. */
+	const listingOf = (steps: AgreementReceipt[]) => {
+		const taken = steps.find((s) => s.content.step === 'taken');
+		if (!taken) return [];
+		const dot = taken.content.agreement.lastIndexOf('.');
+		return (by.get(taken.content.agreement.slice(0, dot)) ?? []).filter((s) => s.contentHash === taken.content.parent);
+	};
 	return [...by.entries()]
-		.map(([id, steps]) => {
+		.map(([id, own]) => {
+			const steps = [...listingOf(own), ...own];
 			const standing = standingOf(steps);
-			const at = steps.map((s) => s.content.at).sort().at(-1) ?? '';
-			return { id, steps: [...new Map(steps.map((s) => [s.contentHash, s])).values()].sort((a, b) => a.content.at.localeCompare(b.content.at)), standing, at };
+			const at = own.map((s) => s.content.at).sort().at(-1) ?? '';
+			const listing = !!standing.limit && !standing.takenFrom;
+			return { id, steps: [...new Map(steps.map((s) => [s.contentHash, s])).values()].sort((a, b) => a.content.at.localeCompare(b.content.at)), standing, at, listing };
 		})
 		.sort((a, b) => b.at.localeCompare(a.at));
 }
@@ -88,8 +100,9 @@ export function creditsCommitted(ledger: Ledger | null, did: string, mode: 'test
 /* Big enough never to be the reason: for wallets Q can't see. */
 const UNSEEN = 1_000_000_000;
 
-function walletsFor(ledger: Ledger | null, me: string, agreement: string, mint?: MintView | null): Wallets {
+function walletsFor(ledger: Ledger | null, me: string, agreement: string, mint?: MintView | null, stockLeft?: number): Wallets {
 	return {
+		...(stockLeft !== undefined ? { stockLeft } : {}),
 		balance: (did, mode) => (did === me ? creditsHeld(ledger, did, mode, mint) : UNSEEN),
 		available: (did, mode) => (did === me ? creditsHeld(ledger, did, mode, mint) - creditsCommitted(ledger, did, mode, agreement) : UNSEEN)
 	};
@@ -107,13 +120,21 @@ export async function takeStep(
 	agreement: string,
 	input: StepInput,
 	people: Person[],
-	mint?: MintView | null
+	mint?: MintView | null,
+	opts: {
+		/** The steps before, when they aren't yet an agreement in your vault (buying: the shop offer). */
+		prior?: AgreementReceipt[];
+		/** Buying: how many the shop says are left. */
+		stockLeft?: number;
+		/** After signing, before keeping: a reason not to go on (the shop sold out first), or null. */
+		before?: (signed: AgreementReceipt) => Promise<string | null>;
+	} = {}
 ): Promise<{ ok: true; signed: AgreementReceipt; sent: boolean; says?: string } | { ok: false; says: string; rules?: string[] }> {
-	const prior = agreementsFrom(ledger).find((a) => a.id === agreement)?.steps ?? [];
+	const prior = opts.prior ?? agreementsFrom(ledger).find((a) => a.id === agreement)?.steps ?? [];
 	const content: AgreementStep = { schema: AGREEMENT_SCHEMA, source: AGREEMENT_SOURCE, agreement, at: new Date().toISOString(), ...input };
 	const draft = { did: identity.did, content, contentHash: '', signedAt: content.at } as AgreementReceipt;
 	try {
-		const { action, facts } = agreementFacts(prior, draft, walletsFor(ledger, identity.did, agreement, mint));
+		const { action, facts } = agreementFacts(prior, draft, walletsFor(ledger, identity.did, agreement, mint, opts.stockLeft));
 		const hash = await actionHash(action);
 		const decision = await decide(hash, {
 			principal: { type: 'Person', id: identity.did },
@@ -122,6 +143,8 @@ export async function takeStep(
 		});
 		if (!decision.holds) return { ok: false, says: decision.because.join(' '), rules: decision.rules };
 		const signed = (await sealWith(identity, { ...content, checked: { action: hash, rules: decision.rules } })) as AgreementReceipt;
+		const stop = opts.before ? await opts.before(signed) : null;
+		if (stop) return { ok: false, says: stop };
 		await keepStep(signed);
 
 		/* Send it to the other person, if Q knows where they are. */
@@ -156,11 +179,16 @@ export async function takeStep(
 export const newAgreementId = () => crypto.randomUUID();
 
 /** Does this agreement need your answer? (An open offer someone shared with you does, until you answer it.) */
-export const needsMe = (s: Standing, me: string) => s.waitingFor === me || (isOpenOffer(s) && s.offeredBy !== me);
+export const needsMe = (s: Standing, me: string) =>
+	(!!s.takenFrom && s.phase === 'agreed' && !s.settled.length && !s.pending && s.terms?.b === me) ||
+	(!(s.limit && !s.takenFrom) && (s.waitingFor === me || (isOpenOffer(s) && s.offeredBy !== me)));
 
 /** Where an agreement stands, in a few words, from your side. */
 export function standingWords(s: Standing, me: string): { text: string; tone: 'good' | 'waiting' | 'needs-you' | 'plain' | 'bad' } {
 	if (s.phase === 'complete') return { text: 'Settled', tone: 'good' };
+	if (isStandingOffer(s)) return s.offeredBy === me ? { text: 'In your shop', tone: 'good' } : { text: 'In a shop', tone: 'plain' };
+	if (s.ended === 'sold-out') return { text: 'Sold out, cancelled', tone: 'plain' };
+	if (s.takenFrom && s.phase === 'agreed' && !s.settled.length && !s.pending) return { text: s.terms?.a === me ? 'Sold: waiting to be paid' : 'Bought: pay when ready', tone: s.terms?.a === me ? 'waiting' : 'needs-you' };
 	if (isOpenOffer(s) && s.offeredBy === me) return { text: 'Shared by link', tone: 'waiting' };
 	if (isOpenOffer(s)) return { text: 'Your answer', tone: 'needs-you' };
 	if (s.phase === 'ended') return { text: s.ended === 'declined' ? 'Declined' : s.ended === 'withdrawn' ? 'Withdrawn' : 'Ran out', tone: 'plain' };

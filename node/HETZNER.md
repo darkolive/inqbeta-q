@@ -233,6 +233,14 @@ Two public names, with certificates from Caddy, and nothing else opened:
   and `/live`: the mint's own receipts, holders' signed asks to cash out, and
   agreements in that mint's credits. Only mints listed in `GATE_MINTS` are
   kept. The host's mint DID is shown on the console (Services → Money).
+- The gate is also a **relay** (ADR-Q-028) at `/relay`: a pass-through for
+  sealed vault files while someone's cloud can't take them. It signs a "held"
+  receipt for each file with the node's own key (`GATE_SEED`), and deletes a
+  file only on its owner's signed "arrived" receipt, or after
+  `GATE_RELAY_DAYS` (7). Each person may have `GATE_RELAY_HOLDS_MB` (100) in
+  transit. `/relay/stats` gives daily totals (files, bytes, byte-hours) with
+  nothing about whose: the data to price pass-through from. No `GATE_SEED`,
+  no relay.
 
 Hetzner firewall: TCP 22, UDP 4242, TCP 80 and 443. Mosquitto now uses
 `per_listener_settings true` (1883 and 9001 sign-in as before; 9002 public).
@@ -244,6 +252,7 @@ bin/add-user.sh gate                               # the gate's own bellboy acco
 echo 'GATE_MQTT_PASSWORD=<the password it printed>' >> .env
 echo 'GATE_FEDERATIONS=<the federation DID>' >> .env
 echo 'GATE_MINTS=<the mint DID>' >> .env           # when Money is set up
+echo "GATE_SEED=$(openssl rand -hex 32)" >> .env  # the node's own key, for the relay; never leaves the server
 mkdir -p caddy/data caddy/config
 docker compose up -d && docker compose restart mosquitto
 ```

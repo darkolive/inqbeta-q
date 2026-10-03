@@ -8,6 +8,12 @@
 	 * person's own app with the words and the link written in; Q isn't
 	 * involved in sending. The code to scan stays, for someone standing next
 	 * to you. Copying is only offered where there's no message to send.
+	 *
+	 * 3 October 2026 (Darren): AirDrop, for friends with iPhones. A web page
+	 * can't call AirDrop itself, but the phone's own share sheet (the Web
+	 * Share API) has it, with Messages and every other app they have. Shown
+	 * only where the browser offers it: Safari on iPhone, iPad and Mac, and
+	 * most phones; called "AirDrop and more" on Apple devices.
 	 */
 	import { QrCode } from '@skeletonlabs/skeleton-svelte';
 	import { Icon, FaIcon } from '@inqbeta/q-ui';
@@ -31,6 +37,24 @@
 		}
 	}
 	let showCode = $state(false);
+
+	/* The device's own share sheet, where there is one (decided in the browser, never on the server). */
+	let sheet = $state(false);
+	let apple = $state(false);
+	$effect(() => {
+		sheet = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+		apple = typeof navigator !== 'undefined' && /iPhone|iPad|Macintosh/.test(navigator.userAgent);
+	});
+	let sheetSays = $state('');
+	async function share() {
+		sheetSays = '';
+		try {
+			await navigator.share({ title: subject || label, text: message || undefined, url: link });
+		} catch (e) {
+			/* Closing the sheet without choosing isn't a problem. */
+			if (!(e instanceof DOMException && e.name === 'AbortError')) sheetSays = 'Your device couldn’t open its share sheet. Try another way below.';
+		}
+	}
 </script>
 
 <div class="card preset-outlined-surface-200-800 p-4 flex flex-col gap-4">
@@ -38,6 +62,10 @@
 	{#if note}<p class="text-sm">{note}</p>{/if}
 	{#if local}
 		<p class="text-sm card preset-tonal-warning p-2">This link points at this computer (localhost), so a phone can’t open it. Make it on inqbeta.dev to share it.</p>
+	{/if}
+	{#if sheet}
+		<button type="button" class="btn preset-filled-secondary-500 min-h-11 py-3" onclick={() => void share()}><Icon name="share" size={20} />{apple ? 'AirDrop and more' : 'More ways to share'}</button>
+		{#if sheetSays}<p class="text-sm card preset-tonal-warning p-2">{sheetSays}</p>{/if}
 	{/if}
 	{#if message}
 		<div class="grid grid-cols-3 gap-2">

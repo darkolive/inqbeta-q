@@ -30,7 +30,7 @@
 			{#if them?.picture}<img src={them.picture} alt="" class="size-full object-cover" />{:else}<span class="font-bold opacity-70">{(them?.name ?? '?').slice(0, 1)}</span>{/if}
 		</span>
 		<span class="flex-1 min-w-0">
-			<span class="block font-bold">{t && !t.b && t.a === me ? 'Your open offer, shared by link' : t && !t.b ? `An offer from ${them?.name ?? 'someone'}` : `With ${them?.name ?? 'someone'}`}</span>
+			<span class="block font-bold">{t && !t.b && standing.limit && t.a === me ? `In your shop: ${standing.limit} to sell` : t && !t.b && standing.limit ? `In ${them?.name ?? 'someone'}’s shop` : t && !t.b && t.a === me ? 'Your open offer, shared by link' : standing.takenFrom && t?.a === me ? `Sold to ${them?.name ?? 'someone'}` : standing.takenFrom ? `Bought from ${them?.name ?? 'someone'}’s shop` : t && !t.b ? `An offer from ${them?.name ?? 'someone'}` : `With ${them?.name ?? 'someone'}`}</span>
 			<span class="block text-sm text-surface-700-300">{t ? KIND[t.kind] : 'Agreement'}{t?.business ? ' · business' : ''}</span>
 		</span>
 		<Status tone={where.tone}>{where.text}</Status>
@@ -44,7 +44,7 @@
 			</div>
 			<Icon name="exchange" size={22} class="justify-self-center opacity-70" />
 			<div class="card preset-tonal-primary p-3">
-				<p class="text-xs uppercase font-bold opacity-70">{t && !t.b && t.a === me ? 'Whoever takes it gives' : `${them?.name?.split(' ')[0] ?? 'They'} gives`}</p>
+				<p class="text-xs uppercase font-bold opacity-70">{t && !t.b && t.a === me ? (standing.limit ? 'Whoever buys it gives' : 'Whoever takes it gives') : `${them?.name?.split(' ')[0] ?? 'They'} gives`}</p>
 				<p class="font-semibold break-words">{valueText(theirs)}</p>
 			</div>
 		</div>

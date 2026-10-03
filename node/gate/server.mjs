@@ -63,6 +63,15 @@ function unbase58(s) {
 	for (const c of s) { if (c === '1') bytes.unshift(0); else break; }
 	return Uint8Array.from(bytes);
 }
+function base58(bytes) {
+	let n = 0n;
+	for (const b of bytes) n = n * 256n + BigInt(b);
+	let out = '';
+	while (n > 0n) { out = B58[Number(n % 58n)] + out; n /= 58n; }
+	for (const b of bytes) { if (b === 0) out = '1' + out; else break; }
+	return out;
+}
+const b64url = (bytes) => Buffer.from(bytes).toString('base64url');
 function publicKeyFrom(did) {
 	if (!did.startsWith('did:key:z')) throw new Error('not a did:key');
 	const b = unbase58(did.slice(9));
@@ -134,7 +143,9 @@ export const TERMS = {
 	postBytes: POST_BYTES,
 	inboxHoldsBytes: Number(process.env.GATE_INBOX_HOLDS_MB ?? 25) * MB,
 	sendBytesPerDay: Number(process.env.GATE_SEND_MB_PER_DAY ?? 50) * MB,
-	postDays: 30
+	postDays: 30,
+	/* The relay (ADR-Q-028): a pass-through, so small. Off unless the node has a key (GATE_SEED). */
+	relay: { fileBytes: Number(process.env.GATE_RELAY_FILE_MB ?? 25) * MB, holdsBytes: Number(process.env.GATE_RELAY_HOLDS_MB ?? 100) * MB, days: Number(process.env.GATE_RELAY_DAYS ?? 7), on: !!process.env.GATE_SEED }
 };
 const sentToday = new Map();
 /** Adds this post to the sender's day, unless it goes over. Returns whether it fits. */
@@ -300,10 +311,304 @@ async function ledgers(req, res, origin, mint, mode) {
 	return send(res, origin, 200, { ok: true });
 }
 
+/*
+ * Shops (ADR-Q-026): a person's standing offers, held publicly so anyone can
+ * see and buy while the seller is away. Only the seller lists and withdraws;
+ * anyone else can take, and the gate counts takings against the stock — first
+ * come, first served, one at a time per shop, so a jar can't be sold twice.
+ * A seller can cancel a taking as sold out, which puts it back.
+ */
+const SHOP_BYTES = 256 * 1024;
+const SHOP_LISTINGS = 50;
+const SHOP_POSTS_PER_HOUR = 300;
+const isAgreement = (r) => r?.content?.schema === 'inqbeta.agreement/1';
+/** Apply one signed step to a shop. Returns the new shop, or a reason it can't. */
+export async function applyToShop(shop, r, seller, now = Date.now()) {
+	if (!(await signedReceipt(r)) || !isAgreement(r)) return { says: 'It isn’t a signed agreement step.' };
+	const c = r.content;
+	const listings = [...(shop?.listings ?? [])];
+	const find = (hash) => listings.findIndex((l) => l.offer.contentHash === hash);
+	if (c.step === 'proposed') {
+		if (r.did !== seller) return { says: 'Only the shop’s owner lists in it.' };
+		const t = c.terms;
+		if (!t || t.a !== seller || t.b !== '' || !Number.isInteger(c.limit) || c.limit < 1 || c.parent !== null) return { says: 'A shop offer is open to anyone, with a number available.' };
+		if (find(r.contentHash) >= 0) return { shop: { listings } };
+		if (listings.filter((l) => !l.ended).length >= SHOP_LISTINGS) return { says: `A shop holds up to ${SHOP_LISTINGS} offers.` };
+		listings.push({ offer: r, takings: [], cancelled: [] });
+		return { shop: { listings } };
+	}
+	if (c.step === 'withdrawn') {
+		const i = find(c.parent);
+		if (i < 0 || r.did !== seller) return { says: 'Only the shop’s owner withdraws its offers.' };
+		listings[i] = { ...listings[i], ended: c.at };
+		return { shop: { listings } };
+	}
+	if (c.step === 'taken') {
+		const i = find(c.parent);
+		if (i < 0) return { says: 'That isn’t in this shop.' };
+		const l = listings[i];
+		const o = l.offer.content;
+		if (l.ended) return { says: 'That’s no longer in the shop.' };
+		if (o.until && Date.parse(o.until) < now) return { says: 'That offer has run out.' };
+		if (r.did === seller) return { says: 'You can’t buy from your own shop.' };
+		if (!c.agreement.startsWith(`${o.agreement}.`) || !c.terms || c.terms.b !== r.did || canonical({ ...c.terms, b: '' }) !== canonical(o.terms)) return { says: 'A purchase must be on the shop offer’s own terms.' };
+		if (l.takings.some((t) => t.contentHash === r.contentHash)) return { shop: { listings } };
+		if (l.takings.length - l.cancelled.length >= o.limit) return { says: 'Sold out.' };
+		listings[i] = { ...l, takings: [...l.takings, r] };
+		return { shop: { listings } };
+	}
+	if (c.step === 'declined') {
+		if (r.did !== seller) return { says: 'Only the shop’s owner cancels a sale.' };
+		const i = listings.findIndex((l) => l.takings.some((t) => t.contentHash === c.parent));
+		if (i < 0) return { says: 'That sale isn’t in this shop.' };
+		if (listings[i].cancelled.includes(c.parent)) return { shop: { listings } };
+		listings[i] = { ...listings[i], cancelled: [...listings[i].cancelled, c.parent] };
+		return { shop: { listings } };
+	}
+	return { says: 'A shop keeps listings, purchases and cancellations only.' };
+}
+/** What anyone sees: open listings, each with how many are left. */
+export function shopWindow(shop, now = Date.now()) {
+	return (shop?.listings ?? [])
+		.filter((l) => !l.ended && !(l.offer.content.until && Date.parse(l.offer.content.until) < now))
+		.map((l) => ({ offer: l.offer, left: Math.max(0, l.offer.content.limit - (l.takings.length - l.cancelled.length)), taken: l.takings.map((t) => t.contentHash) }));
+}
+const shopPath = (did) => `${FILER}/shop/${did.replace(/[^A-Za-z0-9]/g, '_')}/shop.json`;
+async function shopHeld(did) {
+	const r = await fetch(shopPath(did)).catch(() => null);
+	return r?.ok ? r.json().catch(() => null) : null;
+}
+const shopQueue = new Map();
+async function shops(req, res, origin, did) {
+	if (req.method === 'GET') {
+		const held = await shopHeld(did);
+		return send(res, origin, 200, { seller: did, about: held?.about ?? {}, listings: shopWindow(held) });
+	}
+	if (req.method !== 'POST') return send(res, origin, 405, { says: 'Only GET and POST.' });
+	if (tooMany(`shop:${req.socket.remoteAddress ?? ''}`, Date.now(), SHOP_POSTS_PER_HOUR)) return send(res, origin, 429, { says: 'Too many at once. Try again in a while.' });
+	const raw = await readBody(req, LEDGER_BYTES);
+	if (raw === null) return send(res, origin, 413, { says: 'Too big.' });
+	let body;
+	try { body = JSON.parse(raw); } catch { return send(res, origin, 400, { says: 'That isn’t JSON.' }); }
+	/* One at a time per shop: two buyers of the last jar can't both have it. */
+	const prev = shopQueue.get(did) ?? Promise.resolve();
+	const run = prev.then(async () => {
+		/* The seller may say, with a listing, who they are and where purchases go. */
+		const r = body?.receipt ?? body;
+		const held = await shopHeld(did);
+		const out = await applyToShop(held, r, did);
+		if (out.says) return { status: out.says === 'Sold out.' ? 409 : 403, body: { says: out.says } };
+		let about = held?.about ?? {};
+		if (body?.receipt && body.about && r.did === did) {
+			about = {
+				name: String(body.about.name ?? '').slice(0, 80),
+				inbox: String(body.about.inbox ?? '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 22)
+			};
+		}
+		const text = JSON.stringify({ ...out.shop, about });
+		if (text.length > SHOP_BYTES) return { status: 413, body: { says: 'The shop is full.' } };
+		const form = new FormData();
+		form.append('file', new Blob([text], { type: 'application/json' }), 'shop.json');
+		const kept = await fetch(shopPath(did), { method: 'POST', body: form }).catch((e) => ({ ok: false, status: e.message }));
+		return kept.ok ? { status: 200, body: { ok: true, about, listings: shopWindow(out.shop) } } : { status: 502, body: { says: `Couldn’t keep it: ${kept.status}` } };
+	});
+	shopQueue.set(did, run.catch(() => {}));
+	const { status, body: answer } = await run.catch((e) => ({ status: 500, body: { says: e.message } }));
+	return send(res, origin, status, answer);
+}
+
+/*
+ * The relay (ADR-Q-028, 3 October 2026): a pass-through, never a copy.
+ *
+ * A sealed vault file waits here only while its owner's cloud can't take it.
+ * The node signs a "held" receipt for each file it takes, saying when it will
+ * let go at the latest; it deletes a file only on its owner's signed
+ * "arrived" receipt (the file is held somewhere else now), or at that time.
+ * Nothing is let go until it's held elsewhere: deleting is settling, and you
+ * can't settle without confirmation.
+ *
+ * A person's space is named by a key only their passkey makes (like an
+ * inbox). Files must match their content names, so "held" is true of the
+ * bytes. Totals per day — files, bytes, byte-hours — are kept with nothing
+ * about whose they were: the data to price pass-through from.
+ */
+const RELAY_FILE_BYTES = Number(process.env.GATE_RELAY_FILE_MB ?? 25) * MB;
+const RELAY_HOLDS_BYTES = Number(process.env.GATE_RELAY_HOLDS_MB ?? 100) * MB;
+const RELAY_DAYS = Number(process.env.GATE_RELAY_DAYS ?? 7);
+const RELAY_POSTS_PER_HOUR = 600;
+const PKCS8_ED25519 = Buffer.from('302e020100300506032b657004220420', 'hex');
+let node = null;
+/** The node's own signing key, from GATE_SEED (32 bytes, hex or base64url). No seed, no relay. */
+export async function nodeIdentity(seedText = process.env.GATE_SEED ?? '') {
+	if (node && !seedText) return node;
+	const t = seedText.trim();
+	const seed = /^[0-9a-f]{64}$/i.test(t) ? Buffer.from(t, 'hex') : t ? unb64url(t) : null;
+	if (!seed || seed.length !== 32) return null;
+	const der = Buffer.concat([PKCS8_ED25519, seed]);
+	const probe = await crypto.subtle.importKey('pkcs8', der, { name: 'Ed25519' }, true, ['sign']);
+	const { x } = await crypto.subtle.exportKey('jwk', probe);
+	const pub = unb64url(x);
+	const privateKey = await crypto.subtle.importKey('pkcs8', der, { name: 'Ed25519' }, false, ['sign']);
+	const id = { did: `did:key:z${base58(Uint8Array.from([0xed, 0x01, ...pub]))}`, publicKey: b64url(pub), privateKey };
+	if (seedText === (process.env.GATE_SEED ?? '')) node = id;
+	return id;
+}
+/** Seal as the node, exactly as q-core's sealWith does, so Q's checkReceipt accepts it. */
+export async function sealAsNode(id, content) {
+	const plain = canonical(content);
+	const contentHash = b64url(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(plain))));
+	const sig = await crypto.subtle.sign({ name: 'Ed25519' }, id.privateKey, new TextEncoder().encode(plain));
+	return { schema: 'inqbeta.receipt/1', source: content.source, did: id.did, publicKey: id.publicKey, signedAt: new Date().toISOString(), contentHash, signature: b64url(sig), content };
+}
+export const relayWhere = (id) => `relay:${id.did}`;
+const hexOf = async (bytes) => Buffer.from(await crypto.subtle.digest('SHA-256', bytes)).toString('hex');
+/** Why the relay won't take this file, or null. */
+export async function checkRelayFile(name, bytes, held, terms = { file: RELAY_FILE_BYTES, holds: RELAY_HOLDS_BYTES }) {
+	if (!/^[0-9a-f]{64}$/.test(name)) return 'A file is named by its content hash.';
+	if (!bytes.length) return 'That file is empty.';
+	if (bytes.length > terms.file) return 'That file is too big for the relay.';
+	if ((await hexOf(bytes)) !== name) return 'That file doesn’t match its name.';
+	if (held + bytes.length > terms.holds) return 'Your space at the relay is full. Q will try again once your cloud has taken some.';
+	return null;
+}
+/** Why an "arrived" receipt doesn't release this file here, or null. */
+export async function checkArrival(r, item, where) {
+	if (!(await signedReceipt(r))) return 'It isn’t signed.';
+	const c = r.content;
+	if (c?.schema !== 'inqbeta.custody/1' || c.kind !== 'arrived' || c.item !== item) return 'That isn’t an arrival for this file.';
+	if (c.releases !== where) return 'That arrival releases another pass-through.';
+	if (!c.where || c.where === where) return 'It must have arrived somewhere else.';
+	return null;
+}
+const relayDir = (id) => `${FILER}/relay/${id}/`;
+async function relayMetas(id) {
+	const r = await fetch(relayDir(id), { headers: { accept: 'application/json' } }).catch(() => null);
+	if (!r?.ok) return [];
+	const j = await r.json().catch(() => ({}));
+	const names = (j.Entries ?? []).map((e) => String(e.FullPath ?? '').split('/').pop()).filter((n) => n.endsWith('.json'));
+	const out = [];
+	for (const n of names.slice(0, 5000)) {
+		const f = await fetch(`${relayDir(id)}${n}`).catch(() => null);
+		const m = f?.ok ? await f.json().catch(() => null) : null;
+		if (m) out.push(m);
+	}
+	return out;
+}
+async function relayForget(id, item) {
+	await fetch(`${relayDir(id)}${item}.dsv`, { method: 'DELETE' }).catch(() => null);
+	await fetch(`${relayDir(id)}${item}.json`, { method: 'DELETE' }).catch(() => null);
+}
+/* Totals per day, nothing about whose: files and bytes in, released, timed out, and byte-hours held. */
+const statsPath = (day) => `${FILER}/relay-stats/${day}.json`;
+let statsQueue = Promise.resolve();
+export function addToStats(stats, event, m, now = Date.now()) {
+	const s = { day: new Date(now).toISOString().slice(0, 10), in: { items: 0, bytes: 0 }, arrived: { items: 0, bytes: 0, byteHours: 0 }, timedOut: { items: 0, bytes: 0, byteHours: 0 }, ...(stats ?? {}) };
+	if (event === 'in') s.in = { items: s.in.items + 1, bytes: s.in.bytes + m.bytes };
+	else {
+		const hours = Math.max(0, now - Date.parse(m.at)) / 3_600_000;
+		const k = event === 'arrived' ? 'arrived' : 'timedOut';
+		s[k] = { items: s[k].items + 1, bytes: s[k].bytes + m.bytes, byteHours: s[k].byteHours + m.bytes * hours };
+	}
+	return s;
+}
+function count(event, m) {
+	const day = new Date().toISOString().slice(0, 10);
+	statsQueue = statsQueue.then(async () => {
+		const r = await fetch(statsPath(day)).catch(() => null);
+		const had = r?.ok ? await r.json().catch(() => null) : null;
+		const form = new FormData();
+		form.append('file', new Blob([JSON.stringify(addToStats(had, event, m))], { type: 'application/json' }), `${day}.json`);
+		await fetch(statsPath(day), { method: 'POST', body: form }).catch(() => null);
+	}).catch(() => {});
+}
+async function readBytes(req, most) {
+	const parts = [];
+	let n = 0;
+	for await (const chunk of req) {
+		n += chunk.length;
+		if (n > most) return null;
+		parts.push(chunk);
+	}
+	return Buffer.concat(parts);
+}
+const RELAY = /^\/relay(?:\/(stats|[A-Za-z0-9_-]{22})(?:\/([0-9a-f]{64}))?)?$/;
+async function relays(req, res, origin, id, item) {
+	const me = await nodeIdentity();
+	if (!me) return send(res, origin, 404, { says: 'This node doesn’t offer a pass-through.' });
+	const where = relayWhere(me);
+	if (!id && req.method === 'GET') return send(res, origin, 200, { schema: 'inqbeta.relay-terms/1', where, did: me.did, fileBytes: RELAY_FILE_BYTES, holdsBytes: RELAY_HOLDS_BYTES, days: RELAY_DAYS });
+	if (id === 'stats' && req.method === 'GET') {
+		const days = [];
+		for (let i = 0; i < 30; i++) {
+			const day = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+			const r = await fetch(statsPath(day)).catch(() => null);
+			const s = r?.ok ? await r.json().catch(() => null) : null;
+			if (s) days.push(s);
+		}
+		return send(res, origin, 200, { where, days });
+	}
+	if (!id || id === 'stats') return send(res, origin, 405, { says: 'Not like that.' });
+	if (!(await ownsInbox(id, req.headers['x-relay-key']))) return send(res, origin, 403, { says: 'That space isn’t yours.' });
+	const now = Date.now();
+	/* Anything past its time goes first, whatever's asked. */
+	const metas = [];
+	for (const m of await relayMetas(id)) {
+		if (Date.parse(m.until) < now) {
+			await relayForget(id, m.item);
+			count('timedOut', m);
+		} else metas.push(m);
+	}
+	if (req.method === 'GET' && !item) return send(res, origin, 200, { where, files: metas });
+	if (req.method === 'GET') {
+		const r = await fetch(`${relayDir(id)}${item}.dsv`).catch(() => null);
+		if (!r?.ok) return send(res, origin, 404, { says: 'Not here.' });
+		const bytes = Buffer.from(await r.arrayBuffer());
+		res.writeHead(200, { 'content-type': 'application/octet-stream', 'cache-control': 'no-store', ...(ORIGINS.has(origin) ? { 'access-control-allow-origin': origin, vary: 'origin' } : {}) });
+		return res.end(bytes);
+	}
+	if (req.method === 'POST' && item) {
+		if (tooMany(`relay:${req.socket.remoteAddress ?? ''}`, now, RELAY_POSTS_PER_HOUR)) return send(res, origin, 429, { says: 'Too many at once. Try again in a while.' });
+		const bytes = await readBytes(req, RELAY_FILE_BYTES);
+		if (bytes === null) return send(res, origin, 413, { says: 'That file is too big for the relay.' });
+		const had = metas.find((m) => m.item === item);
+		if (!had) {
+			const wrong = await checkRelayFile(item, bytes, metas.reduce((n, m) => n + m.bytes, 0));
+			if (wrong) return send(res, origin, wrong.includes('full') ? 507 : 400, { says: wrong });
+		}
+		const path = String(new URL(req.url, 'http://gate').searchParams.get('path') ?? `${item}.dsv`).replace(/[^A-Za-z0-9_./-]/g, '').replace(/\.\.+/g, '.').slice(0, 200);
+		const meta = had ?? { item, path, bytes: bytes.length, at: new Date(now).toISOString(), until: new Date(now + RELAY_DAYS * 86400000).toISOString() };
+		if (!had) {
+			const f = new FormData();
+			f.append('file', new Blob([bytes], { type: 'application/octet-stream' }), `${item}.dsv`);
+			const put = await fetch(`${relayDir(id)}${item}.dsv`, { method: 'POST', body: f }).catch((e) => ({ ok: false, status: e.message }));
+			if (!put.ok) return send(res, origin, 502, { says: `Couldn’t hold it: ${put.status}` });
+			const g = new FormData();
+			g.append('file', new Blob([JSON.stringify(meta)], { type: 'application/json' }), `${item}.json`);
+			await fetch(`${relayDir(id)}${item}.json`, { method: 'POST', body: g }).catch(() => null);
+			count('in', meta);
+		}
+		const held = await sealAsNode(me, { schema: 'inqbeta.custody/1', source: 'inqbeta:q/custody', kind: 'held', item, bytes: meta.bytes, where, at: meta.at, until: meta.until });
+		return send(res, origin, 200, { ok: true, held });
+	}
+	if (req.method === 'DELETE' && item) {
+		const m = metas.find((x) => x.item === item);
+		if (!m) return send(res, origin, 200, { ok: true, says: 'It wasn’t here.' });
+		const raw = await readBody(req, LEDGER_BYTES);
+		let arrival = null;
+		try { arrival = JSON.parse(raw ?? ''); } catch { arrival = null; }
+		const wrong = await checkArrival(arrival, item, where);
+		if (wrong) return send(res, origin, 403, { says: `Not let go: ${wrong} Nothing is let go until it’s held somewhere else.` });
+		await relayForget(id, item);
+		count('arrived', m);
+		return send(res, origin, 200, { ok: true });
+	}
+	return send(res, origin, 405, { says: 'Not like that.' });
+}
+
 /* ---- HTTP ---- */
 function send(res, origin, status, body) {
 	const headers = { 'content-type': 'application/json', 'cache-control': 'no-store' };
-	if (ORIGINS.has(origin)) Object.assign(headers, { 'access-control-allow-origin': origin, 'access-control-allow-methods': 'GET, POST, DELETE, OPTIONS', 'access-control-allow-headers': 'content-type, x-inbox-key, x-q-claim', vary: 'origin' });
+	if (ORIGINS.has(origin)) Object.assign(headers, { 'access-control-allow-origin': origin, 'access-control-allow-methods': 'GET, POST, DELETE, OPTIONS', 'access-control-allow-headers': 'content-type, x-inbox-key, x-q-claim, x-relay-key', vary: 'origin' });
 	res.writeHead(status, headers);
 	res.end(status === 204 ? undefined : JSON.stringify(body));
 }
@@ -312,6 +617,7 @@ const ROUTE = /^\/fed\/(did:key:z[1-9A-HJ-NP-Za-km-z]+)\/announcements\.json$/;
 const DROP = /^\/drop(?:\/([A-Za-z0-9_-]{16,64}))?$/;
 const INBOX = /^\/inbox\/([A-Za-z0-9_-]{22})(?:\/([A-Za-z0-9_-]{16,64}))?$/;
 const LEDGER = /^\/mint\/(did:key:z[1-9A-HJ-NP-Za-km-z]+)\/(test|live)$/;
+const SHOP = /^\/shop\/(did:key:z[1-9A-HJ-NP-Za-km-z]+)$/;
 
 async function inboxes(req, res, origin, id, item) {
 	if (req.method === 'POST' && !item) {
@@ -482,6 +788,10 @@ export const server = http.createServer(async (req, res) => {
 	if (ib) return inboxes(req, res, origin, ib[1], ib[2]);
 	const lg = LEDGER.exec(decodeURIComponent(new URL(req.url, 'http://gate').pathname));
 	if (lg) return ledgers(req, res, origin, lg[1], lg[2]);
+	const sh = SHOP.exec(decodeURIComponent(new URL(req.url, 'http://gate').pathname));
+	if (sh) return shops(req, res, origin, sh[1]);
+	const rl = RELAY.exec(new URL(req.url, 'http://gate').pathname);
+	if (rl) return relays(req, res, origin, rl[1], rl[2]);
 	if (!m) return send(res, origin, 404, { says: 'Nothing here.' });
 	const did = m[1];
 	if (!FEDERATIONS.has(did)) return send(res, origin, 404, { says: 'This node doesn’t serve that federation.' });

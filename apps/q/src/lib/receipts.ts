@@ -157,7 +157,7 @@ export async function receiptsInJson(json: unknown, item: FolderItem): Promise<R
 	const step = o.content as { schema?: string; step?: string; at?: string; terms?: { aGives?: unknown; bGives?: unknown } } | undefined;
 	if (step?.schema === 'inqbeta.agreement/1') {
 		const c = await checkReceipt(json);
-		const WORD: Record<string, string> = { proposed: 'Offer', countered: 'Counteroffer', agreed: 'Agreed', declined: 'Declined', withdrawn: 'Withdrawn', done: 'Said it’s done', settled: 'Settlement' };
+		const WORD: Record<string, string> = { proposed: 'Offer', countered: 'Counteroffer', agreed: 'Agreed', declined: 'Declined', withdrawn: 'Withdrawn', done: 'Said it’s done', settled: 'Settlement', taken: 'Bought from a shop' };
 		out.push({
 			id: `json:${where}`,
 			group: 'agreements',

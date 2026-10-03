@@ -23,6 +23,7 @@
 	import { peopleFrom } from '$lib/people';
 	import { agreementsFrom, creditsCommitted, creditsHeld, newAgreementId, takeStep } from '$lib/agreements';
 	import { readMint, type MintView } from '$lib/money';
+	import { publishListing } from '$lib/shop';
 
 	let identity = $state<Identity | null>(null);
 	let ledger = $state<Ledger | null>(null);
@@ -51,7 +52,11 @@
 
 	/* "Anyone I send a link to": an open offer (ADR-Q-026), shared like a card. */
 	const LINK = 'link';
+	/* "My shop": a standing offer anyone can buy, up to a number (ADR-Q-026). */
+	const SHOP = 'shop';
+	let stock = $state(1);
 	let withDid = $state(page.url.searchParams.get('with') ?? '');
+	const toAnyone = $derived(withDid === LINK || withDid === SHOP);
 	let business = $state(false);
 	let mine = $state<Side>(blank());
 	let theirs = $state<Side>(blank());
@@ -76,7 +81,7 @@
 		doneWhen = t.doneWhen ?? '';
 	});
 
-	const them = $derived(withDid === LINK ? { did: '', name: 'whoever opens your link', picture: undefined } : (people.find((p) => p.did === withDid) ?? peopleFrom(ledger, me).find((p) => p.did === withDid)));
+	const them = $derived(withDid === LINK ? { did: '', name: 'whoever opens your link', picture: undefined } : withDid === SHOP ? { did: '', name: 'whoever buys it', picture: undefined } : (people.find((p) => p.did === withDid) ?? peopleFrom(ledger, me).find((p) => p.did === withDid)));
 	const valueOf = (s: Side): Value =>
 		s.kind === 'credits' ? { credits: Math.trunc(Number(s.credits) || 0), mode, ...(mint ? { mint: mint.mint } : {}) } : s.kind === 'pounds' ? { pence: Math.round((Number(s.pounds) || 0) * 100) } : { thing: s.thing.trim() };
 
@@ -85,7 +90,7 @@
 		const base = answering?.standing.terms;
 		const a = base?.a ?? me;
 		/* Answering an open offer names you; a new offer by link leaves the other side empty. */
-		const b = base ? base.b || (me !== base.a ? me : '') : withDid === LINK ? '' : withDid;
+		const b = base ? base.b || (me !== base.a ? me : '') : toAnyone ? '' : withDid;
 		const mv = valueOf(mine);
 		const tv = valueOf(theirs);
 		return {
@@ -114,7 +119,8 @@
 	];
 	let step = $state(0);
 	const sideReady = (s: Side) => (s.kind === 'thing' ? !!s.thing.trim() : s.kind === 'credits' ? Number(s.credits) >= 1 : Number(s.pounds) > 0);
-	const canGoOn = $derived([!!withDid, sideReady(mine) && !overPromising, sideReady(theirs) && !(mine.kind !== 'thing' && mine.kind === theirs.kind), true, true, !problems.length][step]);
+	const stockOk = $derived(withDid !== SHOP || (Number.isInteger(Number(stock)) && Number(stock) >= 1 && Number(stock) <= 999));
+	const canGoOn = $derived([!!withDid && stockOk, sideReady(mine) && !overPromising, sideReady(theirs) && !(mine.kind !== 'thing' && mine.kind === theirs.kind), true, true, !problems.length][step]);
 
 	let busy = $state(false);
 	let says = $state('');
@@ -132,11 +138,19 @@
 				step: answering ? 'countered' : 'proposed',
 				parent: answering ? ((s?.phase === 'agreeing' ? s.offerHash : s?.lastHash) ?? null) : null,
 				terms,
-				...(until ? { until: new Date(`${until}T23:59:59`).toISOString() } : {})
+				...(until ? { until: new Date(`${until}T23:59:59`).toISOString() } : {}),
+				...(withDid === SHOP && !answering ? { limit: Number(stock) } : {})
 			},
 			peopleFrom(ledger, me),
 			mint
 		);
+		if (out.ok && withDid === SHOP && !answering) {
+			/* Into your shop at the storage, so people can buy while you're away. */
+			const put = await publishListing(out.signed, ledger);
+			busy = false;
+			void goto(`/agreements/${encodeURIComponent(id)}?shop=1${put.ok ? '' : `&said=${encodeURIComponent(`Kept in your vault, but not in your shop yet: ${put.says}`)}`}`);
+			return;
+		}
 		busy = false;
 		if (!out.ok) says = out.says;
 		else void goto(`/agreements/${encodeURIComponent(id)}${withDid === LINK && !answering ? '?share=1' : out.says ? `?said=${encodeURIComponent(out.says)}` : ''}`);
@@ -206,6 +220,15 @@
 									</span>
 								</button>
 							</li>
+							<li class="sm:col-span-2">
+								<button type="button" role="radio" aria-checked={withDid === SHOP} class="card w-full p-3 flex items-center gap-3 text-left min-h-11 {withDid === SHOP ? 'preset-filled-primary-500' : 'preset-tonal-surface hover:preset-tonal-primary'}" onclick={() => (withDid = SHOP)}>
+									<span class="size-11 shrink-0 rounded-full preset-tonal-secondary flex items-center justify-center"><Icon name="wallet" size={20} /></span>
+									<span class="flex flex-col">
+										<span class="font-bold">My shop: anyone can buy it</span>
+										<span class="text-sm opacity-80">Like a jar of jam on a stall. Each sale is its own agreement, and it stops when they’re gone.</span>
+									</span>
+								</button>
+							</li>
 							{#each people as p (p.did)}
 								<li>
 									<button type="button" role="radio" aria-checked={withDid === p.did} class="card w-full p-3 flex items-center gap-3 text-left min-h-11 {withDid === p.did ? 'preset-filled-primary-500' : 'preset-tonal-surface hover:preset-tonal-primary'}" onclick={() => (withDid = p.did)}>
@@ -217,6 +240,9 @@
 								</li>
 							{/each}
 						</ul>
+					{/if}
+					{#if withDid === SHOP && !answering}
+						<label class="label mt-5 max-w-xs"><span class="label-text">How many you have</span><input class="input max-w-40" type="number" min="1" max="999" step="1" bind:value={stock} /></label>
 					{/if}
 					<label class="flex items-center gap-3 min-h-11 mt-5">
 						<input type="checkbox" class="checkbox" bind:checked={business} />
@@ -263,13 +289,14 @@
 							<p class="h4 text-balance">You’ll give {valueText(valueOf(mine))}, and {them?.name ?? 'they'} will give {valueText(valueOf(theirs))}.</p>
 							{#if terms.when || terms.where}<p>{[terms.when, terms.where].filter(Boolean).join(' · ')}</p>{/if}
 							{#if terms.doneWhen}<p class="text-sm">Done when: {terms.doneWhen}</p>{/if}
+							{#if withDid === SHOP && !answering}<p class="text-sm">In your shop: {stock} available.</p>{/if}
 							{#if until}<p class="text-sm">Open until {new Date(until).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}.</p>{/if}
 							<p class="text-sm opacity-80">{terms.business ? 'A job: pounds are recorded for both of your accounts.' : 'A personal swap.'}</p>
 						</div>
 						{#if problems.length}
 							<ul class="mt-4 card preset-tonal-error p-4 list-disc ps-8">{#each problems as p (p)}<li>{p}</li>{/each}</ul>
 						{/if}
-						<p class="mt-4 text-sm text-surface-700-300">{withDid === LINK && !answering ? 'Signed by you and checked by the agreement rules. Next, you’ll get a link to send, any way you like.' : `Signed by you, checked by the agreement rules, and sent sealed so only ${them?.name ?? 'they'} can read it.`} This is a record of what you both say, not legal advice.</p>
+						<p class="mt-4 text-sm text-surface-700-300">{withDid === SHOP && !answering ? 'Signed by you, checked by the agreement rules, and put in your shop. Anyone can buy it there until they’re gone.' : withDid === LINK && !answering ? 'Signed by you and checked by the agreement rules. Next, you’ll get a link to send, any way you like.' : `Signed by you, checked by the agreement rules, and sent sealed so only ${them?.name ?? 'they'} can read it.`} This is a record of what you both say, not legal advice.</p>
 					{/if}
 				</Steps.Content>
 			</Steps>
@@ -284,7 +311,7 @@
 					<button type="button" class="btn preset-filled-primary-500 min-h-11" disabled={!canGoOn} onclick={() => (step += 1)}>Next</button>
 				{:else}
 					<button type="button" class="btn preset-filled-primary-500 min-h-11" disabled={busy || !canGoOn} onclick={() => void send()}>
-						<Icon name="share" size={18} />{busy ? 'Checking and sending…' : answering ? 'Send the counteroffer' : withDid === LINK ? 'Make the offer' : 'Send the offer'}
+						<Icon name="share" size={18} />{busy ? 'Checking and sending…' : answering ? 'Send the counteroffer' : withDid === SHOP ? 'Put it in my shop' : withDid === LINK ? 'Make the offer' : 'Send the offer'}
 					</button>
 				{/if}
 			</footer>

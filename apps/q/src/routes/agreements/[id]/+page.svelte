@@ -8,6 +8,8 @@
 	 *   agreeing, your offer    Withdraw
 	 *   agreed                  Say it's done · Settle (all, or part) · Change the agreement
 	 *   a settlement waiting    Confirm it (the other person signed) — or wait for them
+	 *   in your shop            the shop's link · what's sold · Take it out of my shop
+	 *   sold, not yet paid      Cancel: sold out (the seller, before any settling)
 	 * Each is checked by the agreement rules before it's signed.
 	 */
 	import { Page, Section, Icon, Status } from '@inqbeta/q-ui';
@@ -21,7 +23,8 @@
 	import { peopleFrom } from '$lib/people';
 	import type { Names } from '$lib/receipt-read';
 	import { agreementsFrom, needsMe, takeStep, type StepInput } from '$lib/agreements';
-	import { isOpenOffer } from '@inqbeta/q-core/agreements';
+	import { isOpenOffer, isStandingOffer, stockLeft } from '@inqbeta/q-core/agreements';
+	import { shopLink, tellShop } from '$lib/shop';
 	import { makeOfferLink } from '$lib/offerlink';
 	import ShareLink from '$lib/components/ShareLink.svelte';
 	import { readMint, type MintView } from '$lib/money';
@@ -37,8 +40,13 @@
 	const me = $derived(identity?.did ?? '');
 	const people = $derived(peopleFrom(ledger, me));
 	const names = $derived<Names>({ me, nameOf: (d) => people.find((p) => p.did === d)?.name });
-	const view = $derived(agreementsFrom(ledger).find((a) => a.id === id));
+	const all = $derived(agreementsFrom(ledger));
+	const view = $derived(all.find((a) => a.id === id));
 	const s = $derived(view?.standing);
+	/* A shop offer: every sale of it you hold, and how many are left. */
+	const sales = $derived(s?.limit && !s.takenFrom ? all.filter((a) => a.standing.takenFrom?.hash === s.offerHash) : []);
+	const leftInShop = $derived(s ? stockLeft(s, sales.map((a) => a.standing)) : 0);
+	const sellerOf = (d: string) => (d === me ? 'your' : `${people.find((p) => p.did === d)?.name ?? 'their'}’s`);
 	const themName = $derived.by(() => {
 		const t = s?.terms;
 		const d = t ? (t.a === me ? t.b : t.a) : '';
@@ -58,7 +66,7 @@
 	const settling = $derived<Entry[]>(
 		left.flatMap((e, i) => {
 			if (!picked[i]) return [];
-			if ('credits' in e.value) return [{ ...e, value: { credits: Math.trunc(Number(amounts[i]) || 0), mode: e.value.mode } }];
+			if ('credits' in e.value) return [{ ...e, value: { ...e.value, credits: Math.trunc(Number(amounts[i]) || 0) } }];
 			if ('pence' in e.value) return [{ ...e, value: { pence: Math.round((Number(amounts[i]) || 0) * 100) } }];
 			return [e];
 		})
@@ -77,6 +85,11 @@
 		good = out.ok;
 		says = out.ok ? (out.says ?? `Done: ${label.toLowerCase()}. ${out.sent ? `Sent to ${themName}.` : ''}`) : out.says;
 		if (out.ok) note = '';
+		/* The shop holds the stock: tell it when a listing comes out or a sale is cancelled. */
+		if (out.ok && (input.step === 'withdrawn' || input.step === 'declined') && s?.limit && s.terms?.a === me) {
+			const told = await tellShop(me, out.signed);
+			if (!told.ok) says = `${says} The shop didn’t hear just now: ${told.says}`;
+		}
 	}
 
 	/* Your open offer: a link to send it with (ADR-Q-026). Made when asked, or straight away after writing it. */
@@ -124,7 +137,21 @@
 				<section class="card preset-outlined-surface-200-800 bg-surface-50-950 p-4 sm:p-5 flex flex-col gap-4" aria-labelledby="now">
 					<h2 id="now" class="h5">Now</h2>
 
-					{#if isOpenOffer(s) && s.offeredBy === me}
+					{#if isStandingOffer(s) && s.offeredBy === me}
+						<p>It’s in your shop. {sales.length ? `${sales.length} sold that you know of, ` : ''}<strong>{leftInShop} left</strong>. Each sale is its own agreement, agreed the moment someone buys.</p>
+						<ShareLink link={shopLink(me)} label="Your shop’s link" subject="My shop on Q" message="Here’s my shop on Q. Have a look, and buy anything you like." note="Anyone with the link can see your shop." />
+						{#if sales.length}
+							<ul class="flex flex-col gap-2">
+								{#each sales as a (a.id)}
+									<li><a class="anchor" href="/agreements/{encodeURIComponent(a.id)}">Sold to {people.find((p) => p.did === a.standing.terms?.b)?.name ?? 'someone'}</a> · {a.standing.ended === 'sold-out' ? 'cancelled' : a.standing.phase === 'complete' ? 'paid' : 'not paid yet'}</li>
+								{/each}
+							</ul>
+						{/if}
+						<button type="button" class="btn preset-tonal min-h-11 self-start" disabled={!!busy} onclick={() => void act('Taken out of your shop', { step: 'withdrawn', parent: s.offerHash ?? null })}>{busy ? 'Checking…' : 'Take it out of my shop'}</button>
+					{:else if isStandingOffer(s)}
+						<p>This is in {sellerOf(s.offeredBy ?? '')} shop.</p>
+						<a class="btn preset-filled-primary-500 min-h-11 self-start" href="/shop/{encodeURIComponent(s.offeredBy ?? '')}"><Icon name="wallet" size={18} /> Go to the shop</a>
+					{:else if isOpenOffer(s) && s.offeredBy === me}
 						<p>Your offer is open. Send the link any way you like: the first person to open it can accept, counteroffer or decline, and your bell rings when they do.</p>
 						{#if link}
 							<ShareLink {link} label="Your offer’s link" subject="An offer for you" message="I’ve made you an offer on Q. Open it to see it, and accept, counteroffer or decline." note="It opens for one person: whoever opens it first." />
@@ -180,10 +207,14 @@
 							</fieldset>
 						{/if}
 						<a class="btn preset-tonal min-h-11 self-start" href="/agreements/new?counter={encodeURIComponent(id)}"><Icon name="repeat" size={18} /> Change the agreement</a>
+						{#if s.takenFrom && s.terms?.a === me && !s.settled.length}
+							<p class="text-sm">Can’t sell it after all? You can cancel this sale until it’s paid, and it goes back in your shop.</p>
+							<button type="button" class="btn preset-tonal min-h-11 self-start" disabled={!!busy} onclick={() => void act('Cancelled: sold out', { step: 'declined', parent: s.lastHash ?? null, note: 'Sold out' })}>{busy === 'Cancelled: sold out' ? 'Checking…' : 'Cancel: sold out'}</button>
+						{/if}
 					{:else if s.phase === 'complete'}
 						<p class="flex items-center gap-2"><Status tone="good">Settled</Status> Agreed, and settled by you both. It’s in both of your vaults.</p>
 					{:else}
-						<p>This agreement ended{s.ended === 'declined' ? ': it was declined' : s.ended === 'withdrawn' ? ': the offer was withdrawn' : ': the offer ran out'}. Nothing was settled.</p>
+						<p>This agreement ended{s.ended === 'sold-out' ? ': the seller cancelled it as sold out' : s.ended === 'declined' ? ': it was declined' : s.ended === 'withdrawn' ? (s.limit && !s.takenFrom ? ': it was taken out of the shop' : ': the offer was withdrawn') : ': the offer ran out'}. Nothing was settled.</p>
 					{/if}
 
 					{#if says}<p class="text-sm card p-3 {good ? 'preset-tonal-success' : 'preset-tonal-warning'}" aria-live="polite">{says}</p>{/if}

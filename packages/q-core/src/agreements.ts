@@ -35,6 +35,7 @@
  * settled. Pounds are a record for people's own accounts, never moved by Q.
  */
 import type { SealedReceipt } from './seal';
+import { canonical } from './canonical';
 
 export const AGREEMENT_SCHEMA = 'inqbeta.agreement/1';
 export const AGREEMENT_SOURCE = 'inqbeta:q/agreements';
@@ -64,7 +65,7 @@ export interface Terms {
 	business?: boolean;
 }
 
-export type StepName = 'proposed' | 'countered' | 'agreed' | 'declined' | 'withdrawn' | 'done' | 'settled';
+export type StepName = 'proposed' | 'countered' | 'agreed' | 'declined' | 'withdrawn' | 'done' | 'settled' | 'taken';
 
 /** One entry: one value from one party to the other. */
 export interface Entry {
@@ -79,13 +80,18 @@ export interface AgreementStep {
 	/** The agreement's own id, the same on every step. */
 	agreement: string;
 	step: StepName;
-	/** The step this follows, by content hash; null only for `proposed`. */
+	/** The step this follows, by content hash; null only for `proposed`. `taken` follows the standing offer. */
 	parent: string | null;
 	at: string;
 	/** proposed, countered: the terms on offer. */
 	terms?: Terms;
 	/** proposed, countered: the offer runs out after this. */
 	until?: string;
+	/**
+	 * proposed, open offers only: a standing offer (a shop listing) anyone can
+	 * take, up to this many times. Each taking is its own agreement.
+	 */
+	limit?: number;
 	/** done: evidence, as hashes of files in the vault. */
 	evidence?: string[];
 	/** settled: what's being settled. */
@@ -162,7 +168,7 @@ export interface Standing {
 	agreement: string;
 	phase: Phase;
 	/** How it ended, when it did. */
-	ended?: 'declined' | 'withdrawn' | 'expired';
+	ended?: 'declined' | 'withdrawn' | 'expired' | 'sold-out';
 	/** The terms on the table (agreeing) or agreed (after). */
 	terms: Terms | null;
 	/** Who signed the terms on the table. */
@@ -181,6 +187,10 @@ export interface Standing {
 	offerHash?: string;
 	lastHash?: string;
 	lastAt?: string;
+	/** A standing offer (shop listing): how many times it can be taken. */
+	limit?: number;
+	/** A taking of a standing offer: the listing's agreement id and hash. */
+	takenFrom?: { agreement: string; hash: string };
 }
 
 const other = (t: Terms, did: string) => (did === t.a ? t.b : t.a);
@@ -233,6 +243,22 @@ function settledInFull(agreed: Terms, settled: Entry[][]): boolean {
 /** Is this an open offer, still waiting for someone to answer it? */
 export const isOpenOffer = (s: Standing) => s.phase === 'agreeing' && !!s.terms && !s.terms.b;
 
+/** Is this a standing offer — a shop listing anyone can take, while it's open? */
+export const isStandingOffer = (s: Standing) => isOpenOffer(s) && (s.limit ?? 0) >= 1;
+
+/** A taking's agreement id: the listing's id, then the buyer's own part. */
+export const takingId = (listing: string, part: string) => `${listing}.${part}`;
+
+/**
+ * How many are left in a standing offer, from the takings the maker knows of:
+ * every taking counts unless the maker cancelled it as sold out.
+ */
+export function stockLeft(listing: Standing, takings: Standing[]): number {
+	const limit = listing.limit ?? 0;
+	const taken = takings.filter((t) => t.takenFrom?.hash === listing.offerHash && t.ended !== 'sold-out').length;
+	return Math.max(0, limit - taken);
+}
+
 /**
  * Where an agreement stands, from its steps (any order, copies fine). Steps
  * that don't fit — wrong person, wrong moment, a parent that isn't there — are
@@ -242,7 +268,8 @@ export function standingOf(receipts: AgreementReceipt[], now = Date.now()): Stan
 	const seen = new Map<string, AgreementReceipt>();
 	for (const r of receipts) if (isAgreementStep(r)) seen.set(r.contentHash, r);
 	const steps = [...seen.values()].sort((x, y) => x.content.at.localeCompare(y.content.at) || x.signedAt.localeCompare(y.signedAt));
-	const s: Standing = { agreement: steps[0]?.content.agreement ?? '', phase: 'agreeing', terms: null, settled: [], evidence: [], problems: [] };
+	const taking = steps.find((r) => r.content.step === 'taken');
+	const s: Standing = { agreement: (taking ?? steps[0])?.content.agreement ?? '', phase: 'agreeing', terms: null, settled: [], evidence: [], problems: [] };
 	let offerHash = '';
 	let offerUntil: string | undefined;
 	let agreed: Terms | null = null;
@@ -252,9 +279,11 @@ export function standingOf(receipts: AgreementReceipt[], now = Date.now()): Stan
 	for (const r of steps) {
 		const c = r.content;
 		const by = r.did;
-		if (c.agreement !== s.agreement) { reject(r, 'belongs to another agreement.'); continue; }
+		/* A taking chain starts with the standing offer it takes, which has the listing's id. */
+		const listingStep = c.step === 'proposed' && !!c.limit && s.agreement.startsWith(`${c.agreement}.`);
+		if (c.agreement !== s.agreement && !listingStep) { reject(r, 'belongs to another agreement.'); continue; }
 		/* An open offer: whoever answers it first (not its maker) becomes the other side. */
-		if (s.terms && !s.terms.b && by !== s.terms.a && (c.step === 'agreed' || c.step === 'countered' || c.step === 'declined') && s.phase === 'agreeing') {
+		if (s.terms && !s.terms.b && !s.limit && by !== s.terms.a && (c.step === 'agreed' || c.step === 'countered' || c.step === 'declined') && s.phase === 'agreeing') {
 			s.terms = { ...s.terms, b: by };
 		}
 		if (s.phase === 'ended' || s.phase === 'complete') { reject(r, `the agreement had already ${s.phase === 'ended' ? 'ended' : 'been settled in full'}.`); continue; }
@@ -270,14 +299,28 @@ export function standingOf(receipts: AgreementReceipt[], now = Date.now()): Stan
 				if (c.parent !== null || !c.terms) { reject(r, 'a proposal starts the chain and carries terms.'); break; }
 				if (!party(c.terms, by)) { reject(r, 'only one of the two people can propose.'); break; }
 				const p = problemsWithTerms(c.terms);
+				if (c.limit !== undefined && (!Number.isInteger(c.limit) || c.limit < 1 || c.terms.b)) p.push('A shop offer is open to anyone and can be taken a whole number of times.');
 				if (p.length) { reject(r, p.join(' ')); break; }
 				s.terms = c.terms;
 				s.offeredBy = by;
+				if (c.limit) s.limit = c.limit;
+				if (listingStep) s.takenFrom = { agreement: c.agreement, hash: r.contentHash };
 				offerHash = lastHash = r.contentHash;
 				offerUntil = c.until;
 				break;
 			}
+			case 'taken': {
+				if (!s.limit || !s.terms || s.phase !== 'agreeing' || !s.takenFrom) { reject(r, 'only a shop offer can be taken.'); break; }
+				if (c.parent !== offerHash || !c.terms) { reject(r, 'a taking names the shop offer and its terms.'); break; }
+				if (by === s.terms.a) { reject(r, 'you can’t take your own shop offer.'); break; }
+				if (canonical({ ...c.terms, b: '' }) !== canonical(s.terms) || c.terms.b !== by) { reject(r, 'a taking must be on the shop offer’s own terms, by the person taking it.'); break; }
+				s.terms = agreed = c.terms;
+				s.phase = 'agreed';
+				lastHash = r.contentHash;
+				break;
+			}
 			case 'countered': {
+				if (s.limit && !agreed) { reject(r, 'a shop offer is taken as it stands, not countered.'); break; }
 				const base = agreed ?? s.terms;
 				if (!base || !c.terms) { reject(r, 'a counteroffer answers an offer, with new terms.'); break; }
 				if (c.terms.a !== base.a || c.terms.b !== (base.b || by)) { reject(r, 'the two people can’t change.'); break; }
@@ -295,6 +338,7 @@ export function standingOf(receipts: AgreementReceipt[], now = Date.now()): Stan
 				break;
 			}
 			case 'agreed': {
+				if (s.limit && !agreed) { reject(r, 'a shop offer is taken, not agreed to.'); break; }
 				if (s.phase !== 'agreeing' || !s.terms) { reject(r, 'there was no offer to agree to.'); break; }
 				if (c.parent !== offerHash) { reject(r, 'it must agree to the latest offer.'); break; }
 				if (by === s.offeredBy) { reject(r, 'you can’t agree to your own offer.'); break; }
@@ -306,6 +350,16 @@ export function standingOf(receipts: AgreementReceipt[], now = Date.now()): Stan
 			}
 			case 'declined':
 			case 'withdrawn': {
+				/* Sold out: the seller can cancel a taking before anything is settled. */
+				if (s.takenFrom && s.phase === 'agreed' && agreed && c.step === 'declined' && by === agreed.a) {
+					if (s.settled.length || s.pending) { reject(r, 'a taking can’t be cancelled once settling has begun.'); break; }
+					if (c.parent !== lastHash) { reject(r, 'it doesn’t answer the latest step.'); break; }
+					s.phase = 'ended';
+					s.ended = 'sold-out';
+					lastHash = r.contentHash;
+					break;
+				}
+				if (s.limit && c.step === 'declined') { reject(r, 'a shop offer isn’t declined; just don’t take it.'); break; }
 				if (s.phase !== 'agreeing' || !s.terms) { reject(r, 'only an open offer can be declined or withdrawn.'); break; }
 				if (c.parent !== offerHash) { reject(r, 'it must answer the open offer.'); break; }
 				if (c.step === 'withdrawn' ? by !== s.offeredBy : by === s.offeredBy || !party(s.terms, by)) {
@@ -395,11 +449,14 @@ export function sayStep(r: AgreementReceipt, viewer: string, nameOf: (did: strin
 	};
 	switch (c.step) {
 		case 'proposed':
+			if (t && !t.b && c.limit) return `${Who(by)} put ${valueText(t.aGives)} in ${by === viewer ? 'your' : 'their'} shop for ${valueText(t.bGives)}, ${c.limit} available.`;
 			return t && !t.b ? `${Who(by)} made an open offer of ${offer(by)}, shared by link.` : `${Who(by)} proposed an offer to ${who(otherOf(by))} of ${offer(by)}.`;
 		case 'countered':
 			return `${Who(by)} made a counteroffer: ${offer(by)}.`;
 		case 'agreed':
 			return `${Who(by)} accepted. ${t ? `${Who(t.a)} and ${who(t.b)} agreed: ${valueText(t.aGives)} in exchange for ${valueText(t.bGives)}.` : ''}`.trim();
+		case 'taken':
+			return t ? `${Who(by)} bought from ${who(t.a)}’s shop: ${valueText(t.aGives)} for ${valueText(t.bGives)}.` : `${Who(by)} bought from a shop.`;
 		case 'declined':
 			return `${Who(by)} declined.`;
 		case 'withdrawn':

@@ -13,6 +13,9 @@ import {
 	remainingOf,
 	sayStep,
 	standingOf,
+	stockLeft,
+	isStandingOffer,
+	takingId,
 	type AgreementReceipt,
 	type AgreementStep,
 	type Terms
@@ -190,4 +193,57 @@ test('an open offer, shared by link: the first to answer becomes the other side,
 	s = standingOf([p2, counter]);
 	assert.equal(s.terms?.b, cat.did, 'a counteroffer from the link names the person making it');
 	assert.equal(s.waitingFor, ana.did);
+});
+
+test('a shop: a standing offer anyone can take, each taking its own agreement, up to the stock', async () => {
+	const { ana, ben, cat } = await people();
+	const jam: Terms = { kind: 'swap', a: ana.did, b: '', aGives: { thing: 'A jar of jam' }, bGives: { credits: 4, mode: 'test' } };
+	const listing = await sign(ana, step({ agreement: 'shop-jam', step: 'proposed', parent: null, terms: jam, limit: 2 }));
+	const shop = standingOf([listing]);
+	assert.equal(isStandingOffer(shop), true);
+	assert.equal(shop.limit, 2);
+	assert.match(sayStep(listing, ben.did, () => 'Ana'), /in their shop for 4 test credits, 2 available/);
+
+	/* Someone answering the listing itself is turned away: it's taken, not agreed. */
+	const wrong = await sign(ben, step({ agreement: 'shop-jam', step: 'agreed', parent: listing.contentHash }));
+	assert.equal(standingOf([listing, wrong]).phase, 'agreeing');
+
+	const benId = takingId('shop-jam', 'b1');
+	const benTakes = await sign(ben, step({ agreement: benId, step: 'taken', parent: listing.contentHash, terms: { ...jam, b: ben.did } }));
+	const b = standingOf([listing, benTakes]);
+	assert.equal(b.agreement, benId);
+	assert.equal(b.phase, 'agreed', 'buying is the contract point');
+	assert.equal(b.terms?.b, ben.did);
+	assert.deepEqual(b.takenFrom, { agreement: 'shop-jam', hash: listing.contentHash });
+	assert.deepEqual(b.problems, []);
+
+	/* A taking must be on the listing's terms, by the taker, and not by the seller. */
+	const cheap = await sign(cat, step({ agreement: takingId('shop-jam', 'c0'), step: 'taken', parent: listing.contentHash, terms: { ...jam, b: cat.did, bGives: { credits: 1, mode: 'test' } } }));
+	assert.equal(standingOf([listing, cheap]).phase, 'agreeing');
+	const own = await sign(ana, step({ agreement: takingId('shop-jam', 'a0'), step: 'taken', parent: listing.contentHash, terms: { ...jam, b: ana.did } }));
+	assert.equal(standingOf([listing, own]).phase, 'agreeing');
+
+	const catTakes = await sign(cat, step({ agreement: takingId('shop-jam', 'c1'), step: 'taken', parent: listing.contentHash, terms: { ...jam, b: cat.did } }));
+	const c = standingOf([listing, catTakes]);
+	assert.equal(stockLeft(shop, [b, c]), 0, 'two taken, none left');
+
+	/* Sold out: Ana cancels Cat's before anything is settled, and the jar is back in stock. */
+	const soldOut = await sign(ana, step({ agreement: takingId('shop-jam', 'c1'), step: 'declined', parent: catTakes.contentHash, note: 'Sold out' }));
+	const c2 = standingOf([listing, catTakes, soldOut]);
+	assert.equal(c2.phase, 'ended');
+	assert.equal(c2.ended, 'sold-out');
+	assert.equal(stockLeft(shop, [b, c2]), 1);
+
+	/* Ben's settles like any agreement; once settling starts, it can't be cancelled. */
+	const entries = entriesFor(b.terms!);
+	const s1 = await sign(ben, step({ agreement: benId, step: 'settled', parent: benTakes.contentHash, entries }));
+	const late = await sign(ana, step({ agreement: benId, step: 'declined', parent: s1.contentHash }));
+	const s2 = await sign(ana, step({ agreement: benId, step: 'settled', parent: s1.contentHash, entries }));
+	const done = standingOf([listing, benTakes, s1, late, s2]);
+	assert.equal(done.phase, 'complete');
+	assert.equal(done.problems.length, 1);
+
+	/* Ana closes the shop listing by withdrawing it. */
+	const shut = await sign(ana, step({ agreement: 'shop-jam', step: 'withdrawn', parent: listing.contentHash }));
+	assert.equal(standingOf([listing, shut]).ended, 'withdrawn');
 });

@@ -134,3 +134,32 @@ test('an open offer by link: anyone may answer first; after that, only the two o
 	const counter = await sign(cat, { step: 'countered', parent: p2.contentHash, terms: { ...open, b: cat.did } }, 'open-b');
 	assert.equal((await decide([p2], counter, w)).holds, true, 'a counteroffer from the link, naming themselves');
 });
+
+test('a shop: buying takes the offer as it stands; no buying your own, sold out, haggling or agreeing; the seller can cancel as sold out', async () => {
+	const { ana, ben, cat } = await people();
+	const w = wallets({ [ben.did]: 10, [cat.did]: 1 });
+	const jam: Terms = { kind: 'swap', a: ana.did, b: '', aGives: { thing: 'A jar of jam' }, bGives: { credits: 4, mode: 'test' } };
+	const listing = await sign(ana, { step: 'proposed', parent: null, terms: jam, limit: 3 }, 'shop');
+	assert.equal((await decide([], listing, w)).holds, true);
+
+	const take = (who: Who, part: string, terms: Terms = { ...jam, b: who.did }) => sign(who, { step: 'taken', parent: listing.contentHash, terms }, `shop.${part}`);
+	const bens = await take(ben, 'b');
+	const ok = await decide([listing], bens, w);
+	assert.equal(ok.action, 'agreement.take');
+	assert.equal(ok.holds, true, ok.rules.join(', '));
+
+	assert.ok((await decide([listing], await take(ana, 'a', { ...jam, b: ana.did }), w)).rules.includes('agreement.take/cannot/own-offer'));
+	assert.deepEqual((await decide([listing], await take(cat, 'c'), w)).rules, ['agreement.take/cannot/over-promise']);
+	assert.deepEqual((await decide([listing], await take(ben, 'b2', { ...jam, b: ben.did, bGives: { credits: 1, mode: 'test' } }), w)).rules, ['agreement.take/must/as-it-stands']);
+	assert.deepEqual((await decide([listing], await take(ben, 'b3'), { ...w, stockLeft: 0 })).rules, ['agreement.take/cannot/in-stock']);
+	assert.ok((await decide([listing], await sign(ben, { step: 'taken', parent: listing.contentHash, terms: { ...jam, b: ben.did } }, 'shop'), w)).rules.includes('agreement.take/must/named'));
+	assert.ok((await decide([listing], await sign(ben, { step: 'agreed', parent: listing.contentHash }, 'shop'), w)).rules.includes('agreement.agree/cannot/shop-offer'));
+
+	/* Ana cancels Ben's as sold out, before anything is settled. */
+	const cancel = await sign(ana, { step: 'declined', parent: bens.contentHash, note: 'Sold out' }, 'shop.b');
+	const d = await decide([listing, bens], cancel, w);
+	assert.equal(d.holds, true, d.rules.join(', '));
+	assert.equal(standingOf([listing, bens, cancel]).ended, 'sold-out');
+	/* Ben can't "decline" his own purchase that way. */
+	assert.equal((await decide([listing, bens], await sign(ben, { step: 'declined', parent: bens.contentHash }, 'shop.b'), w)).holds, false);
+});
