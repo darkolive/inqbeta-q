@@ -14,3 +14,6 @@ export { default as Screen } from './Screen.svelte';
 export { default as Laptop } from './Laptop.svelte';
 export { default as Person } from './Person.svelte';
 export { default as Card } from './Card.svelte';
+export { default as Padlock } from './Padlock.svelte';
+export { default as Envelope } from './Envelope.svelte';
+export { default as Coin } from './Coin.svelte';

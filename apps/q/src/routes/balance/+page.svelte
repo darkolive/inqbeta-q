@@ -7,6 +7,7 @@
 	 * what the rules said. Credits are for services beyond the free allowance,
 	 * and are never cashed out for pounds.
 	 */
+	import CreditsStory from '$lib/components/CreditsStory.svelte';
 	import { Page, Section, Status, Empty, Icon } from '@inqbeta/q-ui';
 	import SignIn from '$lib/components/SignIn.svelte';
 	import { watch, type Identity } from '@inqbeta/q-core/passkey';
@@ -43,6 +44,9 @@
 <svelte:head><title>Credits — Q</title></svelte:head>
 
 <Page title="Credits" lead="For using more than the free amount: bigger files, more often, calls through the switchboard. Added up from your own receipts.">
+	<!-- How credits work, as pictures: the same story style as the rest of You. -->
+	<CreditsStory />
+
 	{#if !identity}
 		<SignIn />
 	{:else}
