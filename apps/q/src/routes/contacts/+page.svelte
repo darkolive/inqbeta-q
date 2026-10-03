@@ -72,6 +72,7 @@
 	 * (their card came back through the bell). One per person, newest wins.
 	 */
 	import CardFace from '$lib/components/CardFace.svelte';
+	import AddressBookStory from '$lib/components/AddressBookStory.svelte';
 	import { peopleFrom } from '$lib/people';
 	import { watchLedger, type Ledger } from '$lib/ledger';
 	let ledger = $state<Ledger | null>(null);
@@ -83,6 +84,9 @@
 <svelte:head><title>Contacts — Q</title></svelte:head>
 
 <Page title="Contacts" lead="Your address book — contacts shared with you via receipts.">
+	<!-- How the address book works, as pictures: the same story style as Information, Keys and Devices. -->
+	<AddressBookStory />
+
 	{#if people.length}
 		<Section title="People you’re linked with" description="Their cards, as they shared them. Message or video call them through Q, or use the buttons on their card.">
 			<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

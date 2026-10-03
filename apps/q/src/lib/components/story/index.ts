@@ -13,3 +13,4 @@ export { default as Phone } from './Phone.svelte';
 export { default as Screen } from './Screen.svelte';
 export { default as Laptop } from './Laptop.svelte';
 export { default as Person } from './Person.svelte';
+export { default as Card } from './Card.svelte';

@@ -22,6 +22,7 @@
 	import LiveCard from '$lib/components/LiveCard.svelte';
 	import MembershipCard from '$lib/components/MembershipCard.svelte';
 	import NotificationsCard from '$lib/components/NotificationsCard.svelte';
+	import InformationStory from '$lib/components/InformationStory.svelte';
 	import { watch, type Identity } from '@inqbeta/q-core/passkey';
 	import { watchFolder, type FolderState } from '@inqbeta/q-core/folder';
 	import { newestPerCard } from '@inqbeta/q-core/cards';
@@ -116,6 +117,9 @@
 <svelte:head><title>You and your cards — Q</title></svelte:head>
 
 <Page title="You and your cards" lead="One card for you, one for each place you work. You choose what each one shows.">
+	<!-- What cards are, as pictures: the same story style as Keys, Devices and Messages. -->
+	<InformationStory />
+
 	{#if !identity}
 		<div class="panel"><SignIn /></div>
 	{:else if folder.kind !== 'ready'}
