@@ -4,6 +4,7 @@
 	import SignIn from '$lib/components/SignIn.svelte';
 	import LinkRequests from '$lib/components/LinkRequests.svelte';
 	import WaysBackIn from '$lib/components/WaysBackIn.svelte';
+	import KeysStory from '$lib/components/KeysStory.svelte';
 	import { watch, current, signerFor, type Identity } from '@inqbeta/q-core/passkey';
 	import { unlinkKey, unlinkKeyUcan, linkId } from '@inqbeta/q-core/links';
 	import { watchFolder, refresh, suggestFolderName, saveLocked, type FolderState } from '@inqbeta/q-core/folder';
@@ -117,6 +118,9 @@
 <svelte:head><title>Keys — Q</title></svelte:head>
 
 <Page title="Keys" lead="Your passkey is your root identity. Sites and other devices get keys of their own, linked to it.">
+	<!-- How keys work, as pictures: the same story style as the home, Federations and Messages pages. -->
+	<KeysStory />
+
 	<Section title="Your passkey">
 		<div class="panel"><SignIn /></div>
 	</Section>
