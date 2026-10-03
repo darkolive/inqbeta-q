@@ -19,6 +19,7 @@
 		"credit-logos": "node scripts/fetch-credit-logos.mjs"
 	},
 	"dependencies": {
+		"@cedar-policy/cedar-wasm": "4.13.0",
 		"@inqbeta/q-actions": "workspace:*",
 		"@inqbeta/q-core": "workspace:*",
 		"@inqbeta/q-ui": "workspace:*"

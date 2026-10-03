@@ -18,6 +18,9 @@ importers:
 
   apps/q:
     dependencies:
+      '@cedar-policy/cedar-wasm':
+        specifier: 4.13.0
+        version: 4.13.0
       '@inqbeta/q-actions':
         specifier: workspace:*
         version: link:../../packages/q-actions
