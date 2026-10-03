@@ -58,15 +58,16 @@ exceptions.
    code to scan, copy), replacing `ShareLink`, `ShareLinks`, `ShareCard`.
 4. ✅ **The sign-in set** (as one rule) — one `SignIn` that stays where you are by default,
    replacing the four.
-5. Calls, link requests and federation invitations move onto the exchange set
-   (after 1–4, one at a time).
+5. Calls, link requests and federation invitations: **left as they are for now** — they
+   run on different chains (live calls; UCAN delegations), so moving them
+   would add work without removing copies. Revisit when they next change.
 
 ## Phase 2 — copies in order (ADR-Q-028, steps 3–7)
 
-1. The five-minute sync hands the relay what the cloud couldn't take, and
+1. ✅ The five-minute sync hands the relay what the cloud couldn't take, and
    drains it into the cloud when it's back (custody receipts; nothing let go
    until it's held elsewhere).
-2. **Your own bucket** (S3-compatible), as a full copy or a pass-through;
+2. ✅ **Your own bucket** (S3-compatible), as a full copy or a pass-through;
    keys sealed in the vault and the vault pointer.
 3. **Settings → Backups** (built with the writer set): schedules within what
    the host offers.

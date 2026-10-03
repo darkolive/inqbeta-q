@@ -15,6 +15,10 @@ import { folderOwner, noteCarried, primaryHandle, watchWrites } from '@inqbeta/q
 import { folderChannel, holdsEverything, syncChannels, type ChannelSync } from '@inqbeta/q-core/storage-channels';
 import { googleChannel } from '$lib/google-channel';
 import { CLOUDS, cloudChannel } from '$lib/cloud-channels';
+import { passThrough } from '$lib/relay';
+import { bucketOf } from '$lib/bucket';
+import type { BucketChannel } from '@inqbeta/q-core/s3';
+import type { StorageChannel } from '@inqbeta/q-core/storage-channels';
 
 const EVERY_MS = 5 * 60 * 1000;
 
@@ -27,6 +31,42 @@ export interface CloudState {
 	holdsAll?: boolean;
 	result?: ChannelSync;
 	error?: string;
+	/** Your bucket as a pass-through: what it holds now, and what it put in and let go this time. */
+	passing?: { holding: number; put: number; letGo: number; noCloud: boolean };
+}
+
+/*
+ * Your bucket as a pass-through (ADR-Q-028 §2–4): what's new goes in at once,
+ * so it's off this device; once a cloud you've connected has a file, the
+ * bucket lets it go. Nothing is let go before. With no cloud connected,
+ * everything stays in the bucket: it has nowhere else to be.
+ */
+export async function bucketPass(vault: StorageChannel, bucket: BucketChannel, okClouds: StorageChannel[], anyCloud: boolean) {
+	const CONTENT = /^[0-9a-f]{64}\.dsv$/;
+	const here = (await vault.list()).filter((p) => CONTENT.test(p));
+	const inBucket = new Set((await bucket.list()).filter((p) => CONTENT.test(p)));
+	const inClouds = new Set<string>();
+	for (const c of okClouds) for (const p of await c.list().catch(() => [] as string[])) inClouds.add(p);
+	let put = 0;
+	let letGo = 0;
+	for (const p of here) {
+		if (inBucket.has(p) || inClouds.has(p)) continue;
+		const bytes = await vault.get(p);
+		if (bytes) {
+			await bucket.put(p, bytes);
+			inBucket.add(p);
+			put++;
+		}
+	}
+	if (anyCloud && okClouds.length) {
+		for (const p of [...inBucket]) {
+			if (!inClouds.has(p)) continue;
+			await bucket.remove(p);
+			inBucket.delete(p);
+			letGo++;
+		}
+	}
+	return { holding: inBucket.size, put, letGo, noCloud: !anyCloud };
 }
 let cloud: CloudState[] = [];
 const listeners = new Set<(c: CloudState[]) => void>();
@@ -48,18 +88,42 @@ export async function syncCloudNow(): Promise<CloudState[]> {
 		(c): c is NonNullable<typeof c> => !!c
 	);
 	const vault = folderChannel(main, { id: 'vault', called: 'this vault', kind: 'this-browser' });
+	const tried: { channel: StorageChannel; ok: boolean }[] = [];
 	for (const g of connected) {
 		try {
 			const result = await syncChannels(vault, g, did);
 			const holdsAll = !result.failed.length && !result.damaged.length && (await holdsEverything(vault, g));
 			if (holdsAll) noteCarried();
 			out.push({ kind: g.kind, called: g.called, at: result.at, result, holdsAll });
+			tried.push({ channel: g, ok: holdsAll });
 		} catch (e) {
+			tried.push({ channel: g, ok: false });
 			out.push({ kind: g.kind, called: g.called, at: new Date().toISOString(), error: e instanceof Error ? e.message : String(e) });
+		}
+	}
+	/* Your own bucket (ADR-Q-028 §2): a full copy like a cloud, or a pass-through of your own. */
+	const bucket = await bucketOf(did).catch(() => null);
+	if (bucket) {
+		try {
+			if (bucket.mode === 'copy') {
+				const result = await syncChannels(vault, bucket, did);
+				const holdsAll = !result.failed.length && !result.damaged.length && (await holdsEverything(vault, bucket));
+				if (holdsAll) noteCarried();
+				out.push({ kind: 'bucket', called: bucket.called, at: result.at, result, holdsAll });
+				tried.push({ channel: bucket, ok: holdsAll });
+			} else {
+				const r = await bucketPass(vault, bucket, tried.filter((t) => t.ok).map((t) => t.channel), tried.length > 0);
+				out.push({ kind: 'bucket', called: bucket.called, at: new Date().toISOString(), passing: r });
+			}
+		} catch (e) {
+			out.push({ kind: 'bucket', called: bucket.called, at: new Date().toISOString(), error: e instanceof Error ? e.message : String(e) });
 		}
 	}
 	cloud = out;
 	for (const fn of listeners) fn(cloud);
+	/* ADR-Q-028: what a cloud couldn't take passes through the host's relay; what it now has is let go there.
+	 * With a bucket of your own, in either mode, nothing new goes to the host: it only lets go what it held. */
+	await passThrough(vault, tried, { handOver: !bucket }).catch(() => null);
 	return cloud;
 }
 

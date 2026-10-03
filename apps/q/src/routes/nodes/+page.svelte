@@ -14,7 +14,9 @@
 	import { watch, current } from '@inqbeta/q-core/passkey';
 	import { connectGoogle, disconnectGoogle, googleChannel, watchGoogleReturn } from '$lib/google-channel';
 	import { syncCloudNow, watchCloud, type CloudState } from '$lib/autosync';
+	import { watchRelay, type RelayState } from '$lib/relay';
 	import NoteTouch from '$lib/components/NoteTouch.svelte';
+	import BucketSettings from '$lib/components/BucketSettings.svelte';
 	import BackupSteps from '$lib/components/BackupSteps.svelte';
 	import { CLOUDS, cloudChannel, disconnectCloud, type CloudId } from '$lib/cloud-channels';
 	import { folderOwner } from '@inqbeta/q-core/folder';
@@ -34,6 +36,9 @@
 		cloudSays = `${name} disconnected. What’s already there stays, locked; delete the “Q vault” folder in ${name} if you want it gone.`;
 	}
 	$effect(() => watchCloud((c) => (cloud = c)));
+	/* The host's pass-through (ADR-Q-028): what's waiting there for a cloud that couldn't take it. */
+	let relay = $state<RelayState>({ holding: 0, handed: 0, released: 0 });
+	$effect(() => watchRelay((r) => (relay = r)));
 	const gState = $derived(cloud.find((c) => c.kind === 'google-drive'));
 	/* Keys held in this tab. Without them the locked Google token cannot be
 	 * read, so the page must not offer "Connect" as if there were none. */
@@ -270,6 +275,16 @@
 				</div>
 			</div>
 		{/each}
+		{#if folder.kind === 'ready' && signedIn && cloudChecked}
+			<BucketSettings sync={cloud.find((c) => c.kind === 'bucket')} />
+		{/if}
+		{#if relay.holding}
+			<p class="text-sm mt-4 card preset-tonal-warning p-3" role="status">
+				Your host is holding {relay.holding === 1 ? 'one file' : `${relay.holding} files`} for you, sealed, because your cloud couldn’t take {relay.holding === 1 ? 'it' : 'them'} just now. As soon as your cloud has {relay.holding === 1 ? 'it' : 'them'}, Q signs for {relay.holding === 1 ? 'it' : 'them'} and your host lets go. Nothing is let go before.
+			</p>
+		{:else if relay.released}
+			<p class="text-sm mt-4" role="status">Your cloud has everything your host was holding; your host has let it go.</p>
+		{/if}
 		{#if cloudSays}<p class="text-sm mt-2" role="status" aria-live="polite">{cloudSays}</p>{/if}
 	</Section>
 

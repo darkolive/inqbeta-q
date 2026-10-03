@@ -1,12 +1,12 @@
 ---
-status: proposed
-implementation: steps 1–2 built 3 October 2026 — the relay at the gate (/relay, held receipts signed by the node's GATE_SEED key, let go only on an arrival or at the time limit, daily totals at /relay/stats) and custody receipts in q-core (custody.ts: mayLetGo, mayForget, usageOf, relayOf). Not yet: autosync, your own bucket, Settings → Backups
+status: decided
+implementation: steps 1–4 built 3 October 2026 — the relay at the gate (/relay, held receipts signed by the node's GATE_SEED key, daily totals at /relay/stats); custody receipts (q-core custody.ts); the pass-through in the five-minute sync (apps/q lib/relay.ts); your own bucket (q-core s3.ts: SigV4 in the browser, checked against botocore; apps/q lib/bucket.ts, BucketSettings on Backups: a full copy, or a pass-through emptied once a cloud has everything; with a bucket, nothing new goes to the host). Not yet: Settings → Backups schedules, the download, opening from the newest copy (the bucket in the vault pointer)
 updated: 2026-10-03
 ---
 
 # ADR-Q-028 — Copies in order: your browser, your own bucket or the host's relay, your cloud, your download
 
-**Status: proposed, 3 October 2026 (revised the same day).** Your vault is
+**Status: decided, 3 October 2026 (revised the same day); steps 1–4 built.** Your vault is
 kept in up to four places, quickest first. If you have **your own S3
 bucket**, it comes second, and you choose what it is: **a full copy** you keep
 (complete sovereignty, relying on nobody) or **a pass-through** that holds
