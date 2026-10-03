@@ -8,6 +8,7 @@
  * here is tracked; it's your own records, read back.
  */
 import type { Ledger } from '$lib/ledger';
+import { isAgreementStep, sayStep, standingOf, type AgreementReceipt } from '@inqbeta/q-core/agreements';
 import type { IconName } from '@inqbeta/q-ui/icons';
 
 export interface Activity {
@@ -110,6 +111,25 @@ export function activityFrom(ledger: Ledger | null, myDid: string): Activity[] {
 	}
 
 	if (profile) out.push(profile);
+
+	/* Agreements (ADR-Q-025): every step, said from your side, as in the Workhouse demonstrator. */
+	const chains = new Map<string, AgreementReceipt[]>();
+	for (const r of ledger.receipts) if (r.holds !== 'no' && isAgreementStep(r.json)) chains.set(r.json.content.agreement, [...(chains.get(r.json.content.agreement) ?? []), r.json]);
+	const nameFor = (d: string) => people.get(d)?.name ?? 'Someone';
+	for (const r of ledger.receipts) {
+		if (r.holds === 'no' || !isAgreementStep(r.json)) continue;
+		const step = r.json;
+		const terms = standingOf(chains.get(step.content.agreement) ?? []).terms;
+		const them = r.json.did === myDid ? (terms ? (terms.a === myDid ? terms.b : terms.a) : '') : r.json.did;
+		out.push({
+			id: r.id,
+			at: step.content.at,
+			says: sayStep(step, myDid, nameFor, terms),
+			who: them ? people.get(them) : undefined,
+			icon: 'documents',
+			href: `/agreements/${encodeURIComponent(step.content.agreement)}`
+		});
+	}
 
 	/* Federations you founded or joined. */
 	for (const f of ledger.found) {

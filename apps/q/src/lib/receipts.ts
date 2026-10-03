@@ -23,7 +23,7 @@ import { checkCallChain, isCallChain } from '@inqbeta/q-core/calls';
 import { checkReceipt } from '@inqbeta/q-core/seal';
 import { REVOKE_COMMAND, toDagJson, type KnownRevocation, type Token } from '@inqbeta/q-core/ucan/index';
 
-export type ReceiptGroup = 'courses' | 'links' | 'permissions' | 'people' | 'other';
+export type ReceiptGroup = 'courses' | 'links' | 'permissions' | 'people' | 'agreements' | 'other';
 export type Holds = 'yes' | 'no' | 'partly';
 
 export interface ReceiptEntry {
@@ -146,6 +146,28 @@ export async function receiptsInJson(json: unknown, item: FolderItem): Promise<R
 			signers: [String(o.did ?? '')],
 			holds: c.ok ? 'yes' : 'no',
 			says: c.ok ? 'Signed by its writer, and unchanged since.' : c.says,
+			where,
+			item,
+			json
+		});
+		return out;
+	}
+
+	/* An agreement step (ADR-Q-025): signed by one side, checked by the agreement rules when made. */
+	const step = o.content as { schema?: string; step?: string; at?: string; terms?: { aGives?: unknown; bGives?: unknown } } | undefined;
+	if (step?.schema === 'inqbeta.agreement/1') {
+		const c = await checkReceipt(json);
+		const WORD: Record<string, string> = { proposed: 'Offer', countered: 'Counteroffer', agreed: 'Agreed', declined: 'Declined', withdrawn: 'Withdrawn', done: 'Said it’s done', settled: 'Settlement' };
+		out.push({
+			id: `json:${where}`,
+			group: 'agreements',
+			what: 'Agreement',
+			title: WORD[step.step ?? ''] ?? 'Agreement step',
+			description: 'One step of an agreement, signed by one side and checked by the agreement rules.',
+			at: DAY(step.at),
+			signers: [String(o.did ?? '')],
+			holds: c.ok ? 'yes' : 'no',
+			says: c.ok ? 'Signed, and unchanged since.' : c.says,
 			where,
 			item,
 			json

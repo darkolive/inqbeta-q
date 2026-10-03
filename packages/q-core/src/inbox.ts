@@ -55,7 +55,7 @@ export async function inboxOf(identity: Pick<Identity, 'vault'>): Promise<{ id: 
 export interface Message {
 	schema: typeof MESSAGE_SCHEMA;
 	source: 'inqbeta:q/message';
-	kind: 'message' | 'linked-back' | 'call' | 'call-reply' | 'call-declined' | 'call-ended' | 'voicemail';
+	kind: 'message' | 'linked-back' | 'call' | 'call-reply' | 'call-declined' | 'call-ended' | 'voicemail' | 'agreement';
 	/** Whose it is: the DID it was sealed for. */
 	to: string;
 	/** Where to write back. */
@@ -70,6 +70,8 @@ export interface Message {
 	seconds?: number;
 	/** Which call this is about (call, call-ended, voicemail), so a call that has ended never rings late. */
 	call?: string;
+	/** An agreement step (ADR-Q-025): its own signed receipt, carried inside the message. */
+	step?: unknown;
 	at: string;
 }
 

@@ -15,6 +15,7 @@ import { sealWith, sealTo, openWith, checkReceipt, isSealedToPeople, type Sealed
 import { inboxOf, makePost, MESSAGE_SCHEMA, type Message } from '@inqbeta/q-core/inbox';
 import { saveLocked } from '@inqbeta/q-core/folder';
 import { readHome } from '$lib/home';
+import { isAgreementStep } from '@inqbeta/q-core/agreements';
 import { connectMqtt } from '$lib/mqtt-ws';
 
 export type { Message };
@@ -40,10 +41,15 @@ async function keep(signed: SealedReceipt) {
 	await saveLocked('messages', `message-${signed.contentHash.slice(0, 20)}.json`, JSON.stringify(signed, null, 2), 'application/json');
 }
 
+/** An agreement step, kept in the agreements folder (both sides keep every step). */
+export async function keepStep(step: SealedReceipt & { content: { agreement: string; step: string } }) {
+	await saveLocked('agreements', `agreement-${step.content.agreement.slice(0, 8)}-${step.content.step}-${step.contentHash.slice(0, 12)}.json`, JSON.stringify(step, null, 2), 'application/json');
+}
+
 /** Write to someone you're linked with. Your signed copy is kept in your vault. */
 export async function sendTo(
 	to: { did: string; inbox?: string },
-	what: Pick<Message, 'kind'> & Partial<Pick<Message, 'text' | 'card' | 'link' | 'audio' | 'seconds' | 'call'>>
+	what: Pick<Message, 'kind'> & Partial<Pick<Message, 'text' | 'card' | 'link' | 'audio' | 'seconds' | 'call' | 'step'>>
 ): Promise<{ ok: true; signed: Signed } | { ok: false; says: string }> {
 	const me = current();
 	if (!me) return { ok: false, says: 'Sign in first.' };
@@ -107,6 +113,11 @@ export function collectInbox(): Promise<number> {
 				const check = await checkReceipt(signed);
 				if (!check.ok || signed.content?.schema !== MESSAGE_SCHEMA || signed.content.to !== me.did) continue;
 				if (kept(signed.content.kind)) await keep(signed);
+				/* An agreement step (ADR-Q-025): kept as its own receipt, if it's signed by whoever sent it. */
+				if (signed.content.kind === 'agreement') {
+					const step = signed.content.step;
+					if (isAgreementStep(step) && step.did === signed.did && (await checkReceipt(step)).ok) await keepStep(step);
+				}
 				/* Custody passes: it's in your vault now, so the storage can let its copy go. */
 				await fetch(`${storage}/inbox/${mine.id}/${pid}`, { method: 'DELETE', headers: head }).catch(() => {});
 				arrived.push(signed);

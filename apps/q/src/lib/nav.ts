@@ -48,6 +48,9 @@ export interface NavGroup {
  * under You; Communication is a hub for messages and calls. The vault keeps
  * files, receipts and backups. Exchange is the Market plugin; Federations is a
  * plugin; Plugins has a Marketplace and what's Installed.
+ *
+ * Agreements (ADR-Q-025, 3 October): under You, so you can write one straight
+ * away; every step is also a receipt in the vault.
  */
 export const SECTIONS: NavGroup[] = [
 	{
@@ -63,6 +66,7 @@ export const SECTIONS: NavGroup[] = [
 			{ href: '/cards', label: 'Information', icon: 'card', also: ['/questions'] },
 			{ href: '/contacts', label: 'Address book', icon: 'contacts' },
 			{ href: '/communication', label: 'Communication', icon: 'message', also: ['/messages', '/call'] },
+			{ href: '/agreements', label: 'Agreements', icon: 'documents' },
 			{ href: '/balance', label: 'Credits', icon: 'wallet' }
 		]
 	},

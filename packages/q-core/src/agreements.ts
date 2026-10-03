@@ -87,6 +87,8 @@ export interface AgreementStep {
 	entries?: Entry[];
 	/** A short note in the person's own words. */
 	note?: string;
+	/** What the rules said when it was made: the action's hash and the rules that decided. */
+	checked?: { action: string; rules: string[] };
 }
 
 export type AgreementReceipt = SealedReceipt & { content: AgreementStep };
@@ -204,6 +206,19 @@ function withinAgreed(agreed: Terms, settled: Entry[][], next: Entry[]): string 
 export function whySettlementDoesntFit(s: Standing, entries: Entry[]): string | null {
 	if (s.phase !== 'agreed' || !s.terms) return 'Only an agreed agreement can be settled.';
 	return withinAgreed(s.terms, s.settled, entries);
+}
+
+/** What's still to settle: each agreed entry, less what's been settled of it. */
+export function remainingOf(s: Standing): Entry[] {
+	if (!s.terms || s.phase === 'ended') return [];
+	const done = new Map<string, number>();
+	for (const e of s.settled.flat()) done.set(slotOf(e), (done.get(slotOf(e)) ?? 0) + amountOf(e.value));
+	return entriesFor(s.terms).flatMap((w) => {
+		const left = amountOf(w.value) - (done.get(slotOf(w)) ?? 0);
+		if (left <= 0) return [];
+		const value: Value = 'credits' in w.value ? { credits: left, mode: w.value.mode } : 'pence' in w.value ? { pence: left } : w.value;
+		return [{ ...w, value }];
+	});
 }
 
 function settledInFull(agreed: Terms, settled: Entry[][]): boolean {

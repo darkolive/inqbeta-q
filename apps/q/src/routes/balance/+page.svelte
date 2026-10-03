@@ -8,11 +8,12 @@
 	 * and are never cashed out for pounds.
 	 */
 	import CreditsStory from '$lib/components/CreditsStory.svelte';
+	import { creditsHeld } from '$lib/agreements';
 	import { Page, Section, Status, Empty, Icon } from '@inqbeta/q-ui';
 	import SignIn from '$lib/components/SignIn.svelte';
 	import { watch, type Identity } from '@inqbeta/q-core/passkey';
 	import { watchLedger, refreshLedger, type Ledger } from '$lib/ledger';
-	import { balanceOf, movesOf, effectOn } from '@inqbeta/q-core/credits';
+	import { movesOf, effectOn } from '@inqbeta/q-core/credits';
 	import { buyTestPack, kindSays, TEST_PACKS, type Pack } from '$lib/credits';
 
 	let identity = $state<Identity | null>(null);
@@ -21,8 +22,9 @@
 	$effect(() => watchLedger((l) => (ledger = l)));
 
 	const me = $derived(identity?.did ?? '');
-	const testBalance = $derived(balanceOf(ledger?.receipts ?? [], me, 'test'));
-	const liveBalance = $derived(balanceOf(ledger?.receipts ?? [], me, 'live'));
+	/* Credit moves, plus what settled agreements gave or took (ADR-Q-025). */
+	const testBalance = $derived(creditsHeld(ledger, me, 'test'));
+	const liveBalance = $derived(creditsHeld(ledger, me, 'live'));
 	const moves = $derived(movesOf(ledger?.receipts ?? [], me).reverse());
 
 	let buying = $state('');

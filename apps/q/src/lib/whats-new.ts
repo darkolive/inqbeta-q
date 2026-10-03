@@ -24,6 +24,22 @@ export interface NewThing {
 export const WHATS_NEW: NewThing[] = [
 	{
 		at: '2026-10-03',
+		title: 'Agreements',
+		says: '“I’ll cut your grass in exchange for…” Write one with anyone you know. Agree first, then settle up; every step is signed and kept by you both.',
+		href: '/agreements/new',
+		go: 'Write one',
+		icon: 'documents'
+	},
+	{
+		at: '2026-10-03',
+		title: 'Receipts you can read',
+		says: 'Open any receipt and see who, when, what it says and what it changes, in plain words. The magnifier beside your activity opens its receipt.',
+		href: '/receipts',
+		go: 'See receipts',
+		icon: 'search'
+	},
+	{
+		at: '2026-10-03',
 		title: 'Picture stories for every part of You',
 		says: 'Keys, Devices, Information, Address book, Communication and Credits each open with six pictures that show how they work.',
 		href: '#how-q-works',

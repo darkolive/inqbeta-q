@@ -10,6 +10,7 @@ import {
 	effectOf,
 	entriesFor,
 	problemsWithTerms,
+	remainingOf,
 	sayStep,
 	standingOf,
 	type AgreementReceipt,
@@ -136,7 +137,9 @@ test('an ended agreement never settles; a job can settle in stages; same kind bo
 	const rest = [{ from: ana.did, to: ben.did, value: { pence: 20000 } }, { from: ben.did, to: ana.did, value: { thing: 'Rewire the kitchen' } }];
 	const s2 = await sign(ben, step({ agreement: 'job-1', step: 'settled', parent: c1.contentHash, entries: rest }));
 	const c2 = await sign(ana, step({ agreement: 'job-1', step: 'settled', parent: s2.contentHash, entries: rest }));
-	assert.equal(standingOf([jp, ja, s1, c1]).phase, 'agreed', 'half settled is still agreed');
+	const halfway = standingOf([jp, ja, s1, c1]);
+	assert.equal(halfway.phase, 'agreed', 'half settled is still agreed');
+	assert.deepEqual(remainingOf(halfway).map((e) => e.value), [{ pence: 20000 }, { thing: 'Rewire the kitchen' }], 'what’s left: the other half, and the work');
 	const done = standingOf([jp, ja, s1, c1, s2, c2]);
 	assert.equal(done.phase, 'complete', done.problems.join('\n'));
 	assert.equal(effectOf(done.settled.flat(), ana.did).pence, -40000);
