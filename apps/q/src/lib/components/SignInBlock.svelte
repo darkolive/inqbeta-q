@@ -14,6 +14,7 @@
 	 * to hash from; opening a vault from a backup happens after it.
 	 */
 	import { goto } from '$app/navigation';
+	import { afterSignIn } from '$lib/signin-stay';
 	import { Icon } from '@inqbeta/q-ui';
 	import type { IconName } from '@inqbeta/q-ui/icons';
 	import {
@@ -119,7 +120,10 @@
 			return;
 		}
 		needsBackup = false;
-		if (!stay) goto('/');
+		{
+			const to = afterSignIn(location.pathname, stay);
+			if (to) void goto(to);
+		}
 	}
 
 	/* A way-back-in passkey: the backup zip carries the continuity file. */
@@ -156,7 +160,10 @@
 		});
 		const restored = await restoreVault([file]);
 		says = restored.ok ? '' : restored.says;
-		if (!stay) goto('/');
+		{
+			const to = afterSignIn(location.pathname, stay);
+			if (to) void goto(to);
+		}
 	}
 </script>
 

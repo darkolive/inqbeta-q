@@ -13,6 +13,7 @@
 	 * the rule engine checks it before it's signed.
 	 */
 	import { Steps } from '@skeletonlabs/skeleton-svelte';
+	import StepWriter from '$lib/components/writer/StepWriter.svelte';
 	import { Page, Icon } from '@inqbeta/q-ui';
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
@@ -187,23 +188,19 @@
 		<div class="panel"><SignIn /></div>
 	{:else}
 		<div class="card preset-outlined-surface-200-800 bg-surface-50-950 p-4 sm:p-6 flex flex-col gap-6 max-w-3xl">
-			<Steps count={STEPS.length} {step} onStepChange={(d) => (canGoOn || d.step < step) && (step = d.step)}>
-				<Steps.List class="mb-6">
-					{#each STEPS as s, i (s.title)}
-						<Steps.Item index={i}>
-							<Steps.Trigger class="min-h-11">
-								<Steps.Indicator>{i + 1}</Steps.Indicator>
-								<span class="hidden md:inline">{s.title}</span>
-							</Steps.Trigger>
-							{#if i < STEPS.length - 1}<Steps.Separator />{/if}
-						</Steps.Item>
-					{/each}
-				</Steps.List>
-
-				<header class="mb-5">
-					<h2 class="h3">{STEPS[step].title}</h2>
-					<p class="opacity-70">{STEPS[step].says}</p>
-				</header>
+			<StepWriter
+				steps={STEPS}
+				bind:step
+				ready={!!canGoOn}
+				{busy}
+				busyLabel="Checking and sending…"
+				finishLabel={answering ? 'Send the counteroffer' : withDid === SHOP ? 'Put it in my shop' : withDid === LINK ? 'Make the offer' : 'Send the offer'}
+				finishIcon="share"
+				finishDisabled={!canGoOn}
+				onFinish={() => void send()}
+				notNow={{ href: answering ? `/agreements/${encodeURIComponent(answering.id)}` : '/agreements' }}
+				{says}
+			>
 
 				<!-- 1. Who with -->
 				<Steps.Content index={0}>
@@ -299,23 +296,7 @@
 						<p class="mt-4 text-sm text-surface-700-300">{withDid === SHOP && !answering ? 'Signed by you, checked by the agreement rules, and put in your shop. Anyone can buy it there until they’re gone.' : withDid === LINK && !answering ? 'Signed by you and checked by the agreement rules. Next, you’ll get a link to send, any way you like.' : `Signed by you, checked by the agreement rules, and sent sealed so only ${them?.name ?? 'they'} can read it.`} This is a record of what you both say, not legal advice.</p>
 					{/if}
 				</Steps.Content>
-			</Steps>
-
-			<footer class="flex flex-wrap items-center justify-between gap-3 border-t border-surface-200-800 pt-4">
-				{#if step > 0}
-					<button type="button" class="btn preset-tonal min-h-11" onclick={() => (step -= 1)}>Back</button>
-				{:else}
-					<a class="btn preset-tonal min-h-11" href={answering ? `/agreements/${encodeURIComponent(answering.id)}` : '/agreements'}>Not now</a>
-				{/if}
-				{#if step < STEPS.length - 1}
-					<button type="button" class="btn preset-filled-primary-500 min-h-11" disabled={!canGoOn} onclick={() => (step += 1)}>Next</button>
-				{:else}
-					<button type="button" class="btn preset-filled-primary-500 min-h-11" disabled={busy || !canGoOn} onclick={() => void send()}>
-						<Icon name="share" size={18} />{busy ? 'Checking and sending…' : answering ? 'Send the counteroffer' : withDid === SHOP ? 'Put it in my shop' : withDid === LINK ? 'Make the offer' : 'Send the offer'}
-					</button>
-				{/if}
-			</footer>
-			{#if says}<p class="text-sm card preset-tonal-error p-3" aria-live="polite">{says}</p>{/if}
+			</StepWriter>
 		</div>
 	{/if}
 </Page>

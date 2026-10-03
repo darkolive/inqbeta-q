@@ -19,6 +19,7 @@
 	 * Q already had, put in an order a person can follow.
 	 */
 	import { Steps } from '@skeletonlabs/skeleton-svelte';
+	import StepWriter from './writer/StepWriter.svelte';
 	import { Icon, Status } from '@inqbeta/q-ui';
 	import { untrack } from 'svelte';
 	import { watchFolder, chooseFolder, wakeFolder, folderSupported, folderOwner, backupNow, lastBackup, type FolderState } from '@inqbeta/q-core/folder';
@@ -178,23 +179,7 @@
 </script>
 
 <div class="card preset-outlined-surface-200-800 bg-surface-50-950 p-4 sm:p-6 flex flex-col gap-6">
-	<Steps count={STEPS.length} {step} onStepChange={(d) => (canGoOn || d.step < step) && (step = d.step)}>
-		<Steps.List class="mb-6">
-			{#each STEPS as s, i (s.title)}
-				<Steps.Item index={i}>
-					<Steps.Trigger class="min-h-11">
-						<Steps.Indicator>{i + 1}</Steps.Indicator>
-						<span class="hidden sm:inline">{s.title}</span>
-					</Steps.Trigger>
-					{#if i < STEPS.length - 1}<Steps.Separator />{/if}
-				</Steps.Item>
-			{/each}
-		</Steps.List>
-
-		<header class="mb-5">
-			<h2 class="h3">{STEPS[step].title}</h2>
-			<p class="opacity-70">{STEPS[step].says}</p>
-		</header>
+	<StepWriter steps={STEPS} bind:step ready={!!canGoOn} {busy} finishLabel="Done" onFinish={onDone} notNow={onCancel ? { onclick: onCancel } : undefined} hint={step === 0 ? 'Choose a folder, and Next wakes up.' : ''} {says}>
 
 		<!-- 1. Here -->
 		<Steps.Content index={0}>
@@ -297,22 +282,5 @@
 				{/if}
 			</div>
 		</Steps.Content>
-	</Steps>
-
-	<footer class="flex flex-wrap items-center justify-between gap-3 border-t border-surface-200-800 pt-4">
-		<div>
-			{#if step > 0}
-				<button type="button" class="btn preset-tonal min-h-11" onclick={() => (step -= 1)}>Back</button>
-			{:else if onCancel}
-				<button type="button" class="btn preset-tonal min-h-11" onclick={onCancel}>Not now</button>
-			{/if}
-		</div>
-		{#if step < STEPS.length - 1}
-			<button type="button" class="btn preset-filled-primary-500 min-h-11" disabled={!canGoOn || busy} onclick={() => (step += 1)}>Next</button>
-		{:else}
-			<button type="button" class="btn preset-filled-primary-500 min-h-11" onclick={onDone}>Done</button>
-		{/if}
-	</footer>
-	{#if step === 0 && !ready}<p class="text-sm opacity-70 -mt-3">Choose a folder, and Next wakes up.</p>{/if}
-	{#if says}<p class="text-sm card preset-tonal-error p-3" aria-live="polite">{says}</p>{/if}
+	</StepWriter>
 </div>

@@ -51,12 +51,12 @@ exceptions.
    - Screens: `ExchangeCard`, `ExchangeNow` (only the buttons open to you),
      `ExchangeTimeline`.
    - Agreements and the shop move onto it; the rules engine unchanged.
-2. **The writer set** — `StepWriter`: steps as data, one Next/Back, one
+2. ✅ **The writer set** — `StepWriter`: steps as data, one Next/Back, one
    read-back. The four writers move onto it (host set-up, backups, your card,
    the agreement writer).
-3. **The share set** — one `Share` (AirDrop and more, email, WhatsApp, text,
+3. ✅ **The share set** — one `Share` (AirDrop and more, email, WhatsApp, text,
    code to scan, copy), replacing `ShareLink`, `ShareLinks`, `ShareCard`.
-4. **The sign-in set** — one `SignIn` that stays where you are by default,
+4. ✅ **The sign-in set** (as one rule) — one `SignIn` that stays where you are by default,
    replacing the four.
 5. Calls, link requests and federation invitations move onto the exchange set
    (after 1–4, one at a time).

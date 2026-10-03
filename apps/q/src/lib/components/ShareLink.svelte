@@ -17,9 +17,10 @@
 	 */
 	import { QrCode } from '@skeletonlabs/skeleton-svelte';
 	import { Icon, FaIcon } from '@inqbeta/q-ui';
+	import { copyText, hasShareSheet, isApple, openShareSheet, shareAddresses } from '$lib/share';
 
 	let { link, label = 'Link', note = '', subject = '', message = '' }: { link: string; label?: string; note?: string; subject?: string; message?: string } = $props();
-	const body = $derived(`${message}\n\n${link}`);
+	const to = $derived(shareAddresses(message, link, subject));
 
 	/* A QR code holds about 2,900 characters; short card links always fit. */
 	const scannable = $derived(link.length <= 2800);
@@ -28,13 +29,8 @@
 
 	let copied = $state(false);
 	async function copy() {
-		try {
-			await navigator.clipboard.writeText(link);
-			copied = true;
-			setTimeout(() => (copied = false), 2500);
-		} catch {
-			copied = false;
-		}
+		copied = await copyText(link);
+		if (copied) setTimeout(() => (copied = false), 2500);
 	}
 	let showCode = $state(false);
 
@@ -42,18 +38,12 @@
 	let sheet = $state(false);
 	let apple = $state(false);
 	$effect(() => {
-		sheet = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
-		apple = typeof navigator !== 'undefined' && /iPhone|iPad|Macintosh/.test(navigator.userAgent);
+		sheet = hasShareSheet();
+		apple = isApple();
 	});
 	let sheetSays = $state('');
 	async function share() {
-		sheetSays = '';
-		try {
-			await navigator.share({ title: subject || label, text: message || undefined, url: link });
-		} catch (e) {
-			/* Closing the sheet without choosing isn't a problem. */
-			if (!(e instanceof DOMException && e.name === 'AbortError')) sheetSays = 'Your device couldn’t open its share sheet. Try another way below.';
-		}
+		sheetSays = (await openShareSheet({ title: subject || label, text: message, url: link })) === 'failed' ? 'Your device couldn’t open its share sheet. Try another way below.' : '';
 	}
 </script>
 
@@ -69,9 +59,9 @@
 	{/if}
 	{#if message}
 		<div class="grid grid-cols-3 gap-2">
-			<a class="btn preset-filled-primary-500 min-h-11 flex-col h-auto py-3 gap-1" href="mailto:?subject={encodeURIComponent(subject)}&body={encodeURIComponent(body)}"><Icon name="mail" size={22} /><span>Email</span></a>
-			<a class="btn preset-filled-primary-500 min-h-11 flex-col h-auto py-3 gap-1" href="https://wa.me/?text={encodeURIComponent(body)}" target="_blank" rel="noreferrer noopener"><FaIcon name="whatsapp" size="lg" /><span>WhatsApp</span></a>
-			<a class="btn preset-filled-primary-500 min-h-11 flex-col h-auto py-3 gap-1" href="sms:?&body={encodeURIComponent(body)}"><Icon name="message" size={22} /><span>Text</span></a>
+			<a class="btn preset-filled-primary-500 min-h-11 flex-col h-auto py-3 gap-1" href={to.email}><Icon name="mail" size={22} /><span>Email</span></a>
+			<a class="btn preset-filled-primary-500 min-h-11 flex-col h-auto py-3 gap-1" href={to.whatsapp} target="_blank" rel="noreferrer noopener"><FaIcon name="whatsapp" size="lg" /><span>WhatsApp</span></a>
+			<a class="btn preset-filled-primary-500 min-h-11 flex-col h-auto py-3 gap-1" href={to.text}><Icon name="message" size={22} /><span>Text</span></a>
 		</div>
 	{:else}
 		<input class="input text-xs" type="text" readonly value={link} aria-label={label} onfocus={(e) => e.currentTarget.select()} />

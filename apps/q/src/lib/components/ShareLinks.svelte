@@ -12,32 +12,24 @@
 	import { t } from '$lib/i18n/index.svelte';
 	import { SITE } from '$lib/config';
 	import QText from './QText.svelte';
+	import { copyText, hasShareSheet, openShareSheet, shareAddresses } from '$lib/share';
 
 	const url = $derived(`${SITE}${page.url.pathname === '/' ? '' : page.url.pathname}`);
 	const text = $derived(t('share.message'));
-	const e = $derived({ url: encodeURIComponent(url), text: encodeURIComponent(text) });
+	const to = $derived(shareAddresses(text, url, 'Q'));
 
 	let copied = $state(false);
 	let native = $state(false);
 	$effect(() => {
-		native = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+		native = hasShareSheet();
 	});
 
 	async function share() {
-		try {
-			await navigator.share({ title: 'Q', text, url });
-		} catch {
-			/* dismissed */
-		}
+		await openShareSheet({ title: 'Q', text, url });
 	}
 	async function copy() {
-		try {
-			await navigator.clipboard.writeText(url);
-			copied = true;
-			setTimeout(() => (copied = false), 2000);
-		} catch {
-			copied = false;
-		}
+		copied = await copyText(url);
+		if (copied) setTimeout(() => (copied = false), 2000);
 	}
 
 	const pill = 'btn btn-sm preset-outlined-surface-500 hover:preset-filled-secondary-50-950';
@@ -48,11 +40,11 @@
 	<p class="text-sm text-surface-700-300">{t('share.note')}</p>
 	<div class="flex flex-wrap gap-2">
 		{#if native}<button type="button" class={pill} onclick={share}>{t('share.native')}</button>{/if}
-		<a class={pill} href="https://www.facebook.com/sharer/sharer.php?u={e.url}" target="_blank" rel="noopener noreferrer">Facebook</a>
-		<a class={pill} href="https://www.linkedin.com/sharing/share-offsite/?url={e.url}" target="_blank" rel="noopener noreferrer">LinkedIn</a>
-		<a class={pill} href="https://bsky.app/intent/compose?text={e.text}%20{e.url}" target="_blank" rel="noopener noreferrer">Bluesky</a>
-		<a class={pill} href="https://wa.me/?text={e.text}%20{e.url}" target="_blank" rel="noopener noreferrer">WhatsApp</a>
-		<a class={pill} href="mailto:?subject=Q&body={e.text}%20{e.url}">{t('share.email')}</a>
+		<a class={pill} href={to.facebook} target="_blank" rel="noopener noreferrer">Facebook</a>
+		<a class={pill} href={to.linkedin} target="_blank" rel="noopener noreferrer">LinkedIn</a>
+		<a class={pill} href={to.bluesky} target="_blank" rel="noopener noreferrer">Bluesky</a>
+		<a class={pill} href={to.whatsapp} target="_blank" rel="noopener noreferrer">WhatsApp</a>
+		<a class={pill} href={to.email}>{t('share.email')}</a>
 		<button type="button" class={pill} onclick={copy} aria-live="polite">{copied ? t('share.copied') : t('share.copy')}</button>
 	</div>
 </div>

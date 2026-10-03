@@ -16,6 +16,7 @@
 	 * half-way loses nothing.
 	 */
 	import { Steps } from '@skeletonlabs/skeleton-svelte';
+	import StepWriter from './writer/StepWriter.svelte';
 	import { Icon } from '@inqbeta/q-ui';
 	import { untrack } from 'svelte';
 	import type { Identity } from '@inqbeta/q-core/passkey';
@@ -181,23 +182,20 @@
 </script>
 
 <div class="card preset-outlined-surface-200-800 bg-surface-50-950 p-4 sm:p-6 flex flex-col gap-6">
-	<Steps count={STEPS.length} {step} onStepChange={(d) => (canGoOn || d.step < step) && (step = d.step)}>
-		<Steps.List class="mb-6">
-			{#each STEPS as s, i (s.title)}
-				<Steps.Item index={i}>
-					<Steps.Trigger class="min-h-11">
-						<Steps.Indicator>{i + 1}</Steps.Indicator>
-						<span class="hidden sm:inline">{s.title}</span>
-					</Steps.Trigger>
-					{#if i < STEPS.length - 1}<Steps.Separator />{/if}
-				</Steps.Item>
-			{/each}
-		</Steps.List>
-
-		<header class="mb-5">
-			<h2 class="h3">{STEPS[step].title}</h2>
-			<p class="opacity-70">{STEPS[step].says}</p>
-		</header>
+	<StepWriter
+		steps={STEPS}
+		bind:step
+		ready={!!canGoOn && !adding}
+		{busy}
+		busyLabel="Keeping it…"
+		onNext={next}
+		finishLabel={shown.length ? 'Done' : 'Done: see my card'}
+		finishDisabled={!!adding}
+		onFinish={() => void finish()}
+		notNow={{ onclick: onCancel }}
+		hint={adding ? 'Add the business, or press Not now, and Next wakes up.' : step === 0 && !name ? 'Your first name, and Next wakes up.' : ''}
+		{says}
+	>
 
 		<!-- 1. You -->
 		<Steps.Content index={0}>
@@ -330,24 +328,7 @@
 			</div>
 		</Steps.Content>
 
-	</Steps>
-
-	<footer class="flex flex-wrap items-center justify-between gap-3 border-t border-surface-200-800 pt-4">
-		<div class="flex gap-3">
-			{#if step > 0}
-				<button type="button" class="btn preset-tonal min-h-11" onclick={() => (step -= 1)}>Back</button>
-			{:else}
-				<button type="button" class="btn preset-tonal min-h-11" onclick={onCancel}>Not now</button>
-			{/if}
-		</div>
-		{#if step < STEPS.length - 1}
-			<button type="button" class="btn preset-filled-primary-500 min-h-11" disabled={busy || !canGoOn || !!adding} onclick={() => void next()}>{busy ? 'Keeping it…' : 'Next'}</button>
-		{:else}
-			<button type="button" class="btn preset-filled-primary-500 min-h-11" disabled={busy || !!adding} onclick={() => void finish()}>{busy ? 'Keeping it…' : shown.length ? 'Done' : 'Done: see my card'}</button>
-		{/if}
-	</footer>
-	{#if step === 0 && !name}<p class="text-sm opacity-70 -mt-3">Your first name, and Next wakes up.</p>{/if}
-	{#if adding}<p class="text-sm opacity-70 -mt-3">Add the business, or press Not now, and Next wakes up.</p>{/if}
+	</StepWriter>
 	{#if needPlace}
 		<div class="card preset-tonal-primary p-4 flex flex-col gap-3" aria-live="polite">
 			<p class="font-bold">Last thing: where should Q keep your card?</p>
@@ -357,5 +338,4 @@
 			</button>
 		</div>
 	{/if}
-	{#if says}<p class="text-sm card preset-tonal-error p-3" aria-live="polite">{says}</p>{/if}
 </div>

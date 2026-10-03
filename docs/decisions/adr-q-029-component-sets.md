@@ -1,12 +1,12 @@
 ---
 status: decided
-implementation: step 1 built 3 October 2026 — the exchange set: q-core from-head.ts (fromHead, headsOf) and agreementNow (what you can do now, in one place, tested); components/exchange/ ExchangeCard, ExchangeNow, ExchangeTimeline (with the read-from-the-head line); agreements and the shop drawn by them. Next: the writer set
+implementation: built 3 October 2026 — the exchange set (from-head.ts; agreementNow; ExchangeCard, ExchangeNow, ExchangeTimeline); the writer set (writer/StepWriter: host set-up, backups, your card and the agreement writer); the share set (lib/share.ts behind ShareLink and ShareLinks); the sign-in set's one rule (signin-stay.ts: signing in leaves you where you are). Next: calls, link requests and invitations onto the exchange set
 updated: 2026-10-03
 ---
 
 # ADR-Q-029 — Component sets: one group for what repeats, each use saying only its exceptions
 
-**Status: decided, 3 October 2026; the exchange set is built.** Where Q repeats a pattern — an offer
+**Status: decided, 3 October 2026; the four sets are built.** Where Q repeats a pattern — an offer
 answered and settled, a writer in steps, sharing a link, signing in — the
 pattern becomes one **component set**: components that go together, holding
 the normal behaviour once. Each place that uses it states only what's
@@ -94,6 +94,24 @@ says what the set promises and what a use may change.
 3. The share set and the sign-in set.
 4. Calls, link requests and federation invitations onto the exchange set, one
    at a time.
+
+## As built (3 October 2026)
+
+- **Exchange:** what you can do is decided in `agreementNow` (q-core, tested);
+  the page draws `ExchangeNow`, `ExchangeCard`, `ExchangeTimeline`. The
+  timeline ends by reading the story back from its head (`fromHead`).
+- **Writer:** `StepWriter` holds the steps, Next, Back, the finishing button,
+  the "Next wakes up" hint and errors. Each writer passes only its steps, what
+  makes a step ready, and its exceptions (saving before moving on, steps you
+  can't go back to, a way out on the first step).
+- **Share:** one module (`lib/share.ts`: the share sheet, copying, the plain
+  share addresses) behind the two components, which stay separate because
+  they do different jobs — sending one person a link, and telling the world
+  about Q. `ShareCard` (choosing what a card shows) already used `ShareLink`.
+- **Sign-in:** the copies differ on purpose (the front door's calm block, the
+  compact one, the touch that notes where your vault is, signing a website),
+  so the set is one rule rather than one component: signing in leaves you
+  where you are (`signin-stay.ts`). Only the Keys page goes home after.
 
 ## Non-claims
 

@@ -7,6 +7,7 @@
 	import NoteTouch from './NoteTouch.svelte';
 	import { flushSync } from '$lib/autosync';
 	import { goto } from '$app/navigation';
+	import { afterSignIn } from '$lib/signin-stay';
 	import {
 		KEY_PLACES,
 		current,
@@ -117,8 +118,9 @@
 		via = out.via ?? '';
 		sameAgain = before ? out.identity.did === before : null;
 		// After successful sign-in, redirect to dashboard
-		if (out.ok && typeof window !== 'undefined' && !stay) {
-			goto('/');
+		const to = typeof window !== 'undefined' ? afterSignIn(location.pathname, stay) : null;
+		if (out.ok && to) {
+			void goto(to);
 		}
 	}
 
