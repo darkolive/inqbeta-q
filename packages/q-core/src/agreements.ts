@@ -41,7 +41,8 @@ export const AGREEMENT_SOURCE = 'inqbeta:q/agreements';
 
 export type AgreementKind = 'swap' | 'job' | 'treaty';
 /** Something given: credits, pounds (a record, in pence), or a thing done or given, in words. */
-export type Value = { credits: number; mode: 'test' | 'live' } | { pence: number } | { thing: string };
+/** Credits name their mint (ADR-Q-027): whose credits they are. Absent: the host's own. */
+export type Value = { credits: number; mode: 'test' | 'live'; mint?: string } | { pence: number } | { thing: string };
 
 export interface Terms {
 	kind: AgreementKind;
@@ -146,7 +147,7 @@ export function effectOf(entries: Entry[], did: string) {
 }
 
 /* Two lists of entries are the same if they say the same, in any order. */
-const keyOf = (e: Entry) => JSON.stringify([e.from, e.to, kindOf(e.value), amountOf(e.value), 'credits' in e.value ? e.value.mode : '', 'thing' in e.value ? e.value.thing.trim() : '']);
+const keyOf = (e: Entry) => JSON.stringify([e.from, e.to, kindOf(e.value), amountOf(e.value), 'credits' in e.value ? `${e.value.mode}:${e.value.mint ?? ''}` : '', 'thing' in e.value ? e.value.thing.trim() : '']);
 export const sameEntries = (x: Entry[], y: Entry[]) => x.length === y.length && [...x.map(keyOf)].sort().join('|') === [...y.map(keyOf)].sort().join('|');
 
 /* ---- Where an agreement stands ---- */
@@ -182,7 +183,7 @@ const other = (t: Terms, did: string) => (did === t.a ? t.b : t.a);
 const party = (t: Terms, did: string) => did === t.a || did === t.b;
 
 /* Which agreed entry an entry belongs to: who to whom, what kind, and for things the words. */
-const slotOf = (e: Entry) => [e.from, e.to, kindOf(e.value), 'credits' in e.value ? e.value.mode : '', 'thing' in e.value ? e.value.thing.trim() : ''].join('\u0000');
+const slotOf = (e: Entry) => [e.from, e.to, kindOf(e.value), 'credits' in e.value ? `${e.value.mode}:${e.value.mint ?? ''}` : '', 'thing' in e.value ? e.value.thing.trim() : ''].join('\u0000');
 
 /** Why a new settlement doesn't fit what was agreed and already settled, or null if it does. */
 function withinAgreed(agreed: Terms, settled: Entry[][], next: Entry[]): string | null {
@@ -216,7 +217,7 @@ export function remainingOf(s: Standing): Entry[] {
 	return entriesFor(s.terms).flatMap((w) => {
 		const left = amountOf(w.value) - (done.get(slotOf(w)) ?? 0);
 		if (left <= 0) return [];
-		const value: Value = 'credits' in w.value ? { credits: left, mode: w.value.mode } : 'pence' in w.value ? { pence: left } : w.value;
+		const value: Value = 'credits' in w.value ? { ...w.value, credits: left } : 'pence' in w.value ? { pence: left } : w.value;
 		return [{ ...w, value }];
 	});
 }
