@@ -229,6 +229,10 @@ Two public names, with certificates from Caddy, and nothing else opened:
   is signed by that federation, newer than what's held and made in the last
   ten minutes; then it pings the news channel. Only federations listed in
   `GATE_FEDERATIONS` are served.
+- The gate also keeps **mint ledgers** (ADR-Q-027) at `/mint/<mint DID>/test`
+  and `/live`: the mint's own receipts, holders' signed asks to cash out, and
+  agreements in that mint's credits. Only mints listed in `GATE_MINTS` are
+  kept. The host's mint DID is shown on the console (Services → Money).
 
 Hetzner firewall: TCP 22, UDP 4242, TCP 80 and 443. Mosquitto now uses
 `per_listener_settings true` (1883 and 9001 sign-in as before; 9002 public).
@@ -239,6 +243,7 @@ Set up once, on the server, in `/srv/node`:
 bin/add-user.sh gate                               # the gate's own bellboy account
 echo 'GATE_MQTT_PASSWORD=<the password it printed>' >> .env
 echo 'GATE_FEDERATIONS=<the federation DID>' >> .env
+echo 'GATE_MINTS=<the mint DID>' >> .env           # when Money is set up
 mkdir -p caddy/data caddy/config
 docker compose up -d && docker compose restart mosquitto
 ```

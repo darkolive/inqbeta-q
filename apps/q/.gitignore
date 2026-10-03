@@ -11,3 +11,6 @@ local-sites.json
 
 # This computer's own host (ADR-Q-018): which host this copy runs, and who founded it.
 host.local.json
+
+# The mint’s ledger on a copy with no storage node (development only)
+mint.local/

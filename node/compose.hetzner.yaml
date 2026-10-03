@@ -79,6 +79,7 @@ services:
     command: sh -c "apk add --no-cache mosquitto-clients >/dev/null && node server.mjs"
     environment:
       GATE_FEDERATIONS: ${GATE_FEDERATIONS:-}
+      GATE_MINTS: ${GATE_MINTS:-}
       GATE_MQTT_PASSWORD: ${GATE_MQTT_PASSWORD:-}
       GATE_INBOX_HOLDS_MB: ${GATE_INBOX_HOLDS_MB:-25}
       GATE_SEND_MB_PER_DAY: ${GATE_SEND_MB_PER_DAY:-50}

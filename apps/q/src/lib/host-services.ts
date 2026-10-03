@@ -84,6 +84,28 @@ export const HOST_SERVICES: {
 		settings: [{ name: 'PUBLIC_Q_FEDERATIONS', secret: false }]
 	},
 	{
+		id: 'money',
+		called: 'Money',
+		what: 'Your own credits: minted when someone buys them, destroyed when they cash out. Test mode until you publish.',
+		from: 'Your host’s mint',
+		settings: [
+			{ name: 'Q_MINT_SEED', secret: true },
+			{ name: 'Q_CREDIT_PENCE', secret: false }
+		]
+	},
+	{
+		id: 'bank',
+		called: 'Payout account',
+		what: 'Where real money is held and paid out from, once you publish. This stays on this computer: never in git, never sent to Vercel.',
+		from: 'Your bank',
+		localOnly: true,
+		settings: [
+			{ name: 'Q_PAYOUT_NAME', secret: false },
+			{ name: 'Q_PAYOUT_SORT_CODE', secret: true },
+			{ name: 'Q_PAYOUT_ACCOUNT', secret: true }
+		]
+	},
+	{
 		id: 'vercel',
 		called: 'Vercel',
 		what: 'Where your live site runs. This stays on this computer: it’s how keys are sent there.',
@@ -111,7 +133,7 @@ export const SETTABLE = new Set(HOST_SERVICES.flatMap((s) => s.settings.map((x) 
 export const isSecret = (name: string) => HOST_SERVICES.some((s) => s.settings.some((x) => x.name === name && x.secret));
 
 /** Settings Q makes for you: random, so nobody has to invent one. */
-export const MADE_FOR_YOU = new Set(['Q_SERVICE_SEED', 'Q_OTP_SECRET', 'Q_TURN_SECRET']);
+export const MADE_FOR_YOU = new Set(['Q_SERVICE_SEED', 'Q_OTP_SECRET', 'Q_TURN_SECRET', 'Q_MINT_SEED']);
 
 /*
  * A service record (ADR-Q-018 §4): "Email: Resend · ending 4f2a · set 2 Oct by

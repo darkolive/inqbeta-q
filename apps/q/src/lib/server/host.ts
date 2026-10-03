@@ -95,6 +95,8 @@ export interface ServicesFile {
 	schema: 'inqbeta.host-services/1';
 	host: string;
 	records: { content: { setting: string; at: string } & Record<string, unknown> }[];
+	/** The money publication (ADR-Q-027 §7): signed by the founder, once, for good. */
+	money?: unknown;
 }
 
 export function readServicesFile(): ServicesFile | null {
@@ -112,6 +114,16 @@ export function keepServiceRecord(host: string, record: ServicesFile['records'][
 	const was = readServicesFile();
 	const others = (was?.host === host ? was.records : []).filter((r) => r.content?.setting !== record.content.setting);
 	mkdirSync(LOGO_DIR(), { recursive: true });
-	const file: ServicesFile = { schema: 'inqbeta.host-services/1', host, records: [...others, record].sort((a, b) => a.content.setting.localeCompare(b.content.setting)) };
+	const file: ServicesFile = { schema: 'inqbeta.host-services/1', host, records: [...others, record].sort((a, b) => a.content.setting.localeCompare(b.content.setting)), ...(was?.host === host && was.money ? { money: was.money } : {}) };
 	writeFileSync(SERVICES(), JSON.stringify(file, null, 2) + '\n');
+}
+
+/** Keep the money publication. Once: a host already published can't publish again. */
+export function keepMoneyPublication(host: string, publication: unknown): boolean {
+	const was = readServicesFile();
+	if (was?.money) return false;
+	mkdirSync(LOGO_DIR(), { recursive: true });
+	const file: ServicesFile = { schema: 'inqbeta.host-services/1', host, records: was?.host === host ? was.records : [], money: publication };
+	writeFileSync(SERVICES(), JSON.stringify(file, null, 2) + '\n');
+	return true;
 }

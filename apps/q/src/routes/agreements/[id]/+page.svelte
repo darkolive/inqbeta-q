@@ -21,6 +21,7 @@
 	import { peopleFrom } from '$lib/people';
 	import type { Names } from '$lib/receipt-read';
 	import { agreementsFrom, takeStep, type StepInput } from '$lib/agreements';
+	import { readMint, type MintView } from '$lib/money';
 
 	let identity = $state<Identity | null>(null);
 	let ledger = $state<Ledger | null>(null);
@@ -28,6 +29,8 @@
 	$effect(() => watchLedger((l) => (ledger = l)));
 
 	const id = $derived(page.params.id ?? '');
+	let mint = $state<MintView | null>(null);
+	$effect(() => void readMint().then((m) => (mint = m.view)));
 	const me = $derived(identity?.did ?? '');
 	const people = $derived(peopleFrom(ledger, me));
 	const names = $derived<Names>({ me, nameOf: (d) => people.find((p) => p.did === d)?.name });
@@ -66,7 +69,7 @@
 		if (!identity) return;
 		busy = label;
 		says = '';
-		const out = await takeStep(identity, ledger, id, input, people);
+		const out = await takeStep(identity, ledger, id, input, people, mint);
 		busy = '';
 		good = out.ok;
 		says = out.ok ? (out.says ?? `Done: ${label.toLowerCase()}. ${out.sent ? `Sent to ${themName}.` : ''}`) : out.says;

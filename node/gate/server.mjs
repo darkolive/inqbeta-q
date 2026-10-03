@@ -32,6 +32,15 @@ const FRESH_MS = 10 * 60 * 1000;
 const DROP_BYTES = 1024 * 1024;
 const DROP_DAYS = 30;
 const DROPS_PER_HOUR = 30;
+/*
+ * Mint ledgers (ADR-Q-027): a mint's own receipts — what it made and destroyed,
+ * holders' asks to cash out, and agreements settled in its credits — so the
+ * mint always knows where every credit is from its own ledger, and nobody can
+ * make a balance bigger by leaving receipts out. Only mints this node serves.
+ */
+const MINTS = new Set((process.env.GATE_MINTS ?? '').split(',').map((s) => s.trim()).filter(Boolean));
+const LEDGER_BYTES = 64 * 1024;
+const LEDGER_POSTS_PER_HOUR = 600;
 
 /* ---- canonical JSON and Ed25519, exactly as q-core does them ---- */
 export function canonical(value) {
@@ -227,6 +236,70 @@ function pingInbox(id) {
 	p.on('error', () => {});
 }
 
+/* ---- Mint ledgers ---- */
+const isCredit = (v, mint, mode) => !!v && typeof v === 'object' && Number.isInteger(v.credits) && v.mint === mint && v.mode === mode;
+/**
+ * Why a receipt can't go in this mint's ledger, or null if it can. Signed, for
+ * this mint and mode, and by the right person: the mint for what it makes and
+ * destroys, the holder for their own ask, either side for an agreement in this
+ * mint's credits.
+ */
+export async function checkLedgerEntry(r, mint, mode, known = new Set()) {
+	if (!(await signedReceipt(r))) return 'It isn’t signed.';
+	const c = r.content;
+	if (c?.schema === 'inqbeta.mint/1') {
+		if (c.mint !== mint || c.mode !== mode) return 'It belongs to another mint or mode.';
+		if (!Number.isInteger(c.credits) || c.credits < 1) return 'It moves no credits.';
+		if ((c.kind === 'mint' || c.kind === 'burn') && r.did === mint) return null;
+		if (c.kind === 'cashout' && r.did === c.from) return null;
+		return 'Only the mint makes and destroys its credits, and only the holder asks to cash out.';
+	}
+	if (c?.schema === 'inqbeta.agreement/1') {
+		const t = c.terms;
+		const inTerms = t && (isCredit(t.aGives, mint, mode) || isCredit(t.bGives, mint, mode));
+		const inEntries = Array.isArray(c.entries) && c.entries.some((e) => isCredit(e?.value, mint, mode));
+		if (inTerms || inEntries) return null;
+		/* A step that names no credits (agreed, done, declined…) belongs if its agreement is already here. */
+		if (known.has(c.agreement)) return null;
+		return 'That agreement isn’t in this mint’s credits.';
+	}
+	return 'That isn’t a mint receipt or an agreement.';
+}
+const ledgerDir = (mint, mode) => `${FILER}/mint/${mint}/${mode}/`;
+async function ledgerList(mint, mode) {
+	const r = await fetch(ledgerDir(mint, mode), { headers: { accept: 'application/json' } }).catch(() => null);
+	if (!r?.ok) return [];
+	const j = await r.json().catch(() => ({}));
+	const names = (j.Entries ?? []).map((e) => String(e.FullPath ?? '').split('/').pop()).filter((n) => n.endsWith('.json'));
+	const out = [];
+	for (const n of names.slice(0, 5000)) {
+		const f = await fetch(`${ledgerDir(mint, mode)}${n}`).catch(() => null);
+		const x = f?.ok ? await f.json().catch(() => null) : null;
+		if (x) out.push(x);
+	}
+	return out;
+}
+async function ledgers(req, res, origin, mint, mode) {
+	if (!MINTS.has(mint)) return send(res, origin, 404, { says: 'This node doesn’t keep that mint’s ledger.' });
+	if (req.method === 'GET') return send(res, origin, 200, { mint, mode, receipts: await ledgerList(mint, mode) });
+	if (req.method !== 'POST') return send(res, origin, 405, { says: 'Only GET and POST.' });
+	if (tooMany(`ledger:${req.socket.remoteAddress ?? ''}`, Date.now(), LEDGER_POSTS_PER_HOUR)) return send(res, origin, 429, { says: 'Too many at once. Try again in a while.' });
+	const raw = await readBody(req, LEDGER_BYTES);
+	if (raw === null) return send(res, origin, 413, { says: 'Too big.' });
+	let body;
+	try { body = JSON.parse(raw); } catch { return send(res, origin, 400, { says: 'That isn’t JSON.' }); }
+	const known = new Set((await ledgerList(mint, mode)).map((x) => x?.content?.agreement).filter(Boolean));
+	const wrong = await checkLedgerEntry(body, mint, mode, known);
+	if (wrong) return send(res, origin, 403, { says: wrong });
+	const name = String(body.contentHash ?? '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64);
+	if (!name) return send(res, origin, 400, { says: 'It has no content hash.' });
+	const form = new FormData();
+	form.append('file', new Blob([JSON.stringify(body)], { type: 'application/json' }), `${name}.json`);
+	const r = await fetch(`${ledgerDir(mint, mode)}${name}.json`, { method: 'POST', body: form }).catch((e) => ({ ok: false, status: e.message }));
+	if (!r.ok) return send(res, origin, 502, { says: `Couldn’t keep it: ${r.status}` });
+	return send(res, origin, 200, { ok: true });
+}
+
 /* ---- HTTP ---- */
 function send(res, origin, status, body) {
 	const headers = { 'content-type': 'application/json', 'cache-control': 'no-store' };
@@ -238,6 +311,7 @@ function send(res, origin, status, body) {
 const ROUTE = /^\/fed\/(did:key:z[1-9A-HJ-NP-Za-km-z]+)\/announcements\.json$/;
 const DROP = /^\/drop(?:\/([A-Za-z0-9_-]{16,64}))?$/;
 const INBOX = /^\/inbox\/([A-Za-z0-9_-]{22})(?:\/([A-Za-z0-9_-]{16,64}))?$/;
+const LEDGER = /^\/mint\/(did:key:z[1-9A-HJ-NP-Za-km-z]+)\/(test|live)$/;
 
 async function inboxes(req, res, origin, id, item) {
 	if (req.method === 'POST' && !item) {
@@ -406,6 +480,8 @@ export const server = http.createServer(async (req, res) => {
 	if (d) return drops(req, res, origin, d[1]);
 	const ib = INBOX.exec(new URL(req.url, 'http://gate').pathname);
 	if (ib) return inboxes(req, res, origin, ib[1], ib[2]);
+	const lg = LEDGER.exec(decodeURIComponent(new URL(req.url, 'http://gate').pathname));
+	if (lg) return ledgers(req, res, origin, lg[1], lg[2]);
 	if (!m) return send(res, origin, 404, { says: 'Nothing here.' });
 	const did = m[1];
 	if (!FEDERATIONS.has(did)) return send(res, origin, 404, { says: 'This node doesn’t serve that federation.' });

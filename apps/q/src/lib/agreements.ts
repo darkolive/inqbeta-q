@@ -34,6 +34,7 @@ import { actionHash, decide } from '$lib/actions/engine';
 import { keepStep, sendTo } from '$lib/messages';
 import { refreshLedger, type Ledger } from '$lib/ledger';
 import type { Person } from '$lib/people';
+import { fileWithMint, mintBalance, type MintView } from '$lib/money';
 
 export interface AgreementView {
 	id: string;
@@ -60,11 +61,20 @@ export function agreementsFrom(ledger: Ledger | null): AgreementView[] {
 		.sort((a, b) => b.at.localeCompare(a.at));
 }
 
-/** Credits you hold: credit moves, plus what settled agreements gave or took. */
-export function creditsHeld(ledger: Ledger | null, did: string, mode: 'test' | 'live'): number {
+/**
+ * Credits you can use: the host's mint (ADR-Q-027) — what it made for you,
+ * less what you cashed out or have asked to, plus what agreements in its
+ * credits moved — and any older credit moves and agreements from before the
+ * mint, which name no mint.
+ */
+export function creditsHeld(ledger: Ledger | null, did: string, mode: 'test' | 'live', mint?: MintView | null): number {
 	const moves = balanceOf(ledger?.receipts ?? [], did, mode);
-	const settled = agreementsFrom(ledger).reduce((n, a) => n + effectOf(a.standing.settled.flat(), did).credits[mode], 0);
-	return moves + settled;
+	const older = agreementsFrom(ledger).reduce(
+		(n, a) => n + effectOf(a.standing.settled.flat().filter((e) => !('credits' in e.value) || !e.value.mint), did).credits[mode],
+		0
+	);
+	const minted = mint && mint.mode === mode ? mintBalance(ledger, mint, did).spendable : 0;
+	return moves + older + minted;
 }
 
 /** Credits held for agreements that aren't settled yet (open offers you made, and agreed but unsettled). */
@@ -77,10 +87,10 @@ export function creditsCommitted(ledger: Ledger | null, did: string, mode: 'test
 /* Big enough never to be the reason: for wallets Q can't see. */
 const UNSEEN = 1_000_000_000;
 
-function walletsFor(ledger: Ledger | null, me: string, agreement: string): Wallets {
+function walletsFor(ledger: Ledger | null, me: string, agreement: string, mint?: MintView | null): Wallets {
 	return {
-		balance: (did, mode) => (did === me ? creditsHeld(ledger, did, mode) : UNSEEN),
-		available: (did, mode) => (did === me ? creditsHeld(ledger, did, mode) - creditsCommitted(ledger, did, mode, agreement) : UNSEEN)
+		balance: (did, mode) => (did === me ? creditsHeld(ledger, did, mode, mint) : UNSEEN),
+		available: (did, mode) => (did === me ? creditsHeld(ledger, did, mode, mint) - creditsCommitted(ledger, did, mode, agreement) : UNSEEN)
 	};
 }
 
@@ -95,13 +105,14 @@ export async function takeStep(
 	ledger: Ledger | null,
 	agreement: string,
 	input: StepInput,
-	people: Person[]
+	people: Person[],
+	mint?: MintView | null
 ): Promise<{ ok: true; signed: AgreementReceipt; sent: boolean; says?: string } | { ok: false; says: string; rules?: string[] }> {
 	const prior = agreementsFrom(ledger).find((a) => a.id === agreement)?.steps ?? [];
 	const content: AgreementStep = { schema: AGREEMENT_SCHEMA, source: AGREEMENT_SOURCE, agreement, at: new Date().toISOString(), ...input };
 	const draft = { did: identity.did, content, contentHash: '', signedAt: content.at } as AgreementReceipt;
 	try {
-		const { action, facts } = agreementFacts(prior, draft, walletsFor(ledger, identity.did, agreement));
+		const { action, facts } = agreementFacts(prior, draft, walletsFor(ledger, identity.did, agreement, mint));
 		const hash = await actionHash(action);
 		const decision = await decide(hash, {
 			principal: { type: 'Person', id: identity.did },
@@ -123,6 +134,14 @@ export async function takeStep(
 			sent = out.ok;
 			if (!out.ok) says = `Kept in your vault, but not sent yet: ${out.says}`;
 		} else says = 'Kept in your vault. Q doesn’t know where to send it yet.';
+		/* In the mint's credits: filed in its ledger, so every credit's whereabouts is known (ADR-Q-027). */
+		const inMint = !!terms && [terms.aGives, terms.bGives].some((v) => 'credits' in v && !!v.mint);
+		/* Every step of the chain, each time: the ledger keeps one copy, so a step missed before is filed now. */
+		if (inMint) {
+			let last = false;
+			for (const r of [...prior, signed]) last = await fileWithMint(r);
+			if (!last) says = [says, 'The mint’s ledger didn’t take it just now; it will be filed again with the next step.'].filter(Boolean).join(' ');
+		}
 		await refreshLedger();
 		return { ok: true, signed, sent, says };
 	} catch (e) {

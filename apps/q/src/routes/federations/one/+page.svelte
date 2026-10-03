@@ -53,6 +53,7 @@
 	import { MADE_FOR_YOU, type ServiceState } from '$lib/host-services';
 	import { FEDERATIONS_SETTING } from '$lib/offers';
 	import IntroSlides from '$lib/components/IntroSlides.svelte';
+	import MoneyPublish from '$lib/components/MoneyPublish.svelte';
 
 	let identity = $state<Identity | null>(null);
 	let ledger = $state<Ledger | null>(null);
@@ -747,6 +748,7 @@
 									</li>
 								{/each}
 							</ul>
+							{#if identity}<MoneyPublish {identity} onChanged={() => void loadServices()} />{/if}
 							{#if vercel?.connected}
 								<p class="text-sm mt-4"><Status tone="good">Connected to Vercel</Status> <span class="opacity-80">Project {vercel.project}. Send each key when you’re ready; nothing goes until you press it.</span></p>
 							{:else if vercel?.says}

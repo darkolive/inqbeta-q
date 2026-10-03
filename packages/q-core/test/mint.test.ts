@@ -117,3 +117,22 @@ test('test and real never mix, and other mints’ credits are other credits', as
 	assert.equal(booksOf(vault(t, elsewhere), w.club.did, 'live', PENCE).circulation, 0);
 	assert.equal(booksOf(vault(t, elsewhere), other.did, 'test', PENCE).circulation, 10);
 });
+
+test('the gate keeps a mint’s ledger: its own receipts, holders’ own asks, and agreements in its credits — nothing else', async () => {
+	// @ts-expect-error — plain JS, no types
+	const { checkLedgerEntry } = await import('../../../node/gate/server.mjs');
+	const w = await world();
+	const made = await ev(w.club, { kind: 'mint', mint: w.club.did, credits: 10, to: w.ana.did, pence: 1_000, cites: ['p'] });
+	assert.equal(await checkLedgerEntry(made, w.club.did, 'test'), null);
+	assert.ok(await checkLedgerEntry(made, w.club.did, 'live'), 'test and live are separate ledgers');
+	assert.ok(await checkLedgerEntry(await ev(w.ana, { kind: 'mint', mint: w.club.did, credits: 10, to: w.ana.did, pence: 1_000, cites: ['p'] }), w.club.did, 'test'), 'only the mint makes');
+	assert.equal(await checkLedgerEntry(await ev(w.ana, { kind: 'cashout', mint: w.club.did, credits: 5, from: w.ana.did }), w.club.did, 'test'), null);
+	assert.ok(await checkLedgerEntry(await ev(w.ben, { kind: 'cashout', mint: w.club.did, credits: 5, from: w.ana.did }), w.club.did, 'test'), 'only the holder asks');
+
+	const [proposed, agreed] = await trade(w, 3, 'ledger-1');
+	assert.equal(await checkLedgerEntry(proposed, w.club.did, 'test'), null, 'an agreement in this mint’s credits');
+	assert.ok(await checkLedgerEntry(agreed, w.club.did, 'test'), 'a step naming no credits needs its agreement here first');
+	assert.equal(await checkLedgerEntry(agreed, w.club.did, 'test', new Set(['ledger-1'])), null);
+	const forged = { ...made, content: { ...made.content, credits: 1000 } };
+	assert.ok(await checkLedgerEntry(forged, w.club.did, 'test'), 'a changed receipt isn’t signed');
+});

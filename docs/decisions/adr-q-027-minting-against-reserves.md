@@ -1,6 +1,6 @@
 ---
 status: decided (Darren, 3 October 2026) — every host runs in test mode until its operator publishes
-implementation: started — mint, cashout and burn receipts and the books (q-core mint.ts), the three rules in Cedar (q-actions core/mint.ts), 3 October 2026
+implementation: test mode working end to end — mint, cashout and burn receipts and the books (q-core mint.ts), publishing (q-core money.ts), the rules in Cedar (q-actions core/mint.ts, server engine node.ts), the host's /api/mint with its ledger at the gate (or mint.local/ on localhost), Buy and Cash out on Credits, agreements in the mint's credits filed with its ledger, Money and Publish on the console, 3 October 2026. Not yet: real payments and payouts
 updated: 2026-10-03
 ---
 

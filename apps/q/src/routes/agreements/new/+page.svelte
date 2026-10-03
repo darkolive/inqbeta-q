@@ -22,12 +22,17 @@
 	import { watchLedger, type Ledger } from '$lib/ledger';
 	import { peopleFrom } from '$lib/people';
 	import { agreementsFrom, creditsCommitted, creditsHeld, newAgreementId, takeStep } from '$lib/agreements';
+	import { readMint, type MintView } from '$lib/money';
 
 	let identity = $state<Identity | null>(null);
 	let ledger = $state<Ledger | null>(null);
 	$effect(() => watch((id) => (identity = id)));
 	$effect(() => watchLedger((l) => (ledger = l)));
 	const me = $derived(identity?.did ?? '');
+	/* The host's mint: credits in an agreement are its credits (ADR-Q-027). */
+	let mint = $state<MintView | null>(null);
+	$effect(() => void readMint().then((m) => (mint = m.view)));
+	const mode = $derived(mint?.mode ?? 'test');
 	const people = $derived(peopleFrom(ledger, me).filter((p) => p.inbox));
 
 	/* Countering, or changing an agreement: the agreement it answers. */
@@ -71,7 +76,7 @@
 
 	const them = $derived(people.find((p) => p.did === withDid) ?? peopleFrom(ledger, me).find((p) => p.did === withDid));
 	const valueOf = (s: Side): Value =>
-		s.kind === 'credits' ? { credits: Math.trunc(Number(s.credits) || 0), mode: 'test' } : s.kind === 'pounds' ? { pence: Math.round((Number(s.pounds) || 0) * 100) } : { thing: s.thing.trim() };
+		s.kind === 'credits' ? { credits: Math.trunc(Number(s.credits) || 0), mode, ...(mint ? { mint: mint.mint } : {}) } : s.kind === 'pounds' ? { pence: Math.round((Number(s.pounds) || 0) * 100) } : { thing: s.thing.trim() };
 
 	const terms = $derived.by((): Terms | null => {
 		if (!me || !withDid) return null;
@@ -93,7 +98,7 @@
 		};
 	});
 	const problems = $derived(terms ? problemsWithTerms(terms) : []);
-	const available = $derived(me ? creditsHeld(ledger, me, 'test') - creditsCommitted(ledger, me, 'test', counterId || undefined) : 0);
+	const available = $derived(me ? creditsHeld(ledger, me, mode, mint) - creditsCommitted(ledger, me, mode, counterId || undefined) : 0);
 	const overPromising = $derived(mine.kind === 'credits' && Number(mine.credits) > available);
 
 	const STEPS = [
@@ -126,7 +131,8 @@
 				terms,
 				...(until ? { until: new Date(`${until}T23:59:59`).toISOString() } : {})
 			},
-			peopleFrom(ledger, me)
+			peopleFrom(ledger, me),
+			mint
 		);
 		busy = false;
 		if (!out.ok) says = out.says;
@@ -151,7 +157,7 @@
 			<label class="label"><span class="label-text">In your own words</span><input class="input" bind:value={side.thing} maxlength="200" /></label>
 		{:else if side.kind === 'credits'}
 			<label class="label"><span class="label-text">How many credits</span><input class="input max-w-40" type="number" min="1" step="1" bind:value={side.credits} /></label>
-			<p class="text-sm text-surface-700-300">Test credits for now: no money is involved.</p>
+			<p class="text-sm text-surface-700-300">{mode === 'test' ? 'Your host’s credits, in test mode: no money is involved.' : 'Your host’s credits.'}</p>
 		{:else}
 			<label class="label"><span class="label-text">How many pounds</span><input class="input max-w-40" type="number" min="0.01" step="0.01" inputmode="decimal" bind:value={side.pounds} /></label>
 			<p class="text-sm text-surface-700-300">Recorded for both of your accounts. Q never moves money.</p>
@@ -212,7 +218,7 @@
 				<Steps.Content index={1}>
 					{@render valueInput(mine, 'What you’ll give', business)}
 					{#if mine.kind === 'credits'}
-						<p class="text-sm mt-3 {overPromising ? 'text-error-600-400 font-semibold' : 'text-surface-700-300'}">You have {available} test credits you can promise.</p>
+						<p class="text-sm mt-3 {overPromising ? 'text-error-600-400 font-semibold' : 'text-surface-700-300'}">You have {available} credits you can promise.</p>
 					{/if}
 				</Steps.Content>
 

@@ -24,6 +24,14 @@ export interface NewThing {
 export const WHATS_NEW: NewThing[] = [
 	{
 		at: '2026-10-03',
+		title: 'Your host’s own credits',
+		says: 'Buy them and they’re minted; cash them out and they’re destroyed, so the books always balance. In test mode it all works and no money moves.',
+		href: '/balance',
+		go: 'Try it',
+		icon: 'wallet'
+	},
+	{
+		at: '2026-10-03',
 		title: 'Agreements',
 		says: '“I’ll cut your grass in exchange for…” Write one with anyone you know. Agree first, then settle up; every step is signed and kept by you both.',
 		href: '/agreements/new',
