@@ -8,23 +8,24 @@
 	 * 2026-09-17: Added search and system receipt filtering.
 	 */
 	import { Page, Section, Item, Status, Empty } from '@inqbeta/q-ui';
-	import { Dialog, Portal } from '@skeletonlabs/skeleton-svelte';
 	import { watch, unlock, type Identity } from '@inqbeta/q-core/passkey';
 	import { getAccessLevel, requireAttest, attest } from '@inqbeta/q-core/access';
-	import { download, readItem } from '@inqbeta/q-core/folder';
 	import { watchLedger, refreshLedger, type Ledger } from '$lib/ledger';
 	import type { ReceiptEntry, ReceiptGroup } from '$lib/receipts';
-	import ReceivedView from '$lib/components/ReceivedView.svelte';
-	/* A receipt the bell collected is shown as a person reads it (ADR-Q-014). */
-	const keptOf = (r: ReceiptEntry | null) => {
-		const c = (r?.json as { content?: { schema?: string } } | undefined)?.content;
-		return c?.schema === 'inqbeta.received/1' ? (c as Record<string, unknown>) : null;
-	};
+	import ReceiptDrawer from '$lib/components/ReceiptDrawer.svelte';
+	import { peopleFrom } from '$lib/people';
+	import type { Names } from '$lib/receipt-read';
 
 	let identity = $state<Identity | null>(null);
 	let ledger = $state<Ledger | null>(null);
 	$effect(() => watch((id) => (identity = id)));
 	$effect(() => watchLedger((l) => (ledger = l)));
+
+	/* People by name, for reading receipts (you, and those you're linked with). */
+	const people = $derived(peopleFrom(ledger, identity?.did ?? ''));
+	const names = $derived<Names>({ me: identity?.did ?? '', nameOf: (did) => people.find((p) => p.did === did)?.name });
+	/* A receipt's proof ID (its content hash), so it can be found by it. */
+	const proofOf = (r: ReceiptEntry) => ((r.json as { contentHash?: string } | undefined)?.contentHash ?? '').toLowerCase();
 
 	// Access level
 	const accessLevel = $derived(getAccessLevel());
@@ -75,7 +76,8 @@
 			? byType.filter((r) => 
 				r.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
 				r.description?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-				r.what.toLowerCase().includes(searchQuery.toLowerCase())
+				r.what.toLowerCase().includes(searchQuery.toLowerCase()) ||
+				(searchQuery.trim().length >= 6 && proofOf(r).includes(searchQuery.trim().toLowerCase()))
 			)
 			: byType
 	);
@@ -114,21 +116,7 @@
 
 	const when = (iso: string) =>
 		iso ? new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : 'No date';
-	const short = (did: string) => (did.startsWith('did:key:') ? `${did.slice(8, 16)}…${did.slice(-6)}` : did);
-	const pretty = (v: unknown) => JSON.stringify(v, null, 2);
 
-	async function saveCopy(r: ReceiptEntry) {
-		says = '';
-		try {
-			if (r.token) download(`${r.token.cid}.ucan`, r.token.bytes as Uint8Array<ArrayBuffer>, 'application/vnd.ipld.dag-cbor');
-			else if (r.item) {
-				const { meta, data } = await readItem(r.item);
-				download(meta.name, data, meta.type || 'application/json');
-			}
-		} catch (e) {
-			says = e instanceof Error ? e.message : String(e);
-		}
-	}
 
 	async function toggleSystem() {
 		if (!showSystem && !canAttest) {
@@ -168,14 +156,10 @@
 		<!-- Search and Filters -->
 		<div class="space-y-4">
 			<!-- Search -->
-			<div class="flex gap-2">
-				<input
-					type="search"
- aria-label="Search receipts"
-					bind:value={searchQuery}
-					class="input input-sm flex-1"
-				/>
-			</div>
+			<label class="label flex flex-col gap-1">
+				<span class="text-sm font-semibold">Search by words, or by a proof ID</span>
+				<input type="search" bind:value={searchQuery} class="input min-h-11" />
+			</label>
 
 			<!-- Filters Row -->
 			<div class="flex flex-wrap items-center gap-2">
@@ -277,77 +261,5 @@
 </Page>
 
 <!-- Drawer for Receipt Details -->
-<Dialog open={drawerOpen} onOpenChange={(e) => (drawerOpen = e.open)}>
-	<Portal>
-		<Dialog.Backdrop class="fixed inset-0 z-50 bg-surface-50-950/50" />
-		<Dialog.Positioner class="fixed inset-0 z-50 flex justify-end">
-			<Dialog.Content class="h-full w-full max-w-lg card bg-surface-50-950 p-6 shadow-xl overflow-y-auto">
-				<header class="flex justify-between items-center mb-6">
-					<h2 class="h3">{selectedReceipt?.title}</h2>
-					<button type="button" class="btn btn-sm preset-tonal-surface" onclick={() => drawerOpen = false}>
-						Close
-					</button>
-				</header>
-
-				{#if selectedReceipt && keptOf(selectedReceipt)}
-					<ReceivedView kept={keptOf(selectedReceipt)!} holds={selectedReceipt.holds !== 'no'} where={selectedReceipt.where} />
-				{:else if selectedReceipt}
-					<dl class="space-y-4">
-						<div>
-							<dt class="text-sm opacity-60">What</dt>
-							<dd>{selectedReceipt.what}</dd>
-						</div>
-						<div>
-							<dt class="text-sm opacity-60">When</dt>
-							<dd>{when(selectedReceipt.at)}</dd>
-						</div>
-						<div>
-							<dt class="text-sm opacity-60">Status</dt>
-							<dd>
-								<Status tone={TONE[selectedReceipt.holds]}>{WORD[selectedReceipt.holds]}</Status>
-							</dd>
-						</div>
-						{#if selectedReceipt.description}
-							<div>
-								<dt class="text-sm opacity-60">Description</dt>
-								<dd>{selectedReceipt.description}</dd>
-							</div>
-						{/if}
-						{#if selectedReceipt.says}
-							<div>
-								<dt class="text-sm opacity-60">Says</dt>
-								<dd class="role-meta">{selectedReceipt.says}</dd>
-							</div>
-						{/if}
-						{#if selectedReceipt.signers.length}
-							<div>
-								<dt class="text-sm opacity-60">Signed by</dt>
-								<dd class="role-token text-xs">
-									{selectedReceipt.signers.map(short).join(', ')}
-								</dd>
-							</div>
-						{/if}
-						<div>
-							<dt class="text-sm opacity-60">Kept as</dt>
-							<dd class="role-token text-xs">{selectedReceipt.where}</dd>
-						</div>
-						{#if selectedReceipt.json}
-							<div>
-								<dt class="text-sm opacity-60 mb-2">Data</dt>
-								<dd>
-									<pre class="max-h-[40vh] overflow-auto rounded-base bg-surface-100-900 p-3 text-xs whitespace-pre-wrap">{pretty(selectedReceipt.json)}</pre>
-								</dd>
-							</div>
-						{/if}
-					</dl>
-
-					<div class="mt-8 pt-6 border-t border-surface-200-800">
-						<button type="button" class="btn preset-outlined-surface-500" onclick={() => void saveCopy(selectedReceipt!)}>
-							Save a copy
-						</button>
-					</div>
-				{/if}
-			</Dialog.Content>
-		</Dialog.Positioner>
-	</Portal>
-</Dialog>
+<!-- A receipt, opened: a read-only card (ReceiptDrawer, lib/receipt-read.ts). -->
+<ReceiptDrawer receipt={selectedReceipt} {names} bind:open={drawerOpen} />

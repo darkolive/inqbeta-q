@@ -2,14 +2,33 @@
 	/*
 	 * What's happened lately, as people and sentences (lib/activity.ts).
 	 * Grouped Today / This week / Earlier; the newest eight, then a way to all.
+	 *
+	 * 3 October 2026: beside each line, a magnifier opens the receipt behind it
+	 * as a read-only card (ReceiptDrawer) — as in the Workhouse demonstrator,
+	 * where every line of activity had its proof a tap away.
 	 */
 	import { Icon, Empty } from '@inqbeta/q-ui';
 	import type { Ledger } from '$lib/ledger';
 	import { activityFrom, whenGroup } from '$lib/activity';
+	import { peopleFrom } from '$lib/people';
+	import type { ReceiptEntry } from '$lib/receipts';
+	import type { Names } from '$lib/receipt-read';
+	import ReceiptDrawer from './ReceiptDrawer.svelte';
 
 	let { ledger, did }: { ledger: Ledger | null; did: string } = $props();
 
 	const all = $derived(activityFrom(ledger, did));
+
+	/* The receipt behind a line, when there is one. */
+	const receiptOf = (id: string) => ledger?.receipts.find((r) => r.id === id) ?? null;
+	const people = $derived(peopleFrom(ledger, did));
+	const names = $derived<Names>({ me: did, nameOf: (d) => people.find((p) => p.did === d)?.name });
+	let opened = $state<ReceiptEntry | null>(null);
+	let drawerOpen = $state(false);
+	function view(r: ReceiptEntry) {
+		opened = r;
+		drawerOpen = true;
+	}
 	const shown = $derived(all.slice(0, 8));
 	const groups = $derived.by(() => {
 		const g: { label: string; items: typeof shown }[] = [];
@@ -40,8 +59,8 @@
 				<h3 class="text-xs font-bold uppercase opacity-60 mb-2">{g.label}</h3>
 				<ul class="card preset-outlined-surface-200-800 bg-surface-50-950 divide-y divide-surface-200-800 overflow-hidden">
 					{#each g.items as a (a.id)}
-						<li>
-							<a href={a.href} class="flex items-center gap-4 p-3 sm:p-4 hover:bg-surface-100-900 min-h-11">
+						<li class="flex items-center">
+							<a href={a.href} class="flex-1 min-w-0 flex items-center gap-4 p-3 sm:p-4 hover:bg-surface-100-900 min-h-11">
 								<span class="relative size-11 shrink-0 overflow-hidden rounded-full bg-surface-100-900 flex items-center justify-center">
 									{#if a.who?.picture}
 										<img src={a.who.picture} alt="" class="size-full object-cover" />
@@ -57,6 +76,11 @@
 								</span>
 								<span class="text-sm opacity-60 shrink-0">{time(a.at)}</span>
 							</a>
+							{#if receiptOf(a.id)}
+								<button type="button" class="btn-icon preset-tonal mx-2 shrink-0" aria-label="See the receipt" title="See the receipt" onclick={() => view(receiptOf(a.id)!)}>
+									<Icon name="search" size={18} />
+								</button>
+							{/if}
 						</li>
 					{/each}
 				</ul>
@@ -67,3 +91,5 @@
 		{/if}
 	</div>
 {/if}
+
+<ReceiptDrawer receipt={opened} {names} bind:open={drawerOpen} />
