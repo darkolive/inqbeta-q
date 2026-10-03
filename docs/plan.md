@@ -30,7 +30,7 @@ Live on inqbeta.com and the node, all committed:
 
 ## Phase 0 — finish switching on (Darren, on the node and phone)
 
-- [ ] `GATE_MINTS=<the mint's did:key>` in `/srv/node/.env`, then
+- [ ] `GATE_MINTS=<the mint's did:key>` (copy the line from localhost: Federations → your host → Services → Publish money) in `/srv/node/.env`, then
       `docker compose up -d --force-recreate gate`. Credits then shows Test
       mode and **Buy** works.
 - [ ] Buy test credits as the test person; buy from your shop; settle it.
@@ -45,7 +45,7 @@ balance sheet) would otherwise add more copies of things that already exist
 three or four times. One set, written once, each use saying only its
 exceptions.
 
-1. **The exchange set** — offer → answer → settle, read from the head.
+1. ✅ **The exchange set** (built 3 October) — offer → answer → settle, read from the head.
    - q-core: one chain reader for any exchange, given its step rules (agreements'
      `standingOf` becomes the first set of rules).
    - Screens: `ExchangeCard`, `ExchangeNow` (only the buttons open to you),

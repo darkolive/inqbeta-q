@@ -1,12 +1,12 @@
 ---
-status: proposed
-implementation: not started (3 October 2026)
+status: decided
+implementation: step 1 built 3 October 2026 — the exchange set: q-core from-head.ts (fromHead, headsOf) and agreementNow (what you can do now, in one place, tested); components/exchange/ ExchangeCard, ExchangeNow, ExchangeTimeline (with the read-from-the-head line); agreements and the shop drawn by them. Next: the writer set
 updated: 2026-10-03
 ---
 
 # ADR-Q-029 — Component sets: one group for what repeats, each use saying only its exceptions
 
-**Status: proposed, 3 October 2026.** Where Q repeats a pattern — an offer
+**Status: decided, 3 October 2026; the exchange set is built.** Where Q repeats a pattern — an offer
 answered and settled, a writer in steps, sharing a link, signing in — the
 pattern becomes one **component set**: components that go together, holding
 the normal behaviour once. Each place that uses it states only what's

@@ -472,3 +472,97 @@ export function sayStep(r: AgreementReceipt, viewer: string, nameOf: (did: strin
 		}
 	}
 }
+
+/* ---- What you can do now (ADR-Q-029: the exchange set's "now" panel) ---- */
+
+/** Does this agreement need your answer? (An open offer someone shared with you does, until you answer it; a purchase does, until you pay.) */
+export const needsMe = (s: Standing, me: string) =>
+	(!!s.takenFrom && s.phase === 'agreed' && !s.settled.length && !s.pending && s.terms?.b === me) ||
+	(!(s.limit && !s.takenFrom) && (s.waitingFor === me || (isOpenOffer(s) && s.offeredBy !== me)));
+
+export type StepToTake = Omit<AgreementStep, 'schema' | 'source' | 'agreement' | 'at' | 'checked'>;
+
+/** One thing you can do: a step to sign, or a page to go to. */
+export interface NowAction {
+	id: string;
+	label: string;
+	icon?: 'check' | 'repeat' | 'wallet' | 'balance' | 'share';
+	primary?: boolean;
+	step?: StepToTake;
+	href?: string;
+	/** A shop holds the stock: tell it once this is signed (a listing taken out, a sale cancelled). */
+	tellShop?: boolean;
+	/** Offer a note with it (in the person's own words). */
+	withNote?: boolean;
+}
+
+export interface Now {
+	/** Where it stands, said to you. */
+	says: string;
+	/** Something the page shows alongside: your shop's link, your offer's link, or settling up. */
+	panel?: 'shop' | 'link' | 'settle';
+	actions: NowAction[];
+	/** A line said under the actions, when there's more to explain. */
+	after?: string;
+	/** Settled, or ended: nothing more to do. */
+	finished?: 'settled' | 'ended';
+}
+
+/**
+ * What you can do with an agreement right now, from where it stands — the
+ * one place these choices are made, so the page only draws them. Every step
+ * is still checked by the rules before it's signed.
+ */
+export function agreementNow(s: Standing, me: string, id: string, nameOf: (did: string) => string): Now {
+	const t = s.terms;
+	const them = t ? nameOf(t.a === me ? t.b : t.a) : 'they';
+	const counter = `/agreements/new?counter=${encodeURIComponent(id)}`;
+	const withdraw = (label: string, tellShop = false): NowAction => ({ id: 'withdraw', label, step: { step: 'withdrawn', parent: s.offerHash ?? null }, ...(tellShop ? { tellShop } : {}) });
+
+	if (isStandingOffer(s) && s.offeredBy === me) return { says: 'It’s in your shop. Each sale is its own agreement, agreed the moment someone buys.', panel: 'shop', actions: [withdraw('Take it out of my shop', true)] };
+	if (isStandingOffer(s)) {
+		const seller = s.offeredBy ?? '';
+		return { says: `This is in ${nameOf(seller)}’s shop.`, actions: [{ id: 'shop', label: 'Go to the shop', icon: 'wallet', primary: true, href: `/shop/${encodeURIComponent(seller)}` }] };
+	}
+	if (isOpenOffer(s) && s.offeredBy === me)
+		return { says: 'Your offer is open. Send the link any way you like: the first person to open it can accept, counteroffer or decline, and your bell rings when they do.', panel: 'link', actions: [withdraw('Withdraw my offer')] };
+	if (s.phase === 'agreeing' && needsMe(s, me))
+		return {
+			says: `${them} has offered this. Agreeing is the contract point: from then on, it’s binding on you both.`,
+			actions: [
+				{ id: 'agree', label: 'Agree', icon: 'check', primary: true, step: { step: 'agreed', parent: s.offerHash ?? null } },
+				{ id: 'counter', label: 'Counteroffer', icon: 'repeat', href: counter },
+				{ id: 'decline', label: 'Decline', step: { step: 'declined', parent: s.offerHash ?? null } }
+			]
+		};
+	if (s.phase === 'agreeing') return { says: `Waiting for ${them} to answer: agree, counteroffer, or decline.`, actions: s.offeredBy === me ? [withdraw('Withdraw my offer')] : [] };
+	if (s.phase === 'agreed' && s.pending) {
+		const list = s.pending.entries.map((e) => `${valueText(e.value)} from ${e.from === me ? 'you' : them} to ${e.to === me ? 'you' : them}`).join('; ');
+		if (s.pending.by === me) return { says: `You’ve settled: ${list}. Waiting for ${them} to confirm.`, actions: [] };
+		return {
+			says: `${them} has settled: ${list}. Confirm it if that’s right, and it counts for you both.`,
+			actions: [{ id: 'confirm', label: 'Confirm the settlement', icon: 'check', primary: true, step: { step: 'settled', parent: s.pending.hash, entries: s.pending.entries } }]
+		};
+	}
+	if (s.phase === 'agreed') {
+		const actions: NowAction[] = [
+			{ id: 'done', label: 'Say it’s done', icon: 'check', withNote: true, step: { step: 'done', parent: s.lastHash ?? null } },
+			{ id: 'change', label: 'Change the agreement', icon: 'repeat', href: counter }
+		];
+		const seller = !!s.takenFrom && t?.a === me && !s.settled.length;
+		if (seller) actions.push({ id: 'sold-out', label: 'Cancel: sold out', tellShop: true, step: { step: 'declined', parent: s.lastHash ?? null, note: 'Sold out' } });
+		return {
+			says: 'Agreed by you both. When it’s done, settle up: the settlement is the accounting, and counts once you’ve both signed it.',
+			panel: 'settle',
+			actions,
+			...(seller ? { after: 'Can’t sell it after all? You can cancel this sale until it’s paid, and it goes back in your shop.' } : {})
+		};
+	}
+	if (s.phase === 'complete') return { says: 'Agreed, and settled by you both. It’s in both of your vaults.', actions: [], finished: 'settled' };
+	const how =
+		s.ended === 'sold-out' ? ': the seller cancelled it as sold out'
+		: s.ended === 'declined' ? ': it was declined'
+		: s.ended === 'withdrawn' ? (s.limit && !s.takenFrom ? ': it was taken out of the shop' : ': the offer was withdrawn')
+		: ': the offer ran out';
+	return { says: `This agreement ended${how}. Nothing was settled.`, actions: [], finished: 'ended' };
+}

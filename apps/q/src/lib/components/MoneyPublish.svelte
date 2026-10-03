@@ -36,6 +36,17 @@
 	let busy = $state(false);
 	let says = $state<{ good: boolean; text: string } | null>(null);
 	const pounds = (p: number) => `£${(p / 100).toFixed(2)}`;
+	let copied = $state(false);
+	async function copyMint() {
+		if (!view?.mint) return;
+		try {
+			await navigator.clipboard.writeText(`GATE_MINTS=${view.mint}`);
+			copied = true;
+			setTimeout(() => (copied = false), 2500);
+		} catch {
+			copied = false;
+		}
+	}
 	const ready = $derived(!!view?.host && !!view.mint && view.bank.set && ticked);
 
 	async function publish() {
@@ -91,7 +102,15 @@
 		<ol class="flex flex-col gap-3">
 			<li class="flex items-start gap-3">
 				<Status tone={view.mint ? 'good' : 'needs-you'}>{view.mint ? 'Ready' : 'Needed'}</Status>
-				<span class="text-sm"><strong>The mint.</strong> {view.mint ? `Its key is made. One credit is ${pounds(view.pencePerCredit)} (Q_CREDIT_PENCE).` : (view.says ?? 'Make the mint’s key in Money, above.')}</span>
+				<span class="text-sm flex flex-col gap-2 min-w-0">
+					<span><strong>The mint.</strong> {view.mint ? `Its key is made. One credit is ${pounds(view.pencePerCredit)} (Q_CREDIT_PENCE).` : (view.says ?? 'Make the mint’s key in Money, above.')}</span>
+					{#if view.mint}
+						<!-- The node keeps only the ledgers of mints it's told about (GATE_MINTS): the line to give it. -->
+						<span>Your node keeps its books once its <code>.env</code> has this line:</span>
+						<code class="code break-all">GATE_MINTS={view.mint}</code>
+						<button type="button" class="btn btn-sm preset-tonal min-h-11 self-start" onclick={() => void copyMint()}>{copied ? 'Copied' : 'Copy the line'}</button>
+					{/if}
+				</span>
 			</li>
 			<li class="flex items-start gap-3">
 				<Status tone={view.bank.set ? 'good' : 'needs-you'}>{view.bank.set ? 'Ready' : 'Needed'}</Status>

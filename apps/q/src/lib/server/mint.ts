@@ -93,7 +93,11 @@ export async function readLedger(host: Host, mint: string, mode: MintMode): Prom
 	if (host.storage) {
 		const r = await fetch(`${host.storage}/mint/${mint}/${mode}`, { signal: AbortSignal.timeout(15_000) }).catch(() => null);
 		if (r?.ok) return ((await r.json().catch(() => ({}))) as { receipts?: unknown[] }).receipts ?? [];
-		if (!dev) throw new MintRefused('The mint’s ledger at the storage didn’t answer. Try again in a moment.');
+		/* Say what the storage said, and which mint was asked for: the node keeps only mints listed in its GATE_MINTS. */
+		if (!dev) {
+			if (r?.status === 404) throw new MintRefused(`The storage doesn’t keep this mint’s books yet. On the node, GATE_MINTS needs to be ${mint}, then the gate restarted.`);
+			throw new MintRefused(r ? `The mint’s ledger at the storage said ${r.status}. Try again in a moment.` : 'The mint’s ledger at the storage didn’t answer. Try again in a moment.');
+		}
 	}
 	if (!dev) throw new MintRefused('This host has no storage node for the mint’s ledger.');
 	try {

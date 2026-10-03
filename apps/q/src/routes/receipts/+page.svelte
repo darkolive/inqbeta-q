@@ -165,7 +165,7 @@
 			<!-- Filters Row -->
 			<div class="flex flex-wrap items-center gap-2">
 				<!-- Hold filter -->
-				<div class="flex gap-1" role="group" aria-label="Hold status">
+				<div class="flex flex-wrap gap-1" role="group" aria-label="Hold status">
 					{#each [['all', `All (${all.length})`], ['yes', 'Holding up'], ['no', `Not holding (${bad})`]] as [value, text] (value)}
 						<button
 							type="button"
@@ -179,7 +179,7 @@
 				<span class="text-surface-400-600">|</span>
 
 				<!-- Type filter -->
-				<div class="flex gap-1" role="group" aria-label="Receipt type">
+				<div class="flex flex-wrap gap-1" role="group" aria-label="Receipt type">
 					{#each TYPE_OPTIONS as opt (opt.value)}
 						<button
 							type="button"

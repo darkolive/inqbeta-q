@@ -178,10 +178,8 @@ export async function takeStep(
 /** A new agreement's id. */
 export const newAgreementId = () => crypto.randomUUID();
 
-/** Does this agreement need your answer? (An open offer someone shared with you does, until you answer it.) */
-export const needsMe = (s: Standing, me: string) =>
-	(!!s.takenFrom && s.phase === 'agreed' && !s.settled.length && !s.pending && s.terms?.b === me) ||
-	(!(s.limit && !s.takenFrom) && (s.waitingFor === me || (isOpenOffer(s) && s.offeredBy !== me)));
+/** Does this agreement need your answer? Decided in q-core, beside agreementNow. */
+export { needsMe } from '@inqbeta/q-core/agreements';
 
 /** Where an agreement stands, in a few words, from your side. */
 export function standingWords(s: Standing, me: string): { text: string; tone: 'good' | 'waiting' | 'needs-you' | 'plain' | 'bad' } {

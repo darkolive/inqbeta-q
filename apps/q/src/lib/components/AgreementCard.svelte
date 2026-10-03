@@ -1,60 +1,51 @@
 <script lang="ts">
 	/*
-	 * An agreement as a card (ADR-Q-015, ADR-Q-025): who with, what each side
-	 * gives, when and where, and where it stands — from your side. The whole
-	 * card is a link when `href` is given (one target, not several).
+	 * An agreement as a card (ADR-Q-015, ADR-Q-025), drawn by the exchange
+	 * set's card (ADR-Q-029): this file says only what's an agreement's own —
+	 * the heading for each kind (a shop offer, a sale, an open offer), what
+	 * each side gives, and when, where and done-when.
 	 */
-	import { Icon, Status } from '@inqbeta/q-ui';
 	import { valueText, type Standing } from '@inqbeta/q-core/agreements';
 	import { standingWords } from '$lib/agreements';
 	import type { Person } from '$lib/people';
+	import ExchangeCard from './exchange/ExchangeCard.svelte';
 
 	let { standing, me, people, href }: { standing: Standing; me: string; people: Person[]; href?: string } = $props();
 
 	const t = $derived(standing.terms);
 	const themDid = $derived(t ? (t.a === me ? t.b : t.a) : '');
 	const them = $derived(people.find((p) => p.did === themDid));
+	const name = $derived(them?.name ?? 'someone');
 	const mine = $derived(t ? (t.a === me ? t.aGives : t.bGives) : null);
 	const theirs = $derived(t ? (t.a === me ? t.bGives : t.aGives) : null);
-	const where = $derived(standingWords(standing, me));
 	const KIND = { swap: 'Swap', job: 'Job', treaty: 'Treaty' } as const;
+
+	const heading = $derived(
+		t && !t.b && standing.limit && t.a === me ? `In your shop: ${standing.limit} to sell`
+		: t && !t.b && standing.limit ? `In ${name}’s shop`
+		: t && !t.b && t.a === me ? 'Your open offer, shared by link'
+		: standing.takenFrom && t?.a === me ? `Sold to ${name}`
+		: standing.takenFrom ? `Bought from ${name}’s shop`
+		: t && !t.b ? `An offer from ${name}`
+		: `With ${name}`
+	);
+	const getsLabel = $derived(t && !t.b && t.a === me ? (standing.limit ? 'Whoever buys it gives' : 'Whoever takes it gives') : `${them?.name?.split(' ')[0] ?? 'They'} gives`);
+	const details = $derived(
+		[
+			{ label: 'When', value: t?.when ?? '' },
+			{ label: 'Where', value: t?.where ?? '' },
+			{ label: 'Done when', value: t?.doneWhen ?? '' }
+		].filter((d) => d.value)
+	);
 </script>
 
-<svelte:element
-	this={href ? 'a' : 'article'}
+<ExchangeCard
+	{heading}
+	sub="{t ? KIND[t.kind] : 'Agreement'}{t?.business ? ' · business' : ''}"
+	who={{ name: them?.name ?? '?', picture: them?.picture }}
+	status={standingWords(standing, me)}
+	give={mine ? { label: 'You give', value: valueText(mine) } : undefined}
+	get={theirs ? { label: getsLabel, value: valueText(theirs) } : undefined}
+	{details}
 	{href}
-	class="card preset-outlined-surface-200-800 bg-surface-50-950 p-4 sm:p-5 flex flex-col gap-4 {href ? 'hover:preset-tonal-primary' : ''}"
->
-	<header class="flex items-center gap-3">
-		<span class="size-12 shrink-0 overflow-hidden rounded-full bg-surface-100-900 flex items-center justify-center">
-			{#if them?.picture}<img src={them.picture} alt="" class="size-full object-cover" />{:else}<span class="font-bold opacity-70">{(them?.name ?? '?').slice(0, 1)}</span>{/if}
-		</span>
-		<span class="flex-1 min-w-0">
-			<span class="block font-bold">{t && !t.b && standing.limit && t.a === me ? `In your shop: ${standing.limit} to sell` : t && !t.b && standing.limit ? `In ${them?.name ?? 'someone'}’s shop` : t && !t.b && t.a === me ? 'Your open offer, shared by link' : standing.takenFrom && t?.a === me ? `Sold to ${them?.name ?? 'someone'}` : standing.takenFrom ? `Bought from ${them?.name ?? 'someone'}’s shop` : t && !t.b ? `An offer from ${them?.name ?? 'someone'}` : `With ${them?.name ?? 'someone'}`}</span>
-			<span class="block text-sm text-surface-700-300">{t ? KIND[t.kind] : 'Agreement'}{t?.business ? ' · business' : ''}</span>
-		</span>
-		<Status tone={where.tone}>{where.text}</Status>
-	</header>
-
-	{#if mine && theirs}
-		<div class="grid gap-3 sm:grid-cols-[1fr_auto_1fr] items-center">
-			<div class="card preset-tonal-secondary p-3">
-				<p class="text-xs uppercase font-bold opacity-70">You give</p>
-				<p class="font-semibold break-words">{valueText(mine)}</p>
-			</div>
-			<Icon name="exchange" size={22} class="justify-self-center opacity-70" />
-			<div class="card preset-tonal-primary p-3">
-				<p class="text-xs uppercase font-bold opacity-70">{t && !t.b && t.a === me ? (standing.limit ? 'Whoever buys it gives' : 'Whoever takes it gives') : `${them?.name?.split(' ')[0] ?? 'They'} gives`}</p>
-				<p class="font-semibold break-words">{valueText(theirs)}</p>
-			</div>
-		</div>
-	{/if}
-
-	{#if t?.when || t?.where || t?.doneWhen}
-		<dl class="grid gap-2 text-sm sm:grid-cols-3">
-			{#if t.when}<div><dt class="opacity-70">When</dt><dd>{t.when}</dd></div>{/if}
-			{#if t.where}<div><dt class="opacity-70">Where</dt><dd>{t.where}</dd></div>{/if}
-			{#if t.doneWhen}<div><dt class="opacity-70">Done when</dt><dd>{t.doneWhen}</dd></div>{/if}
-		</dl>
-	{/if}
-</svelte:element>
+/>

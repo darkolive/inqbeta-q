@@ -175,6 +175,33 @@ export async function receiptsInJson(json: unknown, item: FolderItem): Promise<R
 		return out;
 	}
 
+	/*
+	 * The host's mint (ADR-Q-027): credits made for you, your ask to cash out,
+	 * and the mint destroying them. Without this they were kept in the vault
+	 * but never read, so Credits showed the mint's books and not your own
+	 * balance (3 October 2026).
+	 */
+	const minted = o.content as { schema?: string; kind?: string; credits?: number; mode?: string; at?: string } | undefined;
+	if (minted?.schema === 'inqbeta.mint/1') {
+		const c = await checkReceipt(json);
+		const verb = { mint: 'Bought', cashout: 'Asked to cash out', burn: 'Cashed out' }[minted.kind ?? ''] ?? 'Moved';
+		out.push({
+			id: `json:${where}`,
+			group: 'other',
+			what: 'Credits',
+			title: `${verb} ${minted.credits ?? 0} ${minted.mode === 'test' ? 'test ' : ''}credits`,
+			description: minted.kind === 'cashout' ? 'Your ask, signed by you.' : 'Signed by your host’s mint, and kept in its books.',
+			at: DAY(minted.at),
+			signers: [String(o.did ?? '')],
+			holds: c.ok ? 'yes' : 'no',
+			says: c.ok ? 'Signed, and unchanged since.' : c.says,
+			where,
+			item,
+			json
+		});
+		return out;
+	}
+
 	/* Credits (ADR-Q-023): a move, signed and checked by the credit rules when made. */
 	const credit = o.content as { schema?: string; kind?: string; credits?: number; mode?: string; at?: string; pack?: { name?: string } } | undefined;
 	if (credit?.schema === 'inqbeta.credit/1') {

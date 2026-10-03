@@ -247,3 +247,44 @@ test('a shop: a standing offer anyone can take, each taking its own agreement, u
 	const shut = await sign(ana, step({ agreement: 'shop-jam', step: 'withdrawn', parent: listing.contentHash }));
 	assert.equal(standingOf([listing, shut]).ended, 'withdrawn');
 });
+
+test('what you can do now: decided in one place, from where it stands', async () => {
+	const { agreementNow, needsMe } = await import('../src/agreements');
+	const { ana, ben } = await people();
+	const name = (d: string) => (d === ana.did ? 'Ana' : 'Ben');
+	const p = await sign(ana, step({ agreement: 'now-1', step: 'proposed', parent: null, terms: grass(ana.did, ben.did) }));
+	const ids = (n: ReturnType<typeof agreementNow>) => n.actions.map((a) => a.id);
+
+	assert.deepEqual(ids(agreementNow(standingOf([p]), ben.did, 'now-1', name)), ['agree', 'counter', 'decline']);
+	assert.equal(needsMe(standingOf([p]), ben.did), true);
+	assert.deepEqual(ids(agreementNow(standingOf([p]), ana.did, 'now-1', name)), ['withdraw']);
+	assert.match(agreementNow(standingOf([p]), ana.did, 'now-1', name).says, /Waiting for Ben/);
+
+	const a = await sign(ben, step({ agreement: 'now-1', step: 'agreed', parent: p.contentHash }));
+	const agreed = agreementNow(standingOf([p, a]), ana.did, 'now-1', name);
+	assert.equal(agreed.panel, 'settle');
+	assert.deepEqual(ids(agreed), ['done', 'change']);
+	assert.equal(agreed.actions[0].step?.parent, a.contentHash);
+
+	const entries = entriesFor(grass(ana.did, ben.did));
+	const s1 = await sign(ben, step({ agreement: 'now-1', step: 'settled', parent: a.contentHash, entries }));
+	const confirm = agreementNow(standingOf([p, a, s1]), ana.did, 'now-1', name);
+	assert.deepEqual(ids(confirm), ['confirm']);
+	assert.match(confirm.says, /Ben has settled: 3 test credits from you to Ben/);
+	assert.equal(confirm.actions[0].step?.parent, s1.contentHash);
+	const s2 = await sign(ana, step({ agreement: 'now-1', step: 'settled', parent: s1.contentHash, entries }));
+	assert.equal(agreementNow(standingOf([p, a, s1, s2]), ben.did, 'now-1', name).finished, 'settled');
+
+	/* A shop: the seller's listing, someone else's listing, and a sale that can be cancelled. */
+	const jam: Terms = { kind: 'swap', a: ana.did, b: '', aGives: { thing: 'Jam' }, bGives: { credits: 2, mode: 'test' } };
+	const listing = await sign(ana, step({ agreement: 'jam', step: 'proposed', parent: null, terms: jam, limit: 2 }));
+	const mine = agreementNow(standingOf([listing]), ana.did, 'jam', name);
+	assert.equal(mine.panel, 'shop');
+	assert.deepEqual(mine.actions.map((x) => [x.id, x.tellShop]), [['withdraw', true]]);
+	assert.equal(agreementNow(standingOf([listing]), ben.did, 'jam', name).actions[0].href, `/shop/${encodeURIComponent(ana.did)}`);
+	const bought = await sign(ben, step({ agreement: 'jam.b', step: 'taken', parent: listing.contentHash, terms: { ...jam, b: ben.did } }));
+	const sale = agreementNow(standingOf([listing, bought]), ana.did, 'jam.b', name);
+	assert.deepEqual(ids(sale), ['done', 'change', 'sold-out']);
+	assert.ok(sale.after);
+	assert.equal(needsMe(standingOf([listing, bought]), ben.did), true, 'the buyer pays next');
+});

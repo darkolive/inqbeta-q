@@ -43,17 +43,17 @@
       "source": "inqbeta:q/host",
       "did": "did:key:z6MkpdzRhpXvNuvxCfYHk1EX2h3kAe61tJbWi58ijkeg8pVc",
       "publicKey": "l1SZFrbv2cFP2Ld26PBEPu0RlkIlIYn6d01DMVHfsX8",
-      "signedAt": "2026-10-03T14:27:25.972Z",
-      "contentHash": "GNY6EPSSSVBjGxTHLgu5mKxb6YyhJmhY2P4Pc4w7gw0",
-      "signature": "YHoaTakjH9_p1hP8N2G0KYBj23TmpwLAkdKcyu329Sd26xjP0LU8YiGATE6YLSZFFXA0dPTBUwIxWmNBbI1oDw",
+      "signedAt": "2026-10-03T15:28:56.754Z",
+      "contentHash": "G1EYjXph-7oeFhq7Qv4L_0m35G8CNZeqd6EtYE9ysnQ",
+      "signature": "wpmwOyMPKO3HklwHjWGPtDOyNjqDPLVkiTkDP3JzTTbrAbFJ9oQo5KxFIDzVNjqikXDIydhZsAWVHRD7RjSOBQ",
       "content": {
         "schema": "inqbeta.host-service/1",
         "source": "inqbeta:q/host",
         "host": "did:key:z6Mkvo5GNipFGRo6v29PbHnFXjvh8UFjLuBDnXYpRGzB6GCP",
         "service": "money",
         "setting": "Q_CREDIT_PENCE",
-        "ends": "1",
-        "at": "2026-10-03T14:27:25.955Z"
+        "ends": "100",
+        "at": "2026-10-03T15:28:56.745Z"
       }
     },
     {
