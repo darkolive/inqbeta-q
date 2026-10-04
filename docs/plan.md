@@ -179,6 +179,15 @@ on localhost; new localStorage keys go in `q-core/src/storage.ts`.
   ratio the host sets (the white paper's reserve ratio, 20% as an example).
 - **Your home page**: updates from the people and projects you follow;
   unfollow as easily. Rewards can include staying in touch (a card shared).
+- **Reviews** (Darren, 4 October): anything public that needs no
+  permission to use (a shop, an open offer, a campaign, a provider) has
+  public reviews, because its reputation affects everyone; every federation
+  has internal reviews for its members. A review can only come from someone
+  holding a receipt with them (a settled sale, a delivered reward, a hire),
+  signed by the reviewer, so it can't be faked or bought, and the reply sits
+  beside it. Reviews feed the trust levels (like a blue badge earned, not
+  bought), and inside a federation they lead naturally into its proposals,
+  votes and minutes (ADR-Q-007's Plans block).
 - **Crowdfunding, following, and the test bed**: now ADR-Q-031 (gift
   campaigns, backing with rewards in kind, following on the home page,
   enterprises that start in credits and go live when ready, sponsorship).

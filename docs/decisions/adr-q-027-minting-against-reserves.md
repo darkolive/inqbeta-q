@@ -267,3 +267,22 @@ provider (a card-based payment instrument issuer under PSD2), so it would
 come through a provider the host connects with its own key; a yes is true
 at that moment, not a promise the money stays; and it confirms funds are
 there, not that they're set aside for the mint.
+
+**Levels of trust in a reserve** (4 October). The credits side needs no one:
+every mint and burn is a signed receipt, so anyone can add up what exists.
+Only the pounds need outside evidence, and a host climbs as it grows, the
+home page never claiming more than it can show:
+
+1. **Stated**: the host says what the reserve is, shown as "stated by the
+   host, not checked". Free, sovereign.
+2. **Honoured**: built from the cash-out receipts: how many, all paid, how
+   quickly. Free, automatic, and the first place a struggling mint shows.
+3. **Witnessed**: a member treasurer sees the bank statement and signs a
+   reserve note with their own key (the Money block's two signatures,
+   applied to the reserve). Free, and someone's name is on it.
+4. **Bank-confirmed**: Confirmation of Funds through a provider the host
+   pays for (above).
+
+A penny sent with the mint's id in the reference proves the payout account
+is the host's own; the levels prove what's in it. A screenshot proves
+neither: it can be edited, and nobody can check it.
