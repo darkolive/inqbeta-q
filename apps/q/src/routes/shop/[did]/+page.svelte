@@ -107,7 +107,12 @@
 							<h3 class="h5 break-words">{valueText(t.aGives)}</h3>
 							<Status tone={l.left ? 'good' : 'plain'}>{l.left ? `${l.left} left` : 'Sold out'}</Status>
 						</header>
-						<p class="text-lg font-semibold">{valueText(t.bGives)}</p>
+						{#if t.service}
+							<p class="text-lg font-semibold">{t.service.perGBHour} credit{t.service.perGBHour === 1 ? '' : 's'} for a GB held an hour</p>
+							<p class="text-sm">Paid for what you use, from the receipts you both hold; never more than {valueText(t.bGives)}.{t.service.hours ? ` Takes new files ${t.service.hours} each day.` : ''}</p>
+						{:else}
+							<p class="text-lg font-semibold">{valueText(t.bGives)}</p>
+						{/if}
 						{#if t.when || t.where}<p class="text-sm">{[t.when, t.where].filter(Boolean).join(' · ')}</p>{/if}
 						{#if t.doneWhen}<p class="text-sm opacity-80">Done when: {t.doneWhen}</p>{/if}
 						{#if l.offer.content.until}<p class="text-sm opacity-80">On offer until {new Date(l.offer.content.until).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })}</p>{/if}
@@ -115,9 +120,9 @@
 							<a class="btn preset-tonal min-h-11 mt-auto" href="/agreements/{encodeURIComponent(l.offer.content.agreement)}">See sales</a>
 						{:else}
 							<button type="button" class="btn preset-filled-primary-500 min-h-11 mt-auto" disabled={!l.left || short || !!busy} onclick={() => void purchase(l)}>
-								<Icon name="wallet" size={18} />{busy === l.offer.contentHash ? 'Checking…' : l.left ? 'Buy' : 'Sold out'}
+								<Icon name="wallet" size={18} />{busy === l.offer.contentHash ? 'Checking…' : !l.left ? 'Sold out' : t.service ? 'Hire' : 'Buy'}
 							</button>
-							{#if short && l.left}<p class="text-sm text-error-600-400">You need {costOf(l)} credits; you have {available}.</p>{/if}
+							{#if short && l.left}<p class="text-sm text-error-600-400">You need {costOf(l)} credits{t.service ? ' set aside' : ''}; you have {available}.</p>{/if}
 						{/if}
 					</li>
 				{/each}

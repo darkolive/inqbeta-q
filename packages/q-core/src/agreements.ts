@@ -63,6 +63,30 @@ export interface Terms {
 	doneWhen?: string;
 	/** Business: pounds recorded for both sides' accounts (ADR-Q-023 §5). */
 	business?: boolean;
+	/**
+	 * A pass-through hired by the hour (ADR-Q-028 §5): where it is, and what
+	 * an hour of holding a gigabyte costs. The credits agreed are the most
+	 * that can be paid; what is paid is settled from the custody receipts.
+	 */
+	service?: PassThroughService;
+}
+
+export interface PassThroughService {
+	kind: 'pass-through';
+	/** The node's storage address, e.g. https://storage.example.org */
+	relay: string;
+	/** The relay's own name for itself, as it signs its receipts: relay:did:key:… */
+	where: string;
+	/** Credits for a gigabyte held for an hour. */
+	perGBHour: number;
+	/** Open hours, as the node publishes them, e.g. "12-18" (UTC); empty for always. */
+	hours?: string;
+}
+
+/** Credits owed for pass-through use: gigabyte-hours at the rate, rounded up to a whole credit (none for no use). */
+export function passThroughOwed(byteHours: number, perGBHour: number): number {
+	const owed = (byteHours / 1024 ** 3) * perGBHour;
+	return owed > 0 ? Math.ceil(owed - 1e-9) : 0;
 }
 
 export type StepName = 'proposed' | 'countered' | 'agreed' | 'declined' | 'withdrawn' | 'done' | 'settled' | 'taken';
@@ -132,6 +156,12 @@ export function problemsWithTerms(t: Terms): string[] {
 	const ka = kindOf(t.aGives);
 	if (ka !== 'thing' && ka === kindOf(t.bGives)) p.push('Not the same kind both ways: credits for credits, or pounds for pounds, is a gift, not an agreement.');
 	if ('pence' in t.aGives || 'pence' in t.bGives) if (!t.business) p.push('Pounds are recorded only on business agreements.');
+	if (t.service) {
+		const sv = t.service;
+		if (sv.kind !== 'pass-through' || !/^https:\/\/[^/]+/.test(sv.relay) || !/^relay:did:key:z[1-9A-HJ-NP-Za-km-z]+$/.test(sv.where) || !(sv.perGBHour > 0))
+			p.push('A pass-through says where it is (an https address and its relay name) and its price for a gigabyte held for an hour.');
+		if (!('credits' in t.bGives)) p.push('A pass-through is paid in credits: the most that can be paid, settled from what was used.');
+	}
 	/* Each problem once: both sides empty is one thing to fix, not two. */
 	return [...new Set(p)];
 }
@@ -222,6 +252,22 @@ function withinAgreed(agreed: Terms, settled: Entry[][], next: Entry[]): string 
 export function whySettlementDoesntFit(s: Standing, entries: Entry[]): string | null {
 	if (s.phase !== 'agreed' || !s.terms) return 'Only an agreed agreement can be settled.';
 	return withinAgreed(s.terms, s.settled, entries);
+}
+
+/**
+ * A hire's use so far (ADR-Q-028 §5): credits owed from the gigabyte-hours
+ * held, never more than the most agreed, less what's already been settled.
+ * `due` is what to settle now (none while a settlement waits to be confirmed);
+ * `entries` settle exactly that, from the hirer to the operator.
+ */
+export function hireDue(s: Standing, byteHours: number): { owed: number; paid: number; due: number; most: number; entries: Entry[] } | null {
+	const t = s.terms;
+	if (!t?.service || !t.b || !('credits' in t.bGives)) return null;
+	const most = t.bGives.credits;
+	const paid = s.settled.flat().filter((e) => e.from === t.b && e.to === t.a && 'credits' in e.value).reduce((n, e) => n + amountOf(e.value), 0);
+	const owed = Math.min(most, passThroughOwed(byteHours, t.service.perGBHour));
+	const due = s.pending || s.phase !== 'agreed' ? 0 : Math.max(0, owed - paid);
+	return { owed, paid, due, most, entries: due ? [{ from: t.b, to: t.a, value: { ...t.bGives, credits: due } }] : [] };
 }
 
 /** What's still to settle: each agreed entry, less what's been settled of it. */
@@ -500,7 +546,7 @@ export interface Now {
 	/** Where it stands, said to you. */
 	says: string;
 	/** Something the page shows alongside: your shop's link, your offer's link, or settling up. */
-	panel?: 'shop' | 'link' | 'settle';
+	panel?: 'shop' | 'link' | 'settle' | 'hire';
 	actions: NowAction[];
 	/** A line said under the actions, when there's more to explain. */
 	after?: string;
@@ -542,6 +588,15 @@ export function agreementNow(s: Standing, me: string, id: string, nameOf: (did: 
 		return {
 			says: `${them} has settled: ${list}. Confirm it if that’s right, and it counts for you both.`,
 			actions: [{ id: 'confirm', label: 'Confirm the settlement', icon: 'check', primary: true, step: { step: 'settled', parent: s.pending.hash, entries: s.pending.entries } }]
+		};
+	}
+	if (s.phase === 'agreed' && t?.service) {
+		/* A hire (ADR-Q-028 §5): it runs, and is paid for as it's used — nothing to say is done. */
+		const seller = !!s.takenFrom && t.a === me && !s.settled.length;
+		return {
+			says: t.b === me ? 'You’ve hired this pass-through. Q uses it alongside your host’s, and you settle for what it held, from the receipts.' : `${them === 'they' ? 'Someone' : them} has hired your pass-through. They settle for what it held; you confirm.`,
+			panel: 'hire',
+			actions: seller ? [{ id: 'sold-out', label: 'Cancel this hire', tellShop: true, step: { step: 'declined', parent: s.lastHash ?? null, note: 'Sold out' } }] : []
 		};
 	}
 	if (s.phase === 'agreed') {

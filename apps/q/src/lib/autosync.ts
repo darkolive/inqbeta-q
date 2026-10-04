@@ -144,7 +144,7 @@ export async function syncCloudNow(why: SyncWhy = 'manual'): Promise<CloudState[
 	for (const fn of listeners) fn(cloud);
 	/* ADR-Q-028: what a cloud couldn't take passes through the host's relay; what it now has is let go there.
 	 * With a bucket of your own, in either mode, nothing new goes to the host: it only lets go what it held. */
-	await passThrough(vault, tried, { handOver: !bucket && choices.relay === 'on' }).catch(() => null);
+	await passThrough(vault, tried, { handOver: !bucket, useHost: choices.relay === 'on' }).catch(() => null);
 	return cloud;
 }
 

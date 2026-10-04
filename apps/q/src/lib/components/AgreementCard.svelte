@@ -18,12 +18,16 @@
 	const name = $derived(them?.name ?? 'someone');
 	const mine = $derived(t ? (t.a === me ? t.aGives : t.bGives) : null);
 	const theirs = $derived(t ? (t.a === me ? t.bGives : t.aGives) : null);
+	/* A hire's credits are the most it can come to: paid for what it holds. */
+	const say = (v: NonNullable<typeof mine>) => (t?.service && 'credits' in v ? `Up to ${valueText(v)}, at ${t.service.perGBHour} a GB held an hour` : valueText(v));
 	const KIND = { swap: 'Swap', job: 'Job', treaty: 'Treaty' } as const;
 
 	const heading = $derived(
 		t && !t.b && standing.limit && t.a === me ? `In your shop: ${standing.limit} to sell`
 		: t && !t.b && standing.limit ? `In ${name}’s shop`
 		: t && !t.b && t.a === me ? 'Your open offer, shared by link'
+		: standing.takenFrom && t?.service && t.a === me ? `Hired by ${name}`
+		: standing.takenFrom && t?.service ? `Hired from ${name}`
 		: standing.takenFrom && t?.a === me ? `Sold to ${name}`
 		: standing.takenFrom ? `Bought from ${name}’s shop`
 		: t && !t.b ? `An offer from ${name}`
@@ -44,8 +48,8 @@
 	sub="{t ? KIND[t.kind] : 'Agreement'}{t?.business ? ' · business' : ''}"
 	who={{ name: them?.name ?? '?', picture: them?.picture }}
 	status={standingWords(standing, me)}
-	give={mine ? { label: 'You give', value: valueText(mine) } : undefined}
-	get={theirs ? { label: getsLabel, value: valueText(theirs) } : undefined}
+	give={mine ? { label: 'You give', value: say(mine) } : undefined}
+	get={theirs ? { label: getsLabel, value: say(theirs) } : undefined}
 	{details}
 	{href}
 />

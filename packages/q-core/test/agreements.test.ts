@@ -288,3 +288,60 @@ test('what you can do now: decided in one place, from where it stands', async ()
 	assert.ok(sale.after);
 	assert.equal(needsMe(standingOf([listing, bought]), ben.did), true, 'the buyer pays next');
 });
+
+test('a pass-through hired by the hour: described properly, paid in credits, owed from the gigabyte-hours', async () => {
+	const { passThroughOwed } = await import('../src/agreements');
+	const { ana } = await people();
+	const svc = { kind: 'pass-through' as const, relay: 'https://storage.example.org', where: 'relay:did:key:z6MkguuUVNj72BEqpY3qHikwFtSCiUWgDGbwiX8pqu5uh3gK', perGBHour: 1 };
+	const t: Terms = { kind: 'job', a: ana.did, b: '', aGives: { thing: 'Pass-through, open 12–18' }, bGives: { credits: 50, mode: 'test' }, service: svc };
+	assert.deepEqual(problemsWithTerms(t), []);
+	assert.ok(problemsWithTerms({ ...t, service: { ...svc, relay: 'http://insecure' } }).length);
+	assert.ok(problemsWithTerms({ ...t, bGives: { thing: 'a cake' } }).some((p) => /paid in credits/.test(p)));
+	const GB = 1024 ** 3;
+	assert.equal(passThroughOwed(0, 1), 0);
+	assert.equal(passThroughOwed(GB * 2.2, 1), 3, 'rounded up to a whole credit');
+	assert.equal(passThroughOwed(GB * 10, 0.5), 5);
+});
+
+test('a hire settled from its use: owed from the gigabyte-hours, capped at the most agreed, partly at a time', async () => {
+	const { hireDue } = await import('../src/agreements');
+	const { ana, ben } = await people();
+	const GB = 1024 ** 3;
+	const svc = { kind: 'pass-through' as const, relay: 'https://storage.example.org', where: 'relay:did:key:z6MkguuUVNj72BEqpY3qHikwFtSCiUWgDGbwiX8pqu5uh3gK', perGBHour: 2 };
+	const hire: Terms = { kind: 'job', a: ana.did, b: '', aGives: { thing: 'Pass-through' }, bGives: { credits: 10, mode: 'test' }, service: svc };
+	const listing = await sign(ana, step({ agreement: 'relay', step: 'proposed', parent: null, terms: hire, limit: 5 }));
+	const taken = await sign(ben, step({ agreement: 'relay.b', step: 'taken', parent: listing.contentHash, terms: { ...hire, b: ben.did } }));
+	let s = standingOf([listing, taken]);
+	assert.equal(s.phase, 'agreed');
+	assert.equal(hireDue(s, 0)?.due, 0, 'nothing used, nothing due');
+	const first = hireDue(s, GB * 1.5)!;
+	assert.equal(first.due, 3);
+	assert.deepEqual(first.entries, [{ from: ben.did, to: ana.did, value: { credits: 3, mode: 'test' } }]);
+	const paid = await sign(ben, step({ agreement: 'relay.b', step: 'settled', parent: taken.contentHash, entries: first.entries }));
+	assert.equal(hireDue(standingOf([listing, taken, paid]), GB * 4)?.due, 0, 'nothing more while one waits to be confirmed');
+	const ok = await sign(ana, step({ agreement: 'relay.b', step: 'settled', parent: paid.contentHash, entries: first.entries }));
+	s = standingOf([listing, taken, paid, ok]);
+	assert.deepEqual(s.problems, []);
+	assert.equal(s.phase, 'agreed', 'still running: more use can be settled');
+	const more = hireDue(s, GB * 4)!;
+	assert.equal(more.paid, 3);
+	assert.equal(more.due, 5);
+	assert.equal(hireDue(s, GB * 100)?.due, 7, 'never more than the most agreed');
+	assert.equal(hireDue(standingOf([listing]), GB), null, 'only a hire that someone has taken');
+});
+
+test('a hire, now: no "done", just settling for what was used', async () => {
+	const { agreementNow } = await import('../src/agreements');
+	const { ana, ben } = await people();
+	const svc = { kind: 'pass-through' as const, relay: 'https://storage.example.org', where: 'relay:did:key:z6MkguuUVNj72BEqpY3qHikwFtSCiUWgDGbwiX8pqu5uh3gK', perGBHour: 2 };
+	const hire: Terms = { kind: 'job', a: ana.did, b: '', aGives: { thing: 'Pass-through' }, bGives: { credits: 10, mode: 'test' }, service: svc };
+	const listing = await sign(ana, step({ agreement: 'relay', step: 'proposed', parent: null, terms: hire, limit: 5 }));
+	const taken = await sign(ben, step({ agreement: 'relay.b', step: 'taken', parent: listing.contentHash, terms: { ...hire, b: ben.did } }));
+	const s = standingOf([listing, taken]);
+	const name = (d: string) => (d === ben.did ? 'Ben' : 'Ana');
+	assert.equal(agreementNow(s, ben.did, 'relay.b', name).panel, 'hire');
+	assert.deepEqual(agreementNow(s, ben.did, 'relay.b', name).actions, []);
+	const op = agreementNow(s, ana.did, 'relay.b', name);
+	assert.match(op.says, /^Ben has hired/);
+	assert.deepEqual(op.actions.map((a) => a.id), ['sold-out']);
+});

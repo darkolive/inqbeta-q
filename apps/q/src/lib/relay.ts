@@ -26,6 +26,8 @@ import { CUSTODY_SCHEMA, CUSTODY_SOURCE, isCustody, relayOf, type CustodyReceipt
 import { matchesName } from '@inqbeta/q-core/vault';
 import { readHome } from '$lib/home';
 import type { StorageChannel } from '@inqbeta/q-core/storage-channels';
+import { watchLedger, type Ledger } from '$lib/ledger';
+import { agreementsFrom } from '$lib/agreements';
 
 const KEY = 'q.relay.custody';
 const MOST_PER_SYNC = 40;
@@ -80,65 +82,100 @@ interface Held {
 	until: string;
 }
 
+/** A pass-through Q can use: your host's, or one you've hired (ADR-Q-028 §5). */
+export interface Place {
+	url: string;
+	/** Hired: the agreement it was hired under. */
+	hired?: string;
+}
+
+/** The pass-throughs you've hired: agreed shop purchases whose terms describe one. */
+export function hiredPlaces(ledger: Ledger | null, me: string): Place[] {
+	return agreementsFrom(ledger)
+		.filter((a) => a.standing.phase === 'agreed' && a.standing.terms?.service?.kind === 'pass-through' && a.standing.terms.b === me)
+		.map((a) => ({ url: a.standing.terms!.service!.relay.replace(/\/$/, ''), hired: a.id }))
+		.filter((p, i, all) => all.findIndex((q) => q.url === p.url) === i);
+}
+
+/** Your custody receipts at one pass-through (by its relay name): the meter a hire is settled from. */
+export function custodyAt(where: string): CustodyReceipt[] {
+	return kept().filter((r) => (r.content.kind === 'held' ? r.content.where : r.content.releases) === where);
+}
+
+let ledgerNow: Ledger | null = null;
+watchLedger((l) => (ledgerNow = l));
+
 /**
- * After a sync: hand the relay what the clouds couldn't take, and let go what
- * a cloud now holds. `clouds` are the connected clouds, each with whether its
- * sync went through. Never throws; says what happened.
+ * After a sync: hand a pass-through what the clouds couldn't take, and let go
+ * what a cloud now has. `clouds` are the connected clouds, each with whether
+ * its sync went through. Your host's pass-through comes first (unless you've
+ * turned it off), then any you've hired; new files go to the first that's
+ * open now. Never throws; says what happened.
  */
-export async function passThrough(vault: StorageChannel, clouds: { channel: StorageChannel; ok: boolean }[], opts: { handOver?: boolean } = {}): Promise<RelayState> {
+export async function passThrough(vault: StorageChannel, clouds: { channel: StorageChannel; ok: boolean }[], opts: { handOver?: boolean; useHost?: boolean } = {}): Promise<RelayState> {
 	const me = current();
-	const where = await relayPlace();
-	if (!me || !where || !clouds.length) return state;
+	if (!me || !clouds.length) return state;
+	const host = opts.useHost === false ? null : await relayPlace();
+	const places: Place[] = [...(host ? [{ url: host }] : []), ...hiredPlaces(ledgerNow, me.did).filter((p) => p.url !== host)];
+	if (!places.length) return state;
 	try {
 		const { id, key } = await relayOf(me);
 		const headers = { 'x-relay-key': key };
-		const terms = (await (await fetch(`${where}/relay`, { signal: AbortSignal.timeout(10_000) })).json().catch(() => null)) as { where?: string; openNow?: boolean } | null;
-		if (!terms?.where) return tell({ ...state, says: 'The host doesn’t offer a pass-through.' }), state;
-		const listed = await fetch(`${where}/relay/${id}`, { headers, signal: AbortSignal.timeout(15_000) });
-		const held = listed.ok ? (((await listed.json()) as { files?: Held[] }).files ?? []) : [];
 		const inVault = new Set((await vault.list()).filter((p) => CONTENT.test(p)));
 		const ok = clouds.filter((c) => c.ok);
 		const inClouds = new Set<string>();
 		for (const c of ok) for (const p of await c.channel.list().catch(() => [] as string[])) inClouds.add(p);
 
-		/* Drain: a cloud holds it now — sign that it arrived, and the relay lets go. */
 		let released = 0;
+		let holding = 0;
+		let handed = 0;
 		const receipts: CustodyReceipt[] = [];
-		for (const h of held) {
-			const path = `${h.item}.dsv`;
-			if (inClouds.has(path)) {
-				const arrived = (await sealWith(me, { schema: CUSTODY_SCHEMA, source: CUSTODY_SOURCE, kind: 'arrived', item: h.item, bytes: h.bytes, where: ok[0].channel.kind, releases: terms.where, at: new Date().toISOString() })) as CustodyReceipt;
-				const r = await fetch(`${where}/relay/${id}/${h.item}`, { method: 'DELETE', headers: { ...headers, 'content-type': 'application/json' }, body: JSON.stringify(arrived) }).catch(() => null);
-				if (r?.ok) {
-					released++;
-					receipts.push(arrived);
+		const heldAnywhere = new Set<string>();
+		const open: { url: string; where: string }[] = [];
+		for (const place of places) {
+			const terms = (await (await fetch(`${place.url}/relay`, { signal: AbortSignal.timeout(10_000) }).catch(() => null))?.json().catch(() => null)) as { where?: string; openNow?: boolean } | null;
+			if (!terms?.where) continue;
+			if (terms.openNow !== false) open.push({ url: place.url, where: terms.where });
+			const listed = await fetch(`${place.url}/relay/${id}`, { headers, signal: AbortSignal.timeout(15_000) }).catch(() => null);
+			const held = listed?.ok ? (((await listed.json()) as { files?: Held[] }).files ?? []) : [];
+			/* Drain: a cloud holds it now — sign that it arrived, and the pass-through lets go. */
+			for (const h of held) {
+				const path = `${h.item}.dsv`;
+				if (inClouds.has(path)) {
+					const arrived = (await sealWith(me, { schema: CUSTODY_SCHEMA, source: CUSTODY_SOURCE, kind: 'arrived', item: h.item, bytes: h.bytes, where: ok[0].channel.kind, releases: terms.where, at: new Date().toISOString() })) as CustodyReceipt;
+					const r = await fetch(`${place.url}/relay/${id}/${h.item}`, { method: 'DELETE', headers: { ...headers, 'content-type': 'application/json' }, body: JSON.stringify(arrived) }).catch(() => null);
+					if (r?.ok) {
+						released++;
+						receipts.push(arrived);
+						continue;
+					}
+				} else if (!inVault.has(path)) {
+					/* Held for you, but not on this device: bring it in, checked, so the next sync carries it on. */
+					const r = await fetch(`${place.url}/relay/${id}/${h.item}`, { headers }).catch(() => null);
+					const bytes = r?.ok ? new Uint8Array(await r.arrayBuffer()) : null;
+					if (bytes && (await matchesName(path, bytes))) await vault.put(path, bytes);
 				}
-			} else if (!inVault.has(path)) {
-				/* Held for you, but not on this device: bring it in, checked, so the next sync carries it on. */
-				const r = await fetch(`${where}/relay/${id}/${h.item}`, { headers }).catch(() => null);
-				const bytes = r?.ok ? new Uint8Array(await r.arrayBuffer()) : null;
-				if (bytes && (await matchesName(path, bytes))) await vault.put(path, bytes);
+				holding++;
+				heldAnywhere.add(h.item);
 			}
 		}
 
-		/* Hand over: what a cloud you've connected couldn't take. */
-		let handed = 0;
-		const stillHeld = new Set(held.map((h) => h.item));
-		/* A node with open hours takes new files only in them: outside, what's new waits here (ADR-Q-028 §5). */
-		const missing = opts.handOver !== false && terms.openNow !== false && clouds.some((c) => !c.ok) ? [...inVault].filter((p) => !inClouds.has(p) && !stillHeld.has(p.slice(0, -4))).slice(0, MOST_PER_SYNC) : [];
+		/* Hand over what a cloud couldn't take, to the first pass-through open now (open hours, ADR-Q-028 §5). */
+		const to = open[0];
+		const missing = to && opts.handOver !== false && clouds.some((c) => !c.ok) ? [...inVault].filter((p) => !inClouds.has(p) && !heldAnywhere.has(p.slice(0, -4))).slice(0, MOST_PER_SYNC) : [];
 		for (const path of missing) {
 			const bytes = await vault.get(path);
 			if (!bytes) continue;
 			const item = path.slice(0, -4);
-			const r = await fetch(`${where}/relay/${id}/${item}?path=${encodeURIComponent(path)}`, { method: 'POST', headers: { ...headers, 'content-type': 'application/octet-stream' }, body: bytes as Uint8Array<ArrayBuffer> }).catch(() => null);
+			const r = await fetch(`${to.url}/relay/${id}/${item}?path=${encodeURIComponent(path)}`, { method: 'POST', headers: { ...headers, 'content-type': 'application/octet-stream' }, body: bytes as Uint8Array<ArrayBuffer> }).catch(() => null);
 			const out = r?.ok ? ((await r.json().catch(() => ({}))) as { held?: unknown }) : null;
 			if (out && isCustody(out.held) && out.held.content.kind === 'held' && out.held.content.item === item) {
 				handed++;
+				holding++;
 				receipts.push(out.held);
 			} else if (r?.status === 507) break; /* the space is full: the rest wait */
 		}
 		keep(receipts);
-		const holding = held.length - released + handed;
 		return tell({ holding, handed, released, at: new Date().toISOString() }), state;
 	} catch (e) {
 		return tell({ ...state, says: e instanceof Error ? e.message : String(e) }), state;

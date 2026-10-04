@@ -30,6 +30,9 @@
 	import { makeOfferLink } from '$lib/offerlink';
 	import ShareLink from '$lib/components/ShareLink.svelte';
 	import { readMint, type MintView } from '$lib/money';
+	import { hireDue } from '@inqbeta/q-core/agreements';
+	import { usageOf } from '@inqbeta/q-core/custody';
+	import { custodyAt } from '$lib/relay';
 
 	let identity = $state<Identity | null>(null);
 	let ledger = $state<Ledger | null>(null);
@@ -115,6 +118,26 @@
 		}
 	});
 
+	/* A hire (ADR-Q-028 §5): what it held for you since you hired it, from your custody receipts, and what that comes to. */
+	let tick = $state(0);
+	$effect(() => {
+		const t = setInterval(() => tick++, 60_000);
+		return () => clearInterval(t);
+	});
+	const hiredAt = $derived(Date.parse(view?.steps.find((r) => r.content.step === 'taken')?.content.at ?? '') || 0);
+	const use = $derived.by(() => {
+		void tick;
+		const sv = s?.terms?.service;
+		if (!sv || !s || s.terms?.b !== me) return null;
+		/* Hired the same pass-through again later? What it held from then on is that hire's. */
+		const takenAt = (v: (typeof all)[number]) => Date.parse(v.steps.find((r) => r.content.step === 'taken')?.content.at ?? '') || 0;
+		const nextAt = Math.min(Infinity, ...all.filter((a) => a.id !== id && a.standing.terms?.service?.where === sv.where && a.standing.terms.b === me && takenAt(a) > hiredAt).map(takenAt));
+		const receipts = custodyAt(sv.where).filter((r) => r.content.kind !== 'held' || (Date.parse(r.content.at) >= hiredAt && Date.parse(r.content.at) < nextAt));
+		return usageOf(receipts, sv.where);
+	});
+	const due = $derived(s ? hireDue(s, use?.byteHours ?? 0) : null);
+	const gbHours = (b: number) => (b > 0 && b / 1024 ** 3 < 0.0001 ? 'under 0.0001' : (b / 1024 ** 3).toFixed(b / 1024 ** 3 < 0.01 ? 4 : 2));
+
 	const who = (d: string) => (d === me ? 'you' : themName);
 	const entryText = (e: Entry) => `${valueText(e.value)} from ${who(e.from)} to ${who(e.to)}`;
 </script>
@@ -156,6 +179,28 @@
 									<button type="button" class="btn preset-filled-primary-500 min-h-11 self-start" disabled={making} onclick={() => void makeLink()}><Icon name="share" size={18} />{making ? 'Making the link…' : 'Make a link to send'}</button>
 								{/if}
 								{#if linkSays}<p class="text-sm card preset-tonal-warning p-3">{linkSays}</p>{/if}
+							{:else if now.panel === 'hire' && s.terms?.service && due}
+								{@const sv = s.terms.service}
+								<div class="card preset-tonal-surface p-4 flex flex-col gap-3">
+									<p class="font-bold">{s.terms.b === me ? 'Your use so far' : 'Paid so far'}</p>
+									<dl class="grid gap-3 sm:grid-cols-3">
+										{#if use}
+											<div><dt class="text-sm opacity-70">Held for you</dt><dd class="h5 tabular-nums">{gbHours(use.byteHours)} GB-hours</dd><dd class="text-xs opacity-70">{use.items} file{use.items === 1 ? '' : 's'}{use.open ? `, ${use.open} still held` : ''}</dd></div>
+											<div><dt class="text-sm opacity-70">At {sv.perGBHour} a GB-hour</dt><dd class="h5 tabular-nums">{due.owed} credit{due.owed === 1 ? '' : 's'}</dd><dd class="text-xs opacity-70">rounded up; at most {due.most}</dd></div>
+										{/if}
+										<div><dt class="text-sm opacity-70">Settled</dt><dd class="h5 tabular-nums">{due.paid} of at most {due.most}</dd></div>
+									</dl>
+									{#if s.terms.b === me}
+										{#if due.due}
+											<button type="button" class="btn preset-filled-primary-500 min-h-11 self-start" disabled={!!busy} onclick={() => void act('settle-use', 'Settled', { step: 'settled', parent: s.lastHash ?? null, entries: due.entries, note: `${gbHours(use?.byteHours ?? 0)} GB-hours at ${sv.perGBHour} a GB-hour` })}><Icon name="balance" size={18} />{busy === 'settle-use' ? 'Checking…' : `Settle ${due.due} credit${due.due === 1 ? '' : 's'} for the use so far`}</button>
+											<p class="text-sm text-surface-700-300">{themName} confirms, and only then does it count.</p>
+										{:else}
+											<p class="text-sm">{s.pending ? 'Waiting for the last settlement to be confirmed.' : 'Nothing more to settle yet.'}</p>
+										{/if}
+									{:else}
+										<p class="text-sm text-surface-700-300">{themName} settles for what your pass-through held, worked out from the receipts it signed. The note on each settlement says the GB-hours.</p>
+									{/if}
+								</div>
 							{:else if now.panel === 'settle' && left.length}
 								<fieldset class="card preset-tonal-surface p-4 flex flex-col gap-3">
 									<legend class="font-bold px-1">Settle up</legend>

@@ -1,7 +1,7 @@
 ---
 status: decided
-implementation: steps 1–7 built 3 October 2026 — the relay at the gate (/relay, held receipts signed by the node's GATE_SEED key, daily totals at /relay/stats); custody receipts (q-core custody.ts); the pass-through in the five-minute sync (apps/q lib/relay.ts); your own bucket (q-core s3.ts: SigV4 in the browser, checked against botocore; apps/q lib/bucket.ts, BucketSettings on Backups: a full copy, or a pass-through emptied once a cloud has everything; with a bucket, nothing new goes to the host). Settings → Backups (q-core backup-schedule.ts: cloud every five minutes, four times a day or daily; bucket on every save or every five minutes; host pass-through on or off; download weekly, monthly, quarterly or never — kept in the browser and the vault) and the download offered when due (the vault icon asks once; counted from your oldest receipt if you've never made one). Opening from the newest copy: the passkey's vault pointer carries your bucket, sealed with your vault key (q-core pointer.ts; apps/q bucketNote), and a new device signed in with it is offered "Open from your bucket" first, with the note of where the newest copy was; a held file at the host passes on in the first sync. From the flow to a price (q-core pricing.ts; PricingFromFlow on the host's Services: cost per GB-hour at today's use and if full, a suggested price in credits, and a credit's worth if a GB-day cost one) and open hours (GATE_RELAY_HOURS: new files only in them; the client waits outside them). Not yet: hiring someone else's pass-through from their shop, paid from the custody receipts
-updated: 2026-10-03
+implementation: steps 1–7 built 3 October 2026 — the relay at the gate (/relay, held receipts signed by the node's GATE_SEED key, daily totals at /relay/stats); custody receipts (q-core custody.ts); the pass-through in the five-minute sync (apps/q lib/relay.ts); your own bucket (q-core s3.ts: SigV4 in the browser, checked against botocore; apps/q lib/bucket.ts, BucketSettings on Backups: a full copy, or a pass-through emptied once a cloud has everything; with a bucket, nothing new goes to the host). Settings → Backups (q-core backup-schedule.ts: cloud every five minutes, four times a day or daily; bucket on every save or every five minutes; host pass-through on or off; download weekly, monthly, quarterly or never — kept in the browser and the vault) and the download offered when due (the vault icon asks once; counted from your oldest receipt if you've never made one). Opening from the newest copy: the passkey's vault pointer carries your bucket, sealed with your vault key (q-core pointer.ts; apps/q bucketNote), and a new device signed in with it is offered "Open from your bucket" first, with the note of where the newest copy was; a held file at the host passes on in the first sync. From the flow to a price (q-core pricing.ts; PricingFromFlow on the host's Services: cost per GB-hour at today's use and if full, a suggested price in credits, and a credit's worth if a GB-day cost one) and open hours (GATE_RELAY_HOURS: new files only in them; the client waits outside them). Hiring a pass-through (4 October): the host offers theirs in their shop from the same card (a standing offer whose terms carry the service: its address, its relay name, credits per GB-hour, open hours; the credits agreed are the most it can come to); a hirer's Q uses every pass-through they've hired alongside the host's (lib/relay.ts: drains each, hands new files to the first open one; host first unless turned off); the agreement page works out the use since hiring from the custody receipts (usageOf) and settles exactly what's owed less what's paid (q-core hireDue), the operator confirming. Not yet: the node refusing people who haven't hired it, and the operator checking the GB-hours against its own receipts
+updated: 2026-10-04
 ---
 
 # ADR-Q-028 — Copies in order: your browser, your own bucket or the host's relay, your cloud, your download
@@ -189,6 +189,15 @@ doesn't need to be a big, always-on server:
 - **Settled by the receipts.** What you pay is worked out from the custody
   receipts (how much, for how long), which both sides already hold, so
   nobody has to trust the other's meter.
+- **Built (4 October).** The listing's terms carry the service
+  (`terms.service`: address, relay name, credits per GB-hour, hours), and
+  the rules check it is described properly and paid in credits. Each hire is
+  settled in parts, as it's used: the hirer's Q works out the GB-hours since
+  hiring from its custody receipts and offers to settle the credits owed (at
+  most what was agreed, less what's been paid); the operator confirms. If
+  the same pass-through is hired again, what it held from then on belongs to
+  the newer hire. A hire has no "done": it runs until it's used up or the
+  operator cancels it before anything is paid.
 - **The commons pilot** (`providers-and-the-commons-market.md`: members
   holding sealed blobs for each other) is this, started small.
 
@@ -251,7 +260,7 @@ pass-through, together hold everything.
 6. **The download**: one sealed file, offered when due.
 6. **Opening from the newest copy**, in order, on a new device (bucket,
    cloud, download, plus the relay).
-8. **Pass-through by the hour**: a node's open hours as a standing offer,
+8. ✅ **Pass-through by the hour**: a node's open hours as a standing offer,
    Q choosing an open pass-through, settled from the custody receipts.
 
 ## Non-claims
@@ -260,7 +269,10 @@ A pass-through is not a backup: if your cloud never comes back and you never
 sign in again, what's in the host's relay goes at the time limit. With a
 pass-through bucket and no cloud connected, Q keeps everything in the bucket
 and says so, rather than deleting what has nowhere else to be. Your own bucket's
-provider charges you, not Q or the host.
+provider charges you, not Q or the host. The GB-hours on a hire are worked
+out by the hirer's Q from receipts the node signed; the operator confirms the
+settlement but doesn't yet check it against the node's own records, and the
+node doesn't yet turn away people who haven't hired it.
 
 ## Related
 

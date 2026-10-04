@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-03
+updated: 2026-10-04
 about: The working plan — every idea captured so far, in the order it gets built, and how each piece is done. Claude follows this; Darren adds to it.
 ---
 
@@ -76,13 +76,22 @@ exceptions.
 
 ## Phase 3 — the price, from the flow
 
-1. **Pass-through by the hour**: ✅ a node's open hours (GATE_RELAY_HOURS); still to do:
-   hiring someone else's as a standing offer in their shop, paid from the custody receipts.
+1. ✅ **Pass-through by the hour**: a node's open hours (GATE_RELAY_HOURS);
+   the host offers it in their shop (Services → From the flow to a price →
+   Offer it in your shop); people Hire it; their Q uses it alongside their
+   host's; they settle for the GB-hours from the custody receipts, the
+   operator confirms.
 2. ✅ **Measure → cost → credit price → minting price** (ADR-Q-028 §5a): the
    relay's daily totals and node running costs give a cost per GB-hour; that
    sets credits' worth, and the host's pence per credit.
 
+**Phase 3 done (4 October).** Waiting on Darren's testing.
+
 ## Phase 4 — later, in rough order
+
+- The node checking hires: only people who've hired it (or the host's own
+  members) may hand it files; the operator's page reading the GB-hours from
+  the node's own receipts.
 
 - The balance sheet page, statement and club summary (ADR-Q-024).
 - A lock on cash-outs before real money (two at once could both pass).
