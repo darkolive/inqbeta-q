@@ -116,6 +116,21 @@
 		if (left < strip.scrollLeft || left + li.offsetWidth > strip.scrollLeft + strip.clientWidth) strip.scrollTo({ left: left - 8, behavior: still() ? 'auto' : 'smooth' });
 	});
 
+	/* A link to a scene (#<id>-<n>, from a story manual's index) opens it here. */
+	$effect(() => {
+		const open = () => {
+			const m = new RegExp(`^#${id}-(\\d+)$`).exec(location.hash);
+			if (!m) return;
+			hidden = false;
+			playing = false;
+			t = (Math.min(N, Math.max(1, Number(m[1]))) - 1) * seconds;
+			requestAnimationFrame(() => root?.scrollIntoView({ behavior: still() ? 'auto' : 'smooth', block: 'start' }));
+		};
+		open();
+		addEventListener('hashchange', open);
+		return () => removeEventListener('hashchange', open);
+	});
+
 	function go(n: number) {
 		stopVoice();
 		t = (Math.min(N, Math.max(1, n)) - 1) * seconds;
@@ -150,7 +165,7 @@
 		<Icon name="play" size={16} /> Show the story: {title}
 	</button>
 {:else}
-	<section bind:this={root} class="card preset-outlined-surface-200-800 bg-surface-50-950 p-4 sm:p-6 flex flex-col gap-5 w-full max-w-3xl min-w-0" aria-roledescription="carousel" aria-label={title}>
+	<section bind:this={root} class="scroll-mt-24 card preset-outlined-surface-200-800 bg-surface-50-950 p-4 sm:p-6 flex flex-col gap-5 w-full max-w-3xl min-w-0" aria-roledescription="carousel" aria-label={title}>
 		<header class="flex flex-wrap items-center gap-3">
 			<h2 class="h4 flex-1 min-w-0">{title}</h2>
 			<button type="button" class="btn-icon preset-tonal min-h-11 min-w-11" aria-label={speaking ? 'Stop reading' : 'Read this scene aloud'} aria-pressed={speaking} onclick={readAloud}>
@@ -181,13 +196,13 @@
 			{#each scenes as s, i (i)}
 				<li class="snap-start shrink-0"><button
 					type="button"
-					class="w-36 sm:w-40 h-full text-left card p-2 flex flex-col gap-1.5 transition-colors {i + 1 === scene ? 'preset-outlined-primary-500 bg-primary-50-950' : 'preset-outlined-surface-200-800 hover:preset-tonal'}"
+					class="w-20 sm:w-24 h-full text-left card p-1 flex flex-col gap-1 transition-colors {i + 1 === scene ? 'preset-outlined-primary-500 bg-primary-50-950' : 'preset-outlined-surface-200-800 hover:preset-tonal'}"
 					aria-current={i + 1 === scene ? 'step' : undefined}
 					aria-label="Go to scene {i + 1}: {s.title}"
 					onclick={() => go(i + 1)}
 				>
 					<span class="rounded-base overflow-hidden bg-surface-100-900 pointer-events-none" aria-hidden="true">{@render pictures(stillOf(i + 1, N))}</span>
-					<span class="text-xs font-semibold leading-snug line-clamp-2"><span class="opacity-60">{i + 1}.</span> {s.title}</span>
+					<span class="text-[0.65rem] font-semibold leading-tight line-clamp-1" title={s.title}>{i + 1}. {s.title}</span>
 				</button></li>
 			{/each}
 		</ol>

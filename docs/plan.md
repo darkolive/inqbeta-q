@@ -230,6 +230,14 @@ on localhost; new localStorage keys go in `q-core/src/storage.ts`.
   credits always backed, and when a club gets full. Next: put each on the
   page it explains (vault on Backups, backed on Credits, network on the
   federation page), and words into the language books.
+- **A story engine** (Darren, 4 October): the decks become a way to teach.
+  A *story manual* (the index down the side, each story and its scenes,
+  built at /stories); and in the learning side (DoStudy), designing a course
+  includes making its story: say what it is and how it unfolds, scene by
+  scene, and the engine draws it from the shared picture pieces, so a
+  learner sees what they'll learn, and how, before they start. Decks are
+  already data (scenes + one picture snippet per deck), which is what an
+  editor, or an AI drafting one, would fill in.
 - **Crowdfunding, following, and the test bed**: now ADR-Q-031 (gift
   campaigns, backing with rewards in kind, following on the home page,
   enterprises that start in credits and go live when ready, sponsorship).
