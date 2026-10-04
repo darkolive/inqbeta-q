@@ -14,10 +14,10 @@
 <script lang="ts">
 	import StoryDeck from './StoryDeck.svelte';
 	import { lerp, type Frame } from './frame';
-	import { Padlock, Tick } from '../story';
+	import { Tick } from '../story';
+	import BackingGraphic from '../display/BackingGraphic.svelte';
 
 	let { hideable = true }: { hideable?: boolean } = $props();
-	const BASE = 250;
 	const UNIT = 1.1; /* px per credit or pound */
 	const levels = ['Stated', 'Honoured', 'Witnessed', 'Bank-confirmed'];
 </script>
@@ -29,32 +29,9 @@
 		: f.scene === 3 ? { pounds: lerp(20, 15, f.p), credits: lerp(20, 15, f.p) }
 		: f.scene === 4 ? { pounds: f.p < 0.4 ? lerp(15, 100, f.p / 0.4) : lerp(100, 15, (f.p - 0.4) / 0.6), credits: lerp(15, 100, Math.min(1, f.p / 0.4)) }
 		: { pounds: lerp(15, 65, f.scene === 5 ? f.p : 1), credits: lerp(100, 150, f.scene === 5 ? f.p : 1) }}
-	{@const ratio = v.credits ? v.pounds / v.credits : 1}
-	{@const shut = ratio < 0.2}
 	<svg viewBox="0 0 640 320" class="w-full h-auto" aria-hidden="true">
-		<!-- the two stacks -->
-		<line x1="40" y1={BASE} x2="330" y2={BASE} class="stroke-surface-400-600" stroke-width="3" />
-		<rect x="70" y={BASE - v.pounds * UNIT} width="90" height={v.pounds * UNIT} rx="6" class="fill-success-500" />
-		<rect x="210" y={BASE - v.credits * UNIT} width="90" height={v.credits * UNIT} rx="6" class="fill-primary-500" />
-		<text x="115" y={BASE + 26} text-anchor="middle" class="fill-surface-950-50 text-sm font-semibold">Pounds held</text>
-		<text x="255" y={BASE + 26} text-anchor="middle" class="fill-surface-950-50 text-sm font-semibold">Credits out</text>
-		<text x="115" y={BASE - v.pounds * UNIT - 8} text-anchor="middle" class="fill-surface-950-50 font-bold tabular-nums">£{Math.round(v.pounds)}</text>
-		<text x="255" y={BASE - v.credits * UNIT - 8} text-anchor="middle" class="fill-surface-950-50 font-bold tabular-nums">{Math.round(v.credits)}</text>
-		
-
-		<!-- the gauge: how well backed -->
-		<g class="{f.fade} {f.on(2, 5)}">
-			<path d="M400 190a90 90 0 0 1 180 0" fill="none" class="stroke-surface-300-700" stroke-width="16" stroke-linecap="round" />
-			<path d="M400 190a90 90 0 0 1 180 0" fill="none" class={shut ? 'stroke-error-500' : ratio < 0.999 ? 'stroke-warning-500' : 'stroke-success-500'} stroke-width="16" stroke-linecap="round" pathLength="100" stroke-dasharray="{Math.min(1, ratio) * 100} 100" />
-			<!-- the host's line, at 20% -->
-			<line x1="409" y1="131" x2="425" y2="143" class="stroke-surface-950-50" stroke-width="3" />
-			<text x="490" y="182" text-anchor="middle" class="fill-surface-950-50 text-3xl font-bold tabular-nums">{Math.round(Math.min(1, ratio) * 100)}%</text>
-			<text x="490" y="212" text-anchor="middle" class="fill-surface-700-300 text-sm">backed</text>
-			<!-- cash-outs: open or paused -->
-			<rect x="410" y="232" width="160" height="40" rx="20" class={shut ? 'fill-error-500' : 'fill-success-500'} />
-			<text x="490" y="258" text-anchor="middle" class="fill-surface-50 text-sm font-bold">{shut ? 'Cash-outs paused' : 'Cash-outs open'}</text>
-			<g class="{f.fade} {shut ? 'opacity-100' : 'opacity-0'}"><Padlock x={600} y={238} fill="fill-error-500" stroke="stroke-error-500" /></g>
-		</g>
+		<!-- the stacks and the gauge: the same display as the Credits page -->
+		<BackingGraphic pounds={v.pounds} credits={v.credits} minRatio={0.2} gauge={f.scene >= 2 && f.scene <= 5} unit={UNIT} />
 
 		<!-- 6: the trust levels -->
 		<g class="{f.fade} {f.on(6)}">

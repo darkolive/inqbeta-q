@@ -8,6 +8,7 @@
 	 * money does, and balances start from zero.
 	 */
 	import CreditsStory from '$lib/components/CreditsStory.svelte';
+	import BackingDisplay from '$lib/components/display/BackingDisplay.svelte';
 	import { Page, Section, Status, Empty, Icon } from '@inqbeta/q-ui';
 	import SignIn from '$lib/components/SignIn.svelte';
 	import { watch, type Identity } from '@inqbeta/q-core/passkey';
@@ -149,6 +150,9 @@
 		</Section>
 
 		<Section title="The mint’s books" description="Added up from the mint’s own receipts. Every credit is somewhere, and every credit is backed.">
+			<div class="max-w-3xl mb-4">
+				<BackingDisplay pounds={(mint.books.cashReserve + mint.books.capitalReserve) / 100} credits={mint.books.circulation} perCredit={mint.pencePerCredit / 100} />
+			</div>
 			<div class="grid gap-4 sm:grid-cols-3 max-w-3xl">
 				<div class="card preset-outlined-surface-200-800 bg-surface-50-950 p-4"><p class="text-sm opacity-70">In circulation</p><p class="h3 tabular-nums">{mint.books.circulation}</p><p class="text-xs opacity-70">{mint.books.minted} made, {mint.books.destroyed} destroyed</p></div>
 				<div class="card preset-outlined-surface-200-800 bg-surface-50-950 p-4"><p class="text-sm opacity-70">Cash reserve</p><p class="h3 tabular-nums">{pounds(mint.books.cashReserve)}</p>{#if mint.books.capitalReserve}<p class="text-xs opacity-70">+ {pounds(mint.books.capitalReserve)} capital</p>{/if}</div>

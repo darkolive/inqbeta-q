@@ -14,71 +14,73 @@
 <script lang="ts">
 	import StoryDeck from './StoryDeck.svelte';
 	import { along, lerp, type Frame } from './frame';
-	import { Cloud, Padlock, Tick, Coin } from '../story';
+	import { Padlock, Tick, Coin } from '../story';
 
 	let { hideable = true }: { hideable?: boolean } = $props();
 
-	/* The crowd: a jittered grid of phones, the same every time. */
+	/* The crowd: rows of phones, slightly scattered, the same every time. */
 	const phones: [number, number][] = [];
-	let seed = 7;
+	let seed = 11;
 	const rnd = () => ((seed = (seed * 9301 + 49297) % 233280) / 233280);
-	for (let r = 0; r < 5; r++) for (let c = 0; c < 11; c++) phones.push([40 + c * 54 + rnd() * 20, 70 + r * 46 + rnd() * 16]);
-	const ANA = 22; /* left, middle row */
-	const BEN = 32; /* right, middle row */
-	const hops = [22, 24, 26, 28, 30, 32].map((i) => phones[i]);
-	const carriers = [24, 26, 28, 30];
-	const EDGE = 10; /* top right: finds signal */
-	const out = [phones[EDGE], [600, 34] as [number, number]];
+	for (let r = 0; r < 4; r++) for (let c = 0; c < 10; c++) phones.push([46 + c * 61 + (r % 2) * 18 + rnd() * 8, 62 + r * 68 + rnd() * 10]);
+	const ANA = 20; /* left, third row */
+	const BEN = 29; /* right, third row */
+	const route = [20, 11, 12, 23, 24, 15, 16, 27, 28, 29];
+	const hops = route.map((i) => phones[i]);
+	const carriers = route.slice(1, -1);
+	const EDGE = 9; /* top right: finds signal */
+	const out = [phones[EDGE], [612, 18] as [number, number]];
+	/* How brightly a phone glows as the box passes it (0 to 1). */
+	const glowAt = (i: number, box: [number, number]) => Math.max(0, 1 - Math.hypot(phones[i][0] - box[0], phones[i][1] - box[1]) / 46);
 </script>
 
 {#snippet pictures(f: Frame)}
 	{@const k = f.at(3)}
 	{@const box = along(hops, k)}
 	{@const up = along(out, f.at(5))}
+	{@const moving = f.scene === 3 && !f.still}
 	<svg viewBox="0 0 640 320" class="w-full h-auto" aria-hidden="true">
-		<!-- the field -->
-		<rect x="0" y="0" width="640" height="320" class="fill-success-50-950" />
-		<path d="M0 300Q160 284 320 296T640 292V320H0z" class="fill-success-200-800" />
-
-		<!-- 1–4: no signal; 5–6: signal -->
-		<g transform="translate(585 34) scale(0.5)"><Cloud x={0} y={0} /></g>
-		<g class="{f.fade} {f.on(1, 4)}"><line x1="558" y1="14" x2="612" y2="56" class="stroke-error-500" stroke-width="4" stroke-linecap="round" /></g>
-
-		<!-- the crowd -->
+		<!-- the crowd: each phone dark until something passes through it -->
 		{#each phones as [x, y], i (i)}
-			<rect x={x - 6} y={y - 10} width="12" height="20" rx="3" class={(i === ANA || i === BEN) && f.scene >= 2 ? 'fill-primary-500' : carriers.includes(i) && f.scene >= 3 ? 'fill-secondary-500' : 'fill-surface-400-600'} />
+			{@const end = (i === ANA || i === BEN) && f.scene >= 2}
+			{@const carried = carriers.includes(i) && (f.scene > 3 || (f.scene === 3 && route.indexOf(i) <= k * (route.length - 1)))}
+			{@const glow = moving ? glowAt(i, box) : 0}
+			{@const edge = i === EDGE && f.scene === 5}
+			{#if glow > 0 || end || edge}
+				<circle cx={x} cy={y} r={20 + glow * 12} class="fill-primary-400" opacity={glow ? glow * 0.7 : 0.3} />
+			{/if}
+			<rect x={x - 11} y={y - 19} width="22" height="38" rx="5" class="fill-surface-500" />
+			<rect x={x - 8} y={y - 15} width="16" height="27" rx="2" class={end || edge || glow > 0.3 ? 'fill-primary-400' : carried ? 'fill-secondary-400' : 'fill-surface-300-700'} />
 		{/each}
 		<g class="{f.fade} {f.on(2)}">
-			<text x={phones[ANA][0]} y={phones[ANA][1] + 28} text-anchor="middle" class="fill-surface-950-50 text-sm font-bold">Ana</text>
-			<text x={phones[BEN][0]} y={phones[BEN][1] + 28} text-anchor="middle" class="fill-surface-950-50 text-sm font-bold">Ben</text>
+			<text x={phones[ANA][0]} y={phones[ANA][1] + 36} text-anchor="middle" class="fill-surface-950-50 text-sm font-bold">Ana</text>
+			<text x={phones[BEN][0]} y={phones[BEN][1] + 36} text-anchor="middle" class="fill-surface-950-50 text-sm font-bold">Ben</text>
 		</g>
 
-		<!-- 3 onwards: the path the box took, drawn as it travels -->
-		{#each hops.slice(1) as [x, y], i (i)}
-			{@const done = k * (hops.length - 1) - i}
-			{#if done > 0}
-				<line x1={hops[i][0]} y1={hops[i][1]} x2={lerp(hops[i][0], x, done)} y2={lerp(hops[i][1], y, done)} class="stroke-secondary-500" stroke-width="3" stroke-dasharray="4 5" stroke-linecap="round" />
-			{/if}
-		{/each}
+		<!-- 1–4: no signal anywhere -->
+		<g class="{f.fade} {f.on(1, 4)}">
+			<text x="620" y="22" text-anchor="end" class="fill-error-600-400 text-sm font-bold">No signal</text>
+		</g>
 
 		<!-- 2–4: the sealed box, riding along -->
-		<g class="{f.fade} {f.on(2, 4)}"><Padlock x={box[0]} y={box[1] - 44} /></g>
+		<g class="{f.fade} {f.on(2, 4)}"><Padlock x={box[0]} y={box[1] - 50} /></g>
 
 		<!-- 4: got it -->
-		<g class="{f.fade} {f.on(4, 4)}"><Tick x={phones[BEN][0] + 24} y={phones[BEN][1] - 22} /></g>
+		<g class="{f.fade} {f.on(4, 4)}"><Tick x={phones[BEN][0] + 26} y={phones[BEN][1] - 26} /></g>
 
 		<!-- 5: signal at the edge, and the box going up -->
 		<g class="{f.fade} {f.on(5, 5)}">
 			{#each [0, 1, 2] as w (w)}
-				<path d="M{phones[EDGE][0] - 10 - w * 7} {phones[EDGE][1] - 16 - w * 6}a{12 + w * 8} {12 + w * 8} 0 0 1 {20 + w * 14} 0" fill="none" class="stroke-primary-500" stroke-width="3" stroke-linecap="round" />
+				<path d="M{phones[EDGE][0] - 10 - w * 7} {phones[EDGE][1] - 26 - w * 6}a{12 + w * 8} {12 + w * 8} 0 0 1 {20 + w * 14} 0" fill="none" class="stroke-primary-500" stroke-width="3" stroke-linecap="round" />
 			{/each}
 			<g transform="translate({up[0]} {up[1]}) scale(0.6)"><Padlock x={0} y={-14} /></g>
+			<text x="620" y="22" text-anchor="end" class="fill-primary-700-300 text-sm font-bold">4G</text>
 		</g>
 
 		<!-- 6: a little earned by every carrier -->
 		<g class="{f.fade} {f.on(6)}">
 			{#each carriers as c, i (c)}
-				<Coin x={phones[c][0]} y={phones[c][1] - 26 - lerp(0, 10, f.at(6)) * (i % 2 ? 1 : 0.6)} r={10} />
+				<Coin x={phones[c][0]} y={phones[c][1] - 34 - lerp(0, 8, f.at(6)) * (i % 2 ? 1 : 0.6)} r={11} />
 			{/each}
 		</g>
 	</svg>
