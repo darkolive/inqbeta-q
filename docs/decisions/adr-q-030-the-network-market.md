@@ -143,6 +143,11 @@ storage, switchboard):
   hardware are your advantage. The plugin helps you work your cost out (the
   white paper's cost of service, from the kit and its lifespan, power draw
   and electricity), but it's never published unless you choose.
+- **Whether to put by for new kit is the operator's decision**, not the
+  network's. A separate finance plugin could help: put in the capital, its
+  lifespan and any repayments, and see what each gigabyte would need to
+  earn. What it answers informs the operator's price; it isn't part of how
+  the network runs.
 
 ### 3. The provider card
 
@@ -230,13 +235,20 @@ A federation's **heat** is how full its own storage is.
 
 - **The federation publishes the market**: its price, its demand, its heat.
   Providers read it and decide for themselves.
+- **The price index** (in the directory, Dgraph). Every offer and wanted
+  offer records its price per GB, so the directory keeps an index: the
+  average over the last hour, day and month, across the whole incubator
+  universe, beside the commercial providers' published prices and free
+  allowances (a simple survey of the top ten). Anyone can see where their
+  price fits, and whether storage is getting cheaper or dearer: evidence
+  for planning and investment.
 - **The band.** The *floor* is the average stated cost of its providers,
   weighted by the capacity each offers. The *ceiling* is the commercial
   providers' published prices, converted to the same unit (GB-hour against
   GB-month). **Five times cost of sale** is a marker, not a rule: the room
   above cost is what pays for the white paper's four-way split.
-- **The price is chosen within the band by the federation's governance**: a
-  captain, a vote, or lazy consensus. Its charter says which, through the
+- **The price is chosen within the band by the federation's governance**, with
+  the index as its evidence: a captain, a vote, or lazy consensus. Its charter says which, through the
   Plans and Offices blocks (ADR-Q-007 §5).
 - **The orchid line** (a federation's choice). Every provider is paid the
   common rate. A federation may also set an *enough line* per provider,
@@ -247,6 +259,24 @@ A federation's **heat** is how full its own storage is.
   run, so its limit is capacity. When it's full, it's full, and new files go
   to the next node. When a federation has to buy space in, its rate becomes
   the average over everything it has, reset each period.
+
+### 9. Hot and cold: the vault doesn't have to be in one place
+
+Free allowances are small (around 5 GB to 15 GB). A vault that has grown to
+20 GB can't fit in one, unless only part of it needs to be there.
+
+- **A vault is already in pieces.** Every file is sealed on its own and named
+  by its hash, so any place can hold some files and not others.
+- **Hot**: what's recent (say the last three months of receipts and files)
+  plus the index of where everything is. Small, so it fits a free allowance
+  and syncs quickly.
+- **Cold**: everything, including the hot part, in cheaper or slower places:
+  a federation, your bucket, your download. When you open something older,
+  Q fetches it from the cold place, checks it against its name, and keeps it
+  hot for a while.
+- **Never less safe.** The index says where every file is, and `howSafe()`
+  counts ways to survive for the whole vault, hot and cold together. A file
+  is only dropped from hot once it's held in cold.
 
 ## Build order
 
@@ -267,16 +297,22 @@ A federation's **heat** is how full its own storage is.
 6. **The mesh**: Nebula certificates per contract, SeaweedFS volume servers,
    and draining before a contract ends. Tested first on the mini PC and the
    Hetzner node (`home-node.md` §7).
-7. **The price band and its governance**, and the orchid line, once a
-   federation has more than one provider.
+7. **The price index** in the directory, the band and its governance, and
+   the orchid line, once a federation has more than one provider.
+8. **Hot and cold**: the index of where each file is, recent files kept hot,
+   older ones fetched from cold when opened.
 
 ## Open questions
 
-- **Replacing the kit.** Should the price put something by towards new
-  drives, even when the first ones were a gift?
-- **Who votes on price**: members, providers, or both, weighted how?
-- **SeaweedFS over home broadband**, and a stranger's volume server inside a
-  federation's storage: to be measured (`home-node.md` §8).
+- **Who chooses the price within the band**: each federation's charter says
+  (members, providers, or both); the index is the evidence either way.
+- **SeaweedFS on people's own connections.** SeaweedFS is made for servers
+  in one building on fast, steady links. Providers' nodes will be in homes
+  and offices, with slower upload and connections that drop. Does it cope
+  with nodes being slow or vanishing for an hour, and with a stranger's
+  server inside a federation's storage? To be measured (`home-node.md` §8).
+- **How far back is "hot"**, and what goes in the index so that a new device
+  can open from hot alone.
 - **A federation's key as the Nebula authority**: still untested.
 - **Summaries' privacy**: whether counts per period could still reveal too
   much about a small hirer's habits.
