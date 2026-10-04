@@ -148,6 +148,7 @@
 		return store && at ? storeEnds(at, store.months) : '';
 	});
 	let kept = $state<StoreStatus | null>(null);
+	const day = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 	let keptSays = $state('');
 	let copying = $state(false);
 	async function readKept() {
@@ -199,8 +200,11 @@
 							<dl class="grid gap-3 sm:grid-cols-3">
 								<div><dt class="text-sm opacity-70">Your vault there</dt><dd class="h5 tabular-nums">{kept.used ? size(kept.used) : 'Nothing yet'}</dd><dd class="text-xs opacity-70">{kept.files} file{kept.files === 1 ? '' : 's'}</dd></div>
 								<div><dt class="text-sm opacity-70">Room</dt><dd class="h5 tabular-nums">{store.gb} GB</dd><dd class="text-xs opacity-70">{kept.quota ? `${Math.round((kept.used / kept.quota) * 1000) / 10}% used` : 'set aside when bound'}</dd></div>
-								<div><dt class="text-sm opacity-70">Until</dt><dd class="h5">{storeUntil ? new Date(storeUntil).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'}</dd></div>
+								<div><dt class="text-sm opacity-70">Until</dt><dd class="h5">{storeUntil ? day(storeUntil) : '—'}</dd></div>
 							</dl>
+							{#if kept.clears}
+								<p class="text-sm">After that it takes no new copies. It keeps what it has {kept.graceDays ?? 7} more days, so you can renew or move it, then clears it on <strong>{day(kept.clears)}</strong>.</p>
+							{/if}
 						{:else if keptSays}
 							<p class="text-sm card preset-tonal-warning p-3">{keptSays}</p>
 						{:else}

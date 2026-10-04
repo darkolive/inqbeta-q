@@ -56,3 +56,12 @@ test('kept storage: bound by the buyer, from an operator’s listing naming this
 	assert.equal(storePathOk('../x'), false);
 	assert.equal(storePathOk('/etc/passwd'), false);
 });
+
+test('kept storage is cleared a grace after its last term ends, and renewing pushes that back', async () => {
+	const { storeClearsAt } = await import('../../../node/gate/server.mjs');
+	assert.equal(storeClearsAt({ hires: [] }), null, 'nothing taken, nothing to clear');
+	const one = { hires: [{ agreement: 'keep.a', until: '2026-11-03T12:00:00.000Z' }] };
+	assert.equal(storeClearsAt(one, 7), '2026-11-10T12:00:00.000Z', 'a week after the term');
+	const renewed = { hires: [...one.hires, { agreement: 'keep.b', until: '2026-12-03T12:00:00.000Z' }] };
+	assert.equal(storeClearsAt(renewed, 7), '2026-12-10T12:00:00.000Z', 'the latest term decides');
+});

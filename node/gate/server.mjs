@@ -669,6 +669,36 @@ export async function checkStoreHire(body, id, me, shopOf, operators = OPERATORS
 	if (!Number.isFinite(until) || until < now) return { says: 'That term has ended.' };
 	return { hire: { agreement: taken.content.agreement, did: taken.did, bytes: sv.gb * GB, from: new Date(from).toISOString(), until: new Date(until).toISOString() } };
 }
+/*
+ * After the term (Darren, 4 October 2026): a kept copy isn't kept for ever.
+ * Writes stop when the last term ends; the copy can still be read back for a
+ * grace of GATE_STORE_GRACE_DAYS (7), time to renew or take it elsewhere; then
+ * the space is cleared. Taking storage again inside the grace keeps it all.
+ */
+const STORE_GRACE_DAYS = Number(process.env.GATE_STORE_GRACE_DAYS ?? 7);
+/** When a space will be cleared if nobody renews: its last term's end, plus the grace. Null with no hires. */
+export function storeClearsAt(index, graceDays = STORE_GRACE_DAYS) {
+	const ends = (index?.hires ?? []).map((h) => Date.parse(h.until)).filter(Number.isFinite);
+	return ends.length ? new Date(Math.max(...ends) + graceDays * 86400000).toISOString() : null;
+}
+/** Clear every space whose grace has run out. Returns how many were cleared. */
+export async function sweepStores(now = Date.now()) {
+	const r = await fetch(`${FILER}/store/`, { headers: { accept: 'application/json' } }).catch(() => null);
+	if (!r?.ok) return 0;
+	const j = await r.json().catch(() => ({}));
+	const ids = (j.Entries ?? []).map((e) => String(e.FullPath ?? '').split('/').pop()).filter((n) => /^[A-Za-z0-9_-]{22}$/.test(n));
+	let cleared = 0;
+	for (const id of ids) {
+		const done = await inStoreQueue(id, async () => {
+			const clears = storeClearsAt(await storeIndex(id));
+			if (!clears || Date.parse(clears) > now) return false;
+			const del = await fetch(`${storeDir(id)}?recursive=true&ignoreRecursiveError=true`, { method: 'DELETE' }).catch(() => null);
+			return !!del?.ok;
+		});
+		if (done) cleared++;
+	}
+	return cleared;
+}
 /** The space a store has right now: the sum of its hires still running. */
 export const storeQuota = (index, now = Date.now()) => (index?.hires ?? []).filter((h) => Date.parse(h.until) > now).reduce((n, h) => n + h.bytes, 0);
 async function storeIndex(id) {
@@ -713,7 +743,7 @@ async function stores(req, res, origin, id, rest) {
 	if (!rest && req.method === 'GET') {
 		const index = await storeIndex(id);
 		const files = Object.entries(index.files).map(([path, bytes]) => ({ path, bytes }));
-		return send(res, origin, 200, { where, hires: index.hires, quota: storeQuota(index, now), used: files.reduce((n, f) => n + f.bytes, 0), files });
+		return send(res, origin, 200, { where, hires: index.hires, quota: storeQuota(index, now), used: files.reduce((n, f) => n + f.bytes, 0), files, clears: storeClearsAt(index), graceDays: STORE_GRACE_DAYS });
 	}
 	if (rest?.startsWith('f/')) {
 		let path = '';
@@ -969,4 +999,8 @@ export const server = http.createServer(async (req, res) => {
 	return send(res, origin, 200, { ok: true, says: 'Stored. Members have been rung.' });
 });
 
-if (process.argv[1]?.endsWith('server.mjs')) server.listen(PORT, () => console.log(`gate on :${PORT}, serving ${FEDERATIONS.size} federation(s)`));
+if (process.argv[1]?.endsWith('server.mjs')) {
+	server.listen(PORT, () => console.log(`gate on :${PORT}, serving ${FEDERATIONS.size} federation(s)`));
+	/* Kept storage past its grace is cleared, checked every hour. */
+	if (OPERATORS.size) setInterval(() => void sweepStores().then((n) => n && console.log(`cleared ${n} kept space(s) past their grace`)).catch(() => null), 3600_000).unref?.();
+}

@@ -248,7 +248,10 @@ Two public names, with certificates from Caddy, and nothing else opened:
   from a shop held here, of a listing by one of `GATE_OPERATORS` (comma-
   separated `did:key`s: you, the founder), naming this node. Writes stop when
   the term ends. Needs `GATE_SEED` too. `GATE_STORE_FILE_MB` (25) is the
-  largest single file.
+  largest single file. After the last term ends, the copy can still be read
+  back for `GATE_STORE_GRACE_DAYS` (7), time to renew or move it; then the
+  gate clears it (checked hourly). Taking storage again inside the grace keeps
+  everything.
 
 Hetzner firewall: TCP 22, UDP 4242, TCP 80 and 443. Mosquitto now uses
 `per_listener_settings true` (1883 and 9001 sign-in as before; 9002 public).

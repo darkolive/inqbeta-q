@@ -512,6 +512,8 @@ export function sayStep(r: AgreementReceipt, viewer: string, nameOf: (did: strin
 	const c = r.content;
 	const who = (d: string) => (d === viewer ? 'you' : nameOf(d));
 	const Who = (d: string) => (d === viewer ? 'You' : nameOf(d));
+	/* "your shop", "Ana’s shop" — never "you’s shop". */
+	const shopOf = (d: string) => (d === viewer ? 'your shop' : `${nameOf(d)}’s shop`);
 	const by = r.did;
 	const t = c.terms ?? terms ?? null;
 	const theirs = (d: string) => (t ? (d === t.a ? t.aGives : t.bGives) : null);
@@ -532,9 +534,9 @@ export function sayStep(r: AgreementReceipt, viewer: string, nameOf: (did: strin
 		case 'agreed':
 			return `${Who(by)} accepted. ${t ? `${Who(t.a)} and ${who(t.b)} agreed: ${valueText(t.aGives)} in exchange for ${valueText(t.bGives)}.` : ''}`.trim();
 		case 'taken':
-			if (t?.service?.kind === 'store') return `${Who(by)} took ${t.service.gb} GB of kept storage for ${t.service.months} month${t.service.months === 1 ? '' : 's'} from ${who(t.a)}’s shop, for ${valueText(t.bGives)}.`;
-			if (t?.service?.kind === 'pass-through') return `${Who(by)} hired from ${who(t.a)}’s shop: ${valueText(t.aGives)}, at ${t.service.perGBHour} credits a GB held an hour, up to ${valueText(t.bGives)}.`;
-			return t ? `${Who(by)} bought from ${who(t.a)}’s shop: ${valueText(t.aGives)} for ${valueText(t.bGives)}.` : `${Who(by)} bought from a shop.`;
+			if (t?.service?.kind === 'store') return `${Who(by)} took ${t.service.gb} GB of kept storage for ${t.service.months} month${t.service.months === 1 ? '' : 's'} from ${shopOf(t.a)}, for ${valueText(t.bGives)}.`;
+			if (t?.service?.kind === 'pass-through') return `${Who(by)} hired from ${shopOf(t.a)}: ${valueText(t.aGives)}, at ${t.service.perGBHour} credits a GB held an hour, up to ${valueText(t.bGives)}.`;
+			return t ? `${Who(by)} bought from ${shopOf(t.a)}: ${valueText(t.aGives)} for ${valueText(t.bGives)}.` : `${Who(by)} bought from a shop.`;
 		case 'declined':
 			return `${Who(by)} declined.`;
 		case 'withdrawn':

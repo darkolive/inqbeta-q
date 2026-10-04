@@ -138,8 +138,19 @@ export function booksOf(receipts: { json?: unknown; holds?: string }[], mint: st
 	/* Credits moved between members by agreements, in this mint. */
 	const byAgreement = new Map<string, AgreementReceipt[]>();
 	for (const s of steps) byAgreement.set(s.content.agreement, [...(byAgreement.get(s.content.agreement) ?? []), s]);
+	/*
+	 * A purchase from a shop (ADR-Q-026) has its own id, "<listing>.<n>", and
+	 * reads with the shop offer it took: without it the purchase has no terms,
+	 * and its settlements would move nobody's credits.
+	 */
+	const listingOf = (chain: AgreementReceipt[]) => {
+		const taken = chain.find((s) => s.content.step === 'taken');
+		const dot = taken ? taken.content.agreement.lastIndexOf('.') : -1;
+		if (!taken || dot < 0) return [];
+		return (byAgreement.get(taken.content.agreement.slice(0, dot)) ?? []).filter((s) => s.contentHash === taken.content.parent);
+	};
 	for (const chain of byAgreement.values()) {
-		for (const e of standingOf(chain).settled.flat()) {
+		for (const e of standingOf([...listingOf(chain), ...chain]).settled.flat()) {
 			if (!('credits' in e.value) || e.value.mode !== mode || (e.value.mint ?? '') !== mint) continue;
 			add(b.holders, e.from, -e.value.credits);
 			add(b.holders, e.to, e.value.credits);

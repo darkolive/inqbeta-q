@@ -54,6 +54,9 @@ export interface StoreStatus {
 	files: number;
 	/** Agreements this space is bound to at the node. */
 	bound: string[];
+	/** When the node clears the copy if nobody renews: the last term's end plus its grace. */
+	clears?: string;
+	graceDays?: number;
 }
 
 /** What the node holds for you, and how much space you have. */
@@ -61,9 +64,9 @@ export async function storeStatus(identity: Pick<Identity, 'vault'>, url: string
 	try {
 		const { id, key } = await relayOf(identity);
 		const r = await fetch(`${base(url)}/store/${id}`, { headers: { 'x-relay-key': key }, signal: AbortSignal.timeout(15_000) });
-		const j = (await r.json().catch(() => ({}))) as { quota?: number; used?: number; files?: unknown[]; hires?: { agreement: string }[]; says?: string };
+		const j = (await r.json().catch(() => ({}))) as { quota?: number; used?: number; files?: unknown[]; hires?: { agreement: string }[]; clears?: string | null; graceDays?: number; says?: string };
 		if (!r.ok) return { ok: false, says: j.says ?? `The node said ${r.status}.` };
-		return { ok: true, status: { quota: j.quota ?? 0, used: j.used ?? 0, files: j.files?.length ?? 0, bound: (j.hires ?? []).map((h) => h.agreement) } };
+		return { ok: true, status: { quota: j.quota ?? 0, used: j.used ?? 0, files: j.files?.length ?? 0, bound: (j.hires ?? []).map((h) => h.agreement), ...(j.clears ? { clears: j.clears } : {}), ...(typeof j.graceDays === 'number' ? { graceDays: j.graceDays } : {}) } };
 	} catch (e) {
 		return { ok: false, says: e instanceof Error ? e.message : 'The node didn’t answer.' };
 	}

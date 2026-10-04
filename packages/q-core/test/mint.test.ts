@@ -136,3 +136,21 @@ test('the gate keeps a mint’s ledger: its own receipts, holders’ own asks, a
 	const forged = { ...made, content: { ...made.content, credits: 1000 } };
 	assert.ok(await checkLedgerEntry(forged, w.club.did, 'test'), 'a changed receipt isn’t signed');
 });
+
+/* Found proving Join (4 October 2026): a shop purchase reads with the offer it took, so its credits move. */
+test('credits paid for a shop purchase move from buyer to seller', async () => {
+	const w = await world();
+	const bought = await ev(w.club, { kind: 'mint', mint: w.club.did, credits: 10, to: w.ana.did, pence: 1_000, cites: ['test-payment-shop'] });
+	const terms = { kind: 'job' as const, a: w.ben.did, b: '', aGives: { thing: '1 GB kept for a month' }, bGives: { credits: 5, mode: 'test' as const, mint: w.club.did } };
+	const listing = await step(w.ben, { agreement: 'shop', step: 'proposed', parent: null, terms, limit: 3 });
+	const id = 'shop.1a2b3c4d';
+	const taken = await step(w.ana, { agreement: id, step: 'taken', parent: listing.contentHash, terms: { ...terms, b: w.ana.did } });
+	const entries: Entry[] = [{ from: w.ana.did, to: w.ben.did, value: terms.bGives }];
+	const s1 = await step(w.ana, { agreement: id, step: 'settled', parent: taken.contentHash, entries });
+	const s2 = await step(w.ben, { agreement: id, step: 'settled', parent: s1.contentHash, entries });
+	const b = booksOf(vault(bought, listing, taken, s1, s2), w.club.did, 'test', PENCE);
+	assert.deepEqual(b.problems, []);
+	assert.equal(b.holders.get(w.ana.did), 5);
+	assert.equal(b.holders.get(w.ben.did), 5);
+	assert.equal(b.circulation, 10);
+});

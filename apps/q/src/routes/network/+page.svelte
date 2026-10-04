@@ -44,6 +44,8 @@
 	import { waysStanding, type WaysStanding } from '@inqbeta/q-core/continuity';
 	import { currentEnvelope } from '@inqbeta/q-core/ways-back-in';
 	import { watchEngine, type EngineState } from '$lib/actions/engine';
+	import { storeHires, storeStatus, type StoreStatus } from '$lib/store';
+	import { hiredPlaces } from '$lib/relay';
 
 	/* The one definition of what a check is — taken from Found rather than
 	 * written out again, because restating a type is how it drifts from the
@@ -122,7 +124,53 @@
 		}))
 	);
 
-	const safety = $derived(howSafe(asPlaces));
+	/*
+	 * Places taken from the network (ADR-Q-030 §1, 4 October 2026): kept
+	 * storage and hired pass-throughs, from your own agreements. Kept storage
+	 * holds a full copy, so it counts, by its node's fate; it is "checked" only
+	 * when the node answers just now with your vault there. A pass-through only
+	 * holds things while a cloud can't, so it is shown and never counted.
+	 */
+	const me = $derived(identity?.did ?? '');
+	const kept = $derived(storeHires(ledger, me));
+	const hired = $derived(hiredPlaces(ledger, me));
+	let keptAt = $state<Record<string, { status?: StoreStatus; says?: string; at: number }>>({});
+	let asking = $state(false);
+	async function askKept() {
+		if (!identity) return;
+		asking = true;
+		const urls = [...new Set(kept.map((h) => h.service.store))];
+		const out: typeof keptAt = {};
+		for (const u of urls) {
+			const r = await storeStatus(identity, u);
+			out[u] = r.ok ? { status: r.status, at: Date.now() } : { says: r.says, at: Date.now() };
+		}
+		keptAt = out;
+		asking = false;
+	}
+	const keptKey = $derived(kept.map((h) => h.agreement).join(','));
+	$effect(() => {
+		if (identity && keptKey) void askKept();
+	});
+	const hostOf = (u: string) => {
+		try {
+			return new URL(u).host;
+		} catch {
+			return u;
+		}
+	};
+	const keptPlaces = $derived<(Place & { hire: (typeof kept)[number] })[]>(
+		kept.map((h) => {
+			const a = keptAt[h.service.store];
+			const there = !!a?.status && a.status.bound.includes(h.agreement) && a.status.used > 0;
+			return { id: `kept:${h.agreement}`, name: `Kept at ${hostOf(h.service.store)}`, tier: 'cold', fate: `node:${h.service.where}`, lastChecked: there ? a.at : null, hire: h };
+		})
+	);
+	const everyPlace = $derived<Place[]>([...asPlaces, ...keptPlaces]);
+	const day = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+	const size = (n: number) => (n < 1024 ? `${n} bytes` : n < 1024 ** 2 ? `${Math.round(n / 1024)} KB` : n < 1024 ** 3 ? `${(n / 1024 ** 2).toFixed(1)} MB` : `${(n / 1024 ** 3).toFixed(2)} GB`);
+
+	const safety = $derived(howSafe(everyPlace));
 
 	/* What Q could add without being told anything, and has not already got. */
 	const offered = $derived.by(() => {
@@ -235,7 +283,7 @@
 			</div>
 		</Section>
 
-		{#if !places.length}
+		{#if !places.length && !kept.length && !hired.length}
 			<Empty
 				icon="network"
 				title="No places yet"
@@ -294,7 +342,44 @@
 		</Section>
 	{/if}
 
-	{#if identity && places.length}
+	{#if identity && (kept.length || hired.length)}
+		<Section title="From the network" description="Storage you’ve taken from a federation. Each one is its own agreement.">
+			<div class="space-y-3">
+				{#each keptPlaces as kp (kp.id)}
+					{@const standing = standingOfPlace(kp)}
+					{@const a = keptAt[kp.hire.service.store]}
+					<Item
+						title={kp.name}
+						subtitle="Kept storage: a full copy of your vault, {kp.hire.service.gb} GB until {day(kp.hire.ends)}"
+						description={a?.status ? `Your vault there: ${a.status.used ? `${size(a.status.used)}, ${a.status.files} file${a.status.files === 1 ? '' : 's'}` : 'nothing yet'}.` : (a?.says ?? 'Asking the node…')}
+						meta={standing.says}
+					>
+						{#snippet status()}
+							<Status tone={standing.confidence === 'checked' ? 'good' : 'waiting'}>{standing.confidence === 'checked' ? 'Checked' : 'Not checked'}</Status>
+						{/snippet}
+						{#snippet actions()}
+							<a class="btn btn-sm preset-tonal" href="/agreements/{encodeURIComponent(kp.hire.agreement)}">The agreement</a>
+						{/snippet}
+					</Item>
+				{/each}
+				{#each hired as h (h.hired)}
+					<Item
+						title="Pass-through at {hostOf(h.url)}"
+						subtitle="Hired by the hour"
+						description="Holds files only while a cloud can’t take them, then lets them go. It isn’t a copy, so it isn’t counted below."
+					>
+						{#snippet actions()}
+							<a class="btn btn-sm preset-tonal" href="/agreements/{encodeURIComponent(h.hired ?? '')}">The agreement</a>
+						{/snippet}
+					</Item>
+				{/each}
+			</div>
+			{#if kept.length}
+				<button class="btn btn-sm preset-tonal mt-3" disabled={asking} onclick={() => void askKept()}>{asking ? 'Asking…' : 'Check again'}</button>
+			{/if}
+		</Section>
+	{/if}
+	{#if identity && (places.length || keptPlaces.length)}
 		<div class="card p-5 mb-6">
 			<Status tone={safety.level === 'fine' ? 'good' : safety.level === 'warn' ? 'waiting' : 'bad'}>
 				{safety.level === 'fine' ? 'Safe' : safety.level === 'warn' ? 'Thin' : 'At risk'}
@@ -305,7 +390,8 @@
 			{/if}
 		</div>
 
-		<Section title="Places" description="The newest thing known about each.">
+{#if places.length}
+				<Section title="Places" description="The newest thing known about each.">
 			<div class="space-y-3">
 				{#each places as place (place.id)}
 					{@const standing = standingOfPlace(asPlaces.find((p) => p.id === place.id)!)}
@@ -360,6 +446,7 @@
 				{/each}
 			</div>
 		</Section>
+		{/if}
 
 		<Section title="What Q cannot tell you yet">
 			<Item

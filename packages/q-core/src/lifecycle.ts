@@ -164,7 +164,7 @@ export function howSafe(places: Place[], now = Date.now()): Safety {
 		return {
 			level: 'warn',
 			ways,
-			says: `There are ${ways} independent ${ways === 1 ? 'way' : 'ways'} this survives.`,
+			says: `There ${ways === 1 ? 'is 1 independent way' : `are ${ways} independent ways`} this survives.`,
 			fix: 'Three is the number worth aiming for, and one of them somewhere you unplug.'
 		};
 	}

@@ -26,7 +26,7 @@
 	const KIND = { swap: 'Swap', job: 'Job', treaty: 'Treaty' } as const;
 
 	const heading = $derived(
-		t && !t.b && standing.limit && t.a === me ? `In your shop: ${standing.limit} to sell`
+		t && !t.b && standing.limit && t.a === me ? `In your shop: ${standing.limit} offered`
 		: t && !t.b && standing.limit ? `In ${name}’s shop`
 		: t && !t.b && t.a === me ? 'Your open offer, shared by link'
 		: standing.takenFrom && t?.service?.kind === 'store' && t.a === me ? `Storage taken by ${name}`
