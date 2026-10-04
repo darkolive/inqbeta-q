@@ -168,6 +168,17 @@ on localhost; new localStorage keys go in `q-core/src/storage.ts`.
   credits minted for a starting business (ADR-Q-027: capital and grants as
   reserves), so youngsters have credits to work with from the start. For the
   accountant: whether such a grant is income of the business.
+- **The federation's home page as its snapshot** (Darren, 4 October): the
+  cover, "about the club", then **the health of the network it runs**, and
+  one button, **Join** (or **Add**): taking its storage offer adds it to your
+  copies, pass-through or kept, with the cost shown and agreed in one step.
+  Then its campaigns. Below: graphs of growth, credits minted and in
+  circulation, and **what backs them** (the mint's reserves against the
+  credits out). A safety valve set on localhost: the mint refuses new
+  cash-outs, or minting beyond its reserves, when reserves fall below a
+  ratio the host sets (the white paper's reserve ratio, 20% as an example).
+- **Your home page**: updates from the people and projects you follow;
+  unfollow as easily. Rewards can include staying in touch (a card shared).
 - **Crowdfunding, following, and the test bed**: now ADR-Q-031 (gift
   campaigns, backing with rewards in kind, following on the home page,
   enterprises that start in credits and go live when ready, sponsorship).

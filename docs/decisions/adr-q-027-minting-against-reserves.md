@@ -1,7 +1,7 @@
 ---
 status: decided (Darren, 3 October 2026) — every host runs in test mode until its operator publishes
 implementation: test mode working end to end — mint, cashout and burn receipts and the books (q-core mint.ts), publishing (q-core money.ts), the rules in Cedar (q-actions core/mint.ts, server engine node.ts), the host's /api/mint with its ledger at the gate (or mint.local/ on localhost), Buy and Cash out on Credits, agreements in the mint's credits filed with its ledger, Money and Publish on the console, 3 October 2026. Not yet: real payments and payouts
-updated: 2026-10-03
+updated: 2026-10-04
 ---
 
 # ADR-Q-027 — Minting against reserves: credits made when value comes in, destroyed when it goes out
@@ -209,3 +209,49 @@ ADR-Q-007 (federations), ADR-Q-017 §7 (never cashed out: changed here), ADR-Q-0
 sheet), ADR-Q-025 (agreements and settlement); `origins/white-paper-2025-12.md`
 (§7 issuance, §8 transaction allocation, §11 reserve consumption, §13
 redemption), `origins/service-sheet.md` (shares and treasury).
+
+## Addendum, 4 October 2026: the reserve ratio, and the safety valve
+
+Darren: "It's the surviving balance of minted coins that determines
+everything." A mint starts at nothing; nothing exists until value comes in.
+Add £20 and 20 credits are minted: balance 20. Cash 5 out and 5 are
+destroyed: 15 credits against £15.
+
+**The ratio** is what backs the credits in circulation:
+
+```
+reserve ratio  =  (cash reserve + capital reserve) ÷ (credits in circulation × pounds per credit)
+```
+
+**Buying and cashing out don't move it.** Each moves pounds and credits
+together: buying 20 credits adds £20 and 20 credits; cashing out 5 removes
+£5 and 5 credits. A fully backed mint stays fully backed.
+
+**It falls only when the reserve shrinks on its own**, usually because the
+host draws on it, as the white paper allows, for the cost of services it has
+delivered. 100 credits out, and £85 of the £100 spent on running the node:
+£15 backs 100 credits, a ratio of 15%.
+
+**The safety valve**, set on localhost (the host underwriting its mint): a
+minimum ratio, 20% as an example (the white paper's reserve ratio). Below
+it, the mint **pauses what would weaken the backing**: cash-outs, and
+minting against capital or grants beyond what the reserve covers.
+
+**Buying is never paused.** Each credit bought brings its own pound, so new
+credits are fully backed the moment they're minted, and buying pulls a
+low ratio back up:
+
+| | Reserve | Credits out | Ratio | Cash-outs |
+|---|---|---|---|---|
+| Before | £15 | 100 | 15% | paused (below 20%) |
+| Someone buys 50 | £65 | 150 | 43% | open again |
+
+Bringing value in is never blocked, because that's what heals it.
+
+**The federation's home page shows it** as its trust figure: "£1,240 held
+for 1,240 credits: fully backed", or the ratio, beside credits minted and in
+circulation (ADR-Q-030's snapshot).
+
+Build: the minimum ratio as a Money setting on localhost, published with the
+mint's terms; `credits.cashout` refuses below it (Cedar), saying why and how
+it reopens; the ratio on the federation's home page.

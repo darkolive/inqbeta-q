@@ -106,10 +106,40 @@ through the mint: their grant goes into reserves and credits are minted
 against it (ADR-Q-027), given to the enterprise as a gift campaign that's
 already full. The sponsor follows the enterprise like any backer.
 
+## Addendum, 4 October 2026: kinds of campaign, and pledges held
+
+Darren: "It's either to support running costs going towards, or the project
+can't happen until it's met its target … there has to be a starting figure
+reached before it can start … if I say I'll support this and put 10 credits
+in, that comes under the committed rule … if that person doesn't meet the
+target by a set date … I get my credits released. But I can't spend those
+credits on anything else because I've promised I would support them."
+
+**Three kinds**, chosen when a campaign starts and written into its terms:
+
+| Kind | When backers' credits move | If it falls short |
+|---|---|---|
+| **Running costs** (keep what comes in) | straight away, as each pledge is made | nothing to return: every credit helped |
+| **All or nothing** (target by a date) | only when the target is met, all at once | every pledge released back to its backer |
+| **Start when there's enough** (a minimum, then more) | when the minimum is met; after that, as pledged | if the minimum isn't met by the date, every pledge released |
+
+**A pledge is a commitment, not a payment.** It's an agreement (ADR-Q-025):
+the backer promises credits on the campaign's terms. Until the terms say the
+credits move, they stay in the backer's balance but are **committed**, the
+same rule that already stops anyone promising the same credits twice
+(`creditsCommitted`): they can't be spent elsewhere. If the campaign falls
+short by its date, the commitment ends and the credits are free again. No
+one has to trust the campaigner with credits before the project can happen.
+
+**Rules (Cedar)**: a pledge can't promise more than the backer has free;
+credits move only when the kind's condition is met; a campaign can't change
+its kind, target or date once someone has pledged (a change ends it, and
+releases everyone, and it starts again).
+
 ## Build order
 
 1. **Gift campaigns**: the page, the standing offer, the bar from receipts,
-   updates.
+   updates; the three kinds, with pledges held as commitments.
 2. **Following**: follow a person, campaign or project; updates on the home
    page; indexed.
 3. **Backing with rewards**: rewards in the terms; delivery as done and
