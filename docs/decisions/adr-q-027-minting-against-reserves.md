@@ -255,3 +255,15 @@ circulation (ADR-Q-030's snapshot).
 Build: the minimum ratio as a Money setting on localhost, published with the
 mint's terms; `credits.cashout` refuses below it (Cedar), saying why and how
 it reopens; the ratio on the federation's home page.
+
+**Checking the reserve with the bank** (Darren, 4 October: "it just needs to
+ping and say, can you honour this?"). UK Open Banking's *Confirmation of
+Funds* answers exactly that: asked "are £X available in this account?", the
+bank replies yes or no, and never the balance. The account holder consents
+once, for a set period. Q could ask it for the cash reserve, show "reserve
+confirmed by the bank, [date]" beside the ratio, and refuse to count a
+reserve the bank won't confirm. Limits: calling it needs a regulated
+provider (a card-based payment instrument issuer under PSD2), so it would
+come through a provider the host connects with its own key; a yes is true
+at that moment, not a promise the money stays; and it confirms funds are
+there, not that they're set aside for the mint.
