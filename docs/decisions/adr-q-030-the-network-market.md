@@ -1,6 +1,6 @@
 ---
 status: proposed
-implementation: step 1 started 4 October 2026 — kept storage by the month (q-core StoreService; the gate's /store, given only against a purchase it checks in its own shop from one of GATE_OPERATORS; apps/q lib/store.ts, synced like a cloud; the host offers it from Services, people Take it from the shop, and the agreement shows their vault there, its room and its end). Not yet: the button on a federation's page, the Network page. Built before it: hiring a pass-through by the hour (ADR-Q-028 §5)
+implementation: step 1 started 4 October 2026 — kept storage by the month (q-core StoreService; the gate's /store, given only against a purchase it checks in its own shop from one of GATE_OPERATORS; apps/q lib/store.ts, synced like a cloud; the host offers it from Services, people Take it from the shop, and the agreement shows their vault there, its room and its end). Then (4 October) the federation's home page as its snapshot (lib/components/FederationSnapshot.svelte): the network it runs, asked through the front door; **Join**, its storage offers from its operators' shops, taken in one step; what backs its credits. Not yet: the Network page showing places, growth graphs (need dated mint receipts), the snapshot for clubs other than the host. Built before it: hiring a pass-through by the hour (ADR-Q-028 §5)
 updated: 2026-10-04
 ---
 

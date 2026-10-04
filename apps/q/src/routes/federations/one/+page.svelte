@@ -55,6 +55,7 @@
 	import IntroSlides from '$lib/components/IntroSlides.svelte';
 	import MoneyPublish from '$lib/components/MoneyPublish.svelte';
 	import PricingFromFlow from '$lib/components/PricingFromFlow.svelte';
+	import FederationSnapshot from '$lib/components/FederationSnapshot.svelte';
 
 	let identity = $state<Identity | null>(null);
 	let ledger = $state<Ledger | null>(null);
@@ -594,6 +595,8 @@
 				/>
 				<div class="flex flex-wrap gap-6">
 					<div class="flex-[999_1_32rem] min-w-0 flex flex-col">
+						<!-- Its snapshot (ADR-Q-030 §1): the network it runs, Join, what backs its credits. -->
+						{#if isHome && home?.ok}<FederationSnapshot {home} {identity} {ledger} name={founding.name} />{/if}
 						<Section title="Coming up">
 							<Empty icon="festival" title="No events yet" description="Events are coming soon. The club will list them here, with a time and a place, and you’ll be able to say you’re going." />
 						</Section>
