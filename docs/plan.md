@@ -249,6 +249,20 @@ on localhost; new localStorage keys go in `q-core/src/storage.ts`.
   neurodivergent-friendly ones: one idea per scene, six scenes at most,
   short plain words, the least noise, motion only where it explains,
   reduced motion respected, read aloud built in.
+  **What a story costs** (Darren, 4 October): AI is tokens. Before making a
+  story, the person sees what it will cost in credits ("about 1.5 credits"),
+  worked out from the host's own cost per token plus its commission, and
+  agrees to it like any agreement. The exact count is only known after, so
+  it's agreed as a most ("up to 2 credits") and settled at what was used,
+  the same shape as hiring a pass-through. Every AI use balances like
+  everything else: the host can see what's come in, like checking a vending
+  machine, and take some out.
+- **Plans from real data** (Darren, 4 October): every receipt, every
+  experiment, every test-bed enterprise leaves data, so a business plan or
+  a cash-flow forecast can be drawn from what actually happened (yours,
+  and, by consent, the federation's), not guessed. With the backing display
+  and stories, a club can show how it's doing and make its case (an
+  announcement, raising capital) in a way people can read and trust.
 - **Crowdfunding, following, and the test bed**: now ADR-Q-031 (gift
   campaigns, backing with rewards in kind, following on the home page,
   enterprises that start in credits and go live when ready, sponsorship).
