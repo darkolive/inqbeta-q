@@ -93,7 +93,10 @@ export interface Place {
 export function hiredPlaces(ledger: Ledger | null, me: string): Place[] {
 	return agreementsFrom(ledger)
 		.filter((a) => a.standing.phase === 'agreed' && a.standing.terms?.service?.kind === 'pass-through' && a.standing.terms.b === me)
-		.map((a) => ({ url: a.standing.terms!.service!.relay.replace(/\/$/, ''), hired: a.id }))
+		.flatMap((a) => {
+			const sv = a.standing.terms?.service;
+			return sv?.kind === 'pass-through' ? [{ url: sv.relay.replace(/\/$/, ''), hired: a.id }] : [];
+		})
 		.filter((p, i, all) => all.findIndex((q) => q.url === p.url) === i);
 }
 

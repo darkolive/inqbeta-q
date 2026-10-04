@@ -345,3 +345,36 @@ test('a hire, now: no "done", just settling for what was used', async () => {
 	assert.match(op.says, /^Ben has hired/);
 	assert.deepEqual(op.actions.map((a) => a.id), ['sold-out']);
 });
+
+test('a hire reads as a hire, not a purchase', async () => {
+	const { ana, ben } = await people();
+	const svc = { kind: 'pass-through' as const, relay: 'https://storage.example.org', where: 'relay:did:key:z6MkguuUVNj72BEqpY3qHikwFtSCiUWgDGbwiX8pqu5uh3gK', perGBHour: 0.2 };
+	const hire: Terms = { kind: 'job', a: ana.did, b: '', aGives: { thing: 'Pass-through' }, bGives: { credits: 50, mode: 'test' }, service: svc };
+	const listing = await sign(ana, step({ agreement: 'r', step: 'proposed', parent: null, terms: hire, limit: 10 }));
+	const taken = await sign(ben, step({ agreement: 'r.b', step: 'taken', parent: listing.contentHash, terms: { ...hire, b: ben.did } }));
+	const name = (d: string) => (d === ana.did ? 'Ana' : 'Ben');
+	assert.match(sayStep(listing, ben.did, name), /Ana put Pass-through in their shop to hire, at 0.2 credits a GB held an hour, up to 50 test credits each, for 10 hirers\./);
+	assert.match(sayStep(taken, ben.did, name), /^You hired from Ana’s shop: Pass-through, at 0.2 credits/);
+});
+
+test('kept storage by the month: described properly, reads as storage, settled as agreed', async () => {
+	const { agreementNow, storeEnds, hireDue } = await import('../src/agreements');
+	const { ana, ben } = await people();
+	const svc = { kind: 'store' as const, store: 'https://storage.example.org', where: 'relay:did:key:z6MkguuUVNj72BEqpY3qHikwFtSCiUWgDGbwiX8pqu5uh3gK', gb: 10, months: 1 };
+	const t: Terms = { kind: 'job', a: ana.did, b: '', aGives: { thing: 'Storage kept for you' }, bGives: { credits: 5, mode: 'test' }, service: svc };
+	assert.deepEqual(problemsWithTerms(t), []);
+	assert.ok(problemsWithTerms({ ...t, service: { ...svc, gb: 1.5 } }).length);
+	assert.ok(problemsWithTerms({ ...t, service: { ...svc, months: 13 } }).length);
+	const listing = await sign(ana, step({ agreement: 'st', step: 'proposed', parent: null, terms: t, limit: 3 }));
+	const taken = await sign(ben, step({ agreement: 'st.b', step: 'taken', parent: listing.contentHash, terms: { ...t, b: ben.did } }));
+	const name = (d: string) => (d === ana.did ? 'Ana' : 'Ben');
+	assert.match(sayStep(listing, ben.did, name), /Ana put 10 GB of kept storage for 1 month in their shop, for 5 test credits, 3 available\./);
+	assert.match(sayStep(taken, ben.did, name), /^You took 10 GB of kept storage for 1 month from Ana’s shop/);
+	const s = standingOf([listing, taken]);
+	assert.equal(s.phase, 'agreed');
+	const now = agreementNow(s, ben.did, 'st.b', name);
+	assert.equal(now.panel, 'settle');
+	assert.deepEqual(now.actions, []);
+	assert.equal(hireDue(s, 1e12), null, 'not paid by the hour');
+	assert.equal(storeEnds('2026-10-04T00:00:00.000Z', 1), '2026-11-03T00:00:00.000Z');
+});

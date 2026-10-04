@@ -31,7 +31,7 @@ const UCAN_EXT = '.ucan';
 const MANIFEST = 'dostudy.json';
 const READ_ME = 'READ ME.txt';
 
-export type ChannelKind = 'this-browser' | 'folder' | 'google-drive' | 'dropbox' | 'onedrive' | 'bucket';
+export type ChannelKind = 'this-browser' | 'folder' | 'google-drive' | 'dropbox' | 'onedrive' | 'bucket' | 'store';
 
 export interface StorageChannel {
 	id: string;

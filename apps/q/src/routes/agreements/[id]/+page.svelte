@@ -33,6 +33,9 @@
 	import { hireDue } from '@inqbeta/q-core/agreements';
 	import { usageOf } from '@inqbeta/q-core/custody';
 	import { custodyAt } from '$lib/relay';
+	import { storeEnds } from '@inqbeta/q-core/agreements';
+	import { storeStatus, type StoreStatus } from '$lib/store';
+	import { syncCloudNow } from '$lib/autosync';
 
 	let identity = $state<Identity | null>(null);
 	let ledger = $state<Ledger | null>(null);
@@ -138,6 +141,34 @@
 	const due = $derived(s ? hireDue(s, use?.byteHours ?? 0) : null);
 	const gbHours = (b: number) => (b > 0 && b / 1024 ** 3 < 0.0001 ? 'under 0.0001' : (b / 1024 ** 3).toFixed(b / 1024 ** 3 < 0.01 ? 4 : 2));
 
+	/* Kept storage (ADR-Q-030): what the node holds for you there, and how much room you have. */
+	const store = $derived(s?.terms?.service?.kind === 'store' && s.terms.b === me ? s.terms.service : null);
+	const storeUntil = $derived.by(() => {
+		const at = view?.steps.find((r) => r.content.step === 'taken')?.content.at;
+		return store && at ? storeEnds(at, store.months) : '';
+	});
+	let kept = $state<StoreStatus | null>(null);
+	let keptSays = $state('');
+	let copying = $state(false);
+	async function readKept() {
+		if (!store || !identity) return;
+		const out = await storeStatus(identity, store.store);
+		if (out.ok) {
+			kept = out.status;
+			keptSays = '';
+		} else keptSays = out.says;
+	}
+	$effect(() => {
+		if (store && identity) void readKept();
+	});
+	async function copyNow() {
+		copying = true;
+		await syncCloudNow('manual').catch(() => null);
+		await readKept();
+		copying = false;
+	}
+	const size = (b: number) => (b >= 1024 ** 3 ? `${(b / 1024 ** 3).toFixed(2)} GB` : b >= 1024 ** 2 ? `${(b / 1024 ** 2).toFixed(1)} MB` : `${Math.ceil(b / 1024)} KB`);
+
 	const who = (d: string) => (d === me ? 'you' : themName);
 	const entryText = (e: Entry) => `${valueText(e.value)} from ${who(e.from)} to ${who(e.to)}`;
 </script>
@@ -157,6 +188,28 @@
 		<div class="grid grid-cols-1 gap-8 lg:grid-cols-5 items-start">
 			<div class="lg:col-span-3 flex flex-col gap-6 min-w-0">
 				<AgreementCard standing={s} {me} {people} />
+
+				{#if store}
+					<div class="card preset-outlined-surface-200-800 p-4 sm:p-5 flex flex-col gap-3">
+						<div class="flex flex-wrap items-center gap-3">
+							<p class="font-bold flex-1">Kept at {new URL(store.store).host}</p>
+							<Status tone={kept?.bound.includes(id) ? 'good' : 'waiting'}>{kept?.bound.includes(id) ? 'Set aside for you' : 'Being set up'}</Status>
+						</div>
+						{#if kept}
+							<dl class="grid gap-3 sm:grid-cols-3">
+								<div><dt class="text-sm opacity-70">Your vault there</dt><dd class="h5 tabular-nums">{kept.used ? size(kept.used) : 'Nothing yet'}</dd><dd class="text-xs opacity-70">{kept.files} file{kept.files === 1 ? '' : 's'}</dd></div>
+								<div><dt class="text-sm opacity-70">Room</dt><dd class="h5 tabular-nums">{store.gb} GB</dd><dd class="text-xs opacity-70">{kept.quota ? `${Math.round((kept.used / kept.quota) * 1000) / 10}% used` : 'set aside when bound'}</dd></div>
+								<div><dt class="text-sm opacity-70">Until</dt><dd class="h5">{storeUntil ? new Date(storeUntil).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : '—'}</dd></div>
+							</dl>
+						{:else if keptSays}
+							<p class="text-sm card preset-tonal-warning p-3">{keptSays}</p>
+						{:else}
+							<p class="text-sm opacity-70">Asking the node…</p>
+						{/if}
+						<p class="text-sm text-surface-700-300">Each sync keeps a full copy of your sealed vault here, like a cloud. The node can’t open any of it.</p>
+						<button type="button" class="btn preset-tonal min-h-11 self-start" disabled={copying} onclick={() => void copyNow()}><Icon name="repeat" size={18} />{copying ? 'Copying…' : 'Copy my vault now'}</button>
+					</div>
+				{/if}
 
 				<!-- What you can do now: decided by agreementNow, drawn by the exchange set. -->
 				{#if now}
@@ -179,7 +232,7 @@
 									<button type="button" class="btn preset-filled-primary-500 min-h-11 self-start" disabled={making} onclick={() => void makeLink()}><Icon name="share" size={18} />{making ? 'Making the link…' : 'Make a link to send'}</button>
 								{/if}
 								{#if linkSays}<p class="text-sm card preset-tonal-warning p-3">{linkSays}</p>{/if}
-							{:else if now.panel === 'hire' && s.terms?.service && due}
+							{:else if now.panel === 'hire' && s.terms?.service?.kind === 'pass-through' && due}
 								{@const sv = s.terms.service}
 								<div class="card preset-tonal-surface p-4 flex flex-col gap-3">
 									<p class="font-bold">{s.terms.b === me ? 'Your use so far' : 'Paid so far'}</p>

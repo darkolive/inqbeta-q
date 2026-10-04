@@ -626,6 +626,131 @@ async function relays(req, res, origin, id, item) {
 	return send(res, origin, 405, { says: 'Not like that.' });
 }
 
+/*
+ * Kept storage (ADR-Q-030 §1, §4, 4 October 2026): space set aside by the
+ * month, holding a full copy of a person's sealed vault. Darren: "Use us as a
+ * storage source … click that. You get all the receipts you need to then have
+ * your own vault automatically sync, create a copy."
+ *
+ * Space is only ever given against a purchase this node can check for itself:
+ * a taking from a shop held here, of a listing by one of this node's
+ * operators (GATE_OPERATORS), naming this node, not cancelled. The buyer binds
+ * it to their space with a signed note; their space is named, like the relay,
+ * by a key only their passkey makes. Files go in and come back; nothing is
+ * deleted by the hirer's sync (it's a copy), and the node reads none of it:
+ * every vault file is sealed. Writes stop when the term ends.
+ */
+const OPERATORS = new Set((process.env.GATE_OPERATORS ?? '').split(',').map((s) => s.trim()).filter(Boolean));
+const STORE_FILE_BYTES = Number(process.env.GATE_STORE_FILE_MB ?? 25) * MB;
+const STORE_POSTS_PER_HOUR = 6000;
+const GB = 1024 * MB;
+const storeDir = (id) => `${FILER}/store/${id}/`;
+const storeIndexPath = (id) => `${storeDir(id)}index.json`;
+const storeFilePath = (id, path) => `${storeDir(id)}f/${path.split('/').map(encodeURIComponent).join('/')}`;
+/** A vault path as Q lists them: plain names, folders with '/', nothing climbing out. */
+export const storePathOk = (p) => typeof p === 'string' && /^[A-Za-z0-9 _.()/-]{1,200}$/.test(p) && !p.startsWith('/') && !p.split('/').some((x) => x === '' || x === '.' || x === '..');
+const STORE_MONTH_MS = 30 * 86400000;
+/** What a hire gives, or why it doesn't: the purchase checked against the shop held here. */
+export async function checkStoreHire(body, id, me, shopOf, operators = OPERATORS, now = Date.now()) {
+	const { taken, bind } = body ?? {};
+	if (!(await signedReceipt(taken)) || !isAgreement(taken) || taken.content.step !== 'taken') return { says: 'That isn’t a signed purchase.' };
+	if (!(await signedReceipt(bind)) || bind.content?.schema !== 'inqbeta.store-bind/1' || bind.did !== taken.did || bind.content.agreement !== taken.content.agreement || bind.content.id !== id)
+		return { says: 'The purchase must be bound to this space by the person who made it.' };
+	const t = taken.content.terms;
+	const sv = t?.service;
+	if (sv?.kind !== 'store' || sv.where !== relayWhere(me)) return { says: 'That purchase isn’t for storage at this node.' };
+	if (!operators.has(t.a)) return { says: 'That seller doesn’t run this node.' };
+	const shop = await shopOf(t.a);
+	const l = (shop?.listings ?? []).find((x) => x.offer.contentHash === taken.content.parent);
+	if (!l || !l.takings.some((x) => x.contentHash === taken.contentHash) || l.cancelled.includes(taken.contentHash)) return { says: 'That purchase isn’t in the seller’s shop here.' };
+	if (canonical({ ...t, b: '' }) !== canonical(l.offer.content.terms)) return { says: 'That purchase isn’t on the shop’s terms.' };
+	const from = Date.parse(taken.content.at);
+	const until = from + sv.months * STORE_MONTH_MS;
+	if (!Number.isFinite(until) || until < now) return { says: 'That term has ended.' };
+	return { hire: { agreement: taken.content.agreement, did: taken.did, bytes: sv.gb * GB, from: new Date(from).toISOString(), until: new Date(until).toISOString() } };
+}
+/** The space a store has right now: the sum of its hires still running. */
+export const storeQuota = (index, now = Date.now()) => (index?.hires ?? []).filter((h) => Date.parse(h.until) > now).reduce((n, h) => n + h.bytes, 0);
+async function storeIndex(id) {
+	const r = await fetch(storeIndexPath(id)).catch(() => null);
+	return (r?.ok ? await r.json().catch(() => null) : null) ?? { hires: [], files: {} };
+}
+async function keepStoreIndex(id, index) {
+	const f = new FormData();
+	f.append('file', new Blob([JSON.stringify(index)], { type: 'application/json' }), 'index.json');
+	const r = await fetch(storeIndexPath(id), { method: 'POST', body: f }).catch((e) => ({ ok: false, status: e.message }));
+	return r.ok;
+}
+const storeQueue = new Map();
+/** One change at a time per space, so two writes can't both fit the last megabyte. */
+function inStoreQueue(id, fn) {
+	const run = (storeQueue.get(id) ?? Promise.resolve()).then(fn);
+	storeQueue.set(id, run.catch(() => {}));
+	return run;
+}
+const STORE = /^\/store(?:\/([A-Za-z0-9_-]{22})(?:\/(hire|f\/.+))?)?$/;
+async function stores(req, res, origin, id, rest) {
+	const me = await nodeIdentity();
+	if (!me || !OPERATORS.size) return send(res, origin, 404, { says: 'This node doesn’t keep storage.' });
+	const where = relayWhere(me);
+	if (!id && req.method === 'GET') return send(res, origin, 200, { schema: 'inqbeta.store-terms/1', where, did: me.did, operators: [...OPERATORS], fileBytes: STORE_FILE_BYTES });
+	if (!id) return send(res, origin, 405, { says: 'Not like that.' });
+	if (!(await ownsInbox(id, req.headers['x-relay-key']))) return send(res, origin, 403, { says: 'That space isn’t yours.' });
+	const now = Date.now();
+	if (rest === 'hire' && req.method === 'POST') {
+		const raw = await readBody(req, LEDGER_BYTES);
+		let body = null;
+		try { body = JSON.parse(raw ?? ''); } catch { body = null; }
+		const out = await checkStoreHire(body, id, me, shopHeld);
+		if (out.says) return send(res, origin, 403, { says: out.says });
+		const answer = await inStoreQueue(id, async () => {
+			const index = await storeIndex(id);
+			if (!index.hires.some((h) => h.agreement === out.hire.agreement)) index.hires.push(out.hire);
+			return (await keepStoreIndex(id, index)) ? { ok: true, quota: storeQuota(index, now), hires: index.hires } : null;
+		});
+		return answer ? send(res, origin, 200, answer) : send(res, origin, 502, { says: 'Couldn’t keep it just now.' });
+	}
+	if (!rest && req.method === 'GET') {
+		const index = await storeIndex(id);
+		const files = Object.entries(index.files).map(([path, bytes]) => ({ path, bytes }));
+		return send(res, origin, 200, { where, hires: index.hires, quota: storeQuota(index, now), used: files.reduce((n, f) => n + f.bytes, 0), files });
+	}
+	if (rest?.startsWith('f/')) {
+		let path = '';
+		try { path = decodeURIComponent(rest.slice(2)); } catch { path = ''; }
+		if (!storePathOk(path)) return send(res, origin, 400, { says: 'That isn’t a vault path.' });
+		if (req.method === 'GET') {
+			const r = await fetch(storeFilePath(id, path)).catch(() => null);
+			if (!r?.ok) return send(res, origin, 404, { says: 'Not here.' });
+			const bytes = Buffer.from(await r.arrayBuffer());
+			res.writeHead(200, { 'content-type': 'application/octet-stream', 'cache-control': 'no-store', ...(ORIGINS.has(origin) ? { 'access-control-allow-origin': origin, vary: 'origin' } : {}) });
+			return res.end(bytes);
+		}
+		if (req.method === 'POST') {
+			if (tooMany(`store:${id}`, now, STORE_POSTS_PER_HOUR)) return send(res, origin, 429, { says: 'Too many at once. Try again in a while.' });
+			const bytes = await readBytes(req, STORE_FILE_BYTES);
+			if (bytes === null) return send(res, origin, 413, { says: 'That file is too big.' });
+			const name = path.split('/').pop();
+			if (/^[0-9a-f]{64}\.dsv$/.test(name) && (await hexOf(bytes)) !== name.slice(0, 64)) return send(res, origin, 400, { says: 'That file doesn’t match its name.' });
+			const answer = await inStoreQueue(id, async () => {
+				const index = await storeIndex(id);
+				const quota = storeQuota(index, now);
+				if (!quota) return { status: 402, body: { says: 'There’s no storage running for this space. Take some from the shop.' } };
+				const used = Object.entries(index.files).reduce((n, [p, b]) => n + (p === path ? 0 : b), 0);
+				if (used + bytes.length > quota) return { status: 507, body: { says: 'Your kept storage is full.' } };
+				const f = new FormData();
+				f.append('file', new Blob([bytes], { type: 'application/octet-stream' }), name);
+				const put = await fetch(storeFilePath(id, path), { method: 'POST', body: f }).catch((e) => ({ ok: false, status: e.message }));
+				if (!put.ok) return { status: 502, body: { says: `Couldn’t keep it: ${put.status}` } };
+				index.files[path] = bytes.length;
+				return (await keepStoreIndex(id, index)) ? { status: 200, body: { ok: true, used: used + bytes.length, quota } } : { status: 502, body: { says: 'Couldn’t note it just now.' } };
+			});
+			return send(res, origin, answer.status, answer.body);
+		}
+	}
+	return send(res, origin, 405, { says: 'Not like that.' });
+}
+
 /* ---- HTTP ---- */
 function send(res, origin, status, body) {
 	const headers = { 'content-type': 'application/json', 'cache-control': 'no-store' };
@@ -813,6 +938,8 @@ export const server = http.createServer(async (req, res) => {
 	if (sh) return shops(req, res, origin, sh[1]);
 	const rl = RELAY.exec(new URL(req.url, 'http://gate').pathname);
 	if (rl) return relays(req, res, origin, rl[1], rl[2]);
+	const st = STORE.exec(new URL(req.url, 'http://gate').pathname);
+	if (st) return stores(req, res, origin, st[1], st[2]);
 	if (!m) return send(res, origin, 404, { says: 'Nothing here.' });
 	const did = m[1];
 	if (!FEDERATIONS.has(did)) return send(res, origin, 404, { says: 'This node doesn’t serve that federation.' });

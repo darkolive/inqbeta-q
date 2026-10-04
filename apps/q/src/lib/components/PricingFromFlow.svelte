@@ -37,6 +37,8 @@
 	$effect(() => void readMint().then((m) => (mint = m.view)));
 	/* The relay's own terms: its name (as it signs receipts) and its open hours. */
 	let relay = $state<{ url: string; where: string; hours?: string } | null>(null);
+	/* Kept storage (ADR-Q-030): offered only when the node keeps it, for its operators. */
+	let storeTerms = $state<{ where: string; operators: string[] } | null>(null);
 
 	let days = $state<FlowDay[] | null>(null);
 	let says = $state('');
@@ -51,6 +53,8 @@
 			const t = (await (await fetch(`${storage}/relay`).catch(() => null))?.json().catch(() => null)) as { where?: string; hours?: { from: number; to: number } | null } | null;
 			const hh = (n: number) => `${String(n).padStart(2, '0')}:00`;
 			if (t?.where) relay = { url: storage.replace(/\/$/, ''), where: t.where, ...(t.hours ? { hours: `${hh(t.hours.from)}–${hh(t.hours.to)} UTC` } : {}) };
+			const st = await fetch(`${storage}/store`).catch(() => null);
+			storeTerms = st?.ok ? ((await st.json().catch(() => null)) as typeof storeTerms) : null;
 			days = (((await r.json()) as { days?: FlowDay[] }).days ?? []).sort((a, b) => a.day.localeCompare(b.day));
 			const m = await fetch('/api/host/money', { cache: 'no-store' }).catch(() => null);
 			pencePerCredit = m?.ok ? Number(((await m.json()) as { pencePerCredit?: number }).pencePerCredit ?? 0) : 0;
@@ -92,6 +96,45 @@
 	const hireProblems = $derived(hire ? [...problemsWithTerms(hire), ...(Number.isInteger(Number(hirers)) && Number(hirers) >= 1 ? [] : ['Say how many can hire it: a whole number, at least one.'])] : []);
 	let offering = $state(false);
 	let offerSays = $state('');
+	/* Kept storage by the month (ADR-Q-030 §4): space set aside, paid as agreed. */
+	let keepGb = $state(10);
+	let keepMonths = $state(1);
+	let keepCredits = $state(5);
+	let keepHow = $state(10);
+	const isOperator = $derived(!!identity && !!storeTerms?.operators.includes(identity.did));
+	const keepTerms = $derived.by((): Terms | null => {
+		if (!identity || !relay || !storeTerms) return null;
+		const mode = mint?.mode ?? 'test';
+		const gb = Math.trunc(Number(keepGb) || 0);
+		const months = Math.trunc(Number(keepMonths) || 0);
+		return {
+			kind: 'job',
+			a: identity.did,
+			b: '',
+			aGives: { thing: `${gb} GB kept at ${new URL(relay.url).host}: a full copy of your vault, sealed, for ${months} month${months === 1 ? '' : 's'}` },
+			bGives: { credits: Math.trunc(Number(keepCredits) || 0), mode, ...(mint ? { mint: mint.mint } : {}) },
+			service: { kind: 'store', store: relay.url, where: storeTerms.where, gb, months }
+		};
+	});
+	const keepProblems = $derived(keepTerms ? [...problemsWithTerms(keepTerms), ...(Number.isInteger(Number(keepHow)) && Number(keepHow) >= 1 ? [] : ['Say how many can take it: a whole number, at least one.'])] : []);
+	let keeping = $state(false);
+	let keepSays = $state('');
+	async function offerKeep() {
+		if (!identity || !keepTerms || keepProblems.length) return;
+		keeping = true;
+		keepSays = '';
+		const id = newAgreementId();
+		const out = await takeStep(identity, ledger, id, { step: 'proposed', parent: null, terms: keepTerms, limit: Number(keepHow) }, peopleFrom(ledger, identity.did), mint);
+		if (!out.ok) {
+			keeping = false;
+			return void (keepSays = out.says);
+		}
+		const put = await publishListing(out.signed, ledger);
+		keeping = false;
+		void goto(`/agreements/${encodeURIComponent(id)}?shop=1${put.ok ? '' : `&said=${encodeURIComponent(`Kept in your vault, but not in your shop yet: ${put.says}`)}`}`);
+	}
+	let copied = $state(false);
+
 	async function offer() {
 		if (!identity || !hire || hireProblems.length) return;
 		offering = true;
@@ -147,6 +190,35 @@
 					{#if hireProblems.length}<ul class="text-sm text-error-600-400">{#each hireProblems as p, i (i)}<li>{p}</li>{/each}</ul>{/if}
 					<div><button type="button" class="btn preset-filled-primary-500 min-h-11" disabled={offering || !hire || !!hireProblems.length} onclick={() => void offer()}>{offering ? 'Checking…' : 'Put it in your shop'}</button></div>
 					{#if offerSays}<p class="text-sm card preset-tonal-warning p-3" aria-live="polite">{offerSays}</p>{/if}
+				</div>
+			</details>
+		{/if}
+		{#if relay && identity}
+			<details class="card preset-tonal-surface p-3 sm:p-4">
+				<summary class="cursor-pointer min-h-11 flex items-center font-semibold">Offer kept storage, by the month</summary>
+				<div class="flex flex-col gap-4 mt-3">
+					<p class="text-sm">Space set aside on your node, holding a full copy of each person’s sealed vault, kept level each sync. Paid for as agreed, used or not. Each one taken is its own agreement.</p>
+					{#if !storeTerms}
+						<p class="text-sm card preset-tonal-warning p-3">Your node doesn’t keep storage yet. Add the line below to its settings, then restart the gate (see HETZNER.md).</p>
+					{:else if !isOperator}
+						<p class="text-sm card preset-tonal-warning p-3">Your node keeps storage, but not for you yet: it needs your id in its operators.</p>
+					{/if}
+					{#if !storeTerms || !isOperator}
+						<div class="flex flex-wrap items-center gap-2">
+							<code class="text-xs break-all card preset-tonal p-2 flex-1 min-w-0">GATE_OPERATORS={identity.did}</code>
+							<button type="button" class="btn preset-tonal min-h-11" onclick={() => void navigator.clipboard.writeText(`GATE_OPERATORS=${identity!.did}`).then(() => (copied = true))}>{copied ? 'Copied' : 'Copy'}</button>
+						</div>
+					{:else}
+						<div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 max-w-3xl">
+							<label class="label"><span class="label-text">Gigabytes</span><input class="input" type="number" min="1" step="1" bind:value={keepGb} /></label>
+							<label class="label"><span class="label-text">Months</span><input class="input" type="number" min="1" max="12" step="1" bind:value={keepMonths} /></label>
+							<label class="label"><span class="label-text">Credits for the term</span><input class="input" type="number" min="1" step="1" bind:value={keepCredits} /></label>
+							<label class="label"><span class="label-text">How many can take it</span><input class="input" type="number" min="1" step="1" bind:value={keepHow} /></label>
+						</div>
+						{#if keepProblems.length}<ul class="text-sm text-error-600-400">{#each keepProblems as p, i (i)}<li>{p}</li>{/each}</ul>{/if}
+						<div><button type="button" class="btn preset-filled-primary-500 min-h-11" disabled={keeping || !keepTerms || !!keepProblems.length} onclick={() => void offerKeep()}>{keeping ? 'Checking…' : 'Put it in your shop'}</button></div>
+						{#if keepSays}<p class="text-sm card preset-tonal-warning p-3" aria-live="polite">{keepSays}</p>{/if}
+					{/if}
 				</div>
 			</details>
 		{/if}

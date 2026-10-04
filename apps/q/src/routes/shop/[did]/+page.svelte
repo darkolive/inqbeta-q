@@ -18,6 +18,7 @@
 	import { peopleFrom } from '$lib/people';
 	import { creditsCommitted, creditsHeld } from '$lib/agreements';
 	import { readMint, type MintView } from '$lib/money';
+	import { syncCloudNow } from '$lib/autosync';
 	import { buy, readShop, shopLink, type ShopListing, type ShopWindow } from '$lib/shop';
 
 	let identity = $state<Identity | null>(null);
@@ -64,6 +65,8 @@
 		says = '';
 		const out = await buy(identity, ledger, shop, l, people, mint);
 		busy = '';
+		/* Kept storage: start copying the vault there straight away. */
+		if (out.ok && l.offer.content.terms?.service?.kind === 'store') void syncCloudNow('manual').catch(() => null);
 		if (out.ok) void goto(`/agreements/${encodeURIComponent(out.id)}${out.says ? `?said=${encodeURIComponent(out.says)}` : ''}`);
 		else {
 			says = out.says;
@@ -107,7 +110,10 @@
 							<h3 class="h5 break-words">{valueText(t.aGives)}</h3>
 							<Status tone={l.left ? 'good' : 'plain'}>{l.left ? `${l.left} left` : 'Sold out'}</Status>
 						</header>
-						{#if t.service}
+						{#if t.service?.kind === 'store'}
+							<p class="text-lg font-semibold">{t.service.gb} GB kept for {t.service.months} month{t.service.months === 1 ? '' : 's'}: {valueText(t.bGives)}</p>
+							<p class="text-sm">A full copy of your vault, sealed, kept level each sync. The space is yours from the moment you take it.</p>
+						{:else if t.service?.kind === 'pass-through'}
 							<p class="text-lg font-semibold">{t.service.perGBHour} credit{t.service.perGBHour === 1 ? '' : 's'} for a GB held an hour</p>
 							<p class="text-sm">Paid for what you use, from the receipts you both hold; never more than {valueText(t.bGives)}.{t.service.hours ? ` Takes new files ${t.service.hours} each day.` : ''}</p>
 						{:else}
@@ -120,7 +126,7 @@
 							<a class="btn preset-tonal min-h-11 mt-auto" href="/agreements/{encodeURIComponent(l.offer.content.agreement)}">See sales</a>
 						{:else}
 							<button type="button" class="btn preset-filled-primary-500 min-h-11 mt-auto" disabled={!l.left || short || !!busy} onclick={() => void purchase(l)}>
-								<Icon name="wallet" size={18} />{busy === l.offer.contentHash ? 'Checking…' : !l.left ? 'Sold out' : t.service ? 'Hire' : 'Buy'}
+								<Icon name="wallet" size={18} />{busy === l.offer.contentHash ? 'Checking…' : !l.left ? 'Sold out' : t.service?.kind === 'store' ? 'Take it' : t.service ? 'Hire' : 'Buy'}
 							</button>
 							{#if short && l.left}<p class="text-sm text-error-600-400">You need {costOf(l)} credits{t.service ? ' set aside' : ''}; you have {available}.</p>{/if}
 						{/if}

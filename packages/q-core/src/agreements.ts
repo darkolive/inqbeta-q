@@ -68,7 +68,7 @@ export interface Terms {
 	 * an hour of holding a gigabyte costs. The credits agreed are the most
 	 * that can be paid; what is paid is settled from the custody receipts.
 	 */
-	service?: PassThroughService;
+	service?: PassThroughService | StoreService;
 }
 
 export interface PassThroughService {
@@ -81,6 +81,28 @@ export interface PassThroughService {
 	perGBHour: number;
 	/** Open hours, as the node publishes them, e.g. "12-18" (UTC); empty for always. */
 	hours?: string;
+}
+
+/**
+ * Storage kept by the month (ADR-Q-030 §4, reserved): a set amount of space at
+ * a node, for a set term, paid for whether it's used or not. The node holds a
+ * full copy of the hirer's sealed vault within that space.
+ */
+export interface StoreService {
+	kind: 'store';
+	/** The node's storage address, e.g. https://storage.example.org */
+	store: string;
+	/** The node's own name for itself: relay:did:key:… */
+	where: string;
+	/** Gigabytes set aside. */
+	gb: number;
+	/** How many months. */
+	months: number;
+}
+
+/** When a kept store's term ends, from when it was taken. Months are counted as 30 days. */
+export function storeEnds(takenAt: string, months: number): string {
+	return new Date(Date.parse(takenAt) + months * 30 * 86_400_000).toISOString();
 }
 
 /** Credits owed for pass-through use: gigabyte-hours at the rate, rounded up to a whole credit (none for no use). */
@@ -156,7 +178,12 @@ export function problemsWithTerms(t: Terms): string[] {
 	const ka = kindOf(t.aGives);
 	if (ka !== 'thing' && ka === kindOf(t.bGives)) p.push('Not the same kind both ways: credits for credits, or pounds for pounds, is a gift, not an agreement.');
 	if ('pence' in t.aGives || 'pence' in t.bGives) if (!t.business) p.push('Pounds are recorded only on business agreements.');
-	if (t.service) {
+	if (t.service?.kind === 'store') {
+		const sv = t.service;
+		if (!/^https:\/\/[^/]+/.test(sv.store) || !/^relay:did:key:z[1-9A-HJ-NP-Za-km-z]+$/.test(sv.where) || !Number.isInteger(sv.gb) || sv.gb < 1 || !Number.isInteger(sv.months) || sv.months < 1 || sv.months > 12)
+			p.push('Kept storage says where it is (an https address and its name), how many whole gigabytes, and for how many months (1 to 12).');
+		if (!('credits' in t.bGives)) p.push('Kept storage is paid for in credits.');
+	} else if (t.service) {
 		const sv = t.service;
 		if (sv.kind !== 'pass-through' || !/^https:\/\/[^/]+/.test(sv.relay) || !/^relay:did:key:z[1-9A-HJ-NP-Za-km-z]+$/.test(sv.where) || !(sv.perGBHour > 0))
 			p.push('A pass-through says where it is (an https address and its relay name) and its price for a gigabyte held for an hour.');
@@ -262,7 +289,7 @@ export function whySettlementDoesntFit(s: Standing, entries: Entry[]): string | 
  */
 export function hireDue(s: Standing, byteHours: number): { owed: number; paid: number; due: number; most: number; entries: Entry[] } | null {
 	const t = s.terms;
-	if (!t?.service || !t.b || !('credits' in t.bGives)) return null;
+	if (t?.service?.kind !== 'pass-through' || !t.b || !('credits' in t.bGives)) return null;
 	const most = t.bGives.credits;
 	const paid = s.settled.flat().filter((e) => e.from === t.b && e.to === t.a && 'credits' in e.value).reduce((n, e) => n + amountOf(e.value), 0);
 	const owed = Math.min(most, passThroughOwed(byteHours, t.service.perGBHour));
@@ -496,6 +523,8 @@ export function sayStep(r: AgreementReceipt, viewer: string, nameOf: (did: strin
 	};
 	switch (c.step) {
 		case 'proposed':
+			if (t?.service?.kind === 'store' && !t.b && c.limit) return `${Who(by)} put ${t.service.gb} GB of kept storage for ${t.service.months} month${t.service.months === 1 ? '' : 's'} in ${by === viewer ? 'your' : 'their'} shop, for ${valueText(t.bGives)}, ${c.limit} available.`;
+			if (t?.service?.kind === 'pass-through' && !t.b && c.limit) return `${Who(by)} put ${valueText(t.aGives)} in ${by === viewer ? 'your' : 'their'} shop to hire, at ${t.service.perGBHour} credits a GB held an hour, up to ${valueText(t.bGives)} each, for ${c.limit} hirers.`;
 			if (t && !t.b && c.limit) return `${Who(by)} put ${valueText(t.aGives)} in ${by === viewer ? 'your' : 'their'} shop for ${valueText(t.bGives)}, ${c.limit} available.`;
 			return t && !t.b ? `${Who(by)} made an open offer of ${offer(by)}, shared by link.` : `${Who(by)} proposed an offer to ${who(otherOf(by))} of ${offer(by)}.`;
 		case 'countered':
@@ -503,6 +532,8 @@ export function sayStep(r: AgreementReceipt, viewer: string, nameOf: (did: strin
 		case 'agreed':
 			return `${Who(by)} accepted. ${t ? `${Who(t.a)} and ${who(t.b)} agreed: ${valueText(t.aGives)} in exchange for ${valueText(t.bGives)}.` : ''}`.trim();
 		case 'taken':
+			if (t?.service?.kind === 'store') return `${Who(by)} took ${t.service.gb} GB of kept storage for ${t.service.months} month${t.service.months === 1 ? '' : 's'} from ${who(t.a)}’s shop, for ${valueText(t.bGives)}.`;
+			if (t?.service?.kind === 'pass-through') return `${Who(by)} hired from ${who(t.a)}’s shop: ${valueText(t.aGives)}, at ${t.service.perGBHour} credits a GB held an hour, up to ${valueText(t.bGives)}.`;
 			return t ? `${Who(by)} bought from ${who(t.a)}’s shop: ${valueText(t.aGives)} for ${valueText(t.bGives)}.` : `${Who(by)} bought from a shop.`;
 		case 'declined':
 			return `${Who(by)} declined.`;
@@ -590,7 +621,16 @@ export function agreementNow(s: Standing, me: string, id: string, nameOf: (did: 
 			actions: [{ id: 'confirm', label: 'Confirm the settlement', icon: 'check', primary: true, step: { step: 'settled', parent: s.pending.hash, entries: s.pending.entries } }]
 		};
 	}
-	if (s.phase === 'agreed' && t?.service) {
+	if (s.phase === 'agreed' && t?.service?.kind === 'store') {
+		/* Kept storage (ADR-Q-030 §4): the space is set aside from the moment it's taken; it's paid for as agreed. */
+		const seller = !!s.takenFrom && t.a === me && !s.settled.length;
+		return {
+			says: t.b === me ? `${t.service.gb} GB is kept for you for ${t.service.months} month${t.service.months === 1 ? '' : 's'}. Your vault keeps a copy there each sync. Settle the credits when you’re ready.` : `${them === 'they' ? 'Someone' : them} has taken ${t.service.gb} GB of your storage for ${t.service.months} month${t.service.months === 1 ? '' : 's'}. They settle the credits; you confirm.`,
+			panel: 'settle',
+			actions: seller ? [{ id: 'sold-out', label: 'Cancel: no room after all', tellShop: true, step: { step: 'declined', parent: s.lastHash ?? null, note: 'Sold out' } }] : []
+		};
+	}
+	if (s.phase === 'agreed' && t?.service?.kind === 'pass-through') {
 		/* A hire (ADR-Q-028 §5): it runs, and is paid for as it's used — nothing to say is done. */
 		const seller = !!s.takenFrom && t.a === me && !s.settled.length;
 		return {

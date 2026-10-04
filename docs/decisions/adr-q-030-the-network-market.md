@@ -1,6 +1,6 @@
 ---
 status: proposed
-implementation: not started (4 October 2026). Built before it: hiring a pass-through by the hour from a shop, settled from custody receipts (ADR-Q-028 §5)
+implementation: step 1 started 4 October 2026 — kept storage by the month (q-core StoreService; the gate's /store, given only against a purchase it checks in its own shop from one of GATE_OPERATORS; apps/q lib/store.ts, synced like a cloud; the host offers it from Services, people Take it from the shop, and the agreement shows their vault there, its room and its end). Not yet: the button on a federation's page, the Network page. Built before it: hiring a pass-through by the hour (ADR-Q-028 §5)
 updated: 2026-10-04
 ---
 
@@ -274,9 +274,44 @@ Free allowances are small (around 5 GB to 15 GB). A vault that has grown to
   a federation, your bucket, your download. When you open something older,
   Q fetches it from the cold place, checks it against its name, and keeps it
   hot for a while.
+- **The hottest place is the device in front of you.** You work from what's
+  on it. Every time you attest something, it's sent straight out to your
+  places (your bucket on every save; the rest at their own pace). Anything
+  waiting for you at the bellboy is picked up whenever you're on, and once
+  it's safely kept, Q says "got" so the sender's copy can be let go. So the
+  device always has the newest, and the network soon has it too.
+- **The only gap is what you made while offline.** What comes *to* you is
+  never at risk: the bellboy and the sender keep it until you say "got".
+  Anything you exchanged is in the other person's vault as well. What you
+  made yourself since the last sync exists only on this device until it next
+  reaches a place. Q shows that plainly ("2 things not yet copied anywhere"),
+  and it goes the moment you're back online.
 - **Never less safe.** The index says where every file is, and `howSafe()`
   counts ways to survive for the whole vault, hot and cold together. A file
   is only dropped from hot once it's held in cold.
+
+### 10. Spare space: anyone can carry
+
+Darren, 4 October: "Anybody could offer their capacity up that they're not
+using … in a field … passing across files over Bluetooth … use me as a
+carrier, and I earn a little bit of credit just by being that. It's not
+taking anything away, and I can go offline any time … an incredible
+incentive for the network to self-replicate."
+
+- **Any spare space can be offered as available**: a corner of a phone, a
+  laptop, a home NAS. It's the "as available" shape (§4): no promise, gone
+  the moment you go offline, and nothing is lost when it goes, because the
+  sender keeps every file until another place has signed for it.
+- **Carriers are paid by the receipts.** A carrier earns for each file it held
+  that later arrived, from the same "held" and "arrived" receipts that
+  settle a pass-through. Carrying sealed boxes it can't open means a carrier
+  learns nothing.
+- **In a field**, phones pass sealed files to each other (Bluetooth, local
+  Wi-Fi) until one reaches signal: the original problem Q was made to solve,
+  with carriers rewarded for helping.
+- **Someone else's cloud space** (a spare gigabyte of Google Drive, say) is
+  technically just another place, but consumer cloud accounts usually aren't
+  meant to be resold. Check the provider's terms before offering it.
 
 ## Build order
 
@@ -285,6 +320,13 @@ Free allowances are small (around 5 GB to 15 GB). A vault that has grown to
    the place on the Network page with its standing. The gate needs a
    **store** to go beside the relay: per hire, within the space agreed, kept
    until the hire ends and then given back. Tests first.
+   **Started 4 October:** kept storage by the month, offered from Services and
+   taken from the shop; the gate's `/store` sets space aside only for a
+   purchase it can check in its own shop, by one of `GATE_OPERATORS`, naming
+   this node; each sync keeps the vault level there like a cloud; the
+   agreement shows the vault's size there, the room and the end date. Still
+   to do: the button on a federation's page, and the place on the Network
+   page.
 2. **The record**: the custody receipts per place on the Network page
    (arrived, lost, corruption, uptime), then signed summaries sent to
    provider cards.

@@ -19,13 +19,18 @@
 	const mine = $derived(t ? (t.a === me ? t.aGives : t.bGives) : null);
 	const theirs = $derived(t ? (t.a === me ? t.bGives : t.aGives) : null);
 	/* A hire's credits are the most it can come to: paid for what it holds. */
-	const say = (v: NonNullable<typeof mine>) => (t?.service && 'credits' in v ? `Up to ${valueText(v)}, at ${t.service.perGBHour} a GB held an hour` : valueText(v));
+	const say = (v: NonNullable<typeof mine>) =>
+		t?.service?.kind === 'pass-through' && 'credits' in v ? `Up to ${valueText(v)}, at ${t.service.perGBHour} a GB held an hour`
+		: t?.service?.kind === 'store' && 'credits' in v ? `${valueText(v)} for ${t.service.gb} GB kept ${t.service.months} month${t.service.months === 1 ? '' : 's'}`
+		: valueText(v);
 	const KIND = { swap: 'Swap', job: 'Job', treaty: 'Treaty' } as const;
 
 	const heading = $derived(
 		t && !t.b && standing.limit && t.a === me ? `In your shop: ${standing.limit} to sell`
 		: t && !t.b && standing.limit ? `In ${name}’s shop`
 		: t && !t.b && t.a === me ? 'Your open offer, shared by link'
+		: standing.takenFrom && t?.service?.kind === 'store' && t.a === me ? `Storage taken by ${name}`
+		: standing.takenFrom && t?.service?.kind === 'store' ? `Storage from ${name}`
 		: standing.takenFrom && t?.service && t.a === me ? `Hired by ${name}`
 		: standing.takenFrom && t?.service ? `Hired from ${name}`
 		: standing.takenFrom && t?.a === me ? `Sold to ${name}`

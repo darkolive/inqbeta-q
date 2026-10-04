@@ -19,6 +19,13 @@ import { passThrough } from '$lib/relay';
 import { bucketOf } from '$lib/bucket';
 import { currentChoices } from '$lib/backups.svelte';
 import { bucketDue, cloudDue } from '@inqbeta/q-core/backup-schedule';
+import { current } from '@inqbeta/q-core/passkey';
+import { watchLedger, type Ledger } from '$lib/ledger';
+import { bindStore, storeChannel, storeHires, storeStatus } from '$lib/store';
+
+/* Kept storage you've taken (ADR-Q-030): read from your agreements. */
+let ledgerNow: Ledger | null = null;
+watchLedger((l) => (ledgerNow = l));
 
 /** Why a sync is running: a person asked, something new was written, the timer, the page came back, or signing out. */
 export type SyncWhy = 'manual' | 'write' | 'timer' | 'visible' | 'signing-out';
@@ -138,6 +145,33 @@ export async function syncCloudNow(why: SyncWhy = 'manual'): Promise<CloudState[
 			}
 		} catch (e) {
 			out.push({ kind: 'bucket', called: bucket.called, at: new Date().toISOString(), error: e instanceof Error ? e.message : String(e) });
+		}
+	}
+	/* Kept storage (ADR-Q-030 §1): each node you've taken space at, kept level like a cloud. */
+	const me = current();
+	const byNode = new Map<string, ReturnType<typeof storeHires>>();
+	for (const h of me ? storeHires(ledgerNow, me.did) : []) byNode.set(h.service.store, [...(byNode.get(h.service.store) ?? []), h]);
+	for (const [url, hires] of byNode) {
+		const kind = `store:${url}`;
+		if (!always && !cloudDue(lastSynced.get(kind) ?? 0, choices.cloud)) {
+			const had = cloud.find((c) => c.kind === kind);
+			if (had) out.push(had);
+			continue;
+		}
+		const called = `kept storage at ${new URL(url).host}`;
+		try {
+			/* The node sets space aside only for a purchase it's been shown: bind any it hasn't seen. */
+			const seen = await storeStatus(me!, url);
+			for (const h of hires) if (!seen.ok || !seen.status.bound.includes(h.agreement)) await bindStore(me!, h);
+			const ch = await storeChannel(me!, url, called);
+			const result = await syncChannels(vault, ch, did);
+			lastSynced.set(kind, Date.now());
+			const holdsAll = !result.failed.length && !result.damaged.length && (await holdsEverything(vault, ch));
+			if (holdsAll) noteCarried();
+			out.push({ kind, called, at: result.at, result, holdsAll });
+			tried.push({ channel: ch, ok: holdsAll });
+		} catch (e) {
+			out.push({ kind, called, at: new Date().toISOString(), error: e instanceof Error ? e.message : String(e) });
 		}
 	}
 	cloud = out;

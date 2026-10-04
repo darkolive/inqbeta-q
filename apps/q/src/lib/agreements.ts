@@ -186,7 +186,7 @@ export function standingWords(s: Standing, me: string): { text: string; tone: 'g
 	if (s.phase === 'complete') return { text: 'Settled', tone: 'good' };
 	if (isStandingOffer(s)) return s.offeredBy === me ? { text: 'In your shop', tone: 'good' } : { text: 'In a shop', tone: 'plain' };
 	if (s.ended === 'sold-out') return { text: 'Sold out, cancelled', tone: 'plain' };
-	if (s.takenFrom && s.terms?.service && s.phase === 'agreed' && !s.pending) return { text: s.terms.a === me ? 'Hired: paid as it’s used' : 'Hired: settle for what it held', tone: 'plain' };
+	if (s.takenFrom && s.terms?.service?.kind === 'pass-through' && s.phase === 'agreed' && !s.pending) return { text: s.terms.a === me ? 'Hired: paid as it’s used' : 'Hired: settle for what it held', tone: 'plain' };
 	if (s.takenFrom && s.phase === 'agreed' && !s.settled.length && !s.pending) return { text: s.terms?.a === me ? 'Sold: waiting to be paid' : 'Bought: pay when ready', tone: s.terms?.a === me ? 'waiting' : 'needs-you' };
 	if (isOpenOffer(s) && s.offeredBy === me) return { text: 'Shared by link', tone: 'waiting' };
 	if (isOpenOffer(s)) return { text: 'Your answer', tone: 'needs-you' };
