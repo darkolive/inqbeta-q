@@ -240,7 +240,8 @@ Two public names, with certificates from Caddy, and nothing else opened:
   `GATE_RELAY_DAYS` (7). Each person may have `GATE_RELAY_HOLDS_MB` (100) in
   transit. `/relay/stats` gives daily totals (files, bytes, byte-hours) with
   nothing about whose: the data to price pass-through from. No `GATE_SEED`,
-  no relay.
+  no relay. `GATE_RELAY_HOURS=12-18` opens it for new files only in those
+  hours (UTC); what it holds is still given back and let go at any time.
 
 Hetzner firewall: TCP 22, UDP 4242, TCP 80 and 443. Mosquitto now uses
 `per_listener_settings true` (1883 and 9001 sign-in as before; 9002 public).

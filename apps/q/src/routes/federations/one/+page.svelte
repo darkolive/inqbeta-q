@@ -54,6 +54,7 @@
 	import { FEDERATIONS_SETTING } from '$lib/offers';
 	import IntroSlides from '$lib/components/IntroSlides.svelte';
 	import MoneyPublish from '$lib/components/MoneyPublish.svelte';
+	import PricingFromFlow from '$lib/components/PricingFromFlow.svelte';
 
 	let identity = $state<Identity | null>(null);
 	let ledger = $state<Ledger | null>(null);
@@ -749,6 +750,7 @@
 								{/each}
 							</ul>
 							{#if identity}<MoneyPublish {identity} onChanged={() => void loadServices()} />{/if}
+							<div class="mt-4"><PricingFromFlow /></div>
 							{#if vercel?.connected}
 								<p class="text-sm mt-4"><Status tone="good">Connected to Vercel</Status> <span class="opacity-80">Project {vercel.project}. Send each key when you’re ready; nothing goes until you press it.</span></p>
 							{:else if vercel?.says}

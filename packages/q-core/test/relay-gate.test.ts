@@ -81,3 +81,21 @@ test('the relay: holds a file and signs for it, won’t let go without an arriva
 		filer.close();
 	}
 });
+
+test('open hours: new files only in them (wrapping past midnight too); unset means always', async () => {
+	const { relayHours, relayOpen } = await import('../../../node/gate/server.mjs');
+	const at = (h: number) => new Date(Date.UTC(2026, 9, 4, h, 30));
+	assert.equal(relayHours(''), null);
+	assert.equal(relayHours('nonsense'), null);
+	const day = relayHours('12-18');
+	assert.deepEqual(day, { from: 12, to: 18 });
+	assert.equal(relayOpen(day, at(11)), false);
+	assert.equal(relayOpen(day, at(12)), true);
+	assert.equal(relayOpen(day, at(17)), true);
+	assert.equal(relayOpen(day, at(18)), false);
+	const night = relayHours('22-6');
+	assert.equal(relayOpen(night, at(23)), true);
+	assert.equal(relayOpen(night, at(3)), true);
+	assert.equal(relayOpen(night, at(12)), false);
+	assert.equal(relayOpen(null, at(3)), true);
+});

@@ -76,9 +76,9 @@ exceptions.
 
 ## Phase 3 — the price, from the flow
 
-1. **Pass-through by the hour**: a node's open hours as a standing offer in its
-   shop; Q picks an open one; paid from the custody receipts.
-2. **Measure → cost → credit price → minting price** (ADR-Q-028 §5a): the
+1. **Pass-through by the hour**: ✅ a node's open hours (GATE_RELAY_HOURS); still to do:
+   hiring someone else's as a standing offer in their shop, paid from the custody receipts.
+2. ✅ **Measure → cost → credit price → minting price** (ADR-Q-028 §5a): the
    relay's daily totals and node running costs give a cost per GB-hour; that
    sets credits' worth, and the host's pence per credit.
 

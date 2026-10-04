@@ -92,7 +92,7 @@ export async function passThrough(vault: StorageChannel, clouds: { channel: Stor
 	try {
 		const { id, key } = await relayOf(me);
 		const headers = { 'x-relay-key': key };
-		const terms = (await (await fetch(`${where}/relay`, { signal: AbortSignal.timeout(10_000) })).json().catch(() => null)) as { where?: string } | null;
+		const terms = (await (await fetch(`${where}/relay`, { signal: AbortSignal.timeout(10_000) })).json().catch(() => null)) as { where?: string; openNow?: boolean } | null;
 		if (!terms?.where) return tell({ ...state, says: 'The host doesn’t offer a pass-through.' }), state;
 		const listed = await fetch(`${where}/relay/${id}`, { headers, signal: AbortSignal.timeout(15_000) });
 		const held = listed.ok ? (((await listed.json()) as { files?: Held[] }).files ?? []) : [];
@@ -124,7 +124,8 @@ export async function passThrough(vault: StorageChannel, clouds: { channel: Stor
 		/* Hand over: what a cloud you've connected couldn't take. */
 		let handed = 0;
 		const stillHeld = new Set(held.map((h) => h.item));
-		const missing = opts.handOver !== false && clouds.some((c) => !c.ok) ? [...inVault].filter((p) => !inClouds.has(p) && !stillHeld.has(p.slice(0, -4))).slice(0, MOST_PER_SYNC) : [];
+		/* A node with open hours takes new files only in them: outside, what's new waits here (ADR-Q-028 §5). */
+		const missing = opts.handOver !== false && terms.openNow !== false && clouds.some((c) => !c.ok) ? [...inVault].filter((p) => !inClouds.has(p) && !stillHeld.has(p.slice(0, -4))).slice(0, MOST_PER_SYNC) : [];
 		for (const path of missing) {
 			const bytes = await vault.get(path);
 			if (!bytes) continue;

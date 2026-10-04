@@ -436,6 +436,25 @@ const RELAY_FILE_BYTES = Number(process.env.GATE_RELAY_FILE_MB ?? 25) * MB;
 const RELAY_HOLDS_BYTES = Number(process.env.GATE_RELAY_HOLDS_MB ?? 100) * MB;
 const RELAY_DAYS = Number(process.env.GATE_RELAY_DAYS ?? 7);
 const RELAY_POSTS_PER_HOUR = 600;
+/*
+ * Open hours (ADR-Q-028 §5, pass-through by the hour): "if things are passing
+ * through between midday and 6 o'clock, I will make my node live and open."
+ * GATE_RELAY_HOURS="12-18" takes new files only in those hours (UTC); unset
+ * means always. Outside them it still gives back and lets go what it holds:
+ * a node that's closed never keeps anything longer because it's closed.
+ */
+export function relayHours(text = process.env.GATE_RELAY_HOURS ?? '') {
+	const m = /^\s*(\d{1,2})\s*-\s*(\d{1,2})\s*$/.exec(text);
+	if (!m) return null;
+	const from = Number(m[1]), to = Number(m[2]);
+	return from >= 0 && from <= 24 && to >= 0 && to <= 24 && from !== to ? { from, to } : null;
+}
+/** Whether the relay takes new files at this moment. Hours may wrap past midnight (22-6). */
+export function relayOpen(hours, now = new Date()) {
+	if (!hours) return true;
+	const h = now.getUTCHours() + now.getUTCMinutes() / 60;
+	return hours.from < hours.to ? h >= hours.from && h < hours.to : h >= hours.from || h < hours.to;
+}
 const PKCS8_ED25519 = Buffer.from('302e020100300506032b657004220420', 'hex');
 let node = null;
 /** The node's own signing key, from GATE_SEED (32 bytes, hex or base64url). No seed, no relay. */
@@ -536,7 +555,8 @@ async function relays(req, res, origin, id, item) {
 	const me = await nodeIdentity();
 	if (!me) return send(res, origin, 404, { says: 'This node doesn’t offer a pass-through.' });
 	const where = relayWhere(me);
-	if (!id && req.method === 'GET') return send(res, origin, 200, { schema: 'inqbeta.relay-terms/1', where, did: me.did, fileBytes: RELAY_FILE_BYTES, holdsBytes: RELAY_HOLDS_BYTES, days: RELAY_DAYS });
+	const hours = relayHours();
+	if (!id && req.method === 'GET') return send(res, origin, 200, { schema: 'inqbeta.relay-terms/1', where, did: me.did, fileBytes: RELAY_FILE_BYTES, holdsBytes: RELAY_HOLDS_BYTES, days: RELAY_DAYS, hours, openNow: relayOpen(hours) });
 	if (id === 'stats' && req.method === 'GET') {
 		const days = [];
 		for (let i = 0; i < 30; i++) {
@@ -567,6 +587,7 @@ async function relays(req, res, origin, id, item) {
 		return res.end(bytes);
 	}
 	if (req.method === 'POST' && item) {
+		if (!relayOpen(hours)) return send(res, origin, 503, { says: `The pass-through is open ${String(hours.from).padStart(2, '0')}:00 to ${String(hours.to).padStart(2, '0')}:00 (UTC). What it holds is still given back and let go.` });
 		if (tooMany(`relay:${req.socket.remoteAddress ?? ''}`, now, RELAY_POSTS_PER_HOUR)) return send(res, origin, 429, { says: 'Too many at once. Try again in a while.' });
 		const bytes = await readBytes(req, RELAY_FILE_BYTES);
 		if (bytes === null) return send(res, origin, 413, { says: 'That file is too big for the relay.' });
