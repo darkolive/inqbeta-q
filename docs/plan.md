@@ -202,6 +202,25 @@ on localhost; new localStorage keys go in `q-core/src/storage.ts`.
   everybody without knowing anybody". Built on consent: answers come only
   from what people chose to make findable (ADR-Q-021), never from their
   vaults, and survey responses carry the participant's consent receipt.
+- **Relays that find each other** (Darren, 4 October): anything can be a
+  relay (a Raspberry Pi, a phone), announcing itself with a signed "I am
+  here" card (its did:key, what it carries, roughly where), the mycelium
+  idea from the incubator docs. The directory (Dgraph has geo indexes and a
+  "near" query) picks the relay closest to the sender and the one closest
+  to the receiver. In a festival field, with no internet, phones find each
+  other directly (Bluetooth, local Wi-Fi) and everyone nearby is a relay,
+  earning credits for what they carry (ADR-Q-030 §10). Location is coarse
+  (an area, not a spot) and only shared by choice, because a phone's
+  position is a person's position.
+- **The festival site** (Darren, 4 October): a mini PC in the van with a
+  Wi-Fi router covering the site is a node for everyone there: storage,
+  bellboy, switchboard (site-wide calls on a dedicated channel), all local
+  and fast; anything bound for the wider world waits in a queue and goes
+  over 4G when there's signal. Your settings say what you lend: **use my
+  Bluetooth**, **let me be found**, **relay for others**. Note: browsers
+  can join the van's Wi-Fi and use Q today, but phone-to-phone Bluetooth
+  from a web page is limited (iPhones don't allow it), so that part needs
+  Q wrapped as an app.
 - **Crowdfunding, following, and the test bed**: now ADR-Q-031 (gift
   campaigns, backing with rewards in kind, following on the home page,
   enterprises that start in credits and go live when ready, sponsorship).
