@@ -221,6 +221,15 @@ on localhost; new localStorage keys go in `q-core/src/storage.ts`.
   can join the van's Wi-Fi and use Q today, but phone-to-phone Bluetooth
   from a web page is limited (iPhones don't allow it), so that part needs
   Q wrapped as an app.
+- **Story decks** (built 4 October): a self-contained `StoryDeck` (the
+  animation; the slides as stills underneath; a Skeleton slider over the
+  whole timeline, a tenth of a second at a time, a marker per scene; "Got
+  it" folds it away, remembered). Five decks, each a short advert at
+  `/stories/<id>` (open to anyone, with sharing): the festival field of
+  relays, your vault in many places, backing an idea with pledges held,
+  credits always backed, and when a club gets full. Next: put each on the
+  page it explains (vault on Backups, backed on Credits, network on the
+  federation page), and words into the language books.
 - **Crowdfunding, following, and the test bed**: now ADR-Q-031 (gift
   campaigns, backing with rewards in kind, following on the home page,
   enterprises that start in credits and go live when ready, sponsorship).

@@ -37,9 +37,12 @@ export function isPublicPage(path: string): boolean {
  * reachable by someone who has not signed in — otherwise the link in an email
  * leads to a redirect instead of the receipt.
  */
-export const OPEN_PREFIXES = ['/c/', '/card/', '/channels/', '/federations/join', '/legal/', '/shop/', '/offer/'];
+export const OPEN_PREFIXES = ['/c/', '/card/', '/channels/', '/federations/join', '/legal/', '/shop/', '/offer/', '/stories'];
 
 /*
+ * '/stories' — the picture stories as short adverts (4 October 2026), shared
+ * on social media to people who've never signed in.
+ *
  * '/shop/' and '/offer/' — a shop or an offer someone sent (ADR-Q-026). Like a
  * card: the person opening it is often signed out, and sending them home
  * threw the link away. The page asks for the passkey itself, and stays.
