@@ -157,6 +157,20 @@ on localhost; new localStorage keys go in `q-core/src/storage.ts`.
   receipts of a *trade* are taxable when they're money's worth, meaning
   convertible or transferable (BIM40051), so a member running storage as a
   business may owe tax on credits before cashing out.
+- **Your accounts software** (Darren, 4 October): a business setting, "who
+  does your accounts?" (Xero, Sage, QuickBooks…). Cash-out statements and
+  sales receipts export ready to import: first a file in the software's own
+  bank-statement format, later a direct link with the person's own key, like
+  the other services. A business that cashes out through its business
+  account claims its costs back; a sole trader testing an idea keeps a clean
+  record from day one. Made for ADHD people running a business.
+- **Sponsorship credits for young enterprise**: a sponsor's grant backs
+  credits minted for a starting business (ADR-Q-027: capital and grants as
+  reserves), so youngsters have credits to work with from the start. For the
+  accountant: whether such a grant is income of the business.
+- **Crowdfunding, following, and the test bed**: now ADR-Q-031 (gift
+  campaigns, backing with rewards in kind, following on the home page,
+  enterprises that start in credits and go live when ready, sponsorship).
 - **Credits by default** on pricing (done 4 October): a "show in pounds"
   toggle at the host's rate.
 - **The plugin builder**: components, functions and code pass through a
