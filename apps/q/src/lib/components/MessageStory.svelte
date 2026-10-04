@@ -2,7 +2,7 @@
 	/*
 	 * How a message gets from one person to another, as a short picture story
 	 * (2 October 2026), the same family as ReceiptStory and FederationStory.
-	 * Plain steps, one at a time: choose who, write it, Q seals it, it waits in
+	 * Plain steps, one at a time: write it, choose who, Q seals it, it waits in
 	 * storage while the bellboy rings their bell (ADR-Q-014), they open it, and
 	 * you both keep a signed copy.
 	 *
@@ -33,8 +33,8 @@
 				<text x="515" y="276" text-anchor="middle" class="fill-surface-950-50 text-lg font-semibold">{t('story.ben')}</text>
 			</g>
 
-			<!-- 1: choose who — Ana's people, Ben picked out -->
-			<g class="{fade} {on(1, 1)}">
+			<!-- 2: choose who — Ana's people, Ben picked out (the message comes first, 4 October 2026) -->
+			<g class="{fade} {on(2, 2)}">
 				<rect x="52" y="152" width="146" height="28" rx="14" fill="none" class="stroke-secondary-500" stroke-width="3" />
 				{#each [{ y: 132, c: 'fill-tertiary-500' }, { y: 166, c: 'fill-primary-500' }, { y: 200, c: 'fill-surface-400-600' }] as r (r.y)}
 					<circle cx="70" cy={r.y} r="9" class={r.c} />
@@ -43,8 +43,8 @@
 				<line x1="230" y1="165" x2="410" y2="165" class="stroke-surface-400-600" stroke-width="3" stroke-dasharray="6 10" />
 			</g>
 
-			<!-- 2: write it -->
-			<g class="{fade} {on(2, 2)}">
+			<!-- 1: write it -->
+			<g class="{fade} {on(1, 1)}">
 				<path d="M60 124h130a8 8 0 0 1 8 8v50a8 8 0 0 1-8 8H96l-14 14v-14H60a8 8 0 0 1-8-8v-50a8 8 0 0 1 8-8z" class="fill-secondary-100-900 stroke-secondary-500" stroke-width="2.5" />
 				<rect x="68" y="138" width="100" height="8" rx="4" class="fill-surface-400-600" />
 				<rect x="68" y="154" width="80" height="8" rx="4" class="fill-surface-400-600" />

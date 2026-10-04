@@ -20,6 +20,8 @@
 	import { readIds } from '$lib/announcements';
 	import { MESSAGE_SCHEMA } from '@inqbeta/q-core/inbox';
 	import type { Signed } from '$lib/messages';
+	import Composer from '$lib/components/message/Composer.svelte';
+	import { refreshLedger } from '$lib/ledger';
 
 	let identity = $state<Identity | null>(null);
 	let ledger = $state<Ledger | null>(null);
@@ -54,6 +56,16 @@
 	const ready = $derived(ledger?.state === 'ready' || ledger?.state === 'no-folder');
 	const unread = $derived(threads.reduce((n, t) => n + t.unread, 0));
 	const notYet = $derived(people.filter((p) => p.inbox && !threads.some((t) => t.did === p.did)));
+	/* What the last message was, in a few words: its text, or what it carried. */
+	const gist = (m: Signed) => {
+		if (m.content.kind === 'voicemail') return 'Voice message';
+		if (m.content.text) return m.content.text;
+		const as = m.content.attachments ?? [];
+		const pics = as.filter((a) => a.kind === 'picture').length;
+		if (pics) return pics === 1 ? 'A picture' : `${pics} pictures`;
+		const a = as[0];
+		return a?.kind === 'file' ? a.name ?? 'A file' : a?.kind === 'link' ? 'A link' : a?.kind === 'place' ? 'A place' : a?.kind === 'card' ? 'A card' : m.content.audio ? 'Voice note' : '';
+	};
 	const when = (iso: string) => {
 		const d = new Date(iso);
 		return Date.now() - d.getTime() < 86400000 ? d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
@@ -82,7 +94,10 @@
 		</Empty>
 	{:else}
 		<div class="grid gap-8 lg:grid-cols-3 items-start">
-			<section class="lg:col-span-2 flex flex-col gap-3" aria-labelledby="conversations">
+			<div class="lg:col-span-2 flex flex-col gap-8">
+			<!-- The message comes first; who it's for comes after (Darren, 4 October 2026). -->
+			<Composer {identity} {ledger} {people} onSent={() => void refreshLedger()} />
+			<section class="flex flex-col gap-3" aria-labelledby="conversations">
 				<h2 id="conversations" class="h4 flex items-center gap-3">
 					Conversations
 					{#if unread}<span class="badge preset-filled-primary-500">{unread} new</span>{/if}
@@ -97,7 +112,7 @@
 										<span class="block {t.unread ? 'font-bold' : ''}">{t.person?.name ?? 'Someone'}</span>
 										<span class="flex items-center gap-1 text-sm opacity-70 truncate">
 											{#if t.last.content.kind === 'voicemail'}<Icon name="mic" size={14} />{/if}
-											{t.last.did === identity.did ? 'You: ' : ''}{t.last.content.kind === 'voicemail' ? 'Voice message' : t.last.content.text}
+											{t.last.did === identity.did ? 'You: ' : ''}{gist(t.last)}
 										</span>
 									</span>
 									<span class="flex flex-col items-end gap-1 shrink-0">
@@ -109,9 +124,10 @@
 						{/each}
 					</ul>
 				{:else}
-					<p class="card preset-tonal-surface p-4">No conversations yet. Choose someone to write to.</p>
+					<p class="card preset-tonal-surface p-4">No conversations yet. Write your first message above.</p>
 				{/if}
 			</section>
+			</div>
 
 			<aside class="flex flex-col gap-6">
 				{#if notYet.length}

@@ -12,7 +12,9 @@
 	import { watch, type Identity } from '@inqbeta/q-core/passkey';
 	import { watchLedger, refreshLedger, type Ledger } from '$lib/ledger';
 	import { peopleFrom } from '$lib/people';
-	import { sendTo, threadWith } from '$lib/messages';
+	import { threadWith } from '$lib/messages';
+	import Composer from '$lib/components/message/Composer.svelte';
+	import AttachmentView from '$lib/components/message/AttachmentView.svelte';
 	import { lengthOf } from '$lib/voicemail';
 	import { markRead } from '$lib/announcements';
 
@@ -37,19 +39,9 @@
 		void tick().then(() => list?.scrollTo({ top: list.scrollHeight, behavior: 'smooth' }));
 	});
 
-	let text = $state('');
-	let sending = $state(false);
-	let says = $state('');
-	async function send() {
-		if (!person || !text.trim()) return;
-		sending = true;
-		says = '';
-		const out = await sendTo(person, { kind: 'message', text: text.trim() });
-		sending = false;
-		if (!out.ok) return void (says = out.says);
-		text = '';
-		await refreshLedger();
-	}
+	const people = $derived(peopleFrom(ledger, identity?.did ?? ''));
+	const isKnown = (did?: string) => !!did && (did === identity?.did || people.some((p) => p.did === did));
+	const nameOf = (did: string) => people.find((p) => p.did === did)?.name.split(' ')[0] ?? 'someone';
 	const time = (iso: string) => new Date(iso).toLocaleString('en-GB', { weekday: 'short', hour: '2-digit', minute: '2-digit' });
 </script>
 
@@ -64,7 +56,7 @@
 		<a class="btn preset-tonal min-h-11" href="/messages">Back to messages</a>
 	</Empty>
 {:else}
-	<div class="flex flex-col gap-4 h-[calc(100dvh-12rem)] min-h-96">
+	<div class="flex flex-col gap-4">
 		<!-- Who: their face, name, and Call. -->
 		<header class="card preset-outlined-surface-200-800 bg-surface-50-950 p-3 flex items-center gap-3">
 			<a href="/messages" class="btn-icon preset-tonal min-h-11 min-w-11" aria-label="All messages"><Icon name="arrowLeft" /></a>
@@ -79,7 +71,7 @@
 		</header>
 
 		<!-- The conversation. -->
-		<div bind:this={list} class="flex-1 overflow-y-auto flex flex-col gap-2 px-1" aria-live="polite">
+		<div bind:this={list} class="h-[55dvh] min-h-80 overflow-y-auto flex flex-col gap-3 px-1" data-thread aria-live="polite">
 			{#if !thread.length}
 				<p class="m-auto opacity-60 text-center">Say hello to {person.name.split(' ')[0]}.</p>
 			{/if}
@@ -88,30 +80,42 @@
 				<div class="max-w-[80%] {mine ? 'self-end' : 'self-start'}">
 					{#if m.content.kind === 'voicemail' && m.content.audio}
 						<!-- A voice message (ADR-Q-022), left after a call wasn't answered. -->
-						<div class="card px-4 py-3 space-y-2 {mine ? 'preset-filled-primary-500' : 'preset-tonal-surface'}">
+						<div class="card px-4 py-3 space-y-2 {mine ? 'preset-filled-primary-500' : 'preset-filled-surface-200-800'}">
 							<p class="flex items-center gap-2 text-sm font-semibold"><Icon name="mic" size={16} /> Voice message · {lengthOf(m.content.seconds ?? 0)}</p>
 							<audio controls preload="none" src={m.content.audio} class="max-w-full"></audio>
 						</div>
 					{:else}
-						<p class="card px-4 py-2 whitespace-pre-line {mine ? 'preset-filled-primary-500' : 'preset-tonal-surface'}">{m.content.text}</p>
+						{@const pics = (m.content.attachments ?? []).filter((a) => a.kind === 'picture')}
+						{@const rest = (m.content.attachments ?? []).filter((a) => a.kind !== 'picture')}
+						<div class="flex flex-col gap-2 {mine ? 'items-end' : 'items-start'}">
+							{#if pics.length}
+								<!-- Pictures as a grid (Skeleton's image layouts): one big, or two to a row. -->
+								<div class="grid gap-1 w-72 max-w-full {pics.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}">
+									{#each pics as a (a.sha256)}<AttachmentView {a} compact={pics.length > 1} {mine} />{/each}
+								</div>
+							{/if}
+							{#if m.content.text}
+								<p class="card px-4 py-2 whitespace-pre-line {mine ? 'preset-filled-primary-500' : 'preset-filled-surface-200-800'}">{m.content.text}</p>
+							{/if}
+							{#if m.content.audio}
+								<div class="card px-4 py-3 space-y-2 {mine ? 'preset-filled-primary-500' : 'preset-filled-surface-200-800'}">
+									<p class="flex items-center gap-2 text-sm font-semibold"><Icon name="mic" size={16} /> Voice note · {lengthOf(m.content.seconds ?? 0)}</p>
+									<audio controls preload="none" src={m.content.audio} class="max-w-full"></audio>
+								</div>
+							{/if}
+							{#each rest as a, i (i)}
+								<div class="w-80 max-w-full"><AttachmentView {a} {mine} known={isKnown(a.did)} /></div>
+							{/each}
+							{#if mine && m.content.alsoTo?.length}<p class="text-xs opacity-60">Also sent to {m.content.alsoTo.map(nameOf).join(', ')}</p>{/if}
+						</div>
 					{/if}
 					<p class="text-xs opacity-50 mt-1 {mine ? 'text-right' : ''}">{time(m.content.at)}</p>
 				</div>
 			{/each}
 		</div>
 
-		<!-- Write. Enter sends; Shift+Enter is a new line. -->
-		<form class="flex items-end gap-2" onsubmit={(e) => { e.preventDefault(); void send(); }}>
-			<textarea
-				class="textarea flex-1"
-				rows="2"
-				bind:value={text}
-				aria-label="Your message"
-				onkeydown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); void send(); } }}
-			></textarea>
-			<button type="submit" class="btn preset-filled-primary-500 min-h-11" disabled={sending || !text.trim() || !person.inbox}>{sending ? 'Sending…' : 'Send'}</button>
-		</form>
+		<!-- Write: the same message card as everywhere, with the person already chosen. -->
+		<Composer {identity} {ledger} {people} to={person} onSent={() => void refreshLedger()} />
 		{#if !person.inbox}<p class="text-sm opacity-70">Their card came from an older Q, so there's nowhere to write to them yet. Ask them to share their card again.</p>{/if}
-		{#if says}<p class="text-sm card preset-tonal-error p-3">{says}</p>{/if}
 	</div>
 {/if}

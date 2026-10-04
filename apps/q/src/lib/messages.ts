@@ -17,6 +17,8 @@ import { saveLocked } from '@inqbeta/q-core/folder';
 import { readHome } from '$lib/home';
 import { isAgreementStep } from '@inqbeta/q-core/agreements';
 import { connectMqtt } from '$lib/mqtt-ws';
+import { receivePiece, keepFile } from '$lib/attachments';
+import { fromBase64, type Attachment, type Piece } from '@inqbeta/q-core/attachments';
 
 export type { Message };
 export type Signed = SealedReceipt & { content: Message };
@@ -49,7 +51,7 @@ export async function keepStep(step: SealedReceipt & { content: { agreement: str
 /** Write to someone you're linked with. Your signed copy is kept in your vault. */
 export async function sendTo(
 	to: { did: string; inbox?: string },
-	what: Pick<Message, 'kind'> & Partial<Pick<Message, 'text' | 'card' | 'link' | 'audio' | 'seconds' | 'call' | 'step'>>
+	what: Pick<Message, 'kind'> & Partial<Pick<Message, 'text' | 'card' | 'link' | 'audio' | 'seconds' | 'call' | 'step' | 'attachments' | 'piece' | 'alsoTo'>>
 ): Promise<{ ok: true; signed: Signed } | { ok: false; says: string }> {
 	const me = current();
 	if (!me) return { ok: false, says: 'Sign in first.' };
@@ -72,6 +74,48 @@ export async function sendTo(
 	/* Calls' handshakes aren't conversation: only real words are kept as yours. */
 	if (kept(what.kind)) await keep(signed).catch(() => {});
 	return { ok: true, signed };
+}
+
+/**
+ * A message written once and sent to several people (4 October 2026): each
+ * gets their own sealed copy. A big file's pieces go first, each its own
+ * post, so they're there when the message arrives. `onStep` is told how far
+ * it's got, to show. Says who it reached and who it didn't.
+ */
+export async function sendMessage(
+	to: { did: string; name: string; inbox?: string }[],
+	what: { text?: string; attachments?: Attachment[]; audio?: string; seconds?: number },
+	pieces: Piece[],
+	files: { sha256: string; name: string; type: string; bytes: Uint8Array<ArrayBuffer> }[],
+	onStep: (done: number, of: number) => void = () => {}
+): Promise<{ reached: string[]; missed: { name: string; says: string }[] }> {
+	/* Your own copies first, so what you sent is in your vault whatever happens next. */
+	for (const f of files) await keepFile(f.sha256, f.name, f.type, f.bytes).catch(() => {});
+	const of = to.length * (pieces.length + 1);
+	let done = 0;
+	const reached: string[] = [];
+	const missed: { name: string; says: string }[] = [];
+	for (const p of to) {
+		let says = '';
+		for (const piece of pieces) {
+			const out = await sendTo(p, { kind: 'piece', piece });
+			onStep(++done, of);
+			if (!out.ok) {
+				says = out.says;
+				break;
+			}
+		}
+		if (!says) {
+			const alsoTo = to.filter((x) => x.did !== p.did).map((x) => x.did);
+			const out = await sendTo(p, { kind: 'message', ...(what.text ? { text: what.text } : {}), ...(what.attachments?.length ? { attachments: what.attachments } : {}), ...(what.audio ? { audio: what.audio, seconds: what.seconds } : {}), ...(alsoTo.length ? { alsoTo } : {}) });
+			if (!out.ok) says = out.says;
+		}
+		done = Math.max(done, reached.length * (pieces.length + 1) + pieces.length + 1);
+		onStep(done, of);
+		if (says) missed.push({ name: p.name, says });
+		else reached.push(p.name);
+	}
+	return { reached, missed };
 }
 
 /* ---- Collecting what's waiting ---- */
@@ -113,6 +157,10 @@ export function collectInbox(): Promise<number> {
 				const check = await checkReceipt(signed);
 				if (!check.ok || signed.content?.schema !== MESSAGE_SCHEMA || signed.content.to !== me.did) continue;
 				if (kept(signed.content.kind)) await keep(signed);
+				/* A piece of a big file: kept until the last one is in, then joined into the file. */
+				if (signed.content.kind === 'piece') await receivePiece(signed.content.piece);
+				/* Small files ride inside: keep them in the vault's files too, so they're found like any other. */
+				for (const a of signed.content.attachments ?? []) if (a.data && a.sha256 && (a.kind === 'file' || a.kind === 'picture')) await keepFile(a.sha256, a.name ?? 'file', a.type ?? '', fromBase64(a.data)).catch(() => {});
 				/* An agreement step (ADR-Q-025): kept as its own receipt, if it's signed by whoever sent it. */
 				if (signed.content.kind === 'agreement') {
 					const step = signed.content.step;

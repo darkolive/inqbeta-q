@@ -25,6 +25,7 @@
 import { b64url, canonical } from './canonical';
 import { sealWith, type SealedReceipt, type SealedToPeople } from './seal';
 import type { Identity } from './passkey';
+import type { Attachment, Piece } from './attachments';
 
 export const INBOX_PHRASE = 'inqbeta.inbox/1';
 export const POST_SCHEMA = 'inqbeta.post/1';
@@ -55,7 +56,7 @@ export async function inboxOf(identity: Pick<Identity, 'vault'>): Promise<{ id: 
 export interface Message {
 	schema: typeof MESSAGE_SCHEMA;
 	source: 'inqbeta:q/message';
-	kind: 'message' | 'linked-back' | 'call' | 'call-reply' | 'call-declined' | 'call-ended' | 'voicemail' | 'agreement';
+	kind: 'message' | 'linked-back' | 'call' | 'call-reply' | 'call-declined' | 'call-ended' | 'voicemail' | 'agreement' | 'piece';
 	/** Whose it is: the DID it was sealed for. */
 	to: string;
 	/** Where to write back. */
@@ -72,6 +73,12 @@ export interface Message {
 	call?: string;
 	/** An agreement step (ADR-Q-025): its own signed receipt, carried inside the message. */
 	step?: unknown;
+	/** Pictures, files, links, places and cards (q-core/attachments.ts). */
+	attachments?: Attachment[];
+	/** One piece of a big file (kind 'piece'): not conversation, joined on arrival. */
+	piece?: Piece;
+	/** Who else the same message went to, each with their own sealed copy. */
+	alsoTo?: string[];
 	at: string;
 }
 
