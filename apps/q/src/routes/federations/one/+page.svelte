@@ -669,6 +669,8 @@
 					<Section title="Services" description="What your host can do for its members. Each one needs a key from the company that provides it.">
 						{#if !dev}
 							<p class="max-w-2xl">Services are set on the founder’s own computer. Keys never pass through this page.</p>
+							<!-- Pricing and hiring need no keys, so they work on the live site too. -->
+							<div class="mt-4"><PricingFromFlow /></div>
 						{:else if !services}
 							<p class="opacity-60">Looking at this copy’s settings…</p>
 						{:else}
