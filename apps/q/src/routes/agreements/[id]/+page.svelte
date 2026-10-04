@@ -185,7 +185,7 @@
 									<p class="font-bold">{s.terms.b === me ? 'Your use so far' : 'Paid so far'}</p>
 									<dl class="grid gap-3 sm:grid-cols-3">
 										{#if use}
-											<div><dt class="text-sm opacity-70">Held for you</dt><dd class="h5 tabular-nums">{gbHours(use.byteHours)} GB-hours</dd><dd class="text-xs opacity-70">{use.items} file{use.items === 1 ? '' : 's'}{use.open ? `, ${use.open} still held` : ''}</dd></div>
+											<div><dt class="text-sm opacity-70">Held for you</dt><dd class="h5 tabular-nums">{use.byteHours > 0 ? `${gbHours(use.byteHours)} GB-hours` : 'Nothing yet'}</dd><dd class="text-xs opacity-70">{use.items ? `${use.items} file${use.items === 1 ? '' : 's'}${use.open ? `, ${use.open} still held` : ''}` : 'Only used when your cloud can’t take something'}</dd></div>
 											<div><dt class="text-sm opacity-70">At {sv.perGBHour} a GB-hour</dt><dd class="h5 tabular-nums">{due.owed} credit{due.owed === 1 ? '' : 's'}</dd><dd class="text-xs opacity-70">rounded up; at most {due.most}</dd></div>
 										{/if}
 										<div><dt class="text-sm opacity-70">Settled</dt><dd class="h5 tabular-nums">{due.paid} of at most {due.most}</dd></div>
