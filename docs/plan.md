@@ -188,6 +188,20 @@ on localhost; new localStorage keys go in `q-core/src/storage.ts`.
   beside it. Reviews feed the trust levels (like a blue badge earned, not
   bought), and inside a federation they lead naturally into its proposals,
   votes and minutes (ADR-Q-007's Plans block).
+- **Who sees what, on a federation's page** (Darren, 4 October): a settings
+  tab laid out as three columns, **public · members · admin**, one row per
+  thing (its card and did:key, network health, the mint's books and trust
+  level, campaigns, reviews, members' list, minutes). The caretaker ticks
+  where each row shows, signed with their passkey on the live site; keys,
+  money and services stay on the founder's own computer (localhost), as
+  now. A preview button: "see it as the public", "as a member".
+- **Shared knowledge** (Darren, 4 October): research projects, surveys for
+  academics, what each enterprise learned, all in the directory; an
+  incubator studying, say, neurodiversity kite-mark standards, and anyone
+  in any federation able to ask an AI over that knowledge: "understand
+  everybody without knowing anybody". Built on consent: answers come only
+  from what people chose to make findable (ADR-Q-021), never from their
+  vaults, and survey responses carry the participant's consent receipt.
 - **Crowdfunding, following, and the test bed**: now ADR-Q-031 (gift
   campaigns, backing with rewards in kind, following on the home page,
   enterprises that start in credits and go live when ready, sponsorship).
