@@ -1,14 +1,7 @@
 <script lang="ts" module>
-	import type { DeckScene } from './frame';
-	export const title = 'A field of phones, all carrying for each other';
-	export const scenes: DeckScene[] = [
-		{ title: 'A festival field. No signal.', says: 'Thousands of people, thousands of phones, and not a bar of signal between them.' },
-		{ title: 'Ana takes a photo for Ben', says: 'Q seals it as she takes it. Only Ben can open it: nobody else, ever.' },
-		{ title: 'Hop, hop, hop', says: 'Phones nearby pass the sealed box along, by Bluetooth or the site’s Wi-Fi. They carry it without being able to look inside.' },
-		{ title: 'Ben has it', says: 'Ben’s phone checks it and says “got it”. Only then does each phone that carried it let its copy go.' },
-		{ title: 'Signal at the edge', says: 'Anything going beyond the field waits. The moment any phone finds 4G, it goes up to the cloud.' },
-		{ title: 'Everyone earns a little', says: 'Each phone earns a little for what it carried. What you earn carrying for others pays for what you need carried. It cancels out.' }
-	];
+	import { DECK_WORDS } from './words';
+	export const title = DECK_WORDS.festival.title;
+	export const scenes = DECK_WORDS.festival.scenes;
 </script>
 
 <script lang="ts">

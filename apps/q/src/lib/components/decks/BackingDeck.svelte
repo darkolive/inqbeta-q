@@ -1,14 +1,7 @@
 <script lang="ts" module>
-	import type { DeckScene } from './frame';
-	export const title = 'Backing an idea, without handing your credits over first';
-	export const scenes: DeckScene[] = [
-		{ title: 'Sam has an idea', says: 'A small data farm for the club. It needs 300 credits by the first of December, or it can’t start.' },
-		{ title: 'People pledge', says: 'Five people back it. Each pledge is a promise, signed, and the bar fills from those receipts, not from anyone’s say-so.' },
-		{ title: 'Held, not spent', says: 'Pledged credits stay in your balance, but promised. You can’t spend them somewhere else while the campaign runs.' },
-		{ title: 'The target is met', says: 'The moment it reaches 300, every pledge moves to Sam at once, and the farm can begin.' },
-		{ title: 'Or it falls short', says: 'If it isn’t met by the date, nothing moves. Every pledge is simply released, back to the person who made it.' },
-		{ title: 'Rewards, and the story', says: 'Backers get what the farm makes, like a year of storage, and follow its updates. Never shares, never money back with more on top.' }
-	];
+	import { DECK_WORDS } from './words';
+	export const title = DECK_WORDS.backing.title;
+	export const scenes = DECK_WORDS.backing.scenes;
 </script>
 
 <script lang="ts">

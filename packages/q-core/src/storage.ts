@@ -61,6 +61,7 @@ export const STORED_KEYS: StoredKey[] = [
 	{ key: 'q-passkey-used', where: 'session', kind: 'identity', holds: 'which passkey signed in (its public id), so the vault pointer can be noted on it' },
 	{ key: 'q.relay.custody', where: 'local', kind: 'identity', holds: 'custody receipts for vault files passing through the host’s relay: what it holds, and what has arrived elsewhere (ADR-Q-028)' },
 	{ key: 'q.decks.hidden', where: 'local', kind: 'identity', holds: 'which story decks this person has put away, so they stay folded until opened again' },
+	{ key: 'q.decks.voice', where: 'local', kind: 'device', holds: 'whether the stories are told aloud as they play (on or off) — a preference' },
 	{ key: 'q.intro.closed', where: 'local', kind: 'identity', holds: 'which pages’ intro panels this person has closed, so they stay closed until “What is this page?” is pressed' },
 	{ key: 'q.call.with', where: 'session', kind: 'identity', holds: 'for one page load: who a call answered from the ring came from, so the answer goes back to them' },
 	{ key: 'q-google-oauth', where: 'session', kind: 'identity', holds: 'a Google Drive sign-in part-way through: the PKCE verifier and state, for one redirect' },

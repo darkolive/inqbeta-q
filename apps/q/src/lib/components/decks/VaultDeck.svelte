@@ -1,14 +1,7 @@
 <script lang="ts" module>
-	import type { DeckScene } from './frame';
-	export const title = 'Your vault, in many places at once';
-	export const scenes: DeckScene[] = [
-		{ title: 'The newest is in your hand', says: 'Your phone always has the newest of everything. You work from what’s right in front of you, even with no signal.' },
-		{ title: 'Every save goes out', says: 'Each time you agree, sign or capture something, a sealed copy goes out to your places: your cloud, your own bucket.' },
-		{ title: 'Join a federation', says: 'On a club’s page, press Join. Its storage becomes one of your places, the cost shown and agreed in one step.' },
-		{ title: 'Three places, three fates', says: 'Copies in different places, run by different people, are separate ways to survive. Q counts ways, not copies.' },
-		{ title: 'Lose your phone', says: 'In a river, on a hike, stolen. Sign in on a new phone and everything that reached your places comes back, checked against its seal.' },
-		{ title: 'Hot and cold', says: 'Your phone keeps what’s recent. Everything else waits, cool and cheap, in your places, and comes back the moment you open it.' }
-	];
+	import { DECK_WORDS } from './words';
+	export const title = DECK_WORDS.vault.title;
+	export const scenes = DECK_WORDS.vault.scenes;
 </script>
 
 <script lang="ts">

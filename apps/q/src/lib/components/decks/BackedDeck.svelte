@@ -1,14 +1,7 @@
 <script lang="ts" module>
-	import type { DeckScene } from './frame';
-	export const title = 'Credits you can trust: always backed, and you can see it';
-	export const scenes: DeckScene[] = [
-		{ title: 'It starts at nothing', says: 'A club’s mint begins at zero. No credit exists until value comes in.' },
-		{ title: '£20 in, 20 credits out', says: 'Someone buys 20 credits for £20. Pounds and credits rise together: fully backed.' },
-		{ title: 'Cash out 5', says: 'Cashing out destroys 5 credits and pays £5. Both fall together, so it’s still fully backed.' },
-		{ title: 'When the reserve is drawn on', says: 'Over time, 100 credits are out, and the host spends £85 of the reserve running the node. Now £15 backs 100 credits: 15%. Below the host’s line of 20%, cash-outs pause.' },
-		{ title: 'Buying heals it', says: 'Buying is never paused: each credit bought brings its own pound. Someone buys 50, and £65 backs 150 credits: 43%. Cash-outs open again.' },
-		{ title: 'Trust you can see', says: 'The club’s page shows how it’s backed: stated by the host, honoured by every cash-out paid, witnessed by a treasurer, confirmed by the bank.' }
-	];
+	import { DECK_WORDS } from './words';
+	export const title = DECK_WORDS.backed.title;
+	export const scenes = DECK_WORDS.backed.scenes;
 </script>
 
 <script lang="ts">

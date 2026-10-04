@@ -21,7 +21,26 @@ export interface Frame {
 export interface DeckScene {
 	title: string;
 	says: string;
+	/** How it's said, with ElevenLabs tags; the title and words when absent. */
+	voice?: string;
 }
+
+/*
+ * How long each scene lasts (4 October 2026: Darren, "timestamp it … each
+ * step won't be equal if one has more text and one has more animation … it
+ * becomes dynamic"). As long as the voice takes to say it, plus a breath, and
+ * never less than the pictures need. With no recording yet, the length is
+ * estimated from the words (about 14 characters a second, as the voice
+ * build reckons).
+ */
+export const BREATH = 1.2;
+export const LEAST = 4.5;
+export const sayingTime = (s: DeckScene) => (s.title.length + s.says.length) / 14;
+export function sceneTimes(scenes: DeckScene[], spoken: (number | null)[] = []): number[] {
+	return scenes.map((s, i) => Math.round(Math.max(LEAST, (spoken[i] ?? sayingTime(s)) + BREATH) * 10) / 10);
+}
+/** When each scene starts, from its lengths. */
+export const startsOf = (times: number[]) => times.reduce<number[]>((a, x, i) => [...a, i ? a[i - 1] + times[i - 1] : 0], []);
 
 /** From a to b, t of the way (0 to 1). */
 export const lerp = (a: number, b: number, t: number) => a + (b - a) * Math.min(1, Math.max(0, t));
@@ -36,11 +55,19 @@ export function along(points: [number, number][], t: number): [number, number] {
 const ease = (x: number) => (x < 0.5 ? 2 * x * x : 1 - (-2 * x + 2) ** 2 / 2);
 const fade = 'transition-opacity duration-500 motion-reduce:transition-none';
 
-/** The frame at time t (seconds), for scenes of `seconds` each, of which the first 70% moves. */
-export function frameAt(t: number, scenes: number, seconds: number, moves = true): Frame {
-	const scene = Math.min(scenes, Math.floor(t / seconds) + 1);
-	const into = t - (scene - 1) * seconds;
-	const p = moves ? ease(Math.min(1, Math.max(0, into / (seconds * 0.7)))) : 1;
+/**
+ * The frame at time t (seconds), for scenes of the given lengths, the first
+ * 70% of each moving (at most 4 seconds of movement, so a long telling holds
+ * its finished picture while the words are said).
+ */
+export function frameAt(t: number, times: number[], moves = true): Frame {
+	const scenes = times.length;
+	const starts = startsOf(times);
+	let scene = 1;
+	while (scene < scenes && t >= starts[scene]) scene++;
+	const into = t - starts[scene - 1];
+	const movement = Math.min(4, times[scene - 1] * 0.7);
+	const p = moves ? ease(Math.min(1, Math.max(0, into / movement))) : 1;
 	return {
 		scene,
 		p,

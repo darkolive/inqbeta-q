@@ -3,69 +3,87 @@
 	 * The stories (4 October 2026): Q's ideas as short picture decks, each one
 	 * a little advert for one kind of reader. Open to anyone, signed in or not.
 	 *
-	 * A story manual: the index runs down the side (Darren: "on the side there
-	 * an index, so it becomes like a story manual … a beautiful way of
-	 * teaching"), each story with its scenes, and stays in view as you read.
+	 * A story manual, one story at a time (Darren, 4 October: "the index on
+	 * the left, just the title … less weight on the font … rather than scroll
+	 * down like an anchor, it should replace the story, so you only have one
+	 * storyboard at a time … at the bottom of the index, share the whole
+	 * novel"). Choosing a title swaps the story in place; the address follows
+	 * (#vault), so Back works and a link opens the same story.
 	 */
-	import { Page, Icon } from '@inqbeta/q-ui';
+	import { Page } from '@inqbeta/q-ui';
 	import { DECKS } from '$lib/components/decks';
+	import ShareButton from '$lib/components/ShareButton.svelte';
 
-	/*
-	 * Keep the index in view as you scroll. The dashboard's <main> sets its own
-	 * overflow, which stops CSS sticky working here, so the index is moved
-	 * down with the page instead, never past the end of the stories.
-	 */
-	let aside = $state<HTMLElement | null>(null);
-	let column = $state<HTMLElement | null>(null);
-	let shift = $state(0);
+	/* Which story: from the address (#vault, or #vault-3 for a scene), else the first. */
+	const fromHash = () => {
+		if (typeof location === 'undefined') return DECKS[0].id;
+		const h = location.hash.slice(1);
+		return DECKS.find((d) => h === d.id || h.startsWith(`${d.id}-`))?.id ?? DECKS[0].id;
+	};
+	let chosen = $state(DECKS[0].id);
 	$effect(() => {
-		if (!aside || !column) return;
-		const wide = matchMedia('(min-width: 1024px)');
-		const place = () => {
-			if (!aside || !column || !wide.matches) return void (shift = 0);
-			const top = column.getBoundingClientRect().top - 96;
-			const room = column.offsetHeight - aside.offsetHeight;
-			shift = Math.max(0, Math.min(room, -top));
-		};
-		place();
-		addEventListener('scroll', place, { passive: true });
-		addEventListener('resize', place);
+		chosen = fromHash();
+		const back = () => (chosen = fromHash());
+		addEventListener('popstate', back);
+		addEventListener('hashchange', back);
 		return () => {
-			removeEventListener('scroll', place);
-			removeEventListener('resize', place);
+			removeEventListener('popstate', back);
+			removeEventListener('hashchange', back);
 		};
 	});
+	const deck = $derived(DECKS.find((d) => d.id === chosen) ?? DECKS[0]);
+	function choose(id: string, e: MouseEvent) {
+		e.preventDefault();
+		if (id === chosen) return;
+		history.pushState(null, '', `#${id}`);
+		chosen = id;
+		/* On a phone the index sits above the story: bring the story up. */
+		if (!matchMedia('(min-width: 1024px)').matches) requestAnimationFrame(() => stage?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' }));
+	}
+	let stage = $state<HTMLElement | null>(null);
+
+	let origin = $state('');
+	$effect(() => void (origin = location.origin));
 </script>
 
-<svelte:head><title>Stories — Q</title></svelte:head>
+<svelte:head><title>{deck.title} — Stories — Q</title></svelte:head>
 
-<Page title="Stories" lead="Q’s ideas, one short picture story each. Watch, skim with the slider, or share the one that fits someone you know.">
-	<div bind:this={column} class="grid grid-cols-1 lg:grid-cols-[15rem_minmax(0,1fr)] gap-8 items-start">
-		<!-- The index: every story and its scenes. -->
-		<aside bind:this={aside} style="transform: translateY({shift}px)" class="lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto card preset-outlined-surface-200-800 bg-surface-50-950 p-4">
-			<nav aria-label="Story index">
-				<p class="text-xs font-bold uppercase tracking-wider text-surface-700-300 mb-3">Index</p>
-				<ol class="flex flex-col gap-4">
+<Page title="Stories" lead="Q’s ideas, one short picture story each. Choose one, watch, skim with the slider, and share the scene that fits someone you know.">
+	<div class="grid grid-cols-1 lg:grid-cols-[16rem_minmax(0,1fr)] gap-8 items-start">
+		<!-- The index: titles only, light, the one showing marked. -->
+		<aside class="card preset-outlined-surface-200-800 bg-surface-50-950 p-3 flex flex-col gap-3">
+			<nav aria-label="Chapters">
+				<p class="text-xs font-semibold uppercase tracking-wider text-surface-700-300 px-2 pt-1 pb-2">Chapters</p>
+				<ol class="flex flex-col gap-1">
 					{#each DECKS as d, i (d.id)}
+						{@const on = d.id === chosen}
 						<li>
-							<a href="#{d.id}" class="anchor font-semibold leading-snug block">{i + 1}. {d.title}</a>
-							<p class="text-xs text-surface-700-300 mt-0.5">For {d.forWhom.toLowerCase()}</p>
-							<ol class="mt-1.5 ms-4 list-decimal text-xs text-surface-700-300 flex flex-col gap-0.5">
-								{#each d.scenes as s, n (n)}<li><a href="#{d.id}-{n + 1}" class="hover:underline">{s.title}</a></li>{/each}
-							</ol>
+							<a
+								href="#{d.id}"
+								class="flex gap-2 rounded-base px-2 py-2 leading-snug font-normal transition-colors {on ? 'preset-tonal-primary text-primary-800-200' : 'hover:preset-tonal'}"
+								aria-current={on ? 'page' : undefined}
+								onclick={(e) => choose(d.id, e)}
+							>
+								<span class="tabular-nums opacity-60 w-4 shrink-0">{i + 1}</span>
+								<span>{d.title}</span>
+							</a>
 						</li>
 					{/each}
 				</ol>
 			</nav>
+			<!-- The whole book, to share. -->
+			{#if origin}
+				<div class="pt-3 border-t border-surface-200-800">
+					<ShareButton link="{origin}/stories" title="Q, in stories" message="Q’s ideas, one short picture story each." label="Share the whole book" wide />
+				</div>
+			{/if}
 		</aside>
 
-		<div class="flex flex-col gap-10 min-w-0">
-			{#each DECKS as d (d.id)}
-				<section id={d.id} class="flex flex-col items-center gap-3 scroll-mt-24">
-					<d.component hideable={false} />
-					<a href="/stories/{d.id}" class="btn preset-tonal min-h-11"><Icon name="share" size={16} /> This story on its own, to share</a>
-				</section>
-			{/each}
+		<!-- One story at a time. -->
+		<div bind:this={stage} class="flex flex-col items-center min-w-0 scroll-mt-24">
+			{#key deck.id}
+				<deck.component hideable={false} />
+			{/key}
 		</div>
 	</div>
 </Page>

@@ -1,14 +1,7 @@
 <script lang="ts" module>
-	import type { DeckScene } from './frame';
-	export const title = 'When a club gets full, the network grows itself';
-	export const scenes: DeckScene[] = [
-		{ title: 'The club’s own space', says: 'A club runs its own node: a terabyte, bought with a grant, run on solar. Only a little of it is used. It needs nobody.' },
-		{ title: 'It warms up', says: 'As members join, it fills. At 70% full, the club’s own rule says: time to find more space.' },
-		{ title: 'A wanted offer goes out', says: 'Q posts it for the club: “100 GB for a month, up to 70 credits.” Every provider can see it on the grid.' },
-		{ title: 'Providers offer; the rules choose', says: 'Offers come in with each provider’s record. The club’s rules accept the one that meets them, with nobody deciding by hand.' },
-		{ title: 'The new node joins', says: 'The provider gets a key to the club’s private network, valid until the month ends. Files spread onto its space, and the club cools down.' },
-		{ title: 'Leaving cleanly', says: 'Before the month ends, everything on that node moves elsewhere first. Only then does its key run out. Nothing is let go until it’s held somewhere else.' }
-	];
+	import { DECK_WORDS } from './words';
+	export const title = DECK_WORDS.network.title;
+	export const scenes = DECK_WORDS.network.scenes;
 </script>
 
 <script lang="ts">

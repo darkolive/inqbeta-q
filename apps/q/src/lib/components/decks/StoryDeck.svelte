@@ -9,7 +9,9 @@
 	 * they do take up space … once you understand, you want it out the way."
 	 *
 	 *   the animation   the deck's pictures, moving, with the scene's words
-	 *   the slides      every scene as a still card; press one to go there
+	 *   (the slides strip was taken out on 4 October: "get rid of the frames,
+ *   they just take up space"; the slider sits right under the words, with
+ *   play, the clock and Share for the scene shown on the one line)
 	 *   the slider      the whole timeline, to the tenth of a second, with a
 	 *                   marker per scene: drag to skim, frame by frame
 	 *   got it          folds the deck to one line, remembered on this device
@@ -26,7 +28,8 @@
 	import type { Snippet } from 'svelte';
 	import { Slider } from '@skeletonlabs/skeleton-svelte';
 	import { Icon } from '@inqbeta/q-ui';
-	import { frameAt, stillOf, type DeckScene, type Frame } from './frame';
+	import { frameAt, sceneTimes, startsOf, type DeckScene, type Frame } from './frame';
+	import ShareButton from '../ShareButton.svelte';
 
 	interface Props {
 		/** Remembers "got it" for this deck only. */
@@ -34,21 +37,37 @@
 		title: string;
 		scenes: DeckScene[];
 		pictures: Snippet<[Frame]>;
-		/** Seconds per scene. */
-		seconds?: number;
 		/** Offer "Got it" to fold it away. */
 		hideable?: boolean;
 	}
-	let { id, title, scenes, pictures, seconds = 6, hideable = true }: Props = $props();
+	let { id, title, scenes, pictures, hideable = true }: Props = $props();
+
+	/*
+	 * Timed by the voice (4 October 2026). Each scene is recorded in Darren's
+	 * voice as story.<deck>.<n> (scripts/build-voice.mjs), its words timed;
+	 * a scene lasts as long as it takes to say, plus a breath, never less than
+	 * its pictures need. Until a scene is recorded its length is estimated
+	 * from its words, so the timeline is already uneven where the words are.
+	 */
+	type Told = { file: string; words?: [number, number][] };
+	let told = $state<(Told | null)[]>([]);
+	$effect(() => {
+		void fetch('/voice/en/manifest.json')
+			.then((r) => (r.ok ? r.json() : null))
+			.then((m: { items?: Record<string, Told> } | null) => (told = scenes.map((_, i) => m?.items?.[`story.${id}.${i + 1}`] ?? null)))
+			.catch(() => (told = []));
+	});
+	const times = $derived(sceneTimes(scenes, told.map((x) => (x?.words?.length ? x.words.at(-1)![1] : null))));
+	const starts = $derived(startsOf(times));
 
 	const N = $derived(scenes.length);
-	const total = $derived(N * seconds);
+	const total = $derived(times.reduce((a, b) => a + b, 0));
 	let t = $state(0);
 	let playing = $state(false);
 	let root = $state<HTMLElement | null>(null);
 	let started = false;
 	const still = () => typeof window !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
-	const frame = $derived(frameAt(t, N, seconds, !still()));
+	const frame = $derived(frameAt(t, times, !still()));
 	const scene = $derived(frame.scene);
 
 	/* Folded away ("got it"), remembered on this device. */
@@ -107,15 +126,6 @@
 		return () => cancelAnimationFrame(raf);
 	});
 
-	/* Keep the current slide in view in the strip, without moving the page. */
-	let strip = $state<HTMLElement | null>(null);
-	$effect(() => {
-		const li = strip?.children[scene - 1] as HTMLElement | undefined;
-		if (!strip || !li) return;
-		const left = li.offsetLeft - strip.offsetLeft;
-		if (left < strip.scrollLeft || left + li.offsetWidth > strip.scrollLeft + strip.clientWidth) strip.scrollTo({ left: left - 8, behavior: still() ? 'auto' : 'smooth' });
-	});
-
 	/* A link to a scene (#<id>-<n>, from a story manual's index) opens it here. */
 	$effect(() => {
 		const open = () => {
@@ -123,7 +133,7 @@
 			if (!m) return;
 			hidden = false;
 			playing = false;
-			t = (Math.min(N, Math.max(1, Number(m[1]))) - 1) * seconds;
+			t = starts[Math.min(N, Math.max(1, Number(m[1]))) - 1] ?? 0;
 			requestAnimationFrame(() => root?.scrollIntoView({ behavior: still() ? 'auto' : 'smooth', block: 'start' }));
 		};
 		open();
@@ -133,31 +143,78 @@
 
 	function go(n: number) {
 		stopVoice();
-		t = (Math.min(N, Math.max(1, n)) - 1) * seconds;
+		t = starts[Math.min(N, Math.max(1, n)) - 1] ?? 0;
 	}
 	function toggle() {
 		if (!playing && t >= total - 0.05) t = 0;
 		playing = !playing;
 	}
+	/* This scene's own link, to share: the story on its own page, opened at this scene. */
+	let origin = $state('');
+	$effect(() => void (origin = location.origin));
+	const sceneLink = $derived(origin ? `${origin}/stories/${id}#${id}-${scene}` : '');
 	const clock = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
-	/* Read the scene shown aloud, with the browser's own voice. */
-	let speaking = $state(false);
+	/*
+	 * The voice. Sound on, and the story is told as it plays: each scene's
+	 * recording starts with its scene and keeps in step with the slider. A
+	 * scene not yet recorded is read by the browser's own voice. On or off is
+	 * remembered on this device (q.decks.voice).
+	 */
+	const VOICE_KEY = 'q.decks.voice';
+	let voiceOn = $state(false);
+	$effect(() => {
+		try {
+			voiceOn = localStorage.getItem(VOICE_KEY) === 'on';
+		} catch {
+			voiceOn = false;
+		}
+	});
+	function setVoice(on: boolean) {
+		voiceOn = on;
+		try {
+			localStorage.setItem(VOICE_KEY, on ? 'on' : 'off');
+		} catch {
+			/* not remembered, which is fine */
+		}
+		if (on && !playing) toggle();
+		if (!on) stopVoice();
+	}
+	let audio: HTMLAudioElement | null = null;
+	let spokenScene = 0;
 	function stopVoice() {
+		audio?.pause();
 		if (typeof speechSynthesis !== 'undefined') speechSynthesis.cancel();
-		speaking = false;
+		spokenScene = 0;
 	}
-	function readAloud() {
-		if (typeof speechSynthesis === 'undefined') return;
-		if (speaking) return stopVoice();
-		const s = scenes[scene - 1];
-		const u = new SpeechSynthesisUtterance(`${s.title}. ${s.says}`);
-		u.lang = document.documentElement.lang || 'en-GB';
-		u.onend = u.onerror = () => (speaking = false);
-		playing = false;
-		speaking = true;
-		speechSynthesis.speak(u);
-	}
+	/* Keep the voice with the picture: the right scene, at the right moment in it. */
+	$effect(() => {
+		if (!voiceOn || !playing || hidden) return void stopVoice();
+		const n = scene;
+		const into = t - (starts[n - 1] ?? 0);
+		const rec = told[n - 1];
+		if (rec) {
+			audio ??= new Audio();
+			const src = new URL(rec.file, location.href).href;
+			if (audio.src !== src) {
+				audio.src = src;
+				audio.currentTime = Math.max(0, into);
+				void audio.play().catch(() => {});
+			} else if (audio.paused && !audio.ended && into < audio.duration - 0.1) {
+				audio.currentTime = Math.max(0, into);
+				void audio.play().catch(() => {});
+			} else if (!audio.paused && Math.abs(audio.currentTime - into) > 0.5) audio.currentTime = Math.max(0, into);
+		} else if (spokenScene !== n && into < 0.5 && typeof speechSynthesis !== 'undefined') {
+			audio?.pause();
+			speechSynthesis.cancel();
+			const s = scenes[n - 1];
+			const u = new SpeechSynthesisUtterance(`${s.title}. ${s.says}`);
+			u.lang = 'en-GB';
+			speechSynthesis.speak(u);
+		}
+		spokenScene = n;
+	});
+	$effect(() => () => stopVoice());
 </script>
 
 {#if hidden}
@@ -168,8 +225,8 @@
 	<section bind:this={root} class="scroll-mt-24 card preset-outlined-surface-200-800 bg-surface-50-950 p-4 sm:p-6 flex flex-col gap-5 w-full max-w-3xl min-w-0" aria-roledescription="carousel" aria-label={title}>
 		<header class="flex flex-wrap items-center gap-3">
 			<h2 class="h4 flex-1 min-w-0">{title}</h2>
-			<button type="button" class="btn-icon preset-tonal min-h-11 min-w-11" aria-label={speaking ? 'Stop reading' : 'Read this scene aloud'} aria-pressed={speaking} onclick={readAloud}>
-				<Icon name="speaker" size={18} />
+			<button type="button" class="btn-icon min-h-11 min-w-11 {voiceOn ? 'preset-filled-primary-500' : 'preset-tonal'}" aria-label={voiceOn ? 'Sound off' : 'Sound on: tell the story aloud'} title={voiceOn ? 'Sound off' : 'Sound on'} aria-pressed={voiceOn} onclick={() => setVoice(!voiceOn)}>
+				<Icon name={voiceOn ? 'speaker' : 'speaker-off'} size={18} />
 			</button>
 			{#if hideable}
 				<button type="button" class="btn preset-tonal min-h-11" onclick={() => setHidden(true)}><Icon name="check" size={16} /> Got it</button>
@@ -190,22 +247,6 @@
 				</div>
 			{/each}
 		</div>
-
-		<!-- The slides: each scene as a still; press one to go there. -->
-		<ol bind:this={strip} class="flex gap-3 overflow-x-auto pb-2 snap-x" aria-label="Slides">
-			{#each scenes as s, i (i)}
-				<li class="snap-start shrink-0"><button
-					type="button"
-					class="w-20 sm:w-24 h-full text-left card p-1 flex flex-col gap-1 transition-colors {i + 1 === scene ? 'preset-outlined-primary-500 bg-primary-50-950' : 'preset-outlined-surface-200-800 hover:preset-tonal'}"
-					aria-current={i + 1 === scene ? 'step' : undefined}
-					aria-label="Go to scene {i + 1}: {s.title}"
-					onclick={() => go(i + 1)}
-				>
-					<span class="rounded-base overflow-hidden bg-surface-100-900 pointer-events-none" aria-hidden="true">{@render pictures(stillOf(i + 1, N))}</span>
-					<span class="text-[0.65rem] font-semibold leading-tight line-clamp-1" title={s.title}>{i + 1}. {s.title}</span>
-				</button></li>
-			{/each}
-		</ol>
 
 		<!-- The timeline: drag to skim, a tenth of a second at a time; a marker per scene. -->
 		<div class="flex items-center gap-3">
@@ -233,11 +274,15 @@
 				</Slider.Control>
 				<Slider.MarkerGroup>
 					{#each scenes as _, i (i)}
-						<Slider.Marker value={i * seconds * 10}>{i + 1}</Slider.Marker>
+						<Slider.Marker value={Math.round((starts[i] ?? 0) * 10)}>{i + 1}</Slider.Marker>
 					{/each}
 				</Slider.MarkerGroup>
 			</Slider>
 			<span class="text-xs tabular-nums opacity-70 shrink-0 w-20 text-right">{clock(t)} / {clock(total)}</span>
+			<!-- Share the scene shown: its link opens the story at this scene. -->
+			{#if sceneLink}
+				<ShareButton link={sceneLink} title="{title}: {scenes[scene - 1].title}" message={scenes[scene - 1].says} label="Share this scene" />
+			{/if}
 		</div>
 	</section>
 {/if}

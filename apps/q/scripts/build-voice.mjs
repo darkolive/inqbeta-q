@@ -50,7 +50,20 @@ import de from '../src/lib/voice/scripts/de.ts';
 import es from '../src/lib/voice/scripts/es.ts';
 import zh from '../src/lib/voice/scripts/zh.ts';
 
-const SCRIPTS = { en, cy, fr, de, es, zh };
+import { DECK_WORDS } from '../src/lib/components/decks/words.ts';
+
+/*
+ * The stories (4 October 2026): every scene of every deck, told in English as
+ * story.<deck>.<n>, its words timed. The deck then lasts as long as the
+ * telling (decks/frame.ts, sceneTimes). A scene's own `voice` says how;
+ * otherwise its title, a beat, then its words, warmly and plainly.
+ */
+const STORY_LINES = Object.fromEntries(
+	Object.entries(DECK_WORDS).flatMap(([deck, d]) =>
+		d.scenes.map((s, i) => [`story.${deck}.${i + 1}`, s.voice ?? `[warmly] ${s.title} [short pause] [explaining] ${s.says}`])
+	)
+);
+const SCRIPTS = { en: { ...en, ...STORY_LINES }, cy, fr, de, es, zh };
 const OUT = 'static/voice';
 const API = 'https://api.elevenlabs.io';
 const RATE_PER_1K = 0.1;
