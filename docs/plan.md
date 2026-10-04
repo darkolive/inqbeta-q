@@ -87,11 +87,32 @@ exceptions.
 
 **Phase 3 done (4 October).** Waiting on Darren's testing.
 
-## Phase 4 — later, in rough order
+## Phase 4 — the network market (ADR-Q-030)
+
+Darren: "We are a crew sat on a ship in space … free to give, never free to
+take." Members choose federations as places; providers offer nodes from a
+plugin; federations ask for space when they get full; price is a band the
+crew chooses.
+
+1. **"Use us as a storage source"**: one click on a federation's page takes
+   its offer; the sync keeps a copy there; it shows on the Network page with
+   its standing (`howSafe()` by fate). The gate gets a **store** beside the
+   relay.
+2. **The record** from custody receipts per place (arrived, lost, corruption,
+   uptime), then signed summaries sent to provider cards.
+3. **The provider card and the Network provider plugin**: Run, Offer,
+   Accept, Earnings.
+4. **Reserved contracts**: space counted at the gate; monthly terms;
+   renewals.
+5. **Heat and wanted offers**: thresholds, the grid, acceptance by rules.
+6. **The mesh**: Nebula certificates per contract, SeaweedFS volumes,
+   draining before a contract ends (mini PC and Hetzner first).
+7. **The price band, its governance, the orchid line.**
+
+## Phase 5 — later, in rough order
 
 - The node checking hires: only people who've hired it (or the host's own
-  members) may hand it files; the operator's page reading the GB-hours from
-  the node's own receipts.
+  members) may hand it files.
 
 - The balance sheet page, statement and club summary (ADR-Q-024).
 - A lock on cash-outs before real money (two at once could both pass).
@@ -120,4 +141,4 @@ on localhost; new localStorage keys go in `q-core/src/storage.ts`.
 
 ## Inbox — new ideas, not yet placed
 
-(empty)
+(empty: the 4 October exploration became ADR-Q-030, Phase 4)
