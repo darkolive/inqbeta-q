@@ -141,4 +141,31 @@ on localhost; new localStorage keys go in `q-core/src/storage.ts`.
 
 ## Inbox — new ideas, not yet placed
 
-(empty: the 4 October exploration became ADR-Q-030, Phase 4)
+- **The host's commission** (Darren, 4 October): a setting on localhost, 10%
+  as standard, published with the mint's terms; it goes back into the project
+  (Dark Olive decides how). Donations stay, as thanks, through GitHub
+  Sponsors (for the code). Open: where it's taken — on every settlement, or
+  only where credits meet pounds (buying in, cashing out), so trades inside
+  the community (carriers at a festival) still cancel out.
+- **The statement at cash-out**: when credits become pounds, Q writes a
+  declaration receipt, like an import duty document: pounds in, pounds out,
+  the difference, and losses carried forward. A record for the person's own
+  accounts, and the user's own choice to attach a company number or UTR;
+  never a declaration by the federation. For the accountant (HMRC's own
+  manuals, 4 October): a members' club isn't taxed on its surplus from
+  dealings with full members (mutual trading, BIM24205); but non-cash
+  receipts of a *trade* are taxable when they're money's worth, meaning
+  convertible or transferable (BIM40051), so a member running storage as a
+  business may owe tax on credits before cashing out.
+- **Credits by default** on pricing (done 4 October): a "show in pounds"
+  toggle at the host's rate.
+- **The plugin builder**: components, functions and code pass through a
+  builder that checks them against the manifest structure (ADR-Q-006); then
+  verified, tested, in the library, open to inspection, and credited to
+  whoever made them.
+- **An e-commerce component set** (ADR-Q-029): product, cart, order summary,
+  checkout steps and order status cards, our own in Skeleton (patterns like
+  Tailwind Plus's, not its code); words kept as data so they translate and
+  read aloud.
+- **Carriers cancel out**: at a festival, what you earn carrying for others
+  covers what you spend having yours carried.
