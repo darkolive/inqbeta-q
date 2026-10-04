@@ -55,6 +55,14 @@ target in credits, and by when (optional). Behind it is a standing offer
   so backing is an agreement the enterprise must deliver on, exactly like a
   shop sale delivered later.
 
+**A campaign can tell its story as a deck.** Darren, 4 October: "If I was a
+neurodivergent young, not very confident, but self-belief was there and I
+had an idea … I could create a story to explain what my project idea is …
+once people see it, then they're like, ah, okay, now we know how we can
+help you." The story engine (plan) turns the campaigner's answers to a few
+simple questions into a short picture story at the top of the campaign
+page, so nobody needs to be good with words to be understood.
+
 **The bar fills from signed receipts**, not from anyone's word. The page
 shows who backed it (as they choose to be shown), how much, and how much is
 left to raise.
