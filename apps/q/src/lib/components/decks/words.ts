@@ -22,8 +22,19 @@ export interface DeckWords {
 	scenes: DeckScene[];
 }
 
-/** The book these stories make: its title stays at the top of every one of them. */
-export const BOOK = { title: 'Q, in stories' };
+/*
+ * The story player's one rule (Darren, 4 October 2026), the same at every
+ * level: a title can carry a subtext.
+ *   the book      a title and a subtext (the big intro, then a little description)
+ *   a story       its title only, one size, no subtext (the list down the side)
+ *   a slide       a title and a subtext (the words under the picture)
+ * Each level is its own record inside the one above (ADR-Q-033): change one
+ * story, and only that story changes, recordings and all.
+ */
+export const BOOK = {
+	title: 'Q, in stories',
+	subtext: 'Q’s ideas, one short picture story each. Choose one, watch, skim with the slider, and share the scene that fits someone you know.'
+};
 
 export const DECK_WORDS: Record<string, DeckWords> = {
 	festival: {

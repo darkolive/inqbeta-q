@@ -230,6 +230,13 @@ on localhost; new localStorage keys go in `q-core/src/storage.ts`.
   credits always backed, and when a club gets full. Next: put each on the
   page it explains (vault on Backups, backed on Credits, network on the
   federation page), and words into the language books.
+- **The story player, built; the engine, next** (ADR-Q-033, 4 October): one
+  rule at every level, a title can carry a subtext (the book: title and
+  subtext; a story: title only; a slide: title and subtext); records inside
+  records, so changing one story changes only that story. The engine: the
+  main idea, the stories, the storyboard, generate, redo a story (what are
+  you happy with, what must change, what must not), a ripple review that
+  suggests updates to the rest, round again until it flows.
 - **A story engine** (Darren, 4 October): the decks become a way to teach.
   A *story manual* (the index down the side, each story and its scenes,
   built at /stories); and in the learning side (DoStudy), designing a course

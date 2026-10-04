@@ -85,7 +85,7 @@
 <svelte:head><title>{deck.title} — {BOOK.title}</title></svelte:head>
 
 <!-- The book's title stays at the top, whichever story is showing. -->
-<Page title={BOOK.title} lead="Q’s ideas, one short picture story each. Choose one, watch, skim with the slider, and share the scene that fits someone you know.">
+<Page title={BOOK.title} lead={BOOK.subtext}>
 	<div class="grid grid-cols-1 lg:grid-cols-[16rem_minmax(0,1fr)] gap-8 lg:items-stretch">
 		<!--
 			The index: titles only, light, the one showing marked. Never taller
@@ -132,7 +132,7 @@
 			<!-- The whole book, to share. -->
 			{#if origin}
 				<div class="flex items-center min-h-11">
-					 <ShareButton link="{origin}/stories" title={BOOK.title} message="Q’s ideas, one short picture story each." label="Share all" wide open />
+					 <ShareButton link="{origin}/stories" title={BOOK.title} message={BOOK.subtext} label="Share all" wide open />
 				</div>
 			{/if}
 		</aside>
