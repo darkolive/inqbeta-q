@@ -70,7 +70,7 @@ type Manifest = {
 	/** words: each word's [start, end] in the file, when the recording has been aligned. */
 	items: Record<string, { hash: string; file: string; words?: [number, number][] }>;
 };
-type Line = { key: string; el: HTMLElement; text: string; file?: string; times?: [number, number][] };
+type Line = { key: string; el: HTMLElement; text: string; file?: string; times?: [number, number][]; deck?: boolean };
 /** A line on the clock: when it starts and ends, where its trimmed audio began in the file, and its words. */
 type Play = { key: string; el: HTMLElement; at: number; end: number; offset: number; times: [number, number][]; words: Word[] };
 
@@ -302,7 +302,13 @@ async function start(fromLine = 0, fromWord = 0) {
 	if (id !== run) return;
 
 	/* The page's lines, in order, each with its recording if it has a true one. */
-	const lines: Line[] = [...document.querySelectorAll<HTMLElement>('[data-read]')].map((el) => {
+	/*
+	 * A story deck on the page (data-read-deck) takes its turn like a line: when
+	 * the reading reaches it, it is told to play with its own voice, and the
+	 * reading waits until it has finished (4 October 2026).
+	 */
+	const lines: Line[] = [...document.querySelectorAll<HTMLElement>('[data-read], [data-read-deck]')].map((el) => {
+		if (el.dataset.readDeck) return { key: `deck:${el.dataset.readDeck}`, el, text: '', deck: true };
 		const key = el.dataset.read ?? '';
 		const script = scripts[key];
 		const entry = m?.items[key];
@@ -316,13 +322,14 @@ async function start(fromLine = 0, fromWord = 0) {
 		coverageTimer = setTimeout(() => (coverage = null), 6000);
 		return;
 	}
-	coverage = lines.every((l) => l.file) ? 'full' : 'partial';
+	coverage = lines.every((l) => l.file || l.deck) ? 'full' : 'partial';
 	if (m) void prune(lang, m);
 
 	/* Every word wrapped so it can be lit; put back when reading stops. */
-	const wrapped = lines.map((l) => wrapWords(l.el));
+	const wrapped = lines.map((l) => (l.deck ? { words: [] as Word[], undo: () => {} } : wrapWords(l.el)));
 	const titles = lines.map((l) => l.el.getAttribute('title'));
 	for (const l of lines) {
+		if (l.deck) continue;
 		l.el.classList.add(...LINE);
 		if (!l.el.title) l.el.title = translate('speech.fromHere');
 	}
@@ -362,6 +369,7 @@ async function start(fromLine = 0, fromWord = 0) {
 	unwrap = () => {
 		wrapped.forEach((w) => w.undo());
 		lines.forEach((l, i) => {
+			if (l.deck) return;
 			l.el.classList.remove(...LINE);
 			if (titles[i] === null) l.el.removeAttribute('title');
 			else l.el.title = titles[i]!;
@@ -405,6 +413,21 @@ async function start(fromLine = 0, fromWord = 0) {
 
 	let t = ac.currentTime;
 	for (let i = fromLine; i < lines.length; i++) {
+		if (lines[i].deck) {
+			/* The deck's turn: it plays and speaks; the reading waits for it, or for Stop. */
+			await until(ac, t, id);
+			if (id !== run) return;
+			if (i === fromLine) fetching = false;
+			reading = lines[i].key;
+			reveal(lines[i].el);
+			await new Promise<void>((done) => {
+				lines[i].el.dispatchEvent(new CustomEvent('q-tell', { detail: { done } }));
+				const check = setInterval(() => id !== run && (clearInterval(check), done()), 300);
+			});
+			if (id !== run) return;
+			t = ac.currentTime + GAP;
+			continue;
+		}
 		const got = await ready[i];
 		if (id !== run) return;
 		if (i === fromLine) fetching = false;

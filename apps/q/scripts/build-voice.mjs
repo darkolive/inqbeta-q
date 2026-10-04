@@ -59,9 +59,11 @@ import { DECK_WORDS } from '../src/lib/components/decks/words.ts';
  * otherwise its title, a beat, then its words, warmly and plainly.
  */
 const STORY_LINES = Object.fromEntries(
-	Object.entries(DECK_WORDS).flatMap(([deck, d]) =>
-		d.scenes.map((s, i) => [`story.${deck}.${i + 1}`, s.voice ?? `[warmly] ${s.title} [short pause] [explaining] ${s.says}`])
-	)
+	Object.entries(DECK_WORDS).flatMap(([deck, d]) => [
+		/* The story's title, said first: just the title (no "Chapter 3"). */
+		[`story.${deck}.0`, `[warmly] ${d.title}`],
+		...d.scenes.map((s, i) => [`story.${deck}.${i + 1}`, s.voice ?? `[warmly] ${s.title} [short pause] [explaining] ${s.says}`])
+	])
 );
 const SCRIPTS = { en: { ...en, ...STORY_LINES }, cy, fr, de, es, zh };
 const OUT = 'static/voice';

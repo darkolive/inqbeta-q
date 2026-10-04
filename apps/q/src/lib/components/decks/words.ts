@@ -13,12 +13,22 @@ import type { DeckScene } from './frame';
 
 export interface DeckWords {
 	title: string;
+	/**
+	 * Public: anyone with the link can watch it, signed in or not, and it can
+	 * go out on social media. Members only: the host's members, signed in;
+	 * shared only to people, never to social media.
+	 */
+	open: boolean;
 	scenes: DeckScene[];
 }
+
+/** The book these stories make: its title stays at the top of every one of them. */
+export const BOOK = { title: 'Q, in stories' };
 
 export const DECK_WORDS: Record<string, DeckWords> = {
 	festival: {
 		title: 'A field of phones, all carrying for each other',
+		open: true,
 		scenes: [
 			{ title: 'A festival field. No signal.', says: 'Thousands of people, thousands of phones, and not a bar of signal between them.' },
 			{ title: 'Ana takes a photo for Ben', says: 'Q seals it as she takes it. Only Ben can open it: nobody else, ever.' },
@@ -30,6 +40,7 @@ export const DECK_WORDS: Record<string, DeckWords> = {
 	},
 	vault: {
 		title: 'Your vault, in many places at once',
+		open: true,
 		scenes: [
 			{ title: 'The newest is in your hand', says: 'Your phone always has the newest of everything. You work from what’s right in front of you, even with no signal.' },
 			{ title: 'Every save goes out', says: 'Each time you agree, sign or capture something, a sealed copy goes out to your places: your cloud, your own bucket.' },
@@ -41,6 +52,7 @@ export const DECK_WORDS: Record<string, DeckWords> = {
 	},
 	backing: {
 		title: 'Backing an idea, without handing your credits over first',
+		open: true,
 		scenes: [
 			{ title: 'Sam has an idea', says: 'A small data farm for the club. It needs 300 credits by the first of December, or it can’t start.' },
 			{ title: 'People pledge', says: 'Five people back it. Each pledge is a promise, signed, and the bar fills from those receipts, not from anyone’s say-so.' },
@@ -52,6 +64,7 @@ export const DECK_WORDS: Record<string, DeckWords> = {
 	},
 	backed: {
 		title: 'Credits you can trust: always backed, and you can see it',
+		open: true,
 		scenes: [
 			{ title: 'It starts at nothing', says: 'A club’s mint begins at zero. No credit exists until value comes in.' },
 			{ title: '£20 in, 20 credits out', says: 'Someone buys 20 credits for £20. Pounds and credits rise together: fully backed.' },
@@ -63,6 +76,7 @@ export const DECK_WORDS: Record<string, DeckWords> = {
 	},
 	network: {
 		title: 'When a club gets full, the network grows itself',
+		open: true,
 		scenes: [
 			{ title: 'The club’s own space', says: 'A club runs its own node: a terabyte, bought with a grant, run on solar. Only a little of it is used. It needs nobody.' },
 			{ title: 'It warms up', says: 'As members join, it fills. At 70% full, the club’s own rule says: time to find more space.' },
