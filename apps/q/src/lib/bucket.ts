@@ -5,6 +5,8 @@
  * the bucket itself.
  */
 import { bucketChannel, type BucketChannel, type BucketConfig } from '@inqbeta/q-core/s3';
+import { b64url, unb64url } from '@inqbeta/q-core/canonical';
+import type { Identity } from '@inqbeta/q-core/passkey';
 import { deleteItem, listItems, readItem, saveLocked, type FolderItem } from '@inqbeta/q-core/folder';
 
 const WHERE = 'storage-channels';
@@ -52,4 +54,35 @@ export async function bucketOf(did: string): Promise<BucketChannel | null> {
 /** Forget the bucket here. What's in it stays there, locked. */
 export async function forgetBucket(): Promise<void> {
 	for (const { item } of await keptItems()) await deleteItem(item);
+}
+
+/*
+ * The bucket note on your passkey (ADR-Q-012, ADR-Q-028 §2): where your bucket
+ * is and its key, sealed with your vault key, so a new device signed in with
+ * this passkey can open your vault from the bucket. Short field names: a
+ * passkey holds only about half a kilobyte of notes.
+ */
+export async function bucketNote(identity: Pick<Identity, 'vault'>): Promise<string | undefined> {
+	const k = (await keptItems())[0]?.kept;
+	if (!k) return undefined;
+	const plain = new TextEncoder().encode(JSON.stringify({ e: k.endpoint, r: k.region, b: k.bucket, k: k.accessKeyId, s: k.secretAccessKey, m: k.mode === 'copy' ? 'c' : 'p' }));
+	const iv = crypto.getRandomValues(new Uint8Array(12));
+	const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, identity.vault, plain));
+	const both = new Uint8Array(iv.length + ct.length);
+	both.set(iv);
+	both.set(ct, iv.length);
+	return b64url(both);
+}
+
+/** Open a bucket note from the passkey, or null if it isn't yours or doesn't hold up. */
+export async function openBucketNote(identity: Pick<Identity, 'vault'>, note: string): Promise<BucketConfig | null> {
+	try {
+		const both = unb64url(note);
+		const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: both.slice(0, 12) }, identity.vault, both.slice(12));
+		const o = JSON.parse(new TextDecoder().decode(plain)) as Record<string, string>;
+		if (!o.e || !o.b || !o.k || !o.s) return null;
+		return { endpoint: o.e, region: o.r ?? '', bucket: o.b, accessKeyId: o.k, secretAccessKey: o.s, mode: o.m === 'c' ? 'copy' : 'pass' };
+	} catch {
+		return null;
+	}
 }

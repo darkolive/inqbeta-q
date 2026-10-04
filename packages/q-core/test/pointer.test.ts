@@ -35,3 +35,15 @@ test('devices are named the way a person would say them', () => {
 	assert.equal(deviceLabel('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/140.0 Safari/537.36'), 'Chrome on Windows');
 	assert.equal(deviceLabel('Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1'), 'Safari on iPhone');
 });
+
+test('a sealed bucket note rides along; if room runs out, the copies list gives way first', () => {
+	const sealed = 'x'.repeat(300);
+	const p: VaultPointer = { v: 1, at: '2026-10-03T12:00:00.000Z', head: 'a'.repeat(64), files: 12, from: 'Safari on Mac', copies: ['Google Drive', 'Dropbox', 'OneDrive', 'your bucket (q-vault)', 'Downloads'], bucket: sealed };
+	const bytes = encodePointer(p);
+	assert.ok(bytes.length <= POINTER_MAX_BYTES);
+	const back = decodePointer(bytes)!;
+	assert.equal(back.bucket, sealed);
+	assert.ok(back.copies.length < 5, 'copies trimmed to make room');
+	assert.equal(decodePointer(encodePointer({ ...p, bucket: undefined }))!.bucket, undefined);
+	assert.equal(decodePointer(new TextEncoder().encode(JSON.stringify({ ...p, bucket: 'not base64url!' })))!.bucket, undefined, 'only a well-formed note is read');
+});

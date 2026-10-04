@@ -18,7 +18,11 @@
  * files the vault holds (their names are content hashes, so two copies with
  * the same files have the same head, like a Git commit id); how many files;
  * which device noted it; and where copies were carried at that moment.
- * Nothing secret: no keys, no contents, no folder names beyond a label.
+ * Nothing readable: no keys, no contents, no folder names beyond a label.
+ * One exception, sealed (ADR-Q-028 §2, 3 October 2026): where your own bucket
+ * is and its access key, locked with your vault key, so a new device signed in
+ * with this passkey can find the bucket and open your vault from it. Nobody
+ * without the passkey can open it.
  *
  * WHERE IT WORKS. Passkeys made with largeBlob support — iCloud Keychain and
  * Google Password Manager do; most third-party managers and Chrome on Android
@@ -40,6 +44,8 @@ export interface VaultPointer {
 	from: string;
 	/** Where copies were carried when it was noted, e.g. ["Google Drive"]. */
 	copies: string[];
+	/** Your own bucket's address and key, sealed with your vault key (base64url). Optional. */
+	bucket?: string;
 }
 
 /** WebAuthn gives the passkey roughly a kilobyte; stay well inside it. */
@@ -52,11 +58,15 @@ export function encodePointer(p: VaultPointer): Uint8Array<ArrayBuffer> {
 		head: p.head.slice(0, 64),
 		files: Math.max(0, Math.floor(p.files)),
 		from: p.from.slice(0, 60),
-		copies: p.copies.map((c) => c.slice(0, 40)).slice(0, 5)
+		copies: p.copies.map((c) => c.slice(0, 40)).slice(0, 5),
+		...(p.bucket && /^[A-Za-z0-9_-]{1,400}$/.test(p.bucket) ? { bucket: p.bucket } : {})
 	};
-	const out = new TextEncoder().encode(JSON.stringify(tidy));
-	if (out.length > POINTER_MAX_BYTES) throw new Error('The vault note is too long for a passkey.');
-	return out;
+	/* Room is small: if the bucket note doesn't fit, the list of copies gives way first, never the bucket. */
+	for (const keep of [5, 2, 1, 0]) {
+		const out = new TextEncoder().encode(JSON.stringify({ ...tidy, copies: tidy.copies.slice(0, keep) }));
+		if (out.length <= POINTER_MAX_BYTES) return out;
+	}
+	throw new Error('The vault note is too long for a passkey.');
 }
 
 export function decodePointer(bytes: ArrayBuffer | Uint8Array | null | undefined): VaultPointer | null {
@@ -71,7 +81,8 @@ export function decodePointer(bytes: ArrayBuffer | Uint8Array | null | undefined
 			head: p.head,
 			files: typeof p.files === 'number' ? p.files : 0,
 			from: typeof p.from === 'string' ? p.from : '',
-			copies: Array.isArray(p.copies) ? p.copies.filter((c): c is string => typeof c === 'string') : []
+			copies: Array.isArray(p.copies) ? p.copies.filter((c): c is string => typeof c === 'string') : [],
+			...(typeof p.bucket === 'string' && /^[A-Za-z0-9_-]{1,400}$/.test(p.bucket) ? { bucket: p.bucket } : {})
 		};
 	} catch {
 		return null;

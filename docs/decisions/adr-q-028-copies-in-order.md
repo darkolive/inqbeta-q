@@ -1,12 +1,12 @@
 ---
 status: decided
-implementation: steps 1–6 built 3 October 2026 — the relay at the gate (/relay, held receipts signed by the node's GATE_SEED key, daily totals at /relay/stats); custody receipts (q-core custody.ts); the pass-through in the five-minute sync (apps/q lib/relay.ts); your own bucket (q-core s3.ts: SigV4 in the browser, checked against botocore; apps/q lib/bucket.ts, BucketSettings on Backups: a full copy, or a pass-through emptied once a cloud has everything; with a bucket, nothing new goes to the host). Settings → Backups (q-core backup-schedule.ts: cloud every five minutes, four times a day or daily; bucket on every save or every five minutes; host pass-through on or off; download weekly, monthly, quarterly or never — kept in the browser and the vault) and the download offered when due (the vault icon asks once; counted from your oldest receipt if you've never made one). Not yet: opening from the newest copy (the bucket in the vault pointer)
+implementation: steps 1–7 built 3 October 2026 — the relay at the gate (/relay, held receipts signed by the node's GATE_SEED key, daily totals at /relay/stats); custody receipts (q-core custody.ts); the pass-through in the five-minute sync (apps/q lib/relay.ts); your own bucket (q-core s3.ts: SigV4 in the browser, checked against botocore; apps/q lib/bucket.ts, BucketSettings on Backups: a full copy, or a pass-through emptied once a cloud has everything; with a bucket, nothing new goes to the host). Settings → Backups (q-core backup-schedule.ts: cloud every five minutes, four times a day or daily; bucket on every save or every five minutes; host pass-through on or off; download weekly, monthly, quarterly or never — kept in the browser and the vault) and the download offered when due (the vault icon asks once; counted from your oldest receipt if you've never made one). Opening from the newest copy: the passkey's vault pointer carries your bucket, sealed with your vault key (q-core pointer.ts; apps/q bucketNote), and a new device signed in with it is offered "Open from your bucket" first, with the note of where the newest copy was; a held file at the host passes on in the first sync. Not yet: step 8, pass-through by the hour (Phase 3)
 updated: 2026-10-03
 ---
 
 # ADR-Q-028 — Copies in order: your browser, your own bucket or the host's relay, your cloud, your download
 
-**Status: decided, 3 October 2026 (revised the same day); steps 1–6 built.** Your vault is
+**Status: decided, 3 October 2026 (revised the same day); steps 1–7 built.** Your vault is
 kept in up to four places, quickest first. If you have **your own S3
 bucket**, it comes second, and you choose what it is: **a full copy** you keep
 (complete sovereignty, relying on nobody) or **a pass-through** that holds

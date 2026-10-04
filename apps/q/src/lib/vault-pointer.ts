@@ -10,6 +10,8 @@ import { notePointer, type PointerNoted } from '@inqbeta/q-core/passkey';
 import { deviceLabel, type VaultPointer } from '@inqbeta/q-core/pointer';
 import { vaultHead } from '@inqbeta/q-core/folder';
 import { watchCloud, type CloudState } from '$lib/autosync';
+import { current } from '@inqbeta/q-core/passkey';
+import { bucketNote } from '$lib/bucket';
 
 let cloud: CloudState[] = [];
 watchCloud((c) => (cloud = c));
@@ -30,5 +32,9 @@ export async function noteWhere(also: string[] = []): Promise<PointerNoted> {
 		from: deviceLabel(navigator.userAgent),
 		copies: [...new Set([...carried, ...also])]
 	};
+	/* Your own bucket, sealed, so a new device can open your vault from it (ADR-Q-028). */
+	const me = current();
+	const sealed = me ? await bucketNote(me).catch(() => undefined) : undefined;
+	if (sealed) p.bucket = sealed;
 	return notePointer(p);
 }

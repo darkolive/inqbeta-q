@@ -72,7 +72,7 @@ exceptions.
 3. ✅ **Settings → Backups**: schedules within what
    the host offers.
 4. ✅ **The download**, offered when due.
-5. **Opening from the newest copy** on a new device.
+5. ✅ **Opening from the newest copy** on a new device.
 
 ## Phase 3 — the price, from the flow
 
