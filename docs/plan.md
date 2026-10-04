@@ -238,6 +238,17 @@ on localhost; new localStorage keys go in `q-core/src/storage.ts`.
   learner sees what they'll learn, and how, before they start. Decks are
   already data (scenes + one picture snippet per deck), which is what an
   editor, or an AI drafting one, would fill in.
+  **As a plugin** (Darren, 4 October): the story engine is itself a plugin,
+  with three inputs: the host's **brand and theme** (its colours and type,
+  so every story is styled as theirs); the **library** (the shared picture
+  pieces, the component sets, and what the directory knows); and the
+  admin's **guided brief** (who it's for, the one thing they should
+  understand, how it unfolds), asked in steps like the other writers. It
+  drafts a deck (with the host's own AI key, ADR-Q-013), shows it to the
+  admin to change, then publishes it. Its house rules are the
+  neurodivergent-friendly ones: one idea per scene, six scenes at most,
+  short plain words, the least noise, motion only where it explains,
+  reduced motion respected, read aloud built in.
 - **Crowdfunding, following, and the test bed**: now ADR-Q-031 (gift
   campaigns, backing with rewards in kind, following on the home page,
   enterprises that start in credits and go live when ready, sponsorship).
