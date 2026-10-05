@@ -156,7 +156,7 @@
 		<div class="card preset-outlined-surface-200-800 bg-surface-50-950 p-5 max-w-3xl flex flex-col sm:flex-row gap-5">
 			<!-- the coin: scan it, or tap it, to check it was minted here and how the house stands -->
 			<div class="flex flex-col items-center gap-2 shrink-0">
-				<Coin mint={mint.mint} name={coinName} />
+				<Coin mint={mint.mint} name={coinName} design={mint.design} />
 				<button type="button" class="btn btn-sm preset-tonal-secondary" onclick={() => (coinOpen = true)}>Scan to check</button>
 			</div>
 			<div class="flex-1 min-w-0 flex flex-col gap-4">

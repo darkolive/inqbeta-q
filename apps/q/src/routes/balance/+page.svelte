@@ -68,7 +68,7 @@
 				{#each coins as c (c.mint.mint)}
 					<li>
 						<a href="/balance/{encodeURIComponent(c.mint.mint)}" class="card preset-outlined-surface-200-800 bg-surface-50-950 hover:preset-tonal-surface p-4 flex flex-wrap items-center gap-4">
-							<Coin mint={c.mint.mint} size="sm" name={c.name} />
+							<Coin mint={c.mint.mint} size="sm" name={c.name} design={c.mint.design} />
 							<span class="flex-1 min-w-40">
 								<span class="block h4">{c.name}</span>
 								<span class="block text-sm text-surface-700-300">A coin of {c.of}{c.mint.mode === 'live' ? '' : ' · test'}</span>

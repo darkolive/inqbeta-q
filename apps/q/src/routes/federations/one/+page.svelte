@@ -54,6 +54,7 @@
 	import { FEDERATIONS_SETTING } from '$lib/offers';
 	import IntroSlides from '$lib/components/IntroSlides.svelte';
 	import MoneyPublish from '$lib/components/MoneyPublish.svelte';
+	import CoinDesigner from '$lib/components/CoinDesigner.svelte';
 	import PricingFromFlow from '$lib/components/PricingFromFlow.svelte';
 	import FederationSnapshot from '$lib/components/FederationSnapshot.svelte';
 
@@ -754,6 +755,7 @@
 									</li>
 								{/each}
 							</ul>
+							{#if identity && home?.ok}<CoinDesigner {identity} host={home.federation} onChanged={() => void loadServices()} />{/if}
 							{#if identity}<MoneyPublish {identity} onChanged={() => void loadServices()} />{/if}
 							<div class="mt-4"><PricingFromFlow /></div>
 							{#if vercel?.connected}

@@ -10,13 +10,15 @@ import { sealWith } from '@inqbeta/q-core/seal';
 import type { Identity } from '@inqbeta/q-core/passkey';
 import { saveLocked } from '@inqbeta/q-core/folder';
 import { MINT_SCHEMA, MINT_SOURCE, RECONCILE_ASK_SCHEMA, booksOf, isMintEvent, isReconciliation, spendable, type MintEvent, type MintReceipt, type ReconciliationReceipt } from '@inqbeta/q-core/mint';
-import { PAYOUT_ACCOUNT_SCHEMA, isPayoutAccount, type PayoutAccount, type PayoutAccountReceipt } from '@inqbeta/q-core/money';
+import { PAYOUT_ACCOUNT_SCHEMA, isPayoutAccount, type CoinDesign, type PayoutAccount, type PayoutAccountReceipt } from '@inqbeta/q-core/money';
 import { refreshLedger, type Ledger } from '$lib/ledger';
 
 export interface MintView {
 	mint: string;
 	/** The coin's own name, as its bank named it (ADR-Q-035); empty when it has none yet. */
 	name?: string;
+	/** How the coin looks, as its bank designed it. */
+	design?: CoinDesign;
 	mode: 'test' | 'live';
 	pencePerCredit: number;
 	publishedId: string | null;

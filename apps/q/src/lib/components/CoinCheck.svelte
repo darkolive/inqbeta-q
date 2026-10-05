@@ -35,7 +35,7 @@
 </script>
 
 	<div class="card preset-outlined-surface-200-800 bg-surface-50-950 p-5 max-w-3xl flex flex-wrap items-center gap-5">
-		<Coin mint={asked} size="lg" name={bank?.name} />
+		<Coin mint={asked} size="lg" name={mint?.name || bank?.name} design={ours ? mint?.design : undefined} />
 		<div class="flex-1 min-w-56 flex flex-col gap-2">
 			<p class="text-sm opacity-70">This coin says it was minted by</p>
 			<p class="role-token break-all" title={asked}>{short(asked)}</p>

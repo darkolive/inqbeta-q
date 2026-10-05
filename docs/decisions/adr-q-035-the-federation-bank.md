@@ -127,6 +127,18 @@ name is `Q_COIN_NAME` in Money. On publishing it's signed into the publication
 (`coinName`), so a live coin's name is part of its published record. Until it
 has one, it's called "<federation> credit".
 
+**A bank designs its coin** (`CoinDesigner`, in the federation's console under
+Money). It chooses a shape (circle, square, hexagon, shield, skull and crossbones,
+or its own picture, such as its logo in SVG, PNG, WebP or JPEG), the coin's
+colour, the code's colour, what's behind the code, and a mark in the middle. A
+picture with a shape is laid inside it. The code always stays a standard, scannable
+QR code; with a mark it uses the strongest error correction. The design is
+`Q_COIN_DESIGN`, signed into the publication with the name, and the picture is
+kept beside the logo in `static/host/`. The design has a **fingerprint**
+(`coinDesignFingerprint`), which is what a register of coins could hold one day to
+keep a coin's look unique: a check, then registration. That register isn't
+built; the fingerprint means it can be.
+
 ### 7. Last reconciled: signed, dated, and coloured by age
 
 The bank's books are **reconciled** when its treasurer (the house's founder)

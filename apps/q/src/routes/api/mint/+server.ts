@@ -21,7 +21,7 @@ import { json, type RequestHandler } from '@sveltejs/kit';
 import { sealWith, checkReceipt } from '@inqbeta/q-core/seal';
 import { MINT_SCHEMA, MINT_SOURCE, RECONCILED_SCHEMA, RECONCILE_ASK_SCHEMA, isMintEvent, isReconciliation, type MintEvent, type MintReceipt, type Reconciliation, type ReconciliationReceipt } from '@inqbeta/q-core/mint';
 import { mintFacts } from '@inqbeta/q-actions/core/mint';
-import { MintRefused, appendLedger, books, coinNameOf, decideMint, fileable, hostOf, mintIdentity, moneyOf, pencePerCredit, readLedger } from '$lib/server/mint';
+import { MintRefused, appendLedger, books, coinDesignOf, coinNameOf, decideMint, fileable, hostOf, mintIdentity, moneyOf, pencePerCredit, readLedger } from '$lib/server/mint';
 
 export const prerender = false;
 
@@ -70,6 +70,7 @@ export const GET: RequestHandler = async ({ url }) => {
 			ok: true,
 			mint: me.did,
 			name: coinNameOf(state),
+			design: coinDesignOf(state),
 			mode,
 			pencePerCredit: pence,
 			publishedId: state.publishedId ?? null,

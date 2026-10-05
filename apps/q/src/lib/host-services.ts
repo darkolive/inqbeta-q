@@ -91,7 +91,8 @@ export const HOST_SERVICES: {
 		settings: [
 			{ name: 'Q_MINT_SEED', secret: true },
 			{ name: 'Q_CREDIT_PENCE', secret: false },
-			{ name: 'Q_COIN_NAME', secret: false }
+			{ name: 'Q_COIN_NAME', secret: false },
+			{ name: 'Q_COIN_DESIGN', secret: false }
 		]
 	},
 	{

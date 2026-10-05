@@ -129,6 +129,19 @@ export async function logoFrom(file: File): Promise<{ ok: true; dataUrl: string 
 	}
 }
 
+/** Keep the coin's own picture (ADR-Q-035): made small like the logo, signed by its SHA-256, kept beside the logo. Returns its path. */
+export async function keepCoinImage(identity: Identity, host: string, file: File): Promise<{ ok: true; path: string } | { ok: false; says: string }> {
+	const made = await logoFrom(file);
+	if (!made.ok) return made;
+	const b64 = made.dataUrl.split(',')[1] ?? '';
+	const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+	const sha256 = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map((x) => x.toString(16).padStart(2, '0')).join('');
+	const upload = await sealWith(identity, { schema: 'inqbeta.coin-image/1', source: 'inqbeta:q/host', host, sha256, at: new Date().toISOString() });
+	const r = await fetch('/api/host/coin', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ upload, image: made.dataUrl }) }).catch(() => null);
+	if (!r?.ok) return { ok: false, says: r ? await said(r) : 'Q didn’t answer.' };
+	return { ok: true, path: ((await r.json()) as { path: string }).path };
+}
+
 /** Which services this copy has keys for, and whether a restart is waiting. Null on a deployed site. */
 export async function hostServices(): Promise<{ services: ServiceState[]; restart: boolean } | null> {
 	if (!dev) return null;

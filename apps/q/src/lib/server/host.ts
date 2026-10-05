@@ -73,6 +73,15 @@ export const LOGO_MOST_BYTES = 512 * 1024;
  * the host file names: /host/logo.webp?v=<fingerprint>. Throws a sentence.
  */
 export function writeLogo(dataUrl: string): string {
+	return writePicture(dataUrl, 'logo');
+}
+
+/** Keep the coin's own picture (ADR-Q-035) beside the logo: /host/coin.<ext>?v=<fingerprint>. Throws a sentence. */
+export function writeCoinImage(dataUrl: string): string {
+	return writePicture(dataUrl, 'coin');
+}
+
+function writePicture(dataUrl: string, name: 'logo' | 'coin'): string {
 	const m = /^data:([a-z+/]+);base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
 	const ext = m ? LOGO_TYPES[m[1]] : undefined;
 	if (!m || !ext) throw new Error('The logo needs to be a picture: WebP, PNG, JPEG or SVG.');
@@ -81,9 +90,10 @@ export function writeLogo(dataUrl: string): string {
 	if (ext === 'svg' && /<script|on[a-z]+\s*=|javascript:/i.test(new TextDecoder().decode(bytes)))
 		throw new Error('That SVG has scripts in it. Use a plain picture.');
 	mkdirSync(LOGO_DIR(), { recursive: true });
-	writeFileSync(path.join(LOGO_DIR(), `logo.${ext}`), bytes);
+	/* One picture per name: an older one of another type is left, but nothing points at it. */
+	writeFileSync(path.join(LOGO_DIR(), `${name}.${ext}`), bytes);
 	const v = createHash('sha256').update(bytes).digest('hex').slice(0, 12);
-	return `/host/logo.${ext}?v=${v}`;
+	return `/host/${name}.${ext}?v=${v}`;
 }
 
 /*

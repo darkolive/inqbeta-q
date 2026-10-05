@@ -16,7 +16,7 @@ import { checkReceipt } from '@inqbeta/q-core/seal';
 import { MONEY_PUBLISHED_SCHEMA, problemsWithPublication, type MoneyPublicationReceipt } from '@inqbeta/q-core/money';
 import { readEnvFile } from '$lib/server/env-file';
 import { keepMoneyPublication, readMark } from '$lib/server/host';
-import { coinNameOf, hostOf, mintIdentity, moneyOf, pencePerCredit, MintRefused } from '$lib/server/mint';
+import { coinDesignOf, coinNameOf, hostOf, mintIdentity, moneyOf, pencePerCredit, MintRefused } from '$lib/server/mint';
 
 export const prerender = false;
 const FRESH_MS = 5 * 60 * 1000;
@@ -41,7 +41,7 @@ export const GET: RequestHandler = async ({ request, url }) => {
 	}
 	const state = host ? await moneyOf(url.origin, host) : { mode: 'test' as const };
 	const ends = lastFour();
-	return json({ host: host?.federation ?? null, mint, says, pencePerCredit: pencePerCredit(state), coinName: coinNameOf(), bank: { set: ends.length === 4, ends }, state });
+	return json({ host: host?.federation ?? null, mint, says, pencePerCredit: pencePerCredit(state), coinName: coinNameOf(), coinDesign: coinDesignOf(), bank: { set: ends.length === 4, ends }, state });
 };
 
 export const POST: RequestHandler = async ({ request, url }) => {
@@ -62,6 +62,7 @@ export const POST: RequestHandler = async ({ request, url }) => {
 	}
 	if (c.pencePerCredit !== pencePerCredit()) problems.push('The rate isn’t the one set in Money.');
 	if ((c.coinName ?? '') !== coinNameOf()) problems.push('The coin’s name isn’t the one set in Money (Q_COIN_NAME).');
+	if (c.coinDesign && JSON.stringify(c.coinDesign) !== JSON.stringify(coinDesignOf())) problems.push('The coin’s design isn’t the one set in Money (Q_COIN_DESIGN).');
 	if (c.bank?.ends !== lastFour()) problems.push('The payout account isn’t the one set on this computer.');
 	problems.push(...problemsWithPublication(c));
 	if (problems.length) return json({ ok: false, says: problems.join(' ') }, { status: 409 });

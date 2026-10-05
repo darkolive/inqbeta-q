@@ -20,7 +20,7 @@ import { identityFromSeed, type Identity } from '@inqbeta/q-core/passkey';
 import { unb64url } from '@inqbeta/q-core/canonical';
 import { checkReceipt } from '@inqbeta/q-core/seal';
 import { checkInvitation, isInvitation, unpack } from '@inqbeta/q-core/membership';
-import { moneyStateOf, type MoneyState } from '@inqbeta/q-core/money';
+import { coinDesignFrom, moneyStateOf, type CoinDesign, type MoneyState } from '@inqbeta/q-core/money';
 import { booksOf, isMintEvent, type MintMode, type MintReceipt } from '@inqbeta/q-core/mint';
 import { isAgreementStep } from '@inqbeta/q-core/agreements';
 import { MINT_ACTIONS } from '@inqbeta/q-actions/core/mint';
@@ -60,6 +60,12 @@ export function pencePerCredit(state?: MoneyState): number {
 export function coinNameOf(state?: MoneyState): string {
 	if (state?.publication) return state.publication.coinName?.trim() ?? '';
 	return (env.Q_COIN_NAME ?? '').trim().slice(0, 40);
+}
+
+/** The coin's design: signed into the publication once live; before that, Q_COIN_DESIGN in Money. */
+export function coinDesignOf(state?: MoneyState): CoinDesign {
+	if (state?.publication) return coinDesignFrom(state.publication.coinDesign);
+	return coinDesignFrom(env.Q_COIN_DESIGN ?? '');
 }
 
 /* The host's public files: from disk on localhost, from the site itself when deployed. */

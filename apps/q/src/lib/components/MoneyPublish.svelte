@@ -12,7 +12,7 @@
 	import { Icon, Status } from '@inqbeta/q-ui';
 	import { sealWith } from '@inqbeta/q-core/seal';
 	import type { Identity } from '@inqbeta/q-core/passkey';
-	import { MONEY_PUBLISHED_SCHEMA, RESPONSIBILITY, type MoneyPublication, type MoneyState } from '@inqbeta/q-core/money';
+	import { MONEY_PUBLISHED_SCHEMA, RESPONSIBILITY, type CoinDesign, type MoneyPublication, type MoneyState } from '@inqbeta/q-core/money';
 
 	let { identity, onChanged }: { identity: Identity; onChanged?: () => void } = $props();
 
@@ -22,6 +22,7 @@
 		says?: string;
 		pencePerCredit: number;
 		coinName?: string;
+		coinDesign?: CoinDesign;
 		bank: { set: boolean; ends: string };
 		state: MoneyState;
 	}
@@ -61,6 +62,7 @@
 			mint: view.mint,
 			pencePerCredit: view.pencePerCredit,
 			...(view.coinName ? { coinName: view.coinName } : {}),
+			...(view.coinDesign ? { coinDesign: view.coinDesign } : {}),
 			bank: { ends: view.bank.ends },
 			responsibility: RESPONSIBILITY,
 			accepted: true,
