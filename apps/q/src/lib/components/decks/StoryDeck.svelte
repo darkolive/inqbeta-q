@@ -67,8 +67,10 @@
 		pictures: Snippet<[Frame]>;
 		/** Offer "Got it" to fold it away. */
 		hideable?: boolean;
+		/** Offer Share for each scene (a made book being tried in the story engine has no page to share yet). */
+		shareable?: boolean;
 	}
-	let { id, title, scenes, pictures, hideable = true }: Props = $props();
+	let { id, title, scenes, pictures, hideable = true, shareable = true }: Props = $props();
 
 	/*
 	 * Timed by the voice (4 October 2026). Each scene is recorded in Darren's
@@ -411,7 +413,7 @@
 			</Slider>
 			<span class="text-xs tabular-nums opacity-70 shrink-0 w-20 text-right">{clock(t)} / {clock(total)}</span>
 			<!-- Share the scene shown: its link opens the story at this scene. -->
-			{#if sceneLink}
+			{#if sceneLink && shareable}
 				<ShareButton link={sceneLink} title="{title}: {scenes[scene - 1].title}" message={scenes[scene - 1].says} label="Share this scene" open={DECK_WORDS[id]?.open ?? false} />
 			{/if}
 		</div>
