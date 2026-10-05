@@ -1,5 +1,6 @@
 /*
- * This copy's settings file, apps/q/.env (ADR-Q-018 §4). Development only.
+ * This copy's settings file, apps/q/.env (ADR-Q-018 §4), or apps/q/devsite/.env
+ * for the development copy (ADR-Q-034 §5). Development only.
  *
  * Read and changed one line at a time, so comments, blank lines and settings
  * Q doesn't manage are left exactly as they were. Git never sees this file
@@ -10,7 +11,8 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 
-const FILE = () => path.resolve(process.cwd(), '.env');
+/* The development copy's own settings live in devsite/.env (svelte.config.js, ADR-Q-034 §5). */
+const FILE = () => path.resolve(process.cwd(), process.env.PUBLIC_Q_SITE?.trim() === 'development' ? 'devsite' : '.', '.env');
 const LINE = /^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)$/;
 
 function unquote(raw: string): string {

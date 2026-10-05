@@ -11,6 +11,7 @@
 	"description": "Q — your passkey, your identity and your locked folder, offline.",
 	"scripts": {
 		"dev": "vite dev",
+		"dev:site": "PUBLIC_Q_SITE=development vite dev --mode devsite --port 5174",
 		"build": "vite build",
 		"preview": "vite preview",
 		"check": "svelte-kit sync && svelte-check --tsconfig ./tsconfig.json",

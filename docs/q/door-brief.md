@@ -138,8 +138,10 @@ default, named only on localhost; the playground has 1,000 play credits and
 - ✅ Step 7, part: the notice in six languages; test money only on
   inqbeta.dev; no door there; the gate receives the door settings; a
   `gate-dev` on its own `/dev` folder (HETZNER.md step 7).
-- **Waiting on a decision:** the two sites are one host today (same host
-  files). The development site needs its own host before the door goes on.
+- ✅ The development site as its own host (Darren's choice): host files by
+  site, `pnpm dev:site` on localhost:5174 writing only `static/dev/` and
+  `devsite/.env`. **Darren's next steps:** found it, then the node, then the
+  door (ADR-Q-034, "Founding the development host").
 
 ## Before building: the checks (audit A5–A7)
 

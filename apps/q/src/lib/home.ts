@@ -7,6 +7,7 @@
  * founding, the manifest. The server that served the file is trusted with
  * nothing; a file someone swapped fails the check and is ignored.
  */
+import { onDevelopmentSite } from '$lib/site';
 import { checkInvitation, isInvitation, unpack } from '@inqbeta/q-core/membership';
 
 export const HOME_SCHEMA = 'inqbeta.home-federation/1';
@@ -41,7 +42,9 @@ export type Home =
 /** Read /incubator.json and check it. Never throws. */
 export async function readHome(): Promise<Home> {
 	try {
-		const r = await fetch('/incubator.json', { cache: 'no-store' });
+		/* The development site reads its own host file, until founded the shared one (ADR-Q-034 §5). */
+		let r = await fetch(onDevelopmentSite() ? '/dev/incubator.json' : '/incubator.json', { cache: 'no-store' });
+		if (!r.ok && onDevelopmentSite()) r = await fetch('/incubator.json', { cache: 'no-store' });
 		if (!r.ok) return { ok: false, says: 'No home federation published yet.' };
 		const f = (await r.json()) as HomeFile;
 		if (f?.schema !== HOME_SCHEMA) return { ok: false, says: 'The home federation file isn’t one.' };
@@ -54,7 +57,7 @@ export async function readHome(): Promise<Home> {
 			...(typeof f.services?.storage === 'string' && /^https:\/\//.test(f.services.storage) ? { storage: f.services.storage.replace(/\/$/, '') } : {}),
 			...(typeof f.services?.bellboy === 'string' && /^wss:\/\//.test(f.services.bellboy) ? { bellboy: f.services.bellboy } : {})
 		};
-		const logo = typeof f.logo === 'string' && /^\/host\/logo\.(webp|png|jpg|svg)(\?v=[0-9a-f]+)?$/.test(f.logo) ? f.logo : undefined;
+		const logo = typeof f.logo === 'string' && /^(\/dev)?\/host\/logo\.(webp|png|jpg|svg)(\?v=[0-9a-f]+)?$/.test(f.logo) ? f.logo : undefined;
 		return {
 			ok: true,
 			federation: f.federation,

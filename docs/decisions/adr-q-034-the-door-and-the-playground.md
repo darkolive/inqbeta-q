@@ -176,3 +176,37 @@ from the same branch, so it serves the same `incubator.json` and
 inqbeta.com. A separate gate alone doesn't separate them. The development
 site needs **its own host**, founded on localhost like the first. Until it
 has one, the door stays off.
+
+**Its own host (Darren chose this, 5 October, late).** Built:
+
+- **Host files by site** (`lib/site.ts`, `lib/server/site.ts`): inqbeta.com
+  reads `static/incubator.json` and `static/host/…`; the development site
+  reads `static/dev/incubator.json` and `static/dev/host/…`, and falls back to
+  the shared files until its own host is founded, so nothing breaks
+  meanwhile. Logos and coin pictures may live under `/dev/host/`.
+- **A development copy on localhost**: `pnpm dev:site` (in `apps/q`) runs Q on
+  http://localhost:5174 as the development site. Founding there writes only
+  `static/dev/…` and `host.dev.local.json`, and its settings live in
+  `apps/q/devsite/.env`, never inqbeta.com's `.env` (`svelte.config.js`
+  `kit.env.dir`, `env-file.ts`). Tested: the main files are never touched.
+
+### Founding the development host (Darren, about 20 minutes)
+
+1. In Terminal: `cd ~/github/q/apps/q && pnpm dev:site`, and open
+   http://localhost:5174. Sign in with your passkey: it's the same you.
+2. Go through the set-up cards as you did for Incubator: a name (for example
+   "Q Development"), a logo, and for its storage
+   `https://dev-storage.135-181-156-21.sslip.io`.
+3. In `apps/q/devsite/.env`, add the development site's Vercel project:
+   `VERCEL_TOKEN`, `VERCEL_PROJECT` (the inqbeta.dev project) and
+   `VERCEL_TEAM` if you use one. Restart `pnpm dev:site`.
+4. Services → Money: make the development mint's key (its own, never
+   inqbeta.com's), and send it to the live site (the development project).
+5. On the node, in `/srv/node/.env`: `DEV_GATE_FEDERATIONS` (the new host),
+   `DEV_GATE_MINTS` (its mint), `DEV_GATE_OPERATORS` (you), `DEV_GATE_SEED`
+   (a new seed, made as for `GATE_SEED`). Then start it (`node/HETZNER.md`
+   step 7).
+6. Commit `apps/q/static/dev/` and push to both branches. inqbeta.dev now
+   reads its own host.
+7. Only then: the door on inqbeta.com (the two lines from Tester passes),
+   and prove it with Tess.

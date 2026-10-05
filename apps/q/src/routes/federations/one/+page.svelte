@@ -60,6 +60,7 @@
 	import RoleSwitch from '$lib/components/RoleSwitch.svelte';
 	import TesterPasses from '$lib/components/TesterPasses.svelte';
 	import { role } from '$lib/role.svelte';
+	import { onDevelopmentSite } from '$lib/site';
 	import PricingFromFlow from '$lib/components/PricingFromFlow.svelte';
 	import FederationSnapshot from '$lib/components/FederationSnapshot.svelte';
 
@@ -1091,7 +1092,7 @@
 							<p class="font-bold">Your invitation is made and signed.</p>
 							<ol class="list-decimal pl-6 text-sm space-y-1">
 								<li>Download the file.</li>
-								<li>Put it in the repo at <span class="role-token">apps/q/static/incubator.json</span>.</li>
+								<li>Put it in the repo at <span class="role-token">apps/q/static/{onDevelopmentSite() ? 'dev/' : ''}incubator.json</span>.</li>
 								<li>Commit and push. Every Q checks its signature before trusting it.</li>
 							</ol>
 							<a class="btn preset-filled-primary-500 min-h-11 self-start" href={homeFile.url} download="incubator.json">Download incubator.json</a>

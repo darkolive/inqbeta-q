@@ -26,6 +26,7 @@ import { isAgreementStep } from '@inqbeta/q-core/agreements';
 import { MINT_ACTIONS } from '@inqbeta/q-actions/core/mint';
 import { nodeEngine } from '@inqbeta/q-actions/node';
 import { readHomeFile, readServicesFile, type ServicesFile } from '$lib/server/host';
+import { isDevelopmentSite } from '$lib/server/site';
 import type { HomeFile } from '$lib/home';
 
 export class MintRefused extends Error {}
@@ -69,15 +70,26 @@ export function coinDesignOf(state?: MoneyState): CoinDesign {
 }
 
 /* The host's public files: from disk on localhost, from the site itself when deployed. */
+/*
+ * A host file as this site serves it. The development site reads its own
+ * (static/dev/…, ADR-Q-034 §5), falling back to the shared one until its
+ * host is founded.
+ */
+async function siteFile<T>(origin: string, p: string): Promise<T | null> {
+	const tries = isDevelopmentSite(origin) ? [`/dev${p}`, p] : [p];
+	for (const t of tries) {
+		const r = await fetch(`${origin}${t}`).catch(() => null);
+		if (r?.ok) return (await r.json().catch(() => null)) as T | null;
+	}
+	return null;
+}
 async function homeFile(origin: string): Promise<HomeFile | null> {
 	if (dev) return readHomeFile();
-	const r = await fetch(`${origin}/incubator.json`).catch(() => null);
-	return r?.ok ? ((await r.json().catch(() => null)) as HomeFile | null) : null;
+	return siteFile<HomeFile>(origin, '/incubator.json');
 }
 async function servicesFile(origin: string): Promise<ServicesFile | null> {
 	if (dev) return readServicesFile();
-	const r = await fetch(`${origin}/host/services.json`).catch(() => null);
-	return r?.ok ? ((await r.json().catch(() => null)) as ServicesFile | null) : null;
+	return siteFile<ServicesFile>(origin, '/host/services.json');
 }
 
 export interface Host {

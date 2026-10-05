@@ -178,3 +178,24 @@ test('federations are a plugin: off until the host says on, and it can be sent t
 	assert.equal(f({ PUBLIC_Q_FEDERATIONS: 'on' }).settings[0].shows, 'on');
 	assert.ok(SENDABLE.has('PUBLIC_Q_FEDERATIONS'));
 });
+
+test('the development copy keeps its own host files, and never touches the main ones (ADR-Q-034 §5)', () =>
+	inScratch((dir) => {
+		const was = process.env.PUBLIC_Q_SITE;
+		process.env.PUBLIC_Q_SITE = 'development';
+		try {
+			assert.equal(readHomeFile(), null);
+			writeHomeFile({ schema: 'inqbeta.home-federation/1', federation: 'did:key:z6MkDev' } as never);
+			assert.ok(existsSync(join(dir, 'static', 'dev', 'incubator.json')), 'written under static/dev');
+			assert.ok(!existsSync(join(dir, 'static', 'incubator.json')), 'the main host file untouched');
+			writeMark({ federation: 'did:key:z6MkDev', founder: 'did:key:z6MkMe', how: 'founded' });
+			assert.ok(existsSync(join(dir, 'host.dev.local.json')));
+			assert.ok(!existsSync(join(dir, 'host.local.json')));
+			const png = 'data:image/png;base64,' + Buffer.from([0x89, 0x50, 0x4e, 0x47]).toString('base64');
+			assert.match(writeLogo(png), /^\/dev\/host\/logo\.png\?v=/);
+			assert.ok(existsSync(join(dir, 'static', 'dev', 'host', 'logo.png')));
+		} finally {
+			if (was === undefined) delete process.env.PUBLIC_Q_SITE;
+			else process.env.PUBLIC_Q_SITE = was;
+		}
+	}));

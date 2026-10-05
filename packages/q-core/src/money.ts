@@ -78,7 +78,7 @@ export const DEFAULT_COIN: CoinDesign = { shape: 'circle', colour: 'secondary', 
 
 const PAINTS = new Set<string>([...COIN_COLOURS, 'black', 'white', 'none']);
 const paintFrom = (x: unknown, fallback: CoinPaint): CoinPaint => (typeof x === 'string' && (PAINTS.has(x) || /^#[0-9a-fA-F]{6}$/.test(x)) ? (x as CoinPaint) : fallback);
-const IMAGE = /^\/host\/coin\.(webp|png|jpg|svg)(\?v=[0-9a-f]{6,64})?$/;
+const IMAGE = /^(\/dev)?\/host\/coin\.(webp|png|jpg|svg)(\?v=[0-9a-f]{6,64})?$/;
 
 /** A design as one line for its setting (Q_COIN_DESIGN): "shape|colour|ink|plate|image|mark" (the mark last, as it may hold anything). */
 export const coinDesignLine = (d: CoinDesign): string => [d.shape, d.colour, d.ink, d.plate, d.image, d.mark].join('|');

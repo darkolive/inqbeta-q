@@ -19,10 +19,19 @@ import { createHash } from 'node:crypto';
 import path from 'node:path';
 import type { HomeFile } from '$lib/home';
 
+/*
+ * The development site is its own host (ADR-Q-034 §5): a copy run with
+ * PUBLIC_Q_SITE=development keeps its host files under static/dev/ and its
+ * mark in host.dev.local.json, so founding it never touches inqbeta.com's.
+ */
 const root = () => process.cwd();
-const HOME = () => path.resolve(root(), 'static', 'incubator.json');
-const MARK = () => path.resolve(root(), 'host.local.json');
-const LOGO_DIR = () => path.resolve(root(), 'static', 'host');
+/* Read from the process (set by `pnpm dev:site`), so this file needs nothing of SvelteKit's and runs in tests. */
+const devSite = () => process.env.PUBLIC_Q_SITE?.trim() === 'development';
+const BASE = () => (devSite() ? path.resolve(root(), 'static', 'dev') : path.resolve(root(), 'static'));
+const URL_BASE = () => (devSite() ? '/dev' : '');
+const HOME = () => path.resolve(BASE(), 'incubator.json');
+const MARK = () => path.resolve(root(), devSite() ? 'host.dev.local.json' : 'host.local.json');
+const LOGO_DIR = () => path.resolve(BASE(), 'host');
 
 export interface HostMark {
 	schema: 'inqbeta.host-local/1';
@@ -62,6 +71,7 @@ export function writeMark(m: Omit<HostMark, 'schema' | 'at'>): HostMark {
 }
 
 export function writeHomeFile(f: HomeFile): void {
+	mkdirSync(BASE(), { recursive: true });
 	writeFileSync(HOME(), JSON.stringify(f, null, 2) + '\n');
 }
 
@@ -93,14 +103,14 @@ function writePicture(dataUrl: string, name: 'logo' | 'coin'): string {
 	/* One picture per name: an older one of another type is left, but nothing points at it. */
 	writeFileSync(path.join(LOGO_DIR(), `${name}.${ext}`), bytes);
 	const v = createHash('sha256').update(bytes).digest('hex').slice(0, 12);
-	return `/host/${name}.${ext}?v=${v}`;
+	return `${URL_BASE()}/host/${name}.${ext}?v=${v}`;
 }
 
 /*
  * The host's service records (ADR-Q-018 §4), public, at static/host/services.json:
  * the newest signed record for each setting. No secret is in any of them.
  */
-const SERVICES = () => path.resolve(root(), 'static', 'host', 'services.json');
+const SERVICES = () => path.resolve(BASE(), 'host', 'services.json');
 export interface ServicesFile {
 	schema: 'inqbeta.host-services/1';
 	host: string;
