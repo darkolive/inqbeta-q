@@ -153,3 +153,26 @@ once the `dev` gate exists (step 5).
   inqbeta.com passkey) come in with a year's pass: the newer UCAN links
   aren't read by the gate yet.
 - `q:acting` and `q.door.names` are now declared in `q-core/src/storage.ts`.
+
+**Step 5, the development site: the parts that don't need its own host (5 October, late).**
+
+- **The notice**, in all six languages, on every page of inqbeta.dev from the
+  front door on: "This is Q's development site: for testing only, not for
+  real use. It can be wiped at any time, and no real money moves here."
+- **Test money only**: the mint treats any request arriving on inqbeta.dev as
+  test, whatever the host's record says (`lib/server/site.ts`,
+  `isDevelopmentSite`, or `Q_DEVELOPMENT_SITE=1`). Publishing live is recorded
+  in the shared host record, so this is where it has to be refused.
+- **No door there**: `/api/door` and the mint let everyone in on inqbeta.dev.
+- **The node**: the gate now receives `GATE_DOOR_ROOT`, `GATE_DOOR_HOST` and
+  `GATE_DOOR` (they weren't passed through before). A `gate-dev` service
+  (profile `dev`, so it only starts when asked) uses its own storage folder
+  (`/dev`) and `DEV_` settings, behind `dev-storage.135-181-156-21.sslip.io`.
+  Starting it, and wiping only `/dev`, are in `node/HETZNER.md` step 7.
+
+**Found on the way: the two sites are one host today.** inqbeta.dev is built
+from the same branch, so it serves the same `incubator.json` and
+`host/services.json`: the same federation, founder, storage and test books as
+inqbeta.com. A separate gate alone doesn't separate them. The development
+site needs **its own host**, founded on localhost like the first. Until it
+has one, the door stays off.

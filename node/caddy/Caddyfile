@@ -14,3 +14,9 @@ storage.135-181-156-21.sslip.io {
 	# The gate in front of the storage: it checks signatures before storing.
 	reverse_proxy gate:8090
 }
+
+dev-storage.135-181-156-21.sslip.io {
+	# The development site's own gate (ADR-Q-034 §5): its own folder, no door,
+	# test money only. Answers once gate-dev is started (the "dev" profile).
+	reverse_proxy gate-dev:8090
+}

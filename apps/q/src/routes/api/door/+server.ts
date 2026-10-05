@@ -9,11 +9,14 @@
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { hostOf, moneyOf } from '$lib/server/mint';
 import { doorSays } from '$lib/server/door';
+import { isDevelopmentSite } from '$lib/server/site';
 
 export const prerender = false;
 
 export const GET: RequestHandler = async ({ url }) => {
 	const did = url.searchParams.get('did') ?? '';
+	/* The development site has no door: everyone may try everything there. */
+	if (isDevelopmentSite(url.origin)) return json({ in: true, site: 'development' });
 	const host = await hostOf(url.origin).catch(() => null);
 	if (!host) return json({ in: true });
 	const mode = (await moneyOf(url.origin, host).catch(() => null))?.mode ?? 'test';

@@ -24,6 +24,7 @@ import { sealWith, checkReceipt } from '@inqbeta/q-core/seal';
 import { MINT_SCHEMA, MINT_SOURCE, RECONCILED_SCHEMA, RECONCILE_ASK_SCHEMA, isMintEvent, isReconciliation, type MintEvent, type MintReceipt, type Reconciliation, type ReconciliationReceipt } from '@inqbeta/q-core/mint';
 import { mintFacts } from '@inqbeta/q-actions/core/mint';
 import { doorSays } from '$lib/server/door';
+import { isDevelopmentSite } from '$lib/server/site';
 import { MintRefused, appendLedger, books, coinDesignOf, coinNameOf, decideMint, fileable, hostOf, mintIdentity, moneyOf, pencePerCredit, readLedger } from '$lib/server/mint';
 
 export const prerender = false;
@@ -37,7 +38,8 @@ async function context(origin: string) {
 	if (!host) throw new MintRefused('This copy has no host set up yet.');
 	const me = await mintIdentity();
 	const state = await moneyOf(origin, host);
-	const mode = state.mode;
+	/* The development site is test only, whatever the host's record says (ADR-Q-034 §5). */
+	const mode = isDevelopmentSite(origin) ? 'test' : state.mode;
 	const pence = pencePerCredit(state);
 	if (state.publication && state.publication.mint !== me.did) throw new MintRefused('The published mint isn’t this one: the mint’s key has changed since publishing.');
 	return { host, me, state, mode, pence };
@@ -102,7 +104,7 @@ export const POST: RequestHandler = async ({ request, url }) => {
 		const ledger = await readLedger(host, me.did, mode);
 		/* The door (ADR-Q-034): while in test, only those let in may act. */
 		const asker = ((body.buy ?? body.cashout ?? body.file ?? body.reconcile) as { did?: string } | undefined)?.did;
-		const shut = await doorSays(asker, host, mode);
+		const shut = isDevelopmentSite(url.origin) ? null : await doorSays(asker, host, mode);
 		if (shut) return json({ ok: false, says: shut, door: 'closed' }, { status: 403 });
 
 		/* ---- Buy: minted to the buyer, citing the payment ---- */

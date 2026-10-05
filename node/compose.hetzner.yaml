@@ -90,6 +90,41 @@ services:
       GATE_INBOX_HOLDS_MB: ${GATE_INBOX_HOLDS_MB:-25}
       GATE_SEND_MB_PER_DAY: ${GATE_SEND_MB_PER_DAY:-50}
       GATE_ORIGINS: https://inqbeta.com,https://inqbeta.dev,http://localhost:3100
+      # The door (ADR-Q-034): set GATE_DOOR_ROOT and GATE_DOOR_HOST to lock this
+      # gate to the founder and tester passes while the host is in test;
+      # GATE_DOOR=open once it's live. Unset: no door, as before.
+      GATE_DOOR_ROOT: ${GATE_DOOR_ROOT:-}
+      GATE_DOOR_HOST: ${GATE_DOOR_HOST:-}
+      GATE_DOOR: ${GATE_DOOR:-}
+    volumes:
+      - ./gate:/gate:ro
+
+  # The development site's own gate (ADR-Q-034 §5): the same code, its own
+  # folder in the storage (/dev), no door, never real money. Started only when
+  # asked: docker compose --profile dev up -d gate-dev
+  # Wiped on its own (HETZNER.md, "Wiping the development site").
+  gate-dev:
+    profiles: [dev]
+    image: node:22-alpine
+    restart: unless-stopped
+    networks: [node]
+    depends_on: [storage, mosquitto]
+    working_dir: /gate
+    command: sh -c "apk add --no-cache mosquitto-clients >/dev/null && node server.mjs"
+    environment:
+      GATE_FILER: http://storage:8888/dev
+      GATE_FEDERATIONS: ${DEV_GATE_FEDERATIONS:-}
+      GATE_MINTS: ${DEV_GATE_MINTS:-}
+      GATE_SEED: ${DEV_GATE_SEED:-}
+      GATE_RELAY_HOLDS_MB: ${DEV_GATE_RELAY_HOLDS_MB:-100}
+      GATE_RELAY_DAYS: ${GATE_RELAY_DAYS:-7}
+      GATE_RELAY_HOURS: ${GATE_RELAY_HOURS:-}
+      GATE_OPERATORS: ${DEV_GATE_OPERATORS:-}
+      GATE_STORE_GRACE_DAYS: ${GATE_STORE_GRACE_DAYS:-7}
+      GATE_MQTT_PASSWORD: ${GATE_MQTT_PASSWORD:-}
+      GATE_INBOX_HOLDS_MB: ${GATE_INBOX_HOLDS_MB:-25}
+      GATE_SEND_MB_PER_DAY: ${GATE_SEND_MB_PER_DAY:-50}
+      GATE_ORIGINS: https://inqbeta.dev,http://localhost:3100
     volumes:
       - ./gate:/gate:ro
 

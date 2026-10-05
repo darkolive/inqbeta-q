@@ -135,8 +135,11 @@ default, named only on localhost; the playground has 1,000 play credits and
   through the door); `/api/notifications` no longer takes additions.
 - ✅ Step 5 (browser): Opening soon after sign-in.
 - ✅ Step 6: Tester passes in the host's Settings, on localhost.
-- Next: step 7, the development site (its own gate, the notice, Publish
-  refused), then switching the door on and proving it in the test rig.
+- ✅ Step 7, part: the notice in six languages; test money only on
+  inqbeta.dev; no door there; the gate receives the door settings; a
+  `gate-dev` on its own `/dev` folder (HETZNER.md step 7).
+- **Waiting on a decision:** the two sites are one host today (same host
+  files). The development site needs its own host before the door goes on.
 
 ## Before building: the checks (audit A5–A7)
 

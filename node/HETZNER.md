@@ -338,3 +338,56 @@ router, WebRTC's Trickle ICE page gathered a **relay** candidate at
 public addresses. The storage is now 16 volumes (Max 16, 7 in use). Q offers the node's relay first and
 Cloudflare's after it, if that's set too. Not yet: `turns:` on 443 (TLS), for
 networks that only allow web traffic.
+
+## Step 7 — the door, and the development site's own gate (ADR-Q-034), 5 October 2026
+
+Two separate things. Do the first whenever you update the node; the second
+only when the development site has its own host (see ADR-Q-034 §5).
+
+### The door on inqbeta.com's gate
+
+Nothing changes until you set it. When the development site has moved to its
+own gate, add these to `/srv/node/.env` (Federations → your host → Settings,
+in role, on localhost → **Tester passes** shows both lines with Copy):
+
+```sh
+GATE_DOOR_ROOT=did:key:…   # your root, on your own computer
+GATE_DOOR_HOST=did:key:…   # your host federation
+```
+
+Then recreate the gate and check it:
+
+```sh
+cd /srv/node
+docker compose -f compose.yaml -f compose.hetzner.yaml up -d --force-recreate gate caddy
+curl -s https://storage.135-181-156-21.sslip.io/door; echo
+```
+
+It should say `"on":true,"open":false`. When the host goes live, add
+`GATE_DOOR=open` and recreate the gate again. Taking the two lines out
+removes the door altogether.
+
+### The development site's gate
+
+Its own folder in the storage (`/dev`), no door, test money only. Its
+settings start `DEV_` in the same `.env` (`DEV_GATE_FEDERATIONS`,
+`DEV_GATE_MINTS`, `DEV_GATE_OPERATORS`, `DEV_GATE_SEED`: the development
+host's own, never inqbeta.com's). Start it, and Caddy's
+`dev-storage.135-181-156-21.sslip.io` answers:
+
+```sh
+docker compose -f compose.yaml -f compose.hetzner.yaml --profile dev up -d gate-dev caddy
+curl -s https://dev-storage.135-181-156-21.sslip.io/health; echo
+```
+
+### Wiping the development site
+
+Say so on the development site first (an announcement), then:
+
+```sh
+docker compose -f compose.yaml -f compose.hetzner.yaml --profile dev stop gate-dev
+curl -s -X DELETE "http://127.0.0.1:8888/dev/?recursive=true&ignoreRecursiveError=true"
+docker compose -f compose.yaml -f compose.hetzner.yaml --profile dev up -d gate-dev
+```
+
+Only `/dev` goes. inqbeta.com's storage is never touched.
