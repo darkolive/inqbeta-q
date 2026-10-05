@@ -56,6 +56,7 @@ you find it wrong, and move each doc to front-matter
 | [q/copies-and-doors.md](q/copies-and-doors.md) | More copies always help; more doors only if more than one is needed |
 | [q/where-it-lives.md](q/where-it-lives.md) | Tiers as data ages (tier names still to choose) |
 | [q/dnd-kit-and-the-vocabulary.md](q/dnd-kit-and-the-vocabulary.md) | Why the block vocabulary is closed; drag and drop |
+| [q/showing-money.md](q/showing-money.md) | How Q shows numbers, money, health and proof — the design language to keep site-wide |
 
 ## Design (not fully built)
 
