@@ -26,6 +26,7 @@
 	import SiteFooter from '$lib/components/SiteFooter.svelte';
 	import { isPublicPage, isReceiptPage } from '$lib/guard';
 	import RoleBand from '$lib/components/RoleBand.svelte';
+	import OpeningSoon from '$lib/components/OpeningSoon.svelte';
 	import SearchBar from '$lib/components/SearchBar.svelte';
 	import SideNav from '$lib/components/SideNav.svelte';
 	import LanguageMenu from '$lib/components/LanguageMenu.svelte';
@@ -284,6 +285,19 @@
 	let { children } = $props();
 
 	let identity = $state<Identity | null>(null);
+	/* The door (ADR-Q-034): may this person act here yet? Asked once per sign-in. */
+	let door = $state<{ in: boolean; says?: string } | null>(null);
+	$effect(() => {
+		const did = identity?.did;
+		door = null;
+		if (!did) return;
+		void fetch(`/api/door?did=${encodeURIComponent(did)}`)
+			.then((r) => (r.ok ? r.json() : { in: true }))
+			.then((d: { in: boolean; says?: string }) => {
+				if (identity?.did === did) door = d;
+			})
+			.catch(() => (door = { in: true }));
+	});
 	/* The public DID kept from last time, when the keys are not in this tab. */
 	let known = $state<string | null>(null);
 	/* Set once the passkey module has answered, so the guard never acts on a guess. */
@@ -951,7 +965,11 @@
 				<!-- The "Your identity has nothing said under it yet" banner was removed on
 				     1 October 2026 (Darren: "such a distraction"). The questions stay in the
 				     menu; offerQuestions is kept should a quieter invitation be wanted. -->
-				{@render children()}
+				{#if door && !door.in && !isPublicPage(page.url.pathname) && !page.url.pathname.startsWith('/keys')}
+					<OpeningSoon says={door.says ?? ''} />
+				{:else}
+					{@render children()}
+				{/if}
 			</div>
 			<SiteFooter />
 		</main>

@@ -1,7 +1,8 @@
 # ADR-Q-034 — The door (inqbeta.com) and the playground (inqbeta.dev)
 
-**Status:** decided 5 October 2026; §5 revised the same evening. Steps 1 and
-2 (the rule, and the gate's door) are built: see *As built* below.
+**Status:** decided 5 October 2026; §5 revised the same evening. Steps 1–4
+and 6 are built (the rule, the gate, the mint, the bell, Opening soon, tester
+passes); step 5, the development site, is next. See *As built* below.
 
 ## Why
 
@@ -126,3 +127,29 @@ root, for another host, or altered. `OPENING_SOON` is the sentence.
 **Don't switch the door on yet** on the Hetzner gate. inqbeta.dev uses the
 same gate today, so the door would lock the development site too. It goes on
 once the `dev` gate exists (step 5).
+
+**Later the same evening: steps 3–6.**
+
+- **The mint** (`lib/server/door.ts`, used by every POST to `/api/mint`): reads
+  the gate's `GET /door` (30-second cache) and asks q-core's `isLetIn`. It
+  only applies a door that names **this** host, so the development site's
+  mint isn't locked by inqbeta.com's door even on a shared node. If the gate
+  can't be asked, only the founder is let in. Live: everyone.
+- **The bell**: nothing to add. On the live node the open listener only
+  carries "something's waiting" pings, and only the gate may ring; leaving a
+  message goes through the gate's inbox, which the door checks.
+  `/api/notifications` no longer takes additions: nothing in Q used it, and
+  anyone could put words into anyone's bell.
+- **Opening soon** (`GET /api/door?did=`, `OpeningSoon.svelte`): after
+  sign-in, someone not let in sees "Q isn't open to everyone yet", with a way
+  to the development site, Ask a question, and Stay in touch. Keys and the
+  public pages still open. A courtesy: the lock is on the servers.
+- **Tester passes** (`TesterPasses.svelte`, in the host's Settings, in role,
+  on the founder's own computer): give a pass (their DID, who it is, a week /
+  30 days / 3 months / a year), take one back, see who's let in and until
+  when. Names stay on that computer (`q.door.names`); the door sees DIDs.
+  With no door yet, it shows the two `.env` lines to copy, and the warning to
+  wait for the development site's own storage. **Your own other keys** (your
+  inqbeta.com passkey) come in with a year's pass: the newer UCAN links
+  aren't read by the gate yet.
+- `q:acting` and `q.door.names` are now declared in `q-core/src/storage.ts`.

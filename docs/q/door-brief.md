@@ -130,9 +130,13 @@ default, named only on localhost; the playground has 1,000 play credits and
   ledgers, shops and storage hires), tested against q-core. **Not switched
   on yet**: the Hetzner gate also serves inqbeta.dev, so it waits for the
   `dev` gate.
-- Next: the mint on Vercel (step 3), the bellboy check (step 4), Opening soon
-  (step 5), Tester passes on localhost (step 6), the development site
-  (step 7).
+- ✅ Step 3: the mint asks the same door (only a door naming its own host).
+- ✅ Step 4: the bell needs nothing more (only the gate rings; inboxes go
+  through the door); `/api/notifications` no longer takes additions.
+- ✅ Step 5 (browser): Opening soon after sign-in.
+- ✅ Step 6: Tester passes in the host's Settings, on localhost.
+- Next: step 7, the development site (its own gate, the notice, Publish
+  refused), then switching the door on and proving it in the test rig.
 
 ## Before building: the checks (audit A5–A7)
 

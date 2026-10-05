@@ -58,6 +58,7 @@
 	import CoinDesigner from '$lib/components/CoinDesigner.svelte';
 	import FederationBank from '$lib/components/FederationBank.svelte';
 	import RoleSwitch from '$lib/components/RoleSwitch.svelte';
+	import TesterPasses from '$lib/components/TesterPasses.svelte';
 	import { role } from '$lib/role.svelte';
 	import PricingFromFlow from '$lib/components/PricingFromFlow.svelte';
 	import FederationSnapshot from '$lib/components/FederationSnapshot.svelte';
@@ -1075,6 +1076,12 @@
 					the host is decided when the copy is set up (ADR-Q-018), not here.
 				-->
 				{#if isHome}
+				<!-- Tester passes (ADR-Q-034): signed by the root, so only on the founder's own computer. -->
+				{#if identity && home?.ok && svcStorage && identity.did === home.founder}
+					<div class="mb-6"><TesterPasses {identity} host={home.federation} gate={svcStorage} /></div>
+				{:else if home?.ok}
+					<p class="card preset-tonal-surface p-4 mb-6 max-w-3xl text-sm">Tester passes are given from your own computer, where your root key is: open this page on localhost.</p>
+				{/if}
 				<Section title="Your host’s invitation" description="Signing up joins the host. Its standing invitation is signed by this federation and runs for 90 days.">
 					{#if home?.ok}
 						<p class="mb-3 flex flex-wrap items-center gap-2"><Status tone="good">This is your host</Status> <span class="text-sm">Its invitation runs until {onDay(home.until)}. Renew it before then.</span></p>

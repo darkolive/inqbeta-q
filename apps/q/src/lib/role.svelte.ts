@@ -26,11 +26,10 @@ export interface Acting {
 export const OFFICE_NAMES: Record<string, string> = { caretaker: 'Caretaker', treasurer: 'Treasurer', secretary: 'Secretary', chair: 'Chair' };
 export const officeName = (office: string) => OFFICE_NAMES[office] ?? office.replace(/^./, (c) => c.toUpperCase());
 
-const KEY = 'q:acting';
 
 function load(): Acting | null {
 	try {
-		const raw = localStorage.getItem(KEY);
+		const raw = localStorage.getItem('q:acting');
 		const a = raw ? (JSON.parse(raw) as Acting) : null;
 		return a && typeof a.federation === 'string' && typeof a.office === 'string' ? a : null;
 	} catch {
@@ -59,7 +58,7 @@ export const role = {
 	takeUp(federation: string, name: string, office: string) {
 		acting = { federation, name, office, at: new Date().toISOString() };
 		try {
-			localStorage.setItem(KEY, JSON.stringify(acting));
+			localStorage.setItem('q:acting', JSON.stringify(acting));
 		} catch {
 			/* still acting for this visit */
 		}
@@ -68,7 +67,7 @@ export const role = {
 	setDown() {
 		acting = null;
 		try {
-			localStorage.removeItem(KEY);
+			localStorage.removeItem('q:acting');
 		} catch {
 			/* nothing kept */
 		}

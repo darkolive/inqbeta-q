@@ -8,6 +8,8 @@
  *   POST { file: receipt }    an agreement step in the mint's credits, filed in its ledger
  *   POST { reconcile: ask }   the treasurer's signed ask → the books added up and signed (ADR-Q-035)
  *
+ * While the host is in test, every POST asks the door first (ADR-Q-034).
+ *
  * A cash-out goes only to the holder's cashing-out account, named in the ask
  * by its receipt (ADR-Q-035): a standing order, never an account typed in at
  * the time.
@@ -21,6 +23,7 @@ import { json, type RequestHandler } from '@sveltejs/kit';
 import { sealWith, checkReceipt } from '@inqbeta/q-core/seal';
 import { MINT_SCHEMA, MINT_SOURCE, RECONCILED_SCHEMA, RECONCILE_ASK_SCHEMA, isMintEvent, isReconciliation, type MintEvent, type MintReceipt, type Reconciliation, type ReconciliationReceipt } from '@inqbeta/q-core/mint';
 import { mintFacts } from '@inqbeta/q-actions/core/mint';
+import { doorSays } from '$lib/server/door';
 import { MintRefused, appendLedger, books, coinDesignOf, coinNameOf, decideMint, fileable, hostOf, mintIdentity, moneyOf, pencePerCredit, readLedger } from '$lib/server/mint';
 
 export const prerender = false;
@@ -97,6 +100,10 @@ export const POST: RequestHandler = async ({ request, url }) => {
 	try {
 		const { host, me, mode, pence } = await context(url.origin);
 		const ledger = await readLedger(host, me.did, mode);
+		/* The door (ADR-Q-034): while in test, only those let in may act. */
+		const asker = ((body.buy ?? body.cashout ?? body.file ?? body.reconcile) as { did?: string } | undefined)?.did;
+		const shut = await doorSays(asker, host, mode);
+		if (shut) return json({ ok: false, says: shut, door: 'closed' }, { status: 403 });
 
 		/* ---- Buy: minted to the buyer, citing the payment ---- */
 		if (body.buy) {

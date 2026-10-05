@@ -30,39 +30,14 @@ export const GET: RequestHandler = async ({ url }) => {
     });
 };
 
-export const POST: RequestHandler = async ({ request }) => {
-    try {
-        const body = await request.json();
-        const { did, type, message } = body;
-        
-        if (!did || !type || !message) {
-            return json({ error: 'Missing required fields: did, type, message' }, { status: 400 });
-        }
-        
-        const notification = {
-            id: crypto.randomUUID(),
-            type,
-            message,
-            time: Date.now(),
-            read: false
-        };
-        
-        // Add to user's notifications
-        const userNotifications = notifications.get(did) || [];
-        userNotifications.unshift(notification);
-        
-        // Trim to max size
-        if (userNotifications.length > MAX_NOTIFICATIONS) {
-            userNotifications.length = MAX_NOTIFICATIONS;
-        }
-        
-        notifications.set(did, userNotifications);
-        
-        return json({ success: true, id: notification.id });
-    } catch (e) {
-        return json({ error: 'Invalid request body' }, { status: 400 });
-    }
-};
+/*
+ * Adding is closed (5 October 2026, the door, ADR-Q-034). Nothing in Q ever
+ * added here, and anyone could put any words into anyone's bell by naming
+ * their DID. Things that need you now reach you through the bellboy, sealed
+ * and signed (ADR-Q-014); announcements are signed by their federation.
+ */
+export const POST: RequestHandler = async () =>
+    json({ error: 'Notifications aren’t added here. They come through the bell, signed by whoever sent them.' }, { status: 405 });
 
 export const DELETE: RequestHandler = async ({ url }) => {
     const did = url.searchParams.get('did');
