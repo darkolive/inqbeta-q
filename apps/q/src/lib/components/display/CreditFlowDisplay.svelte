@@ -74,6 +74,16 @@
 	type ScaleKey = (typeof SCALES)[number]['key'];
 	/* A day first: close enough to see the shape, and whether lines are touching. */
 	let scale = $state<ScaleKey>('day');
+	/*
+	 * How many windows back you've stepped (5 October 2026, Darren: "a left
+	 * and a right arrow … as you press left, the time frame … goes down in
+	 * sequence … 24 hours, 24 hours, 24 hours"). Nought is the window ending now.
+	 */
+	let back = $state(0);
+	function choose(k: ScaleKey) {
+		scale = k;
+		back = 0;
+	}
 
 	const SERIES: Series[] = [
 		{ key: 'in', label: 'Received', tone: 'primary' },
@@ -123,12 +133,23 @@
 	const nowAt = $derived(new Date());
 	const span = $derived.by(() => {
 		const s = SCALES.find((x) => x.key === scale)!;
-		if (s.span) return { start: new Date(nowAt.getTime() - s.span), end: nowAt };
+		if (s.span) {
+			const end = new Date(nowAt.getTime() - back * s.span);
+			return { start: new Date(end.getTime() - s.span), end };
+		}
 		const first = new Date(receipts[0]?.at ?? nowAt);
 		const day = new Date(first.getFullYear(), first.getMonth(), first.getDate());
 		if (first.getTime() - day.getTime() < HOUR) day.setDate(day.getDate() - 1);
 		return { start: day, end: nowAt };
 	});
+
+	/* Whether there's anything further back to step to, and anything forward. */
+	const firstAt = $derived(receipts[0]?.at ?? '');
+	const canBack = $derived(scale !== 'all' && !!firstAt && span.start.toISOString() > firstAt);
+	const canForward = $derived(scale !== 'all' && back > 0);
+	/* The window in words: "in the last 24 hours", or its own dates once you've stepped back. */
+	const fmtAt = (d: Date) => d.toLocaleString('en-GB', scale === 'hour' || scale === 'hours4' || scale === 'day' ? { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' } : { day: 'numeric', month: 'short', year: scale === 'year' ? 'numeric' : undefined });
+	const windowSays = $derived(back === 0 ? IN_WINDOW[scale] : `from ${fmtAt(span.start)} to ${fmtAt(span.end)}`);
 
 	const points = $derived.by((): Point[] => {
 		if (!receipts.length && !committed) return [];
@@ -136,9 +157,12 @@
 		const before = receipts.filter((r) => r.at <= from).at(-1);
 		const opening = before?.values ?? { in: 0, out: 0, promised: 0 };
 		const out: Point[] = [{ at: from, values: { ...opening }, note: before ? `Opening: balance ${count(opening.in - opening.out)}` : 'Start: no credits yet' }];
-		for (const r of receipts) if (r.at > from) out.push({ ...r, values: { ...r.values } });
+		const to = span.end.toISOString();
+		for (const r of receipts) if (r.at > from && r.at <= to) out.push({ ...r, values: { ...r.values } });
 		const last = out[out.length - 1].values;
-		out.push({ at: span.end.toISOString(), values: { in: last.in, out: last.out, promised: last.out + committed }, note: `Now: balance ${count(last.in - last.out)}${committed ? `, ${credits(committed)} committed` : ''}` });
+		/* At the window's end: today's commitment if it ends now, else as it stood then. */
+		const held = back === 0 ? committed : last.promised - last.out;
+		out.push({ at: to, values: { in: last.in, out: last.out, promised: last.out + held }, note: `${back === 0 ? 'Now' : 'Then'}: balance ${count(last.in - last.out)}${held ? `, ${credits(held)} committed` : ''}` });
 		return out;
 	});
 
@@ -174,7 +198,7 @@
 		} else {
 			t.push({ at: a.toISOString(), label: a.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) });
 		}
-		t.push({ at: b.toISOString(), label: 'Now' });
+		t.push({ at: b.toISOString(), label: back === 0 ? 'Now' : fmtAt(b) });
 		return t;
 	});
 
@@ -190,26 +214,30 @@
 	const IN_WINDOW: Record<ScaleKey, string> = { hour: 'in the last hour', hours4: 'in the last 4 hours', day: 'in the last 24 hours', week: 'in the last week', month: 'in the last month', quarter: 'in the last 3 months', year: 'in the last year', all: 'since your first receipt' };
 	const inWindow = $derived.by(() => {
 		const from = span.start.toISOString();
-		const moves = flow.filter((m) => m.at > from);
+		const to = span.end.toISOString();
+		const moves = flow.filter((m) => m.at > from && m.at <= to);
 		const committedThen = commits.filter((c) => c.at <= from).at(-1)?.committed ?? 0;
+		const committedEnd = back === 0 ? committed : (commits.filter((c) => c.at <= to).at(-1)?.committed ?? 0);
 		return {
 			received: moves.reduce((n, m) => n + Math.max(0, m.n), 0),
 			spent: moves.reduce((n, m) => n + Math.max(0, -m.n), 0),
-			moved: scale === 'all' ? committed : committed - committedThen,
+			moved: scale === 'all' ? committedEnd : committedEnd - committedThen,
+			committedEnd,
 			/* credits newly committed to agreements within the window */
-			committedIn: commits.filter((c) => c.at > from && c.delta > 0).reduce((n, c) => n + c.delta, 0)
+			committedIn: commits.filter((c) => c.at > from && c.at <= to && c.delta > 0).reduce((n, c) => n + c.delta, 0)
 		};
 	});
 	/* The receipts for the open card, in the window. */
 	const listed = $derived.by(() => {
 		const from = span.start.toISOString();
+		const to = span.end.toISOString();
 		if (showing === 'committed')
 			return commits
-				.filter((c) => c.at > from)
+				.filter((c) => c.at > from && c.at <= to)
 				.map((c) => ({ at: c.at, n: c.delta, hash: c.hash, says: c.delta > 0 ? `Committed ${credits(c.delta)} to an agreement` : `${credits(-c.delta)} no longer committed` }))
 				.reverse();
 		return flow
-			.filter((m) => m.at > from && (showing === 'in' ? m.n > 0 : m.n < 0))
+			.filter((m) => m.at > from && m.at <= to && (showing === 'in' ? m.n > 0 : m.n < 0))
 			.map((m) => ({ at: m.at, n: m.n, hash: m.hash, says: m.says }))
 			.reverse();
 	});
@@ -229,7 +257,7 @@
 		<!-- the time to look at -->
 		<div class="flex flex-wrap gap-2" role="group" aria-label="Time shown">
 			{#each SCALES as s (s.key)}
-				<button type="button" class="btn btn-sm {scale === s.key ? 'preset-filled-primary-500' : 'preset-tonal-surface'}" aria-pressed={scale === s.key} onclick={() => (scale = s.key)}>{s.label}</button>
+				<button type="button" class="btn btn-sm {scale === s.key ? 'preset-filled-primary-500' : 'preset-tonal-surface'}" aria-pressed={scale === s.key} onclick={() => choose(s.key)}>{s.label}</button>
 			{/each}
 		</div>
 		<!-- what that time holds, each card in its line's colour (the theme's primary, error and warning); tap one for its receipts -->
@@ -237,17 +265,17 @@
 			<button type="button" class="card preset-filled-primary-600-400 p-4 text-left {showing === 'in' ? 'ring-4 ring-primary-300-700' : ''}" aria-expanded={showing === 'in'} aria-controls="credit-receipts" onclick={() => toggle('in')}>
 				<p class="text-sm font-semibold flex justify-between gap-2">Received <span aria-hidden="true">{showing === 'in' ? '▴' : '▾'}</span></p>
 				<p class="h3 tabular-nums {inWindow.received ? '' : 'opacity-60'}" style="color: inherit">{count(inWindow.received)}</p>
-				<p class="text-xs opacity-80">{inWindow.received ? IN_WINDOW[scale] : `nothing ${IN_WINDOW[scale]}`}</p>
+				<p class="text-xs opacity-80">{inWindow.received ? windowSays : `nothing ${windowSays}`}</p>
 			</button>
 			<button type="button" class="card preset-filled-error-600-400 p-4 text-left {showing === 'out' ? 'ring-4 ring-error-300-700' : ''}" aria-expanded={showing === 'out'} aria-controls="credit-receipts" onclick={() => toggle('out')}>
 				<p class="text-sm font-semibold flex justify-between gap-2">Spent <span aria-hidden="true">{showing === 'out' ? '▴' : '▾'}</span></p>
 				<p class="h3 tabular-nums {inWindow.spent ? '' : 'opacity-60'}" style="color: inherit">{count(inWindow.spent)}</p>
-				<p class="text-xs opacity-80">{inWindow.spent ? IN_WINDOW[scale] : `nothing ${IN_WINDOW[scale]}`}</p>
+				<p class="text-xs opacity-80">{inWindow.spent ? windowSays : `nothing ${windowSays}`}</p>
 			</button>
 			<button type="button" class="card preset-filled-warning-600-400 p-4 text-left col-span-2 sm:col-span-1 {showing === 'committed' ? 'ring-4 ring-warning-300-700' : ''}" aria-expanded={showing === 'committed'} aria-controls="credit-receipts" onclick={() => toggle('committed')}>
 				<p class="text-sm font-semibold flex justify-between gap-2">Committed <span aria-hidden="true">{showing === 'committed' ? '▴' : '▾'}</span></p>
 				<p class="h3 tabular-nums {inWindow.committedIn ? '' : 'opacity-60'}" style="color: inherit">{count(inWindow.committedIn)}</p>
-				<p class="text-xs opacity-80">{inWindow.committedIn ? IN_WINDOW[scale] : `nothing ${IN_WINDOW[scale]}`} · {count(committed)} committed now</p>
+				<p class="text-xs opacity-80">{inWindow.committedIn ? windowSays : `nothing ${windowSays}`} · {count(inWindow.committedEnd)} committed {back === 0 ? 'now' : 'then'}</p>
 			</button>
 		</div>
 		{#snippet list()}
@@ -256,7 +284,7 @@
 				{#if showing}
 					{@const rows = listed}
 					<div class="card preset-outlined-surface-200-800 bg-surface-50-950 overflow-hidden">
-						<p class="px-4 pt-3 pb-1 text-xs uppercase tracking-wide opacity-70">{showing === 'in' ? 'Received' : showing === 'out' ? 'Spent' : 'Committed'} {IN_WINDOW[scale]}</p>
+						<p class="px-4 pt-3 pb-1 text-xs uppercase tracking-wide opacity-70">{showing === 'in' ? 'Received' : showing === 'out' ? 'Spent' : 'Committed'} {windowSays}</p>
 						{#if rows.length}
 							<ul class="divide-y divide-surface-200-800">
 								{#each rows as r (r.hash + r.at)}
@@ -274,7 +302,7 @@
 								{/each}
 							</ul>
 						{:else}
-							<p class="px-4 pb-4 pt-1 text-sm text-surface-700-300">Nothing {IN_WINDOW[scale]}.</p>
+							<p class="px-4 pb-4 pt-1 text-sm text-surface-700-300">Nothing {windowSays}.</p>
 						{/if}
 					</div>
 				{/if}
@@ -282,5 +310,13 @@
 		{/snippet}
 		{@render list()}
 		<LineChart series={SERIES} {points} start={span.start.toISOString()} end={span.end.toISOString()} smooth={0.018} zoom={{ below: 0.2, above: 0.15 }} plain {ticks} format={count} bands={BANDS} says={summary} saysTone={tone} label="Credits received and credits spent, added up over time, with what’s committed as a band above spent" />
+		{#if scale !== 'all'}
+			<!-- step through time, a window at a time -->
+			<div class="flex items-center justify-between gap-3" role="group" aria-label="Step through time">
+				<button type="button" class="btn btn-sm preset-tonal" disabled={!canBack} aria-label="The {SCALES.find((x) => x.key === scale)?.label} before" onclick={() => (back += 1)}>← Earlier</button>
+				<span class="text-sm text-surface-700-300 text-center">{back === 0 ? `The last ${SCALES.find((x) => x.key === scale)?.label.toLowerCase()}` : `${fmtAt(span.start)} – ${fmtAt(span.end)}`}</span>
+				<button type="button" class="btn btn-sm preset-tonal" disabled={!canForward} aria-label="The {SCALES.find((x) => x.key === scale)?.label} after" onclick={() => (back = Math.max(0, back - 1))}>Later →</button>
+			</div>
+		{/if}
 	</div>
 {/if}
