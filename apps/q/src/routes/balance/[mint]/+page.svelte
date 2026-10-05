@@ -13,7 +13,6 @@
 	 * it: who it's between, every move with its signed receipt behind a
 	 * magnifier, and a way to ask the federation about anything you find.
 	 */
-	import MintBooks from '$lib/components/display/MintBooks.svelte';
 	import Coin from '$lib/components/display/Coin.svelte';
 	import CoinDrawer from '$lib/components/CoinDrawer.svelte';
 	import CreditFlowDisplay from '$lib/components/display/CreditFlowDisplay.svelte';
@@ -22,8 +21,7 @@
 	import SignIn from '$lib/components/SignIn.svelte';
 	import { watch, type Identity } from '@inqbeta/q-core/passkey';
 	import { watchLedger, type Ledger } from '$lib/ledger';
-	import { movesOf, effectOn, balanceOf } from '@inqbeta/q-core/credits';
-	import { kindSays } from '$lib/credits';
+	import { balanceOf } from '@inqbeta/q-core/credits';
 	import { creditsCommitted, creditFlow, committedFlow } from '$lib/agreements';
 	import { page } from '$app/state';
 	import ReceiptDrawer from '$lib/components/ReceiptDrawer.svelte';
@@ -80,7 +78,6 @@
 	const olderTest = $derived(balanceOf(ledger?.receipts ?? [], me, 'test'));
 	const flow = $derived(creditFlow(ledger, mint, me));
 	const commits = $derived(mint ? committedFlow(ledger, me, mint.mode) : []);
-	const older = $derived(movesOf(ledger?.receipts ?? [], me).reverse());
 	const live = $derived(mint?.mode === 'live');
 	const notSetUp = $derived(/isn’t set up|no host set up/.test(mintSays));
 
@@ -223,9 +220,9 @@
 		{/if}
 
 		{#if flow.length || committed}
-			<Section title="Your credits in and out" description="Credits received and credits spent, two totals that only ever go up. The amber band is what’s committed to agreements, on top of what’s spent; keep it away from the green. Step through with the arrow keys, or open the table.">
+			<Section title="Your credits in and out" description="Credits received and credits spent, two totals that only ever go up. The amber band is what’s committed to agreements, on top of what’s spent; keep it away from the green. Tap Received, Spent or Committed for its receipts.">
 				<div class="max-w-3xl">
-					<CreditFlowDisplay {flow} {commits} {committed} />
+					<CreditFlowDisplay {flow} {commits} {committed} has={(h) => !!receiptOf(h)} onOpen={(h) => { const r = receiptOf(h); if (r) view(r); }} />
 				</div>
 			</Section>
 		{/if}
@@ -268,48 +265,6 @@
 			{/if}
 		</Section>
 
-		<Section title="The mint’s books" description="For reassurance: added up from the mint’s own receipts. Every credit is somewhere, and every credit is backed.">
-			<MintBooks {mint} />
-		</Section>
-
-
-		<Section title="Your activity" description="Every move, newest first. Each one is a signed receipt: the magnifier opens it.">
-			{#if flow.length || older.length}
-				<ul class="card preset-outlined-surface-200-800 bg-surface-50-950 divide-y divide-surface-200-800 overflow-hidden max-w-3xl">
-					{#each [...flow].reverse() as m (m.hash)}
-						{@const r = receiptOf(m.hash)}
-						<li class="flex items-center gap-4 p-4">
-							<span class="flex-1 min-w-0">
-								<span class="block font-semibold">{m.says}</span>
-								<span class="block text-sm text-surface-700-300">{when(m.at)} · {m.kind === 'bought' ? 'minted' : m.kind === 'cashed' ? 'destroyed' : 'agreement settled'}</span>
-							</span>
-							{#if !live}<Status tone="waiting">Test</Status>{/if}
-							<span class="h4 tabular-nums {m.n < 0 ? 'text-error-600-400' : 'text-primary-600-400'}">{m.n > 0 ? '+' : ''}{m.n}</span>
-							{#if r}
-								<button type="button" class="btn-icon preset-tonal shrink-0" aria-label="See the receipt" title="See the receipt" onclick={() => view(r)}><Icon name="search" size={18} /></button>
-							{/if}
-						</li>
-					{/each}
-					{#each older as m (m.signature)}
-						{@const n = effectOn(m.content, me)}
-						{@const r = receiptOf(m.contentHash)}
-						<li class="flex items-center gap-4 p-4 opacity-80">
-							<span class="flex-1 min-w-0">
-								<span class="block font-semibold">{kindSays[m.content.kind]}{m.content.pack ? ` · ${m.content.pack.name}` : ''}</span>
-								<span class="block text-sm text-surface-700-300">{when(m.content.at)} · before the mint</span>
-							</span>
-							{#if m.content.mode === 'test'}<Status tone="waiting">Test</Status>{/if}
-							<span class="h4 tabular-nums">{n > 0 ? '+' : ''}{n}</span>
-							{#if r}
-								<button type="button" class="btn-icon preset-tonal shrink-0" aria-label="See the receipt" title="See the receipt" onclick={() => view(r)}><Icon name="search" size={18} /></button>
-							{/if}
-						</li>
-					{/each}
-				</ul>
-			{:else}
-				<Empty icon="wallet" title="No credits yet" description="Everyday use is free. Buy some to try agreements, a shop, or cashing out." />
-			{/if}
-		</Section>
 	{/if}
 
 	<ReceiptDrawer receipt={opened} {names} bind:open={drawerOpen} />

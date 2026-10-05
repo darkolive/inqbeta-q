@@ -134,16 +134,28 @@ export function creditFlow(ledger: Ledger | null, mint: MintView | null, did: st
  * and when an offer ran out, so committed is recorded through time, not
  * only today's.
  */
-export function committedFlow(ledger: Ledger | null, did: string, mode: 'test' | 'live', now = Date.now()): { at: string; committed: number }[] {
+export function committedFlow(ledger: Ledger | null, did: string, mode: 'test' | 'live', now = Date.now()): { at: string; committed: number; delta: number; hash: string; agreement: string }[] {
+	/* Each agreement as it stood at each of its moments, with the step that moved it there. */
 	const per = agreementsFrom(ledger).map((a) => {
 		const times = new Set<string>(a.steps.map((s) => s.content.at));
 		for (const s of a.steps) if (s.content.until && Date.parse(s.content.until) <= now) times.add(new Date(s.content.until).toISOString());
-		return [...times].sort().map((at) => ({ at, n: committedBy(standingOf(a.steps.filter((s) => s.content.at <= at), Date.parse(at)), did, mode) }));
+		return [...times].sort().map((at) => {
+			const upTo = a.steps.filter((s) => s.content.at <= at);
+			return { at, n: committedBy(standingOf(upTo, Date.parse(at)), did, mode), hash: upTo.at(-1)?.contentHash ?? '', agreement: a.id };
+		});
 	});
-	const out: { at: string; committed: number }[] = [];
+	const out: { at: string; committed: number; delta: number; hash: string; agreement: string }[] = [];
+	const was = per.map(() => 0);
 	for (const at of [...new Set(per.flat().map((c) => c.at))].sort()) {
-		const n = per.reduce((sum, list) => sum + (list.filter((c) => c.at <= at).at(-1)?.n ?? 0), 0);
-		if ((out.at(-1)?.committed ?? 0) !== n) out.push({ at, committed: n });
+		per.forEach((list, k) => {
+			const now = list.filter((c) => c.at <= at).at(-1);
+			const n = now?.n ?? 0;
+			if (n !== was[k] && now) {
+				const total = was.reduce((a, b, q) => a + (q === k ? n : b), 0);
+				out.push({ at, committed: total, delta: n - was[k], hash: now.hash, agreement: now.agreement });
+				was[k] = n;
+			}
+		});
 	}
 	return out;
 }

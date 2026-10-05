@@ -30,9 +30,34 @@
 	 */
 	import LineChart, { type Band, type Point, type Series, type Tone } from './LineChart.svelte';
 	import type { Tick } from './LineChart.svelte';
+	import { Icon } from '@inqbeta/q-ui';
 	import type { creditFlow, committedFlow } from '$lib/agreements';
 
-	let { flow, commits = [], committed = 0 }: { flow: ReturnType<typeof creditFlow>; commits?: ReturnType<typeof committedFlow>; committed?: number } = $props();
+	let {
+		flow,
+		commits = [],
+		committed = 0,
+		has = () => false,
+		onOpen
+	}: {
+		flow: ReturnType<typeof creditFlow>;
+		commits?: ReturnType<typeof committedFlow>;
+		committed?: number;
+		/** Whether a receipt can be opened, by content hash. */
+		has?: (hash: string) => boolean;
+		/** Open a receipt in the drawer. */
+		onOpen?: (hash: string) => void;
+	} = $props();
+
+	/*
+	 * Your activity, by card (5 October 2026): tap Received, Spent or
+	 * Committed and its receipts in the window drop down beneath the chart,
+	 * each opening its receipt. Darren: "it only appears when … I click on
+	 * received … that makes the whole scrolling much smaller."
+	 */
+	type Showing = 'in' | 'out' | 'committed';
+	let showing = $state<Showing | null>(null);
+	const toggle = (k: Showing) => (showing = showing === k ? null : k);
 
 	const HOUR = 60 * 60 * 1000;
 	const DAY = 24 * HOUR;
@@ -173,6 +198,19 @@
 			moved: scale === 'all' ? committed : committed - committedThen
 		};
 	});
+	/* The receipts for the open card, in the window. */
+	const listed = $derived.by(() => {
+		const from = span.start.toISOString();
+		if (showing === 'committed')
+			return commits
+				.filter((c) => c.at > from)
+				.map((c) => ({ at: c.at, n: c.delta, hash: c.hash, says: c.delta > 0 ? `Committed ${credits(c.delta)} to an agreement` : `${credits(-c.delta)} no longer committed` }))
+				.reverse();
+		return flow
+			.filter((m) => m.at > from && (showing === 'in' ? m.n > 0 : m.n < 0))
+			.map((m) => ({ at: m.at, n: m.n, hash: m.hash, says: m.says }))
+			.reverse();
+	});
 	const summary = $derived.by(() => {
 		const promised = committed ? ` ${credits(committed)} ${committed === 1 ? 'is' : 'are'} committed to agreements not yet settled: the amber band above the red line.` : '';
 		const more = 'Get more: buy some, ask for them, or crowdfund.';
@@ -192,24 +230,54 @@
 				<button type="button" class="btn btn-sm {scale === s.key ? 'preset-filled-primary-500' : 'preset-tonal-surface'}" aria-pressed={scale === s.key} onclick={() => (scale = s.key)}>{s.label}</button>
 			{/each}
 		</div>
-		<!-- what that time holds, each card in its line's colour (the theme's primary, error and warning) -->
+		<!-- what that time holds, each card in its line's colour (the theme's primary, error and warning); tap one for its receipts -->
 		<div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
-			<div class="card preset-filled-primary-600-400 p-4">
-				<p class="text-sm font-semibold">Received</p>
+			<button type="button" class="card preset-filled-primary-600-400 p-4 text-left {showing === 'in' ? 'ring-4 ring-primary-300-700' : ''}" aria-expanded={showing === 'in'} aria-controls="credit-receipts" onclick={() => toggle('in')}>
+				<p class="text-sm font-semibold flex justify-between gap-2">Received <span aria-hidden="true">{showing === 'in' ? '▴' : '▾'}</span></p>
 				<p class="h3 tabular-nums" style="color: inherit">{count(inWindow.received)}</p>
 				<p class="text-xs opacity-80">{IN_WINDOW[scale]}</p>
-			</div>
-			<div class="card preset-filled-error-600-400 p-4">
-				<p class="text-sm font-semibold">Spent</p>
+			</button>
+			<button type="button" class="card preset-filled-error-600-400 p-4 text-left {showing === 'out' ? 'ring-4 ring-error-300-700' : ''}" aria-expanded={showing === 'out'} aria-controls="credit-receipts" onclick={() => toggle('out')}>
+				<p class="text-sm font-semibold flex justify-between gap-2">Spent <span aria-hidden="true">{showing === 'out' ? '▴' : '▾'}</span></p>
 				<p class="h3 tabular-nums" style="color: inherit">{count(inWindow.spent)}</p>
 				<p class="text-xs opacity-80">{IN_WINDOW[scale]}</p>
-			</div>
-			<div class="card preset-filled-warning-600-400 p-4 col-span-2 sm:col-span-1">
-				<p class="text-sm font-semibold">Committed</p>
+			</button>
+			<button type="button" class="card preset-filled-warning-600-400 p-4 text-left col-span-2 sm:col-span-1 {showing === 'committed' ? 'ring-4 ring-warning-300-700' : ''}" aria-expanded={showing === 'committed'} aria-controls="credit-receipts" onclick={() => toggle('committed')}>
+				<p class="text-sm font-semibold flex justify-between gap-2">Committed <span aria-hidden="true">{showing === 'committed' ? '▴' : '▾'}</span></p>
 				<p class="h3 tabular-nums" style="color: inherit">{count(committed)}</p>
 				<p class="text-xs opacity-80">now{scale === 'all' || !inWindow.moved ? '' : `, ${inWindow.moved > 0 ? 'up' : 'down'} ${count(Math.abs(inWindow.moved))} ${IN_WINDOW[scale]}`}</p>
-			</div>
+			</button>
 		</div>
+		{#snippet list()}
+			<!-- the receipts behind the card you tapped, in the window you chose, newest first -->
+			<div id="credit-receipts">
+				{#if showing}
+					{@const rows = listed}
+					<div class="card preset-outlined-surface-200-800 bg-surface-50-950 overflow-hidden">
+						<p class="px-4 pt-3 text-sm font-semibold">{showing === 'in' ? 'Received' : showing === 'out' ? 'Spent' : 'Committed'} {IN_WINDOW[scale]}</p>
+						{#if rows.length}
+							<ul class="divide-y divide-surface-200-800">
+								{#each rows as r (r.hash + r.at)}
+									<li class="flex items-center gap-4 px-4 py-3">
+										<span class="flex-1 min-w-0">
+											<span class="block font-semibold">{r.says}</span>
+											<span class="block text-sm text-surface-700-300">{new Date(r.at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+										</span>
+										<span class="h4 tabular-nums {r.n < 0 ? 'text-error-600-400' : showing === 'committed' ? 'text-warning-600-400' : 'text-primary-600-400'}">{r.n > 0 ? '+' : ''}{count(r.n)}</span>
+										{#if has(r.hash)}
+											<button type="button" class="btn-icon preset-tonal shrink-0" aria-label="See the receipt" title="See the receipt" onclick={() => onOpen?.(r.hash)}><Icon name="search" size={18} /></button>
+										{/if}
+									</li>
+								{/each}
+							</ul>
+						{:else}
+							<p class="px-4 pb-4 pt-1 text-sm text-surface-700-300">Nothing {IN_WINDOW[scale]}.</p>
+						{/if}
+					</div>
+				{/if}
+			</div>
+		{/snippet}
 		<LineChart series={SERIES} {points} start={span.start.toISOString()} end={span.end.toISOString()} smooth={0.018} zoom={{ below: 0.2, above: 0.15 }} plain {ticks} format={count} bands={BANDS} says={summary} saysTone={tone} label="Credits received, credits spent, and spent plus committed, added up over time" />
+		{@render list()}
 	</div>
 {/if}
