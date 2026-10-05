@@ -31,6 +31,7 @@
 	import type { ReceiptEntry } from '$lib/receipts';
 	import { readMint, buyCredits, cashOut, mintBalance, pounds, reconcile, payoutAccountOf, type MintView } from '$lib/money';
 	import Reconciled from '$lib/components/display/Reconciled.svelte';
+	import { role } from '$lib/role.svelte';
 
 	let identity = $state<Identity | null>(null);
 	let ledger = $state<Ledger | null>(null);
@@ -176,8 +177,10 @@
 			<!-- When the bank last signed its books: green today, red at a month. -->
 			<div class="flex flex-wrap items-start justify-between gap-3">
 				<Reconciled last={mint.lastReconciled} movesSince={mint.movesSince} nameOf={(d) => (d === bank?.founder ? `${bank.name}’s treasurer` : names.nameOf(d))} />
-				{#if bank && me === bank.founder}
+				{#if bank && me === bank.founder && role.isActing(bank.federation)}
 					<button type="button" class="btn btn-sm preset-tonal-primary" disabled={!!busy} onclick={() => void reconcileNow()}>{busy === 'reconcile' ? 'Reconciling…' : 'Reconcile now'}</button>
+				{:else if bank && me === bank.founder}
+					<a class="text-sm anchor" href="/federations/one?id={encodeURIComponent(bank.federation)}">Take up your office to reconcile</a>
 				{/if}
 			</div>
 			</div>

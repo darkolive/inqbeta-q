@@ -1,6 +1,9 @@
 # ADR-Q-038 — Acting in role: say which hat you're wearing
 
-**Status:** proposed 5 October 2026, not yet built. It builds on offices and
+**Status:** proposed 5 October 2026. Step 1 is built: the switch, with
+caretaker as the only office (`lib/role.svelte.ts`, `RoleSwitch`, `RoleBand`).
+The founder's Website, Services and Settings tabs, Invite, Tell your members,
+New this week and Reconcile now show only in role. It builds on offices and
 mandates (ADR-Q-007), must and cannot (ADR-Q-008), messages (ADR-Q-010), cards
 with a purpose (ADR-Q-015) and asking the office (ADR-Q-037).
 
@@ -154,3 +157,4 @@ The founder's admin isn't a special case; it's the first role.
 - ADR-Q-015: cards with a purpose.
 - ADR-Q-035: the federation's bank (its Bank tab is open to anyone).
 - ADR-Q-037: ask the office, not the person.
+- ADR-Q-039: working for an organisation; scanning in can take up the role.

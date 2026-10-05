@@ -25,6 +25,7 @@
 	import TestSiteNote from '$lib/components/TestSiteNote.svelte';
 	import SiteFooter from '$lib/components/SiteFooter.svelte';
 	import { isPublicPage, isReceiptPage } from '$lib/guard';
+	import RoleBand from '$lib/components/RoleBand.svelte';
 	import SearchBar from '$lib/components/SearchBar.svelte';
 	import SideNav from '$lib/components/SideNav.svelte';
 	import LanguageMenu from '$lib/components/LanguageMenu.svelte';
@@ -934,6 +935,7 @@
 
 		<!-- Main Content -->
 		<main class="min-h-0 overflow-y-auto bg-surface-50-950">
+			<RoleBand />
 			<div class="mx-auto max-w-5xl p-4 md:p-8">
 				{#if !identity && known}
 					<Resume did={known} />

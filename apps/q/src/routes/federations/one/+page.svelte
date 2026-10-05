@@ -57,6 +57,8 @@
 	import MoneyPublish from '$lib/components/MoneyPublish.svelte';
 	import CoinDesigner from '$lib/components/CoinDesigner.svelte';
 	import FederationBank from '$lib/components/FederationBank.svelte';
+	import RoleSwitch from '$lib/components/RoleSwitch.svelte';
+	import { role } from '$lib/role.svelte';
 	import PricingFromFlow from '$lib/components/PricingFromFlow.svelte';
 	import FederationSnapshot from '$lib/components/FederationSnapshot.svelte';
 
@@ -230,6 +232,17 @@
 	 * Website and Services (both only need the founder's passkey to sign).
 	 */
 	const hostFounder = $derived(isHome && !!home?.ok && !!identity && identity.did === home.founder);
+	/*
+	 * Acting in role (ADR-Q-038). Holding the office isn't enough to change
+	 * things: you take it up first, and set it down to be just you. Until
+	 * offices are built, the only one is caretaker, held by the founder.
+	 */
+	const offices = $derived(own || hostFounder ? ['caretaker'] : []);
+	const acting = $derived(offices.length > 0 && role.isActing(id));
+	/* Setting the role down leaves the office's tabs: back to Home. */
+	$effect(() => {
+		if (!acting && ['website', 'services', 'settings'].includes(tab)) tab = 'home';
+	});
 	let homeFile = $state<{ url: string; until: string } | null>(null);
 	/* Where this federation's services answer from the internet (ADR-Q-016 step 5). */
 	let svcStorage = $state('https://storage.135-181-156-21.sslip.io');
@@ -305,7 +318,7 @@
 		if (out.ok) vercel = await hostVercel();
 	}
 	$effect(() => {
-		if (isHome && (own || hostFounder) && dev) void loadServices();
+		if (isHome && acting && dev) void loadServices();
 	});
 	/* One setting at a time: which one is open, and what's being typed. */
 	let editing = $state<string | null>(null);
@@ -565,6 +578,11 @@
 			</div>
 		</section>
 
+		<!-- Which hat you're wearing (ADR-Q-038). -->
+		{#if offices.length}
+			<div class="mb-6"><RoleSwitch federation={id} name={founding.name} {offices} /></div>
+		{/if}
+
 		{#if said}
 			<div class="card p-4 mb-6 {said.tone === 'good' ? 'preset-tonal-success' : 'preset-tonal-error'}" role="status">
 				<p>{said.text}</p>
@@ -575,14 +593,14 @@
 		<Tabs value={tab} onValueChange={(d) => (tab = d.value)}>
 			<Tabs.List class="mb-6">
 				<Tabs.Trigger value="home" class="min-h-11">Home</Tabs.Trigger>
-				{#if isHome && (own || hostFounder)}
+				{#if isHome && acting}
 					<Tabs.Trigger value="website" class="min-h-11">Website</Tabs.Trigger>
 					<Tabs.Trigger value="services" class="min-h-11">Services</Tabs.Trigger>
 				{/if}
 				{#if isHome}<Tabs.Trigger value="bank" class="min-h-11">Bank</Tabs.Trigger>{/if}
 				<Tabs.Trigger value="members" class="min-h-11">Members</Tabs.Trigger>
 				<Tabs.Trigger value="communication" class="min-h-11">Communication</Tabs.Trigger>
-				{#if own}<Tabs.Trigger value="settings" class="min-h-11">Settings</Tabs.Trigger>{/if}
+				{#if own && acting}<Tabs.Trigger value="settings" class="min-h-11">Settings</Tabs.Trigger>{/if}
 				<Tabs.Indicator />
 			</Tabs.List>
 
@@ -629,7 +647,7 @@
 						</Section>
 					</div>
 					<aside class="flex-[1_1_16rem] flex flex-col gap-6">
-						{#if own && newMembers.length}
+						{#if acting && newMembers.length}
 							<section class="card preset-outlined-secondary-500 p-4 flex flex-col gap-3">
 								<h2 class="h5">New this week</h2>
 								<ul class="flex flex-col gap-2">
@@ -659,7 +677,7 @@
 			</Tabs.Content>
 
 			<!-- Your host's website (ADR-Q-018 §3, §5): what people see, and going live. -->
-			{#if isHome && (own || hostFounder) && home?.ok}
+			{#if isHome && acting && home?.ok}
 				<Tabs.Content value="website">
 					<Section title="What people see" description="The front of your host. Every page of it is a receipt, signed by the host.">
 						<div class="card preset-outlined-surface-200-800 p-6 flex flex-col items-center text-center gap-3 max-w-xl">
@@ -799,7 +817,7 @@
 						{ title: 'Leaving is always yours', says: 'You can leave at any time, alone, and keep every receipt you had. Nobody has to say yes.' }
 					]}
 				/>
-				{#if own}
+				{#if own && acting}
 					<Section title="Invite someone" description="Make a link, or a code they can scan. It is signed by the federation and runs out on its own.">
 						<div class="flex flex-col gap-4 sm:flex-row sm:items-end">
 							<label class="label">
@@ -976,7 +994,7 @@
 						{ title: 'What’s coming', says: 'Message the secretary, ask the club a question, and answers everyone can see so nobody asks twice.' }
 					]}
 				/>
-				{#if own}
+				{#if own && acting}
 					<Section title="Tell your members" description="An announcement is signed by the federation and stays in members’ bells, read or not, until its time is over.">
 						<div class="flex flex-col gap-4 max-w-2xl">
 							<label class="label"><span class="label-text">Title</span><input class="input" bind:value={annTitle} /></label>
@@ -1028,7 +1046,7 @@
 									<div class="flex flex-wrap items-center gap-3">
 										<span class="font-bold">{a.title}</span>
 										<span class="text-xs opacity-60">{onDay(a.at)} · shows until {onDay(a.until)}</span>
-										{#if own}<button type="button" class="btn btn-sm preset-tonal min-h-11 ml-auto" disabled={busy !== null} onclick={() => void takeDown(a)}>Take it down</button>{/if}
+										{#if own && acting}<button type="button" class="btn btn-sm preset-tonal min-h-11 ml-auto" disabled={busy !== null} onclick={() => void takeDown(a)}>Take it down</button>{/if}
 									</div>
 									<p class="whitespace-pre-line">{a.says}</p>
 									{#if a.action}<a class="btn btn-sm preset-tonal min-h-11 self-start" href={a.action.href}>{a.action.label}</a>{/if}
@@ -1039,8 +1057,8 @@
 				</Section>
 			</Tabs.Content>
 
-			<!-- Settings: the machines it runs. Caretaker only. -->
-			{#if own}
+			<!-- Settings: the machines it runs. Caretaker only, in role. -->
+			{#if own && acting}
 				<Tabs.Content value="settings">
 				<IntroSlides
 					id="federation-settings"
