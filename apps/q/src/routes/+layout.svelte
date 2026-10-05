@@ -35,6 +35,10 @@
 	import { language } from '$lib/i18n/index.svelte';
 	import { thisBrowser } from '@inqbeta/q-core/browser';
 	import { watchLedger, refreshLedger, type Ledger } from '$lib/ledger';
+	import { batteryNotice, type BatteryNotice } from '$lib/battery-watch';
+	import { readMint, mintBalance } from '$lib/money';
+	import { creditsCommitted } from '$lib/agreements';
+	import { enoughLevel } from '@inqbeta/q-ui';
 	import { startAutoSync } from '$lib/autosync';
 	import { warmWhenIdle, sleepEngine } from '$lib/actions/engine';
 	import { ABOUT_YOU } from '$lib/questions/about-you';
@@ -363,6 +367,21 @@
 	let askedAlready = $state<boolean | null>(null);
 	$effect(() => watchLedger((l) => (ledger = l)));
 
+	/* The battery, watched: a notice in the bell as it drains past half, a quarter, the last cell, empty (ADR-Q-035). */
+	let battery = $state<BatteryNotice | null>(null);
+	$effect(() => {
+		const id = identity;
+		const l = ledger;
+		if (!id || !l) return;
+		void readMint().then(({ view }) => {
+			if (!view) return;
+			const held = mintBalance(l, view, id.did).spendable;
+			const committed = creditsCommitted(l, id.did, view.mode);
+			const notice = batteryNotice(id.did, view.mint, view.name || 'credits', enoughLevel(held, committed), held);
+			if (notice) battery = notice;
+		});
+	});
+
 	/*
 	 * Messages (2 October 2026): collected from your inbox at the storage
 	 * when Q opens and whenever the bellboy pings it. Unread ones count on the
@@ -494,7 +513,7 @@
 		});
 	});
 	/* The bell's number, counted only once the read marks are back: never a number that then vanishes. */
-	const bellCount = $derived(keptReady ? unreadCount + newNotices + unheard + unreadCountMessages + missed.length : 0);
+	const bellCount = $derived(keptReady ? unreadCount + newNotices + unheard + unreadCountMessages + missed.length + (battery ? 1 : 0) : 0);
 	function keepSettings() {
 		if (identity && keptReady) keepSoon(identity, { read: [...readIds()], notify: reach, plugins: $state.snapshot(plugins.prefs), backups: $state.snapshot(backups.choices) }, folderReady);
 	}
@@ -763,6 +782,14 @@
 		<a href="/cards?tab=notifications" class="flex items-center gap-2 px-3 py-2 text-sm border-b border-surface-200-800 hover:bg-surface-100-900 min-h-11" onclick={() => (notificationsOpen = false)}>
 			<Icon name="settings" class="size-4" /> Choose what reaches you
 		</a>
+		{#if battery}
+			<p class="px-3 pt-3 text-xs font-bold uppercase opacity-60">Credits</p>
+			<div class="p-3 flex items-start gap-3 border-b border-surface-200-800">
+				<span class="mt-1 size-3 shrink-0 rounded-full {battery.tone === 'error' ? 'bg-error-500' : 'bg-warning-500'}" aria-hidden="true"></span>
+				<a href="/balance/{encodeURIComponent(battery.mint)}" class="flex-1 text-sm hover:underline" onclick={() => { notificationsOpen = false; battery = null; }}>{battery.says}</a>
+				<button type="button" class="btn-icon btn-icon-sm preset-tonal shrink-0" aria-label="Dismiss" onclick={() => (battery = null)}><Icon name="close" size={14} /></button>
+			</div>
+		{/if}
 		{#if missed.length}
 			<p class="px-3 pt-3 text-xs font-bold uppercase opacity-60">Missed calls</p>
 			<ul class="divide-y divide-surface-200-800 border-b border-surface-200-800">
@@ -864,7 +891,7 @@
 				{/each}
 			</ul>
 		{/if}
-		{#if notifications.length === 0 && waiting.length === 0 && captured.length === 0 && heard.length === 0 && unreadMessages.length === 0 && missed.length === 0}
+		{#if notifications.length === 0 && waiting.length === 0 && captured.length === 0 && heard.length === 0 && unreadMessages.length === 0 && missed.length === 0 && !battery}
 			<div class="p-4 text-center text-sm opacity-60">No notifications</div>
 		{:else}
 			<ul class="divide-y divide-surface-200-800">

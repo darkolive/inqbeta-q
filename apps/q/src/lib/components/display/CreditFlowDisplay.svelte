@@ -195,7 +195,9 @@
 		return {
 			received: moves.reduce((n, m) => n + Math.max(0, m.n), 0),
 			spent: moves.reduce((n, m) => n + Math.max(0, -m.n), 0),
-			moved: scale === 'all' ? committed : committed - committedThen
+			moved: scale === 'all' ? committed : committed - committedThen,
+			/* credits newly committed to agreements within the window */
+			committedIn: commits.filter((c) => c.at > from && c.delta > 0).reduce((n, c) => n + c.delta, 0)
 		};
 	});
 	/* The receipts for the open card, in the window. */
@@ -234,18 +236,18 @@
 		<div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
 			<button type="button" class="card preset-filled-primary-600-400 p-4 text-left {showing === 'in' ? 'ring-4 ring-primary-300-700' : ''}" aria-expanded={showing === 'in'} aria-controls="credit-receipts" onclick={() => toggle('in')}>
 				<p class="text-sm font-semibold flex justify-between gap-2">Received <span aria-hidden="true">{showing === 'in' ? '▴' : '▾'}</span></p>
-				<p class="h3 tabular-nums" style="color: inherit">{count(inWindow.received)}</p>
-				<p class="text-xs opacity-80">{IN_WINDOW[scale]}</p>
+				<p class="h3 tabular-nums {inWindow.received ? '' : 'opacity-60'}" style="color: inherit">{count(inWindow.received)}</p>
+				<p class="text-xs opacity-80">{inWindow.received ? IN_WINDOW[scale] : `nothing ${IN_WINDOW[scale]}`}</p>
 			</button>
 			<button type="button" class="card preset-filled-error-600-400 p-4 text-left {showing === 'out' ? 'ring-4 ring-error-300-700' : ''}" aria-expanded={showing === 'out'} aria-controls="credit-receipts" onclick={() => toggle('out')}>
 				<p class="text-sm font-semibold flex justify-between gap-2">Spent <span aria-hidden="true">{showing === 'out' ? '▴' : '▾'}</span></p>
-				<p class="h3 tabular-nums" style="color: inherit">{count(inWindow.spent)}</p>
-				<p class="text-xs opacity-80">{IN_WINDOW[scale]}</p>
+				<p class="h3 tabular-nums {inWindow.spent ? '' : 'opacity-60'}" style="color: inherit">{count(inWindow.spent)}</p>
+				<p class="text-xs opacity-80">{inWindow.spent ? IN_WINDOW[scale] : `nothing ${IN_WINDOW[scale]}`}</p>
 			</button>
 			<button type="button" class="card preset-filled-warning-600-400 p-4 text-left col-span-2 sm:col-span-1 {showing === 'committed' ? 'ring-4 ring-warning-300-700' : ''}" aria-expanded={showing === 'committed'} aria-controls="credit-receipts" onclick={() => toggle('committed')}>
 				<p class="text-sm font-semibold flex justify-between gap-2">Committed <span aria-hidden="true">{showing === 'committed' ? '▴' : '▾'}</span></p>
-				<p class="h3 tabular-nums" style="color: inherit">{count(committed)}</p>
-				<p class="text-xs opacity-80">now{scale === 'all' || !inWindow.moved ? '' : `, ${inWindow.moved > 0 ? 'up' : 'down'} ${count(Math.abs(inWindow.moved))} ${IN_WINDOW[scale]}`}</p>
+				<p class="h3 tabular-nums {inWindow.committedIn ? '' : 'opacity-60'}" style="color: inherit">{count(inWindow.committedIn)}</p>
+				<p class="text-xs opacity-80">{inWindow.committedIn ? IN_WINDOW[scale] : `nothing ${IN_WINDOW[scale]}`} · {count(committed)} committed now</p>
 			</button>
 		</div>
 		{#snippet list()}
@@ -254,18 +256,19 @@
 				{#if showing}
 					{@const rows = listed}
 					<div class="card preset-outlined-surface-200-800 bg-surface-50-950 overflow-hidden">
-						<p class="px-4 pt-3 text-sm font-semibold">{showing === 'in' ? 'Received' : showing === 'out' ? 'Spent' : 'Committed'} {IN_WINDOW[scale]}</p>
+						<p class="px-4 pt-3 pb-1 text-xs uppercase tracking-wide opacity-70">{showing === 'in' ? 'Received' : showing === 'out' ? 'Spent' : 'Committed'} {IN_WINDOW[scale]}</p>
 						{#if rows.length}
 							<ul class="divide-y divide-surface-200-800">
 								{#each rows as r (r.hash + r.at)}
-									<li class="flex items-center gap-4 px-4 py-3">
-										<span class="flex-1 min-w-0">
-											<span class="block font-semibold">{r.says}</span>
-											<span class="block text-sm text-surface-700-300">{new Date(r.at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}</span>
+									<!-- one quiet line each: what, when, how many, and the receipt -->
+									<li class="flex items-center gap-3 px-4 py-2 text-sm">
+										<span class="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-baseline sm:gap-3">
+											<span class="truncate">{r.says}</span>
+											<span class="text-xs text-surface-700-300 tabular-nums shrink-0">{new Date(r.at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
 										</span>
-										<span class="h4 tabular-nums {r.n < 0 ? 'text-error-600-400' : showing === 'committed' ? 'text-warning-600-400' : 'text-primary-600-400'}">{r.n > 0 ? '+' : ''}{count(r.n)}</span>
+										<span class="tabular-nums font-medium {r.n < 0 ? 'text-error-600-400' : showing === 'committed' ? 'text-warning-600-400' : 'text-primary-600-400'}">{r.n > 0 ? '+' : ''}{count(r.n)}</span>
 										{#if has(r.hash)}
-											<button type="button" class="btn-icon preset-tonal shrink-0" aria-label="See the receipt" title="See the receipt" onclick={() => onOpen?.(r.hash)}><Icon name="search" size={18} /></button>
+											<button type="button" class="btn-icon btn-icon-sm preset-tonal shrink-0" aria-label="See the receipt" title="See the receipt" onclick={() => onOpen?.(r.hash)}><Icon name="search" size={14} /></button>
 										{/if}
 									</li>
 								{/each}
@@ -277,7 +280,7 @@
 				{/if}
 			</div>
 		{/snippet}
-		<LineChart series={SERIES} {points} start={span.start.toISOString()} end={span.end.toISOString()} smooth={0.018} zoom={{ below: 0.2, above: 0.15 }} plain {ticks} format={count} bands={BANDS} says={summary} saysTone={tone} label="Credits received, credits spent, and spent plus committed, added up over time" />
 		{@render list()}
+		<LineChart series={SERIES} {points} start={span.start.toISOString()} end={span.end.toISOString()} smooth={0.018} zoom={{ below: 0.2, above: 0.15 }} plain {ticks} format={count} bands={BANDS} says={summary} saysTone={tone} label="Credits received, credits spent, and spent plus committed, added up over time" />
 	</div>
 {/if}
