@@ -61,12 +61,48 @@ export interface MintEvent {
 	asks?: string;
 	/** burn: the payout's reference (a bank or provider reference). */
 	payout?: string;
+	/**
+	 * cashout, burn: where the pounds go — the holder's cashing-out account,
+	 * by its receipt (inqbeta.payout-account/1) and its last four digits. Paid
+	 * as a standing order, never to anything typed in at the time (ADR-Q-035).
+	 */
+	account?: { receipt: string; ends: string };
 	at: string;
 	/** What the rules said when it was made. */
 	checked?: { action: string; rules: string[] };
 }
 
 export type MintReceipt = SealedReceipt & { content: MintEvent };
+
+/* ---- Reconciliation (ADR-Q-035, 5 October 2026) ----
+ *
+ * The bank's books, added up and signed by the mint at a moment, at its
+ * treasurer's request: a receipt anyone can hold. How long ago it was signed,
+ * and how much has moved since, say how carefully the house keeps its books.
+ */
+export const RECONCILED_SCHEMA = 'inqbeta.mint-reconciled/1';
+export const RECONCILE_ASK_SCHEMA = 'inqbeta.mint-reconcile-ask/1';
+
+export interface Reconciliation {
+	schema: typeof RECONCILED_SCHEMA;
+	source: typeof MINT_SOURCE;
+	mint: string;
+	mode: MintMode;
+	/** The books as they stood when it was signed. */
+	books: { minted: number; destroyed: number; circulation: number; cashReserve: number; capitalReserve: number; holders: number; reconciled: boolean; backed: boolean };
+	/** How many of the mint's own receipts it covers, and the latest of them, by content hash. */
+	covers: { count: number; latest: string | null };
+	/** Who asked for it: the treasurer, by DID; and their ask, by content hash. */
+	by: string;
+	asks: string;
+	at: string;
+}
+export type ReconciliationReceipt = SealedReceipt & { content: Reconciliation };
+
+export function isReconciliation(x: unknown): x is ReconciliationReceipt {
+	const c = (x as ReconciliationReceipt | null)?.content;
+	return c?.schema === RECONCILED_SCHEMA && typeof c.mint === 'string' && typeof c.at === 'string' && typeof c.by === 'string';
+}
 
 export function isMintEvent(x: unknown): x is MintReceipt {
 	const c = (x as MintReceipt | null)?.content;

@@ -31,6 +31,8 @@ export interface MoneyPublication {
 	mint: string;
 	/** What one credit costs, and pays out, in pence. */
 	pencePerCredit: number;
+	/** The coin's own name, chosen by the bank when it made its coin (ADR-Q-035): what people call it. */
+	coinName?: string;
 	/** The payout account, never more than its last four digits. */
 	bank: { ends: string };
 	/** The statement, as read, and that it was accepted. */
@@ -40,6 +42,36 @@ export interface MoneyPublication {
 }
 
 export type MoneyPublicationReceipt = SealedReceipt & { content: MoneyPublication };
+
+/* ---- Your cashing-out account (ADR-Q-035, 5 October 2026) ----
+ *
+ * Where your pounds go when you cash out: set once, in Settings, as a
+ * standing order. A stolen phone can't send money somewhere new: someone has to
+ * change the account, and every change is a receipt you signed, naming the
+ * one it replaces. Only the last four digits are ever shown; the full details
+ * are held as a fingerprint, so a payout can be checked against them.
+ */
+export const PAYOUT_ACCOUNT_SCHEMA = 'inqbeta.payout-account/1';
+
+export interface PayoutAccount {
+	schema: typeof PAYOUT_ACCOUNT_SCHEMA;
+	source: 'inqbeta:q/credits';
+	/** Whose account: the holder's DID. */
+	holder: string;
+	/** The account number's last four digits. */
+	ends: string;
+	/** A fingerprint of the full details (SHA-256 of name, sort code and number), never the details. */
+	fingerprint: string;
+	/** The account it replaces, by content hash; null for the first. */
+	replaces: string | null;
+	at: string;
+}
+export type PayoutAccountReceipt = SealedReceipt & { content: PayoutAccount };
+
+export function isPayoutAccount(x: unknown): x is PayoutAccountReceipt {
+	const c = (x as PayoutAccountReceipt | null)?.content;
+	return c?.schema === PAYOUT_ACCOUNT_SCHEMA && typeof c.holder === 'string' && /^\d{4}$/.test(c.ends) && typeof c.fingerprint === 'string';
+}
 
 export interface MoneyState {
 	mode: 'test' | 'live';

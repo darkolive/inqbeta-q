@@ -1,22 +1,24 @@
 <script lang="ts">
 	/*
-	 * Credits (ADR-Q-023, ADR-Q-027; 3 October 2026): your host's own credits.
+	 * Credits, home (5 October 2026, ADR-Q-035): the coins you hold. Each
+	 * coin is a bank's promissory note — a federation's — and opening one
+	 * gives its statement (/balance/<mint>): what you hold, every move and its
+	 * receipt, buying and cashing out, and the bank's books.
 	 *
-	 * Minted when you buy them, destroyed when you cash out, and moved between
-	 * people by agreements — so the mint's books always reconcile. In test mode
-	 * everything works and no money moves; once the host is published, real
-	 * money does, and balances start from zero.
+	 * For now Q reads one bank: your host's. The list is a list so that the
+	 * coin console (credits-home-brief) has somewhere to grow.
 	 */
 	import CreditsStory from '$lib/components/CreditsStory.svelte';
-	import BackingDisplay from '$lib/components/display/BackingDisplay.svelte';
-	import { Page, Section, Status, Empty, Icon } from '@inqbeta/q-ui';
+	import Coin from '$lib/components/display/Coin.svelte';
+	import CashOutBattery from '$lib/components/display/CashOutBattery.svelte';
+	import { Page, Section, Icon } from '@inqbeta/q-ui';
 	import SignIn from '$lib/components/SignIn.svelte';
 	import { watch, type Identity } from '@inqbeta/q-core/passkey';
 	import { watchLedger, type Ledger } from '$lib/ledger';
-	import { movesOf, effectOn, balanceOf } from '@inqbeta/q-core/credits';
-	import { kindSays } from '$lib/credits';
+	import { balanceOf } from '@inqbeta/q-core/credits';
 	import { creditsCommitted } from '$lib/agreements';
-	import { readMint, buyCredits, cashOut, mintBalance, mintMoves, pounds, type MintView } from '$lib/money';
+	import { readMint, mintBalance, pounds, type MintView } from '$lib/money';
+	import { readHome, type Home } from '$lib/home';
 
 	let identity = $state<Identity | null>(null);
 	let ledger = $state<Ledger | null>(null);
@@ -26,170 +28,63 @@
 
 	let mint = $state<MintView | null>(null);
 	let mintSays = $state('');
-	async function loadMint(fresh = false) {
-		const m = await readMint(fresh);
-		mint = m.view;
-		mintSays = m.says ?? '';
-	}
-	$effect(() => void loadMint());
-
-	const mine = $derived(mintBalance(ledger, mint, me));
-	const committed = $derived(mint ? creditsCommitted(ledger, me, mint.mode) : 0);
-	const canCashOut = $derived(Math.max(0, mine.spendable - committed));
-	const olderTest = $derived(balanceOf(ledger?.receipts ?? [], me, 'test'));
-	const moves = $derived(mintMoves(ledger, mint, me));
-	const older = $derived(movesOf(ledger?.receipts ?? [], me).reverse());
-	const live = $derived(mint?.mode === 'live');
+	let home = $state<Home | null>(null);
+	$effect(() => {
+		void readMint().then((m) => {
+			mint = m.view;
+			mintSays = m.says ?? '';
+		});
+		void readHome().then((h) => (home = h));
+	});
+	const bank = $derived(home?.ok ? home : null);
 	const notSetUp = $derived(/isn’t set up|no host set up/.test(mintSays));
 
-	const PACKS = [10, 50, 100];
-	let busy = $state('');
-	let said = $state<{ tone: 'good' | 'bad'; text: string } | null>(null);
-	async function buy(n: number) {
-		if (!identity || !mint) return;
-		busy = `buy-${n}`;
-		said = null;
-		const out = await buyCredits(identity, mint, n);
-		busy = '';
-		said = out.ok ? { tone: 'good', text: `${n} credits minted to you${live ? '' : ': test mode, no money taken'}. The receipt is in your vault.` } : { tone: 'bad', text: out.says };
-		if (out.ok) await loadMint(true);
-	}
-	let outCredits = $state(1);
-	async function cash() {
-		if (!identity || !mint) return;
-		const n = Math.trunc(Number(outCredits) || 0);
-		busy = 'cash';
-		said = null;
-		const out = await cashOut(identity, mint, n);
-		busy = '';
-		said = out.ok ? { tone: 'good', text: `${n} credits cashed out and destroyed. ${live ? `${pounds(out.burned.content.pence ?? 0)} is on its way.` : `${pounds(out.burned.content.pence ?? 0)} would have been paid: test mode, no money moves.`}` } : { tone: 'bad', text: out.says };
-		if (out.ok) await loadMint(true);
-	}
-	const when = (at: string) => new Date(at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+	/* The coins you hold: your host's, for now. */
+	const coins = $derived.by(() => {
+		if (!mint) return [];
+		const held = mintBalance(ledger, mint, me).spendable;
+		const committed = creditsCommitted(ledger, me, mint.mode);
+		return [{ mint, name: mint.name || (bank ? `${bank.name} credit` : 'Credits'), of: bank?.name ?? 'your host', held, committed, worth: held * mint.pencePerCredit }];
+	});
+	const olderTest = $derived(balanceOf(ledger?.receipts ?? [], me, 'test'));
 </script>
 
 <svelte:head><title>Credits — Q</title></svelte:head>
 
-<Page title="Credits" lead="Your host’s own credits: made when you buy them, destroyed when you cash out, passed between people by agreements.">
+<Page title="Credits" lead="The coins you hold. Each is a federation’s own note, backed by what its bank holds; open one for its statement.">
 	{#if !identity}
 		<SignIn />
 	{:else if !mint && !mintSays}
 		<p class="card preset-tonal-surface p-4 max-w-3xl" aria-live="polite">Reading the mint…</p>
 	{:else if !mint}
-		<!-- Said first and plainly (3 October 2026: the reason sat unnoticed under the pictures). -->
 		<div class="card preset-tonal-warning p-5 max-w-3xl flex flex-col gap-2" role="status">
 			<p class="h4">{notSetUp ? 'Credits aren’t switched on here yet' : 'Credits can’t be shown just now'}</p>
-			<p>{notSetUp ? 'Your host hasn’t set up its own credits yet. When it does, you can buy them, spend them in agreements and shops, and cash them out, all on this page.' : mintSays}</p>
+			<p>{notSetUp ? 'Your host hasn’t set up its own coin yet. When it does, you can buy it, spend it in agreements and shops, and cash it out.' : mintSays}</p>
 			{#if notSetUp}<p class="text-sm opacity-80">For the host: {mintSays}</p>{/if}
 		</div>
 	{:else}
-		<!-- Test or live, said first. -->
-		{#if live}
-			<div class="card preset-tonal-success p-4 flex flex-wrap items-center gap-3 max-w-3xl">
-				<Status tone="good">Live</Status>
-				<span class="flex-1">Real money. Published by the host, who is responsible for it.</span>
-				<span class="text-xs role-token">Published ID {mint.publishedId?.slice(0, 12)}…</span>
-			</div>
-		{:else}
-			<div class="card preset-tonal-warning p-4 flex flex-wrap items-center gap-3 max-w-3xl">
-				<Status tone="needs-you">Test mode</Status>
-				<span class="flex-1">Everything works, and no money moves. Buy, trade, cash out: try it all.</span>
-			</div>
-		{/if}
-
-		<div class="grid gap-4 sm:grid-cols-2 max-w-3xl">
-			<div class="card preset-tonal-primary p-6 space-y-1">
-				<p class="text-sm">Your credits</p>
-				<p class="h2 tabular-nums">{mine.spendable}</p>
-				<p class="text-sm opacity-80">
-					{committed ? `${committed} promised in agreements. ` : ''}Worth {pounds(mine.spendable * mint.pencePerCredit)} if cashed out.
-				</p>
-			</div>
-			<div class="card preset-outlined-surface-200-800 bg-surface-50-950 p-6 space-y-1">
-				<p class="text-sm">One credit</p>
-				<p class="h2">{pounds(mint.pencePerCredit)}</p>
-				<p class="text-sm text-surface-700-300">What a credit costs, and what cashing one out pays. Set by your host.</p>
-			</div>
-		</div>
-		{#if olderTest}
-			<p class="text-sm text-surface-700-300 max-w-3xl">You also have {olderTest} earlier test credits, from before the mint. They stay in your history.</p>
-		{/if}
-
-		<Section title="Buy credits" description={live ? 'Paid in pounds. The credits are minted to you when the payment is confirmed.' : 'Test mode: buying works end to end, and no money is taken.'}>
-			<div class="flex flex-wrap gap-4">
-				{#each PACKS as n (n)}
-					<div class="card preset-outlined-surface-200-800 bg-surface-50-950 p-5 flex flex-col gap-3 min-w-48">
-						<p class="h4">{n} credits</p>
-						<p class="text-sm text-surface-700-300">{pounds(n * mint.pencePerCredit)}{live ? '' : ' · test, nothing taken'}</p>
-						<button type="button" class="btn preset-filled-primary-500 min-h-11" disabled={!!busy} onclick={() => void buy(n)}>
-							<Icon name="wallet" size={18} />{busy === `buy-${n}` ? 'Minting…' : 'Buy'}
-						</button>
-					</div>
+		<Section title="Your coins" description="Open a coin for its statement.">
+			<ul class="flex flex-col gap-3 max-w-3xl">
+				{#each coins as c (c.mint.mint)}
+					<li>
+						<a href="/balance/{encodeURIComponent(c.mint.mint)}" class="card preset-outlined-surface-200-800 bg-surface-50-950 hover:preset-tonal-surface p-4 flex flex-wrap items-center gap-4">
+							<Coin mint={c.mint.mint} size="sm" name={c.name} />
+							<span class="flex-1 min-w-40">
+								<span class="block h4">{c.name}</span>
+								<span class="block text-sm text-surface-700-300">A coin of {c.of}{c.mint.mode === 'live' ? '' : ' · test'}</span>
+							</span>
+							<span class="text-right">
+								<span class="block h3 tabular-nums">{c.held}</span>
+								<span class="block text-sm text-surface-700-300">{pounds(c.worth)} face value</span>
+							</span>
+							<CashOutBattery held={c.held} committed={c.committed} pencePerCredit={c.mint.pencePerCredit} compact />
+							<Icon name="expand" size={18} class="opacity-60" />
+						</a>
+					</li>
 				{/each}
-			</div>
-		</Section>
-
-		<Section title="Cash out" description="Credits back into pounds. Cashing out destroys the credits, so the books always balance.">
-			<div class="card preset-outlined-surface-200-800 bg-surface-50-950 p-5 flex flex-col gap-4 max-w-xl">
-				{#if canCashOut}
-					<label class="label">
-						<span class="label-text">How many credits (up to {canCashOut})</span>
-						<input class="input max-w-40" type="number" min="1" max={canCashOut} step="1" bind:value={outCredits} />
-					</label>
-					<p>You’ll be paid <strong>{pounds(Math.max(0, Math.trunc(Number(outCredits) || 0)) * mint.pencePerCredit)}</strong>{live ? ', to the account you’ve told your host.' : '. Test mode: no money moves.'}</p>
-					<button type="button" class="btn preset-filled-secondary-500 min-h-11 self-start" disabled={!!busy || !(outCredits >= 1 && outCredits <= canCashOut)} onclick={() => void cash()}>
-						<Icon name="balance" size={18} />{busy === 'cash' ? 'Cashing out…' : 'Cash out'}
-					</button>
-				{:else}
-					<p class="text-surface-700-300">Nothing to cash out yet{committed ? ': what you have is promised in agreements' : ''}.</p>
-				{/if}
-			</div>
-			{#if said}
-				<p class="mt-4 max-w-3xl"><Status tone={said.tone}>{said.tone === 'good' ? 'Done' : 'Not done'}</Status> {said.text}</p>
-			{/if}
-		</Section>
-
-		<Section title="The mint’s books" description="Added up from the mint’s own receipts. Every credit is somewhere, and every credit is backed.">
-			<div class="max-w-3xl mb-4">
-				<BackingDisplay pounds={(mint.books.cashReserve + mint.books.capitalReserve) / 100} credits={mint.books.circulation} perCredit={mint.pencePerCredit / 100} />
-			</div>
-			<div class="grid gap-4 sm:grid-cols-3 max-w-3xl">
-				<div class="card preset-outlined-surface-200-800 bg-surface-50-950 p-4"><p class="text-sm opacity-70">In circulation</p><p class="h3 tabular-nums">{mint.books.circulation}</p><p class="text-xs opacity-70">{mint.books.minted} made, {mint.books.destroyed} destroyed</p></div>
-				<div class="card preset-outlined-surface-200-800 bg-surface-50-950 p-4"><p class="text-sm opacity-70">Cash reserve</p><p class="h3 tabular-nums">{pounds(mint.books.cashReserve)}</p>{#if mint.books.capitalReserve}<p class="text-xs opacity-70">+ {pounds(mint.books.capitalReserve)} capital</p>{/if}</div>
-				<div class="card preset-outlined-surface-200-800 bg-surface-50-950 p-4 flex flex-col gap-2"><p class="text-sm opacity-70">The books</p>
-					<Status tone={mint.books.reconciled ? 'good' : 'bad'}>{mint.books.reconciled ? 'Reconcile' : 'Don’t reconcile'}</Status>
-					<Status tone={mint.books.backed ? 'good' : 'bad'}>{mint.books.backed ? 'Fully backed' : 'Not backed'}</Status>
-				</div>
-			</div>
-		</Section>
-
-		<Section title="Every move" description="Each one signed, and checked by the rules when it was made.">
-			{#if moves.length || older.length}
-				<ul class="card preset-outlined-surface-200-800 bg-surface-50-950 divide-y divide-surface-200-800 overflow-hidden max-w-3xl">
-					{#each moves as m (m.r.contentHash)}
-						<li class="flex items-center gap-4 p-4">
-							<span class="flex-1 min-w-0">
-								<span class="block font-semibold">{m.r.content.kind === 'mint' ? 'Bought' : 'Cashed out'}{m.r.content.pence ? ` · ${pounds(m.r.content.pence)}` : ''}</span>
-								<span class="block text-sm text-surface-700-300">{when(m.r.content.at)}{m.r.content.kind === 'burn' ? ' · destroyed' : ' · minted'}</span>
-							</span>
-							{#if m.r.content.mode === 'test'}<Status tone="waiting">Test</Status>{/if}
-							<span class="h4 tabular-nums {m.n < 0 ? 'text-error-600-400' : 'text-success-600-400'}">{m.n > 0 ? '+' : ''}{m.n}</span>
-						</li>
-					{/each}
-					{#each older as m (m.signature)}
-						{@const n = effectOn(m.content, me)}
-						<li class="flex items-center gap-4 p-4 opacity-80">
-							<span class="flex-1 min-w-0">
-								<span class="block font-semibold">{kindSays[m.content.kind]}{m.content.pack ? ` · ${m.content.pack.name}` : ''}</span>
-								<span class="block text-sm text-surface-700-300">{when(m.content.at)} · before the mint</span>
-							</span>
-							{#if m.content.mode === 'test'}<Status tone="waiting">Test</Status>{/if}
-							<span class="h4 tabular-nums">{n > 0 ? '+' : ''}{n}</span>
-						</li>
-					{/each}
-				</ul>
-			{:else}
-				<Empty icon="wallet" title="No credits yet" description="Everyday use is free. Buy some to try agreements, a shop, or cashing out." />
+			</ul>
+			{#if olderTest}
+				<p class="text-sm text-surface-700-300 max-w-3xl">You also have {olderTest} earlier test credits, from before the mint. They stay in your history.</p>
 			{/if}
 		</Section>
 	{/if}

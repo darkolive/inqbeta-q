@@ -12,6 +12,8 @@ export { default as Avatar } from './components/Avatar.svelte';
 export { default as BlockView } from './components/BlockView.svelte';
 export { default as PageView } from './components/PageView.svelte';
 export { default as Field } from './components/Field.svelte';
+export { default as Battery } from './components/Battery.svelte';
+export { enoughLevel } from './enough';
 export { ROLES, spokenText, type Role, type HeadingRole, type TextRole } from './roles';
 export type { Drawn, Supply } from './drawing';
 export { classesFor, lookOf, widthClass, WIDTH, COVERS, type Look } from './look';

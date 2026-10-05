@@ -9,16 +9,23 @@
 import { sealWith } from '@inqbeta/q-core/seal';
 import type { Identity } from '@inqbeta/q-core/passkey';
 import { saveLocked } from '@inqbeta/q-core/folder';
-import { MINT_SCHEMA, MINT_SOURCE, booksOf, isMintEvent, spendable, type MintEvent, type MintReceipt } from '@inqbeta/q-core/mint';
+import { MINT_SCHEMA, MINT_SOURCE, RECONCILE_ASK_SCHEMA, booksOf, isMintEvent, isReconciliation, spendable, type MintEvent, type MintReceipt, type ReconciliationReceipt } from '@inqbeta/q-core/mint';
+import { PAYOUT_ACCOUNT_SCHEMA, isPayoutAccount, type PayoutAccount, type PayoutAccountReceipt } from '@inqbeta/q-core/money';
 import { refreshLedger, type Ledger } from '$lib/ledger';
 
 export interface MintView {
 	mint: string;
+	/** The coin's own name, as its bank named it (ADR-Q-035); empty when it has none yet. */
+	name?: string;
 	mode: 'test' | 'live';
 	pencePerCredit: number;
 	publishedId: string | null;
 	/** Just after the latest step in the mint's books. */
 	lastAt?: string;
+	/** The bank's last signed reconciliation (ADR-Q-035): when, at whose ask, and the receipt itself. */
+	lastReconciled?: { at: string; by: string; hash: string; receipt: ReconciliationReceipt } | null;
+	/** How many of the mint's own receipts have come since it. */
+	movesSince?: number;
 	books: { minted: number; destroyed: number; circulation: number; cashReserve: number; capitalReserve: number; reconciled: boolean; backed: boolean; holders: number };
 }
 
@@ -56,12 +63,15 @@ export async function buyCredits(identity: Identity, mint: MintView, credits: nu
 }
 
 /** Cash out: your signed ask; the mint destroys the credits and records the payout; both receipts kept. */
-export async function cashOut(identity: Identity, mint: MintView, credits: number): Promise<{ ok: true; burned: MintReceipt } | { ok: false; says: string }> {
+export async function cashOut(identity: Identity, mint: MintView, credits: number, ledger: Ledger | null = null): Promise<{ ok: true; burned: MintReceipt } | { ok: false; says: string }> {
 	/* Dated after the mint's latest step, even if this device's clock runs behind the mint's. */
 	const fresh = await readMint(true);
 	const after = Date.parse(fresh.view?.lastAt ?? '');
 	const at = new Date(Math.max(Date.now(), Number.isFinite(after) ? after : 0)).toISOString();
-	const event: MintEvent = { schema: MINT_SCHEMA, source: MINT_SOURCE, mint: mint.mint, kind: 'cashout', credits, mode: mint.mode, from: identity.did, at };
+	/* Paid only to your cashing-out account, as a standing order (ADR-Q-035). */
+	const account = payoutAccountOf(ledger ?? accountCache, identity.did);
+	if (!account) return { ok: false, says: 'Set your cashing-out account in Settings first: cashing out pays only to it, as a standing order.' };
+	const event: MintEvent = { schema: MINT_SCHEMA, source: MINT_SOURCE, mint: mint.mint, kind: 'cashout', credits, mode: mint.mode, from: identity.did, account: { receipt: account.contentHash, ends: account.content.ends }, at };
 	const ask = (await sealWith(identity, event)) as MintReceipt;
 	const r = await fetch('/api/mint', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ cashout: ask }) });
 	if (!r.ok) return { ok: false, says: await said(r) };
@@ -72,6 +82,51 @@ export async function cashOut(identity: Identity, mint: MintView, credits: numbe
 	cached = null;
 	await refreshLedger();
 	return { ok: true, burned };
+}
+
+/* ---- Reconciliation: the treasurer asks, the bank signs its books ---- */
+export async function reconcile(identity: Identity, mint: MintView): Promise<{ ok: true; reconciliation: ReconciliationReceipt } | { ok: false; says: string }> {
+	const ask = await sealWith(identity, { schema: RECONCILE_ASK_SCHEMA, source: MINT_SOURCE, mint: mint.mint, at: new Date().toISOString() });
+	const r = await fetch('/api/mint', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ reconcile: ask }) });
+	if (!r.ok) return { ok: false, says: await said(r) };
+	const { reconciliation } = (await r.json()) as { reconciliation: ReconciliationReceipt };
+	if (!isReconciliation(reconciliation) || reconciliation.content.asks !== ask.contentHash) return { ok: false, says: 'The bank’s answer doesn’t match your ask.' };
+	await saveLocked('credits', `mint-reconciled-${reconciliation.content.at.slice(0, 19).replace(/[:T]/g, '-')}-${reconciliation.contentHash.slice(0, 8)}.json`, JSON.stringify(reconciliation, null, 2), 'application/json');
+	cached = null;
+	await refreshLedger();
+	return { ok: true, reconciliation };
+}
+
+/* ---- Your cashing-out account: a standing order, set in Settings ---- */
+let accountCache: Ledger | null = null;
+/** Every cashing-out account you've set, oldest first: each change a receipt naming the one it replaces. */
+export function payoutAccountsOf(ledger: Ledger | null, did: string): PayoutAccountReceipt[] {
+	if (ledger) accountCache = ledger;
+	const seen = new Map<string, PayoutAccountReceipt>();
+	for (const x of (ledger ?? accountCache)?.receipts ?? []) if (x.holds !== 'no' && isPayoutAccount(x.json) && x.json.content.holder === did && x.json.did === did) seen.set(x.json.contentHash, x.json);
+	return [...seen.values()].sort((a, b) => a.content.at.localeCompare(b.content.at));
+}
+/** The account cashing out pays to now: the latest you set. */
+export function payoutAccountOf(ledger: Ledger | null, did: string, fallback: Ledger | null = null): PayoutAccountReceipt | null {
+	return payoutAccountsOf(ledger ?? fallback, did).at(-1) ?? null;
+}
+async function fingerprintOf(name: string, sort: string, number: string): Promise<string> {
+	const bytes = new TextEncoder().encode(`${name.trim().toLowerCase()}|${sort.replace(/\D/g, '')}|${number.replace(/\D/g, '')}`);
+	return [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+/** Set (or change) your cashing-out account: a receipt you sign, naming the one it replaces. Only the last four digits are kept in the clear. */
+export async function setPayoutAccount(identity: Identity, ledger: Ledger | null, details: { name: string; sort: string; number: string }): Promise<{ ok: true; account: PayoutAccountReceipt } | { ok: false; says: string }> {
+	const sort = details.sort.replace(/\D/g, '');
+	const number = details.number.replace(/\D/g, '');
+	if (!details.name.trim()) return { ok: false, says: 'Add the name on the account.' };
+	if (sort.length !== 6) return { ok: false, says: 'A sort code is six digits.' };
+	if (number.length !== 8) return { ok: false, says: 'An account number is eight digits.' };
+	const prev = payoutAccountOf(ledger, identity.did);
+	const content: PayoutAccount = { schema: PAYOUT_ACCOUNT_SCHEMA, source: 'inqbeta:q/credits', holder: identity.did, ends: number.slice(-4), fingerprint: await fingerprintOf(details.name, sort, number), replaces: prev?.contentHash ?? null, at: new Date().toISOString() };
+	const account = (await sealWith(identity, content)) as PayoutAccountReceipt;
+	await saveLocked('credits', `payout-account-${content.at.slice(0, 19).replace(/[:T]/g, '-')}-${account.contentHash.slice(0, 8)}.json`, JSON.stringify(account, null, 2), 'application/json');
+	await refreshLedger();
+	return { ok: true, account };
 }
 
 /** File an agreement step in the mint's ledger, so every credit's whereabouts is known. Best effort. */

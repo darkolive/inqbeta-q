@@ -274,7 +274,13 @@ export async function checkLedgerEntry(r, mint, mode, known = new Set()) {
 		if (known.has(c.agreement)) return null;
 		return 'That agreement isn’t in this mint’s credits.';
 	}
-	return 'That isn’t a mint receipt or an agreement.';
+	/* The bank's books, signed by the mint at its treasurer's ask, and the ask itself (ADR-Q-035). */
+	if (c?.schema === 'inqbeta.mint-reconciled/1') {
+		if (c.mint !== mint || c.mode !== mode) return 'It belongs to another mint or mode.';
+		return r.did === mint ? null : 'Only the mint signs its reconciliation.';
+	}
+	if (c?.schema === 'inqbeta.mint-reconcile-ask/1') return c.mint === mint ? null : 'That ask is for another mint.';
+	return 'That isn’t a mint receipt, a reconciliation or an agreement.';
 }
 const ledgerDir = (mint, mode) => `${FILER}/mint/${mint}/${mode}/`;
 async function ledgerList(mint, mode) {

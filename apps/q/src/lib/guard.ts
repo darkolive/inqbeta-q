@@ -29,7 +29,7 @@ export const OPEN_PATHS = ['/', '/data', '/user', '/contact', '/legal', '/docs',
 
 /** Pages anyone may read, shown with a plain header and the footer rather than the dashboard. */
 export function isPublicPage(path: string): boolean {
-	return path === '/setup' || path === '/contact' || path === '/docs' || path === '/legal' || path.startsWith('/legal/') || path === '/link' || path.startsWith('/card/');
+	return path === '/setup' || path === '/contact' || path === '/docs' || path === '/legal' || path.startsWith('/legal/') || path === '/link' || path.startsWith('/card/') || path.startsWith('/verify/');
 }
 
 /**
@@ -37,7 +37,12 @@ export function isPublicPage(path: string): boolean {
  * reachable by someone who has not signed in — otherwise the link in an email
  * leads to a redirect instead of the receipt.
  */
-export const OPEN_PREFIXES = ['/c/', '/card/', '/channels/', '/federations/join', '/legal/', '/shop/', '/offer/', '/stories'];
+export const OPEN_PREFIXES = ['/c/', '/card/', '/verify/', '/channels/', '/federations/join', '/legal/', '/shop/', '/offer/', '/stories'];
+
+/*
+ * '/verify/' — where a coin's QR code leads (ADR-Q-035): anyone who scans a
+ * coin, signed in or not, can check it was minted here and how the house stands.
+ */
 
 /*
  * '/stories' — the picture stories as short adverts (4 October 2026), shared

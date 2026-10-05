@@ -36,7 +36,7 @@ import { actionHash, decide } from '$lib/actions/engine';
 import { keepStep, sendTo } from '$lib/messages';
 import { refreshLedger, type Ledger } from '$lib/ledger';
 import type { Person } from '$lib/people';
-import { fileWithMint, mintBalance, type MintView } from '$lib/money';
+import { fileWithMint, mintBalance, mintMoves, type MintView } from '$lib/money';
 
 export interface AgreementView {
 	id: string;
@@ -88,6 +88,64 @@ export function creditsHeld(ledger: Ledger | null, did: string, mode: 'test' | '
 	);
 	const minted = mint && mint.mode === mode ? mintBalance(ledger, mint, did).spendable : 0;
 	return moves + older + minted;
+}
+
+/**
+ * Every move of your credits in the host's mint, oldest first (5 October
+ * 2026, for the credits chart): bought (minted to you) and received in
+ * agreements come in; spent in agreements and cashed out go out. A
+ * settlement counts once both have signed it, at the time of the second
+ * signature.
+ */
+export type FlowKind = 'bought' | 'received' | 'spent' | 'cashed';
+export function creditFlow(ledger: Ledger | null, mint: MintView | null, did: string): { at: string; n: number; kind: FlowKind; says: string; hash: string }[] {
+	if (!mint) return [];
+	const out: { at: string; n: number; kind: FlowKind; says: string; hash: string }[] = [];
+	for (const m of mintMoves(ledger, mint, did)) {
+		if (!m.n || m.r.content.mode !== mint.mode) continue;
+		out.push({ at: m.r.content.at, n: m.n, hash: m.r.contentHash, kind: m.n > 0 ? 'bought' : 'cashed', says: m.n > 0 ? `Bought ${m.n} credits` : `Cashed out ${-m.n} credits` });
+	}
+	for (const a of agreementsFrom(ledger)) {
+		const kept = new Set(a.standing.settled.map((e) => JSON.stringify(e)));
+		const hashes = new Map(a.steps.map((s) => [s.contentHash, s]));
+		/* A confirmation: a settlement answering the other's, with the same entries — and not itself answered as one. */
+		const confirmations = new Set<string>();
+		for (const s of a.steps) {
+			const c = s.content;
+			const first = c.step === 'settled' && c.parent ? hashes.get(c.parent) : undefined;
+			if (!first || first.content.step !== 'settled' || confirmations.has(first.contentHash) || first.did === s.did) continue;
+			if (!c.entries || JSON.stringify(c.entries) !== JSON.stringify(first.content.entries) || !kept.has(JSON.stringify(c.entries))) continue;
+			confirmations.add(s.contentHash);
+			let n = 0;
+			for (const e of c.entries) {
+				if (!('credits' in e.value) || e.value.mode !== mint.mode || (e.value.mint ?? '') !== mint.mint) continue;
+				if (e.to === did) n += e.value.credits;
+				if (e.from === did) n -= e.value.credits;
+			}
+			if (n) out.push({ at: c.at, n, hash: s.contentHash, kind: n > 0 ? 'received' : 'spent', says: n > 0 ? `Received ${n} credits in an agreement` : `Spent ${-n} credits in an agreement` });
+		}
+	}
+	return out.sort((x, y) => x.at.localeCompare(y.at));
+}
+
+/**
+ * What you had committed to agreements, as it changed (5 October 2026, for
+ * the credits chart): each agreement read as it stood at each of its steps,
+ * and when an offer ran out, so committed is recorded through time, not
+ * only today's.
+ */
+export function committedFlow(ledger: Ledger | null, did: string, mode: 'test' | 'live', now = Date.now()): { at: string; committed: number }[] {
+	const per = agreementsFrom(ledger).map((a) => {
+		const times = new Set<string>(a.steps.map((s) => s.content.at));
+		for (const s of a.steps) if (s.content.until && Date.parse(s.content.until) <= now) times.add(new Date(s.content.until).toISOString());
+		return [...times].sort().map((at) => ({ at, n: committedBy(standingOf(a.steps.filter((s) => s.content.at <= at), Date.parse(at)), did, mode) }));
+	});
+	const out: { at: string; committed: number }[] = [];
+	for (const at of [...new Set(per.flat().map((c) => c.at))].sort()) {
+		const n = per.reduce((sum, list) => sum + (list.filter((c) => c.at <= at).at(-1)?.n ?? 0), 0);
+		if ((out.at(-1)?.committed ?? 0) !== n) out.push({ at, committed: n });
+	}
+	return out;
 }
 
 /** Credits held for agreements that aren't settled yet (open offers you made, and agreed but unsettled). */

@@ -7,7 +7,8 @@
 	 *      through the node's front door (never stored).
 	 *   2. Join: its storage offers, the cost shown, taken in one step. Taking
 	 *      one makes it one of your places (kept, or pass-through by the hour).
-	 *   3. What backs its credits: the mint's books, drawn as the backing display.
+	 *   3. What backs its credits: the mint's books (MintBooks, the same as on
+ *      the Credits page).
 	 *
 	 * The offers are read from the shops of the people who run the node (its
 	 * operators, as the gate's /store names them, and the host's founder).
@@ -27,7 +28,7 @@
 	import { storeHires } from '$lib/store';
 	import { hiredPlaces } from '$lib/relay';
 	import { reachThroughFrontDoor, type Reach } from '$lib/node-health';
-	import BackingDisplay from '$lib/components/display/BackingDisplay.svelte';
+	import MintBooks from '$lib/components/display/MintBooks.svelte';
 
 	let { home, identity, ledger, name }: { home: Extract<Home, { ok: true }>; identity: Identity; ledger: Ledger | null; name: string } = $props();
 
@@ -118,7 +119,6 @@
 	}
 
 	/* 3. What backs its credits. */
-	const backing = $derived(mint ? (mint.books.cashReserve + mint.books.capitalReserve) / 100 : 0);
 </script>
 
 <Section title="The network it runs" description="{name}’s own machines, asked just now. Nothing they hold is shown, only whether they answer.">
@@ -195,14 +195,9 @@
 </Section>
 
 {#if mint}
-	<Section title="What backs its credits" description="Every credit {name} has made, beside the pounds that back it. Added up from the mint’s own receipts.">
+	<Section title="The mint’s books" description="Every credit {name} has made, beside the pounds that back it. Added up from the mint’s own receipts.">
 		<div class="max-w-3xl flex flex-col gap-4">
-			<BackingDisplay pounds={backing} credits={mint.books.circulation} perCredit={mint.pencePerCredit / 100} />
-			<div class="grid gap-4 sm:grid-cols-3">
-				<div class="card preset-outlined-surface-200-800 bg-surface-50-950 p-4"><p class="text-sm opacity-70">Credits in use</p><p class="h3 tabular-nums">{mint.books.circulation}</p></div>
-				<div class="card preset-outlined-surface-200-800 bg-surface-50-950 p-4"><p class="text-sm opacity-70">Pounds behind them</p><p class="h3 tabular-nums">{pounds(mint.books.cashReserve + mint.books.capitalReserve)}</p></div>
-				<div class="card preset-outlined-surface-200-800 bg-surface-50-950 p-4"><p class="text-sm opacity-70">People holding them</p><p class="h3 tabular-nums">{mint.books.holders}</p></div>
-			</div>
+			<MintBooks {mint} />
 			{#if mode === 'test'}<p class="text-sm text-surface-700-300">These are test credits: {name} hasn’t gone live with money yet.</p>{/if}
 		</div>
 	</Section>

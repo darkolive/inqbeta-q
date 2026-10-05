@@ -53,6 +53,15 @@ export function pencePerCredit(state?: MoneyState): number {
 	return Number.isInteger(n) && n > 0 ? n : 100;
 }
 
+/**
+ * The coin's name (ADR-Q-035): once published, the name signed into the
+ * publication; before that, Q_COIN_NAME in Money. Empty when it has none yet.
+ */
+export function coinNameOf(state?: MoneyState): string {
+	if (state?.publication) return state.publication.coinName?.trim() ?? '';
+	return (env.Q_COIN_NAME ?? '').trim().slice(0, 40);
+}
+
 /* The host's public files: from disk on localhost, from the site itself when deployed. */
 async function homeFile(origin: string): Promise<HomeFile | null> {
 	if (dev) return readHomeFile();

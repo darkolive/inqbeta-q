@@ -21,6 +21,7 @@
 		mint: string | null;
 		says?: string;
 		pencePerCredit: number;
+		coinName?: string;
 		bank: { set: boolean; ends: string };
 		state: MoneyState;
 	}
@@ -59,6 +60,7 @@
 			host: view.host,
 			mint: view.mint,
 			pencePerCredit: view.pencePerCredit,
+			...(view.coinName ? { coinName: view.coinName } : {}),
 			bank: { ends: view.bank.ends },
 			responsibility: RESPONSIBILITY,
 			accepted: true,
@@ -103,7 +105,7 @@
 			<li class="flex items-start gap-3">
 				<Status tone={view.mint ? 'good' : 'needs-you'}>{view.mint ? 'Ready' : 'Needed'}</Status>
 				<span class="text-sm flex flex-col gap-2 min-w-0">
-					<span><strong>The mint.</strong> {view.mint ? `Its key is made. One credit is ${pounds(view.pencePerCredit)} (Q_CREDIT_PENCE).` : (view.says ?? 'Make the mint’s key in Money, above.')}</span>
+					<span><strong>The mint.</strong> {view.mint ? `Its key is made. One credit is ${pounds(view.pencePerCredit)} (Q_CREDIT_PENCE). ${view.coinName ? `Its coin is called “${view.coinName}” (Q_COIN_NAME), signed in when you publish.` : 'Its coin has no name yet: give it one as Q_COIN_NAME in Money.'}` : (view.says ?? 'Make the mint’s key in Money, above.')}</span>
 					{#if view.mint}
 						<!-- The node keeps only the ledgers of mints it's told about (GATE_MINTS): the line to give it. -->
 						<span>Your node keeps its books once its <code>.env</code> has this line:</span>
