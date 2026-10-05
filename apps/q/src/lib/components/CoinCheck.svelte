@@ -16,7 +16,8 @@
 	import { readMint, pounds, type MintView } from '$lib/money';
 	import { readHome, type Home } from '$lib/home';
 
-	let { mint: asked }: { mint: string } = $props();
+	/** here: shown inside the federation's own page (its Bank tab), so no "Visit". */
+	let { mint: asked, here = false }: { mint: string; here?: boolean } = $props();
 	let mint = $state<MintView | null>(null);
 	let says = $state('');
 	let home = $state<Home | null>(null);
@@ -61,7 +62,7 @@
 			<p class="text-sm max-w-3xl">One coin is worth <strong>{pounds(mint.pencePerCredit)}</strong>: what it costs to buy, and what cashing it out pays.</p>
 		</Section>
 
-		{#if bank}
+		{#if bank && !here}
 			<Section title="Who stands behind it" description="The federation whose bank this is.">
 				<div class="card preset-outlined-surface-200-800 bg-surface-50-950 p-5 max-w-3xl flex flex-col gap-2">
 					<p class="h4">{bank.name}</p>

@@ -7,8 +7,7 @@
 	 *      through the node's front door (never stored).
 	 *   2. Join: its storage offers, the cost shown, taken in one step. Taking
 	 *      one makes it one of your places (kept, or pass-through by the hour).
-	 *   3. What backs its credits: the mint's books (MintBooks, the same as on
- *      the Credits page).
+	 *   (What backs its credits now has its own tab: Bank, FederationBank.)
 	 *
 	 * The offers are read from the shops of the people who run the node (its
 	 * operators, as the gate's /store names them, and the host's founder).
@@ -28,7 +27,6 @@
 	import { storeHires } from '$lib/store';
 	import { hiredPlaces } from '$lib/relay';
 	import { reachThroughFrontDoor, type Reach } from '$lib/node-health';
-	import MintBooks from '$lib/components/display/MintBooks.svelte';
 
 	let { home, identity, ledger, name }: { home: Extract<Home, { ok: true }>; identity: Identity; ledger: Ledger | null; name: string } = $props();
 
@@ -194,11 +192,4 @@
 	{/if}
 </Section>
 
-{#if mint}
-	<Section title="The mint’s books" description="Every credit {name} has made, beside the pounds that back it. Added up from the mint’s own receipts.">
-		<div class="max-w-3xl flex flex-col gap-4">
-			<MintBooks {mint} />
-			{#if mode === 'test'}<p class="text-sm text-surface-700-300">These are test credits: {name} hasn’t gone live with money yet.</p>{/if}
-		</div>
-	</Section>
-{/if}
+<!-- The mint's books moved to the federation's Bank tab (5 October 2026). -->

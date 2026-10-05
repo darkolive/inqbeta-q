@@ -5,7 +5,8 @@
 	 * As its caretaker: invite people (a link, or a code to scan), see who has
 	 * joined, and remove someone — citing the clause, never silently.
 	 * As a member: your standing, and a Leave button that asks nobody.
- * Three tabs: Home (what it is), Members, and Settings (caretaker only).
+ * Tabs: Home (what it is), Bank (its mint, open to anyone), Members,
+ * Communication, and Settings (caretaker only).
  * Its nodes (ADR-Q-010 §10), under Settings: the machines it runs — a bellboy, a directory
  * or both (docs/q/node-sizes.md) — and whether this device
  * can reach their services over the federation's mesh, asked live.
@@ -55,6 +56,7 @@
 	import IntroSlides from '$lib/components/IntroSlides.svelte';
 	import MoneyPublish from '$lib/components/MoneyPublish.svelte';
 	import CoinDesigner from '$lib/components/CoinDesigner.svelte';
+	import FederationBank from '$lib/components/FederationBank.svelte';
 	import PricingFromFlow from '$lib/components/PricingFromFlow.svelte';
 	import FederationSnapshot from '$lib/components/FederationSnapshot.svelte';
 
@@ -577,11 +579,19 @@
 					<Tabs.Trigger value="website" class="min-h-11">Website</Tabs.Trigger>
 					<Tabs.Trigger value="services" class="min-h-11">Services</Tabs.Trigger>
 				{/if}
+				{#if isHome}<Tabs.Trigger value="bank" class="min-h-11">Bank</Tabs.Trigger>{/if}
 				<Tabs.Trigger value="members" class="min-h-11">Members</Tabs.Trigger>
 				<Tabs.Trigger value="communication" class="min-h-11">Communication</Tabs.Trigger>
 				{#if own}<Tabs.Trigger value="settings" class="min-h-11">Settings</Tabs.Trigger>{/if}
 				<Tabs.Indicator />
 			</Tabs.List>
+
+			<!-- Bank: the federation's mint, open to anyone (ADR-Q-035, 5 October 2026). -->
+			{#if isHome && home?.ok}
+				<Tabs.Content value="bank">
+					<FederationBank name={founding.name} {identity} />
+				</Tabs.Content>
+			{/if}
 
 			<!-- Home: a live information portal (2 October 2026). -->
 			<Tabs.Content value="home">
