@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-04
+updated: 2026-10-05
 about: The working plan — every idea captured so far, in the order it gets built, and how each piece is done. Claude follows this; Darren adds to it.
 ---
 
@@ -12,6 +12,13 @@ This is that. **Ideas go in the inbox at the bottom as they come**; each one
 is placed into a phase at the next pause. The order below is chosen so that
 each piece makes the next one smaller: shared parts first, then what's built
 on them.
+
+## Next (decided 5 October, evening)
+
+**The door (ADR-Q-034), then Offices (ADR-Q-007 §5–6)**, then in-role
+receipts checked by the servers, Ask the office, and the federation's account
+in role with the cash-out lock. The reasons are in `q/handover-2026-10-05.md`
+("Decision: what's next").
 
 ## Where we are (3 October, evening)
 
