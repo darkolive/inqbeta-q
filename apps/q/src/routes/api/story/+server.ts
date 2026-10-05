@@ -4,6 +4,7 @@
  * Origin is checked, so nobody else can spend the host's key.
  *
  *   GET                         whether AI is on here, the model, and the rates
+ *   (jobs: ask · outline · draft · redo · ripple; q-core story-ai.ts holds the prompt)
  *   POST { job, quote: true }   what the job costs at most, in credits (no call)
  *   POST { job, agreed }        run it, if it costs no more than agreed: the
  *                               suggested stories, the draft, the redone story
@@ -24,9 +25,9 @@
 import { error, json, type RequestHandler } from '@sveltejs/kit';
 import { dev } from '$app/environment';
 import { env } from '$env/dynamic/private';
-import { storyOf, emptyBook, refOf, REFS_MOST, REF_MOST, type Book, type Ref } from '@inqbeta/q-core/storybook';
+import { storyOf, emptyBook, refOf, isStyleKey, tidy, REFS_MOST, REF_MOST, BRIEF_MOST, ANSWER_MOST, STYLE_OWN_MOST, type Book, type Ref } from '@inqbeta/q-core/storybook';
 import { htmlToText } from '@inqbeta/q-core/doc-text';
-import { creditsFor, draftFromReply, outlineFromReply, jsonIn, messagesFor, mostOut, redoFromReply, rippleFromReply, upToFor, type Rates, type StoryTask } from '@inqbeta/q-core/story-ai';
+import { askFromReply, creditsFor, draftFromReply, outlineFromReply, jsonIn, messagesFor, mostOut, redoFromReply, rippleFromReply, upToFor, type Rates, type StoryTask } from '@inqbeta/q-core/story-ai';
 
 export const prerender = false;
 
@@ -65,11 +66,18 @@ function bookIn(x: unknown): Book {
 		.slice(0, REFS_MOST)
 		.map((r, i) => refOf(r ?? {}, `ref-${i + 1}`))
 		.filter((r): r is Ref => !!r);
+	book.brief = (Array.isArray(b.brief) ? b.brief : [])
+		.slice(0, BRIEF_MOST)
+		.filter((a) => typeof a?.asks === 'string')
+		.map((a) => ({ asks: tidy(a.asks, 300), answer: typeof a.answer === 'string' ? a.answer.slice(0, ANSWER_MOST) : '', ...(a.free ? { free: true } : {}) }));
+	const st = b.style as { key?: unknown; own?: unknown } | null | undefined;
+	book.style = st && (st.key === 'own' || isStyleKey(st.key)) ? { key: st.key as 'own', ...(typeof st.own === 'string' && st.own.trim() ? { own: tidy(st.own, STYLE_OWN_MOST) } : {}) } : null;
 	return book;
 }
 function jobIn(x: unknown): StoryTask {
 	const j = (x ?? {}) as Record<string, unknown>;
 	const book = bookIn(j.book);
+	if (j.task === 'ask') return { task: 'ask', book };
 	if (j.task === 'outline') return { task: 'outline', book, more: typeof j.more === 'string' ? j.more : undefined, current: Array.isArray(j.current) ? j.current.filter((x): x is string => typeof x === 'string').slice(0, 12) : undefined };
 	if (j.task === 'draft') return { task: 'draft', book };
 	if (j.task === 'redo' && typeof j.story === 'string') return { task: 'redo', book, story: j.story, answers: (j.answers ?? {}) as Record<string, string> };
@@ -110,7 +118,8 @@ export const POST: RequestHandler = async ({ request, url, fetch }) => {
 	try {
 		const reply = jsonIn(text);
 		const result =
-			job.task === 'outline' ? { outline: outlineFromReply(reply) }
+			job.task === 'ask' ? { next: askFromReply(job.book, reply) }
+			: job.task === 'outline' ? { outline: outlineFromReply(reply) }
 			: job.task === 'draft' ? { stories: draftFromReply(job.book, reply) }
 			: job.task === 'redo' ? { story: redoFromReply(job.book, job.story, reply) }
 			: { suggestions: rippleFromReply(job.book, job.changed, reply) };

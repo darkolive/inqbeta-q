@@ -14,6 +14,7 @@
 		most = 220,
 		next = 'Next',
 		optional = false,
+		empty = 'Nothing to say',
 		onnext,
 		onback
 	}: {
@@ -25,6 +26,8 @@
 		next?: string;
 		/** May be left empty ("Nothing to say"). */
 		optional?: boolean;
+		/** The button's words when an optional field is left empty. */
+		empty?: string;
 		onnext: (value: string) => void;
 		onback?: () => void;
 	} = $props();
@@ -49,7 +52,7 @@
 		{#if onback}<button type="button" class="btn preset-tonal min-h-11" onclick={onback}>Back</button>{/if}
 		<Dictate bind:value />
 		<button type="submit" class="btn preset-filled-primary-500 min-h-11" disabled={!ready}>
-			{optional && !value.trim() ? 'Nothing to say' : next} <Icon name="arrowRight" size={18} />
+			{optional && !value.trim() ? empty : next} <Icon name="arrowRight" size={18} />
 		</button>
 		<span class="text-xs opacity-60 tabular-nums ml-auto">{value.length} / {most}</span>
 	</div>

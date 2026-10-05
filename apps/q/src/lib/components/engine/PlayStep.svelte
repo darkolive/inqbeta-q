@@ -72,7 +72,7 @@
 				<StoryList stories={book.stories} {chosen} onchoose={(id) => (chosen = id)} />
 			</div>
 			<div class="flex flex-col items-center min-w-0">
-				{#if story}{#key story.id}<MadeDeck {story} />{/key}{/if}
+				{#if story}{#key story.id}<MadeDeck {story} look={book.style} />{/key}{/if}
 			</div>
 		</div>
 	{/if}

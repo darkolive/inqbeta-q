@@ -10,12 +10,18 @@
 	 * Scene recipes (which pieces, where, what moves) can come later, drawn by
 	 * this same deck.
 	 */
-	import type { Story } from '@inqbeta/q-core/storybook';
+	import { drawsItself, type Story, type Style } from '@inqbeta/q-core/storybook';
+	import ScenePicture from '../engine/ScenePicture.svelte';
 	import StoryDeck from './StoryDeck.svelte';
 	import type { Frame } from './frame';
 	import Piece from '../engine/Piece.svelte';
 
-	let { story, shareable = false }: { story: Story; shareable?: boolean } = $props();
+	/*
+	 * `look`: the book's look (5 October 2026). Q's own icons are drawn here;
+	 * any other look shows each slide's scene, as imagined, in that look's
+	 * frame, until its picture is made.
+	 */
+	let { story, shareable = false, look = null }: { story: Story; shareable?: boolean; look?: Style | null } = $props();
 	/* A slide still waiting for words plays as a quiet "…", so a half-made story can be tried. */
 	const scenes = $derived(story.slides.map((s) => ({ title: s.title || '…', says: s.subtext })));
 	const n = $derived(story.slides.length);
@@ -23,6 +29,9 @@
 
 {#snippet pictures(f: Frame)}
 	{@const slide = story.slides[f.scene - 1]}
+	{#if !drawsItself(look)}
+		<div class="transition-opacity duration-500 motion-reduce:transition-none" style="opacity: {0.35 + 0.65 * f.p}"><ScenePicture scene={slide?.scene} style={look} big /></div>
+	{:else}
 	{@const grow = 0.82 + 0.18 * f.p}
 	<svg viewBox="0 0 640 320" class="w-full h-auto" aria-hidden="true">
 		<circle cx="320" cy="150" r={110 * grow} class="fill-primary-100-900" opacity={0.5 * f.p + 0.5} />
@@ -36,6 +45,7 @@
 			<circle cx={320 + (i - (n - 1) / 2) * 22} cy="296" r="5" class={i < f.scene ? 'fill-primary-500' : 'fill-surface-300-700'} />
 		{/each}
 	</svg>
+	{/if}
 {/snippet}
 
 {#if n}

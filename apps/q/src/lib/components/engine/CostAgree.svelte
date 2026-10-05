@@ -6,7 +6,7 @@
 	 */
 	import type { StoryTask } from '@inqbeta/q-core/story-ai';
 	import { quote, type AiState } from '$lib/story-engine';
-	let { ai, job, what, onrun }: { ai: AiState; job: () => StoryTask; what: string; onrun: (agreed: number | 'practice') => Promise<void> } = $props();
+	let { ai, job, what, onrun, times = 1 }: { ai: AiState; job: () => StoryTask; what: string; onrun: (agreed: number | 'practice') => Promise<void>; /** One agreement for several calls (Q's questions): the most in all is shown too. */ times?: number } = $props();
 	let upTo = $state<number | null>(null);
 	let busy = $state(false);
 	let said = $state('');
@@ -43,7 +43,8 @@
 				<button type="button" class="btn preset-tonal min-h-11" disabled={busy} onclick={() => go('practice')}>Practise instead (free)</button>
 			</div>
 		{:else}
-			<p class="h5 font-normal">Up to {credits(upTo)}</p>
+			<p class="h5 font-normal">Up to {credits(upTo)}{times > 1 ? ' each' : ''}</p>
+			{#if times > 1}<p class="-mt-2">At most {credits(Math.round(upTo * times * 100) / 100)} in all, for up to {times}.</p>{/if}
 			<p class="text-surface-700-300">You’ll be charged only what it uses, never more than this. (On this computer, a test: nothing is taken yet.)</p>
 			<div class="flex flex-wrap gap-3">
 				<button type="button" class="btn preset-filled-primary-500 min-h-11" disabled={busy} onclick={() => go(upTo!)}>{busy ? 'Working…' : 'Agree, and go'}</button>

@@ -168,8 +168,8 @@
 
 	{#if list.length && !offered}
 		<div class="flex flex-wrap gap-3 border-t border-surface-200-800 pt-4">
-			<button type="button" class="btn preset-filled-primary-500 min-h-11" onclick={ondraft}>Next: mock up the storyboard for me <Icon name="arrowRight" size={18} /></button>
-			<button type="button" class="btn preset-tonal-primary min-h-11" onclick={ondone}>I’ll storyboard it myself</button>
+			<button type="button" class="btn preset-filled-primary-500 min-h-11" onclick={ondraft}>Next: choose the look <Icon name="arrowRight" size={18} /></button>
+			<button type="button" class="btn preset-tonal-primary min-h-11" onclick={ondone}>I’ll write the slides myself</button>
 		</div>
 	{/if}
 </div>

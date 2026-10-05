@@ -170,7 +170,7 @@
 						</div>
 					{/if}
 
-					{#each story.slides as slide, i (slide.id)}<SlideCard {slide} n={i + 1} onkeep={() => keepOne(slide.id)} onreject={() => rejectOne(slide.id)} />{/each}
+					{#each story.slides as slide, i (slide.id)}<SlideCard {slide} n={i + 1} look={book.style} onkeep={() => keepOne(slide.id)} onreject={() => rejectOne(slide.id)} />{/each}
 					<History steps={historyOf(steps, story.id)} title={story.title} />
 				</section>
 			{/if}

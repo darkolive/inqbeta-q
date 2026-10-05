@@ -1,9 +1,9 @@
 <script lang="ts" module>
-	export const STEPS = ['The idea', 'The stories', 'Storyboard', 'First draft', 'Review', 'Play'] as const;
+	export const STEPS = ['The idea', 'Q’s questions', 'The stories', 'The look', 'Storyboard', 'Review', 'Play'] as const;
 </script>
 
 <script lang="ts">
-	/* Where you are in making the book: six big steps, the one you're on lit, the ones done ticked. Any can be opened. */
+	/* Where you are in making the book: seven big steps, the one you're on lit, the ones done ticked. Any can be opened. */
 	import { Icon } from '@inqbeta/q-ui';
 	let { at, done, onchoose }: { at: number; done: boolean[]; onchoose: (n: number) => void } = $props();
 </script>

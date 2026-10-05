@@ -2,7 +2,7 @@
 	/* A story's history (or the book's own): every step, oldest first, with the question asked and the answer given. Nothing is lost by trying. */
 	import type { BookStep } from '@inqbeta/q-core/storybook';
 	let { steps, title }: { steps: BookStep[]; title: string } = $props();
-	const KIND: Record<string, string> = { idea: 'The idea', refs: 'What Q reads', outline: 'Suggested stories', reject: 'Rejected', stories: 'The stories', storyboard: 'Storyboard', generate: 'First draft', redo: 'Redo', ripple: 'Review', keep: 'Kept', open: 'Who can watch', ready: 'Ready' };
+	const KIND: Record<string, string> = { idea: 'The idea', refs: 'What Q reads', brief: 'Q’s questions', style: 'The look', outline: 'Suggested stories', reject: 'Rejected', stories: 'The stories', storyboard: 'Storyboard', generate: 'First draft', redo: 'Redo', ripple: 'Review', keep: 'Kept', open: 'Who can watch', ready: 'Ready' };
 	const said = (a: unknown): string => {
 		if (a === null || a === undefined || a === '') return '';
 		if (typeof a === 'string') return a;

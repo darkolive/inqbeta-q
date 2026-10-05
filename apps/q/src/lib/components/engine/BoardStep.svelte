@@ -53,7 +53,7 @@
 					{#if form === slide.id}
 						<SlideForm {slide} onsave={async (s, asks) => (await slides((all) => all.map((x) => (x.id === slide.id ? { ...x, ...s, draft: false } : x)), asks, s), (form = null))} oncancel={() => (form = null)} />
 					{:else}
-						<SlideCard {slide} n={i + 1}>
+						<SlideCard {slide} n={i + 1} look={book.style}>
 							{#snippet actions()}
 								<button type="button" class="btn preset-tonal min-h-11" onclick={() => (form = slide.id)}>Change</button>
 								<button type="button" class="btn-icon preset-tonal min-h-11 min-w-11" aria-label="Move slide {i + 1} up" disabled={i === 0} onclick={() => move(i, -1)}><span aria-hidden="true">↑</span></button>
@@ -65,7 +65,7 @@
 				{/each}
 
 				{#if form === 'add'}
-					<SlideForm first={!story.slides.length} onsave={async (s, asks) => (await slides((all) => [...all, { id: uniqueSlideId(story), ...s, draft: false }], asks, s), (form = null))} oncancel={() => (form = null)} />
+					<SlideForm first={!story.slides.length} onsave={async (s, asks) => (await slides((all) => [...all, { id: uniqueSlideId(story), ...s, piece: null, draft: false }], asks, s), (form = null))} oncancel={() => (form = null)} />
 				{:else if story.slides.length < SLIDES_MOST}
 					<div class="flex flex-wrap gap-3">
 						<button type="button" class="btn preset-filled-primary-500 min-h-11" onclick={() => (form = 'add')}><Icon name="plus" size={18} /> Add a slide</button>
@@ -77,7 +77,7 @@
 					{#if at < book.stories.length - 1}
 						<button type="button" class="btn preset-tonal-primary min-h-11" onclick={() => ((chosen = book.stories[at + 1].id), (form = null))}>This feels complete: next story <Icon name="arrowRight" size={18} /></button>
 					{/if}
-					<button type="button" class="btn preset-filled-primary-500 min-h-11" onclick={ondone}>Next: the first draft <Icon name="arrowRight" size={18} /></button>
+					<button type="button" class="btn preset-filled-primary-500 min-h-11" onclick={ondone}>Done: back to the storyboard <Icon name="arrowRight" size={18} /></button>
 				</div>
 
 				<History steps={historyOf(steps, story.id)} title={story.title} />

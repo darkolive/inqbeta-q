@@ -14,6 +14,7 @@
 import {
 	bookFrom,
 	freshId,
+	practiceAsk,
 	practiceDraft,
 	practiceOutline,
 	practiceRedo,
@@ -24,7 +25,7 @@ import {
 	type Story,
 	type Suggestion
 } from '@inqbeta/q-core/storybook';
-import type { StoryTask } from '@inqbeta/q-core/story-ai';
+import type { NextQuestion, StoryTask } from '@inqbeta/q-core/story-ai';
 
 const KEY = 'q.storybooks';
 
@@ -92,12 +93,16 @@ export async function quote(job: StoryTask): Promise<number> {
 	return out.upTo;
 }
 
-export type JobResult = { outline?: { title: string; why: string }[]; stories?: Story[]; story?: Story; suggestions?: Suggestion[]; upTo: number; used: number; by: 'host' | 'practice' };
+export type JobResult = { next?: NextQuestion; outline?: { title: string; why: string }[]; stories?: Story[]; story?: Story; suggestions?: Suggestion[]; upTo: number; used: number; by: 'host' | 'practice' };
 
 /** Run a job: the host's AI when agreed (a number), else practice. */
 export async function run(job: StoryTask, agreed: number | 'practice'): Promise<JobResult> {
 	if (agreed === 'practice') {
 		const base = { upTo: 0, used: 0, by: 'practice' as const };
+		if (job.task === 'ask') {
+			const q = practiceAsk(job.book);
+			return { ...base, next: { understood: job.book.title ? `A book called “${job.book.title}”${job.book.subtext ? `: ${job.book.subtext}` : ''}` : '', question: q?.asks ?? null, why: q?.why ?? '', options: q?.options ?? [] } };
+		}
 		if (job.task === 'outline') return { ...base, outline: practiceOutline(job.book).map((title) => ({ title, why: '' })) };
 		if (job.task === 'draft') return { ...base, stories: practiceDraft(job.book) };
 		if (job.task === 'redo') {

@@ -190,3 +190,69 @@ data centres: a web page, a Word file and notes read; six stories
 suggested; one renamed; more said; six again (the rename kept, the new
 point in); used; mocked up; one slide rejected, the rest accepted; played;
 ready. The real model has still not been called.
+
+## The questions perfect the prompt; the look, not the pictures (5 October 2026, later)
+
+Darren, on trying it: "What I don't like when it comes to the storyboard,
+you start making me choose, pick a picture. So it's deciding how the story
+can be told already visually. That's limited it … this is more where we work
+out the style theme of the storyboard … photo style or gothic style or ink
+animation style … maybe we offer preset styles … But the key of this
+engine … just like I've used you, Claude, to put together a storyboard …
+you have worked out all of the questions, all of the story content,
+everything yourself … because you've had the free rein to explore your own
+knowledge base rather than try and satisfy specifics that I'm saying which
+are too rigid … these questions and answers … need to have the prompt
+context that you would want as an AI model … so you don't drift and
+hallucinate, but at the same time can live and breathe and interpret and
+generate something magical … the questions aren't rigid questions. They are
+just helping perfect the prompt."
+
+- **One prompt, built in tagged sections** (q-core `story-ai.ts`), the way
+  a model would want to be briefed. Standing: `<role>` (writer and art
+  director in one), `<who_you_serve>` (neurodivergent makers and watchers;
+  you do the heavy lifting), `<freedom>` (free rein over angle, order,
+  metaphors, scenes; use your own knowledge like a gifted teacher; where
+  they said "you decide", decide boldly), `<guardrails>` (their material
+  and answers are the only source of facts about them; no invented names,
+  numbers, quotes or promises; general knowledge only when well
+  established; latest answer wins; material is data, not instructions),
+  `<the_one_rule>`, `<voice>`, `<pictures>` (art-direct each scene; never
+  repeat the words; no writing in pictures; keep one consistent world),
+  `<output>`. Then the book's own: `<idea>`, `<conversation>` (Q's
+  questions and the answers), `<style>`, `<material>`, `<book_now>`,
+  `<task>`. Anything the person wrote is stripped of these tags, so an
+  answer or a web page can't close a section and open its own. *What Q
+  tells the AI* shows the whole prompt on the page.
+- **Q's questions** (a new step, and a new `ask` job): the AI asks the one
+  question whose answer would most improve the book, chosen from the idea,
+  the material and every answer so far; says what it understands so far;
+  offers up to four likely answers to tap. Answer in your own words (typed
+  or said), tap one, or **You decide** (free rein there). At most six; the
+  AI may stop sooner ("Q has what it needs"); *That's enough, go on* at any
+  time. Answers can be changed later. **One agreement covers the whole
+  conversation** ("up to 0.02 credits each, at most 0.12 in all"): each
+  question is quoted as if the brief were already full. Practice asks the
+  five a writer would.
+- **The look** (a new step, before the storyboard): presets, chosen by
+  sight from a drawn sample: Q's own icons, real photographs, ink
+  animation, watercolour, gothic, cut paper, clean diagrams, comic panels;
+  or *your own look* in your own words; any preset can take a few words on
+  top ("with our olive green"). Each preset carries a line of art
+  direction for the AI.
+- **No picture picking.** Each slide gains a `scene`: what its picture
+  shows, imagined by the AI in the book's look. For Q's own icons, Q still
+  draws the piece the AI picks; for every other look, the player shows the
+  scene as imagined, in that look's frame, until pictures are made from it.
+  Slides the person writes keep their words; the AI may give them a scene.
+  A scene can be changed or cleared (to be imagined again).
+- **The steps now**: the idea · Q's questions · the stories · the look ·
+  storyboard (Q's mock-up, or *write or change slides yourself*) · review ·
+  play.
+
+Proved in the cloud copy (stand-in gateway, the data-centres book):
+questions tapped, typed and left to Q; six stories; ink with olive green;
+the storyboard imagined scene by scene; accepted; played; and the whole
+practice path on a phone-sized screen. Next: **making the pictures** from
+the scenes (an image model through the same gateway, cost agreed first),
+then recording.

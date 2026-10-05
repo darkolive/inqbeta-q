@@ -46,7 +46,7 @@
 			<RefsPanel {book} {steps} {commit} />
 			<div class="flex flex-wrap gap-3 border-t border-surface-200-800 pt-4">
 				<button type="button" class="btn preset-tonal min-h-11" onclick={() => (q = 1)}>Back</button>
-				<button type="button" class="btn preset-filled-primary-500 min-h-11" onclick={ondone}>Next: the stories <Icon name="arrowRight" size={18} /></button>
+				<button type="button" class="btn preset-filled-primary-500 min-h-11" onclick={ondone}>Next: Q’s questions <Icon name="arrowRight" size={18} /></button>
 			</div>
 		{/if}
 	{/key}

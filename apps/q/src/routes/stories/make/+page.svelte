@@ -10,10 +10,12 @@
 	 *
 	 * For someone turning their thoughts into a clear picture story, one step
 	 * and one question at a time: the idea (and what Q should read: links,
-	 * documents, words written or said), the stories (Q suggests five or six;
-	 * change them, or say more and ask again), the storyboard (mocked up by Q,
-	 * or by hand), review (accept or reject each draft, redo, the ripple),
-	 * play. Books are kept on this
+	 * documents, words written or said), Q's questions (asked by the AI, one
+	 * at a time, each from what came before: perfecting its own prompt), the
+	 * stories (Q suggests five or six; change them, or say more and ask
+	 * again), the look (a preset style for the whole storyboard), the
+	 * storyboard (mocked up by Q, pictures imagined in that look; or by hand),
+	 * review (accept or reject each draft, redo, the ripple), play. Books are kept on this
 	 * device as chains of steps (lib/story-engine). The AI is the host's, on
 	 * localhost; elsewhere every step can be practised for free.
 	 */
@@ -24,16 +26,21 @@
 	import { aiHere, booksHere, forgetBook, newBookId, saveSteps, stepsOf, type AiState } from '$lib/story-engine';
 	import StepRail from '$lib/components/engine/StepRail.svelte';
 	import IdeaStep from '$lib/components/engine/IdeaStep.svelte';
+	import QuestionsStep from '$lib/components/engine/QuestionsStep.svelte';
 	import StoriesStep from '$lib/components/engine/StoriesStep.svelte';
+	import LookStep from '$lib/components/engine/LookStep.svelte';
 	import BoardStep from '$lib/components/engine/BoardStep.svelte';
 	import DraftStep from '$lib/components/engine/DraftStep.svelte';
 	import ReviewStep from '$lib/components/engine/ReviewStep.svelte';
 	import PlayStep from '$lib/components/engine/PlayStep.svelte';
 	import History from '$lib/components/engine/History.svelte';
+	import { promptOf } from '@inqbeta/q-core/story-ai';
 
 	let bookId = $state<string | null>(null);
 	let steps = $state<BookStep[]>([]);
 	let at = $state(0);
+	/* In the storyboard step: writing slides by hand, rather than seeing Q's mock-up. */
+	let writing = $state(false);
 	let ai = $state<AiState>({ ai: false });
 	let unsaved = $state(false);
 	let shelf = $state<ReturnType<typeof booksHere>>([]);
@@ -59,7 +66,7 @@
 		const kept = stepsOf(id);
 		steps = kept;
 		const b = bookFrom(kept, id);
-		at = !b.title ? 0 : !b.stories.length ? 1 : needingWork(b).length ? 2 : 4;
+		at = !b.title ? 0 : !b.brief.length && !b.stories.length ? 1 : !b.stories.length ? 2 : !b.style ? 3 : needingWork(b).length ? 4 : 5;
 		if (address) replaceState(`?book=${id}`, {});
 	}
 	function start() {
@@ -76,14 +83,16 @@
 		shelf = booksHere();
 		replaceState(location.pathname, {});
 	}
-	function go(n: number) {
+	function go(n: number, write = false) {
 		at = n;
+		writing = write;
 		requestAnimationFrame(() => document.getElementById('engine-step')?.focus());
 	}
 	const done = $derived([
 		!!book.title,
+		book.brief.length > 0,
 		book.stories.length > 0,
-		book.stories.length > 0 && book.stories.every((s) => s.slides.length > 0),
+		!!book.style,
 		book.stories.length > 0 && !needingWork(book).length,
 		book.stories.length > 0 && !problemsOf(book).length,
 		book.ready
@@ -126,13 +135,23 @@
 			{#if unsaved}<p class="card preset-tonal-error p-3" role="alert">This browser isn’t keeping your book (a private window, or it’s full). Keep a copy from Play before you leave.</p>{/if}
 			<div id="engine-step" tabindex="-1" class="outline-none">
 				{#if at === 0}<div class="max-w-2xl"><IdeaStep {book} {steps} {commit} ondone={() => go(1)} /></div>
-				{:else if at === 1}<div class="max-w-2xl"><StoriesStep {book} {steps} {commit} {ai} ondone={() => go(2)} ondraft={() => go(3)} /></div>
-				{:else if at === 2}<BoardStep {book} {steps} {commit} ondone={() => go(3)} />
-				{:else if at === 3}<div class="max-w-3xl"><DraftStep {book} {steps} {commit} {ai} ondone={() => go(4)} /></div>
-				{:else if at === 4}<ReviewStep {book} {steps} {commit} {ai} ondone={() => go(5)} />
+				{:else if at === 1}<div class="max-w-2xl"><QuestionsStep {book} {steps} {commit} {ai} ondone={() => go(2)} /></div>
+				{:else if at === 2}<div class="max-w-2xl"><StoriesStep {book} {steps} {commit} {ai} ondone={() => go(4, true)} ondraft={() => go(3)} /></div>
+				{:else if at === 3}<LookStep {book} {steps} {commit} ondone={() => go(4)} />
+				{:else if at === 4 && writing}<BoardStep {book} {steps} {commit} ondone={() => go(4)} />
+				{:else if at === 4}<div class="max-w-3xl"><DraftStep {book} {steps} {commit} {ai} ondone={() => go(5)} onwrite={() => go(4, true)} /></div>
+				{:else if at === 5}<ReviewStep {book} {steps} {commit} {ai} ondone={() => go(6)} />
 				{:else}<PlayStep {book} {steps} {commit} />{/if}
 			</div>
 			{#if steps.length}<History steps={steps.filter((s) => s.chain === 'book')} title={book.title || 'the book'} />{/if}
+			{#if steps.length}
+				<!-- The whole prompt, as the AI gets it for the storyboard: nothing hidden. -->
+				<details class="card preset-outlined-surface-200-800 p-4">
+					<summary class="cursor-pointer min-h-11 flex items-center">What Q tells the AI</summary>
+					<p class="text-sm text-surface-700-300 mt-2">Everything your answers have built, as the AI reads it when it storyboards your book.</p>
+					<pre class="text-xs whitespace-pre-wrap break-words mt-3 max-h-96 overflow-y-auto">{promptOf({ task: 'draft', book })}</pre>
+				</details>
+			{/if}
 		</div>
 	{/if}
 </Page>

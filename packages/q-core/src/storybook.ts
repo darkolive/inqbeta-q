@@ -74,7 +74,15 @@ export interface Slide {
 	id: string;
 	title: string;
 	subtext: string;
+	/** For Q's own icon style: the one piece drawn big above the words. */
 	piece: Piece | null;
+	/**
+	 * What the picture shows, in the book's style: written by the AI as art
+	 * direction (subject, setting, light, what moves), never the slide's
+	 * words again. The picture made from it later (Darren, 5 October 2026:
+	 * "photo style or gothic style or ink animation style").
+	 */
+	scene?: string;
 	/** Written by the AI (or the practice drafter) and not yet kept by the person. */
 	draft: boolean;
 }
@@ -101,7 +109,70 @@ export interface Book {
 	 * the player.
 	 */
 	refs: Ref[];
+	/**
+	 * Q's questions and the person's answers (Darren, 5 October 2026: "the
+	 * questions aren't rigid questions. They are just helping perfect the
+	 * prompt"). Asked by the AI, one at a time, each from what came before.
+	 */
+	brief: BriefAnswer[];
+	/** How the storyboard looks: a preset, or the person's own words. Null until chosen. */
+	style: Style | null;
 }
+
+/* ------------------------------------------------------------------ the brief */
+
+export interface BriefAnswer {
+	/** The question, as Q asked it. */
+	asks: string;
+	/** Why Q asked it, in one line (shown small, so the person knows what it's for). */
+	why?: string;
+	/** What they said. Empty with `free` when they said "you decide". */
+	answer: string;
+	/** "You decide": the AI has free rein here. */
+	free?: boolean;
+}
+/** The most questions Q asks before it goes on (the person can stop sooner). */
+export const BRIEF_MOST = 6;
+export const ANSWER_MOST = 1200;
+
+/* ------------------------------------------------------------------ the look */
+
+/*
+ * The storyboard's look, chosen once for the book (Darren, 5 October 2026:
+ * "this is where we work out the style theme of the storyboard … maybe we
+ * offer preset styles to make it easier rather than let it get too
+ * expressive"). Each preset is a few words for the person and a fuller line
+ * of art direction for the AI. `icons` is drawn by Q itself today; the others
+ * are described scene by scene, ready for pictures to be made.
+ */
+export const STYLES = {
+	icons: { name: 'Q’s own icons', says: 'Simple, flat, friendly', direction: 'Q’s own flat icon style: one simple object or person on a soft circle, olive green and warm orange, no detail, no text.' },
+	photo: { name: 'Real photographs', says: 'Real people and places', direction: 'Documentary photography: real people and places, natural light, honest and unposed, shallow depth of field, no text in the picture.' },
+	ink: { name: 'Ink animation', says: 'Hand-drawn, loose, moving', direction: 'Hand-drawn ink animation: loose black brush lines on warm paper, a single spot colour, lines that draw themselves on, gentle movement.' },
+	watercolour: { name: 'Watercolour', says: 'Soft, painted, calm', direction: 'Soft watercolour illustration: pale washes, bleeding edges, lots of white paper, calm and gentle.' },
+	gothic: { name: 'Gothic', says: 'Dark, dramatic, candlelit', direction: 'Gothic: dark and dramatic, deep shadows, candlelight and moonlight, old stone and iron, rich blacks and deep reds.' },
+	paper: { name: 'Cut paper', says: 'Layered, crafted, bright', direction: 'Cut-paper collage: layered coloured paper with soft shadows between layers, simple bold shapes, handmade.' },
+	line: { name: 'Clean diagrams', says: 'Clear lines, how it works', direction: 'Clean explanatory line diagrams: thin even lines, a few labelled-free shapes and arrows, one accent colour, lots of space.' },
+	comic: { name: 'Comic panels', says: 'Bold, expressive, fun', direction: 'Comic-book panels: bold ink outlines, flat bright colour, expressive faces and movement, no speech bubbles.' }
+} as const;
+export type StyleKey = keyof typeof STYLES;
+export const isStyleKey = (x: unknown): x is StyleKey => typeof x === 'string' && Object.hasOwn(STYLES, x);
+export interface Style {
+	/** A preset, or 'own' for the person's own description. */
+	key: StyleKey | 'own';
+	/** Their own words, for 'own' (or to add to a preset: "but in black and white"). */
+	own?: string;
+}
+export const STYLE_OWN_MOST = 400;
+/** The art direction the AI gets for this style. */
+export function directionOf(style: Style | null): string {
+	if (!style) return STYLES.icons.direction;
+	const own = tidy(style.own, STYLE_OWN_MOST);
+	if (style.key === 'own') return own || STYLES.icons.direction;
+	return own ? `${STYLES[style.key].direction} And: ${own}` : STYLES[style.key].direction;
+}
+/** Whether Q draws this style itself (its own icons), or describes each scene for pictures to come. */
+export const drawsItself = (style: Style | null) => !style || style.key === 'icons';
 
 /* ------------------------------------------------------------- the references */
 
@@ -162,13 +233,17 @@ export function tidy(text: unknown, most: number): string {
 	return (space > most * 0.6 ? cut.slice(0, space) : cut).replace(/[\s,;:–—-]+$/, '') + '…';
 }
 
-/** A slide made to the rule: title and subtext, a known piece or none. */
+export const SCENE_MOST = 400;
+
+/** A slide made to the rule: title and subtext, a known piece or none, and its scene if it has one. */
 export function slideOf(x: Partial<Slide> & { id?: string }, id: string): Slide {
+	const scene = tidy(x.scene, SCENE_MOST);
 	return {
 		id: typeof x.id === 'string' && x.id ? x.id : id,
 		title: tidy(x.title, TITLE_MOST),
 		subtext: tidy(x.subtext, SUBTEXT_MOST),
 		piece: isPiece(x.piece) ? x.piece : null,
+		...(scene ? { scene } : {}),
 		draft: !!x.draft
 	};
 }
@@ -183,7 +258,7 @@ export function storyOf(x: { id: string; title?: unknown; slides?: unknown }): S
 	};
 }
 
-export const emptyBook = (id: string): Book => ({ id, title: '', subtext: '', open: false, ready: false, stories: [], refs: [] });
+export const emptyBook = (id: string): Book => ({ id, title: '', subtext: '', open: false, ready: false, stories: [], refs: [], brief: [], style: null });
 
 /** A slide still waiting for words. */
 export const isEmptySlide = (s: Slide) => !s.title && !s.subtext;
@@ -217,6 +292,10 @@ export type StepKind =
 	| 'idea'
 	/** What the AI reads: links, documents, words typed or said. */
 	| 'refs'
+	/** One of Q's questions answered (or left to Q). */
+	| 'brief'
+	/** The storyboard's look. */
+	| 'style'
 	/** Stories suggested by the AI (or practice), before the person uses them. */
 	| 'outline'
 	/** A draft slide put back as it was, or taken out. */
@@ -264,7 +343,7 @@ export interface BookStep {
 	/** What they answered (words, choices), as given. */
 	answer: unknown;
 	/** On the book's chain: the book's own fields after this step. */
-	head?: { title: string; subtext: string; open: boolean; ready: boolean; order: string[]; refs?: Ref[] };
+	head?: { title: string; subtext: string; open: boolean; ready: boolean; order: string[]; refs?: Ref[]; brief?: BriefAnswer[]; style?: Style | null };
 	/** On a story's chain: the story after this step; null when it was taken out. */
 	story?: Story | null;
 	cost?: Cost;
@@ -310,6 +389,8 @@ export function bookFrom(steps: BookStep[], id = steps[0]?.book ?? ''): Book {
 		if (s.chain === BOOK_CHAIN && s.head) {
 			({ title: book.title, subtext: book.subtext, open: book.open, ready: book.ready, order } = s.head);
 			book.refs = s.head.refs ?? [];
+			book.brief = s.head.brief ?? [];
+			book.style = s.head.style ?? null;
 		} else if (s.chain !== BOOK_CHAIN && s.story !== undefined) {
 			if (s.story === null) stories.delete(s.chain);
 			else stories.set(s.chain, s.story);
@@ -322,7 +403,7 @@ export function bookFrom(steps: BookStep[], id = steps[0]?.book ?? ''): Book {
 /** One story's history (or the book's own, with 'book'), oldest first. */
 export const historyOf = (steps: BookStep[], chain: string) => steps.filter((s) => s.chain === chain);
 
-const headOf = (b: Book, order = b.stories.map((s) => s.id)) => ({ title: b.title, subtext: b.subtext, open: b.open, ready: b.ready, order, refs: b.refs });
+const headOf = (b: Book, order = b.stories.map((s) => s.id)) => ({ title: b.title, subtext: b.subtext, open: b.open, ready: b.ready, order, refs: b.refs, brief: b.brief, style: b.style });
 
 /** Make a fresh id for a story or book (short, random, URL-safe). */
 export function freshId(prefix: string): string {
@@ -383,6 +464,20 @@ export async function setRefs(steps: BookStep[], bookId: string, refs: Partial<R
 		.filter((r): r is Ref => !!r)
 		.slice(0, REFS_MOST);
 	return addStep(steps, { book: bookId, chain: BOOK_CHAIN, kind: 'refs', asks, answer, head: { ...headOf(b), refs: clean } });
+}
+
+/** Q's questions as answered so far (each tidied; at most BRIEF_MOST). */
+export async function setBrief(steps: BookStep[], bookId: string, brief: BriefAnswer[], asks: string, answer: unknown, cost?: Cost): Promise<BookStep[]> {
+	const b = bookFrom(steps, bookId);
+	const clean = brief.slice(0, BRIEF_MOST).map((a) => ({ asks: tidy(a.asks, 300), ...(a.why ? { why: tidy(a.why, 200) } : {}), answer: (typeof a.answer === 'string' ? a.answer : '').trim().slice(0, ANSWER_MOST), ...(a.free ? { free: true } : {}) })).filter((a) => a.asks);
+	return addStep(steps, { book: bookId, chain: BOOK_CHAIN, kind: 'brief', asks, answer, head: { ...headOf(b), brief: clean }, cost });
+}
+
+/** The storyboard's look. */
+export async function setStyle(steps: BookStep[], bookId: string, style: Style, asks: string): Promise<BookStep[]> {
+	const b = bookFrom(steps, bookId);
+	const clean: Style = style.key === 'own' || isStyleKey(style.key) ? { key: style.key, ...(tidy(style.own, STYLE_OWN_MOST) ? { own: tidy(style.own, STYLE_OWN_MOST) } : {}) } : { key: 'icons' };
+	return addStep(steps, { book: bookId, chain: BOOK_CHAIN, kind: 'style', asks, answer: clean, head: { ...headOf(b), style: clean } });
 }
 
 /** Stories the AI suggested, recorded as offered (the person then uses, changes or asks again). */
@@ -451,6 +546,7 @@ export interface Suggestion {
 	title: string;
 	subtext: string;
 	piece: Piece | null;
+	scene?: string;
 	/** Why, in one plain line. */
 	why: string;
 }
@@ -458,9 +554,9 @@ export interface Suggestion {
 /** A story with one suggestion applied (as a draft, until kept). Unknown story: unchanged. */
 export function applySuggestion(story: Story, s: Suggestion): Story {
 	if (s.story !== story.id) return story;
-	const slide = slideOf({ title: s.title, subtext: s.subtext, piece: s.piece, draft: true }, `${story.id}.${story.slides.length + 1}`);
+	const slide = slideOf({ title: s.title, subtext: s.subtext, piece: s.piece, scene: s.scene, draft: true }, `${story.id}.${story.slides.length + 1}`);
 	const i = s.slide ? story.slides.findIndex((x) => x.id === s.slide) : -1;
-	if (i >= 0) return { ...story, slides: story.slides.map((x, k) => (k === i ? { ...slide, id: x.id, piece: slide.piece ?? x.piece } : x)) };
+	if (i >= 0) return { ...story, slides: story.slides.map((x, k) => (k === i ? slideOf({ ...slide, id: x.id, piece: slide.piece ?? x.piece, scene: slide.scene ?? x.scene }, x.id) : x)) };
 	if (story.slides.length >= SLIDES_MOST) return story;
 	return { ...story, slides: [...story.slides, { ...slide, id: uniqueSlideId(story) }] };
 }
@@ -494,9 +590,27 @@ export function practiceDraft(book: Book): Story[] {
 		return { ...story, slides };
 	});
 }
-function draftLine(story: string, i: number): Pick<Slide, 'title' | 'subtext' | 'piece'> {
+function draftLine(story: string, i: number): Pick<Slide, 'title' | 'subtext' | 'piece' | 'scene'> {
 	const p = PRACTICE[i % PRACTICE.length];
-	return { title: p.title, subtext: p.subtext(story), piece: p.piece };
+	return { title: p.title, subtext: p.subtext(story), piece: p.piece, scene: `A picture for “${p.title}”: describe what the reader would see.` };
+}
+
+/*
+ * Q's questions, by practice: the questions a writer would want answered
+ * before starting, asked in order, skipping none. The AI asks its own,
+ * shaped by what it read and what came before; these are the fallback.
+ */
+const PRACTICE_QUESTIONS: { asks: string; why: string; options: string[] }[] = [
+	{ asks: 'Who will watch this, and what do they already know?', why: 'So it starts where they are.', options: ['Complete beginners', 'People who know a little', 'People who know a lot'] },
+	{ asks: 'When they reach the end, what should they feel, or do?', why: 'So every story leads there.', options: ['Understand it', 'Feel hopeful', 'Take a first step', 'Tell someone else'] },
+	{ asks: 'How should it sound?', why: 'So the words fit the people watching.', options: ['Warm and friendly', 'Calm and clear', 'Bold and urgent', 'Playful'] },
+	{ asks: 'Is there anything it must say, or must never say?', why: 'So nothing important is missed, and nothing wrong slips in.', options: [] },
+	{ asks: 'Anything else Q should know?', why: 'Last chance before Q starts.', options: [] }
+];
+/** The next question, by practice, or null when the brief has enough. */
+export function practiceAsk(book: Book): { asks: string; why: string; options: string[] } | null {
+	const asked = new Set(book.brief.map((a) => a.asks));
+	return PRACTICE_QUESTIONS.find((q) => !asked.has(q.asks)) ?? null;
 }
 
 /** Suggested stories, by practice: six plain parts any book can start from. */
@@ -512,7 +626,7 @@ export function practiceRedo(story: Story, answers: RedoAnswers): Story {
 	const words = change.replace(/[.!?…]+$/, '').split(' ');
 	const title = tidy(words.slice(0, 6).join(' ') + (words.length > 6 ? '…' : ''), TITLE_MOST);
 	const slides = story.slides.length >= SLIDES_MOST ? story.slides.slice(0, SLIDES_MOST - 1) : story.slides;
-	return { ...story, slides: [...slides, { id: uniqueSlideId(story), title, subtext: change, piece: 'tick', draft: true }] };
+	return { ...story, slides: [...slides, { id: uniqueSlideId(story), title, subtext: change, piece: 'tick', scene: `A picture for “${title}”.`, draft: true }] };
 }
 
 /** A ripple review, by practice: the story after the changed one is asked to follow on from it. */
