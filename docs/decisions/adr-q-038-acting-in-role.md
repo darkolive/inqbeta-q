@@ -111,6 +111,46 @@ term (ADR-Q-007). The same switch applies:
 
 The founder's admin isn't a special case; it's the first role.
 
+### 8. One page, two accounts: whose money depends on the hat
+
+Darren, later on 5 October:
+
+> "If I go into that federation page as me, the user … I can see all my
+> credits, my personal credits … if I'm allowed to cash out, I have enough, I
+> should be able to … my personal bank account … same rights as everybody else
+> has. Then if I click on role on that page and I'm then working in the
+> capacity of that federation, then the only reason I'm going to be able to cash
+> out is because I have either treasurer powers or something that the
+> organisation allows my role to do … that may require evidence of decision,
+> council, voting, whatever, but it gets signed by the person with the role who
+> has the power to action … without needing multiple screens."
+
+The same page shows **one account at a time**, and the switch decides which:
+
+| | As me | In role (for example, Treasurer) |
+|---|---|---|
+| **Whose credits** | Mine: my statement with the bank | The federation's: its treasury, its reserves, what it holds |
+| **Who may cash out** | Me, like any holder, when I have enough (the battery) | Only an office whose mandate covers it |
+| **Paid into** | My own payout account, set in my Settings | The federation's account, set by the office in role |
+| **What it needs** | My signature | The office holder's signature, **plus evidence of the decision** where the federation's rules ask for it, and a second signature where the Money block requires two (ADR-Q-007) |
+| **Recorded as** | My cash-out | The federation's cash-out, signed "as Treasurer", naming the mandate and the decision |
+
+- **Same rights as everyone, as me.** Holding an office gives no extra power
+  over my own credits, and takes none away. As me, I cash out exactly as any
+  member does.
+- **No power over the federation's money, as me.** Out of role, the
+  federation's account isn't shown, let alone movable. Even the founder sees it
+  only in role.
+- **Evidence travels with the action.** A spend or cash-out from the
+  federation's account names what authorised it: a `decision.outcome` receipt
+  (a council or committee vote, a meeting's minutes, ADR-Q-007 §6), a budget
+  line already agreed, or a standing rule. The engine checks that the evidence
+  is there and is the right kind before the office holder can sign
+  (ADR-Q-009). Who decided and who actioned it are both on the record.
+- **No second screen.** There's no separate admin site, bank portal or login.
+  It's the same page and the same statement design (`showing-money.md`),
+  showing the account of whichever hat you're wearing.
+
 ## Open questions
 
 - **Urgent things out of role.** Should a safeguarding alert reach the
@@ -147,6 +187,10 @@ The founder's admin isn't a special case; it's the first role.
 6. **Conflicts**: the engine notices when a role action touches the holder's
    own DID and asks for a second holder.
 7. **Quiet out of role**: the bell holds office work until you take up the role.
+8. **The federation's account in role** (§8): its statement and cash-out on
+   the same page, paid into the federation's account, needing the office's
+   mandate, the decision's evidence where its rules ask, and two signatures for
+   money.
 
 ## Related
 
