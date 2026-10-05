@@ -1,6 +1,7 @@
 # ADR-Q-034 — The door (inqbeta.com) and the playground (inqbeta.dev)
 
-**Status:** decided 5 October 2026, not yet built.
+**Status:** decided 5 October 2026; §5 revised the same evening. Steps 1 and
+2 (the rule, and the gate's door) are built: see *As built* below.
 
 ## Why
 
@@ -38,10 +39,36 @@ it doesn't use any real resources.
    courtesy. The real lock is on the servers.
 4. **Opening.** Publishing the host as live takes the lock off. It's the same
    switch that turns the mint from test to live.
-5. **inqbeta.dev is the playground, all in the browser.** It has the same
-   dashboard and sign-in, but it uses no mint, no node and no bellboy. Credits,
-   kept storage, joins and the shop are simulated in the visitor's browser,
-   marked "Play". A banner says nothing is real. **Start again** wipes it.
+5. **inqbeta.dev is the development site: everything works, no real money.**
+   *Revised 5 October, evening.* It was going to be a playground simulated
+   in the browser. Darren:
+
+   > "In the dev site, people should be able to create all functions as
+   > they're being developed, including creating a federation, allocating
+   > their own Google Drive, whatever resource as their bucket, pass-through
+   > and storage system. They can test all of that, create their own mints,
+   > all of that. There just won't be any real money allowed to transfer …
+   > and clear explanation at the start: this is a development site and can
+   > be destroyed at any time. It's not intended for real use, purely
+   > testing."
+
+   So on inqbeta.dev:
+
+   - **No door.** Anyone can sign up and use every function as it's
+     developed: found a federation, connect their own Google Drive or bucket,
+     offer and hire pass-through and kept storage, run a shop, make a mint.
+   - **No real money, ever.** Every mint there is test only: going live
+     (Publish) is refused, and no payment or payout is taken or made.
+   - **Said plainly at the start**, before sign-up and as a banner after:
+     "This is Q's development site. It's for testing only, not for real use,
+     and it can be wiped at any time. No real money moves here."
+   - **Its own node services**, so the door on inqbeta.com never touches it
+     and it can be wiped on its own: a second gate with its own storage
+     folder on the same Hetzner machine (a `dev` gate), or its own node
+     later. Wiping it is a deliberate step on the node, announced on the
+     site first.
+   - Identities are already separate (passkeys belong to their domain), so
+     nothing can leak across to inqbeta.com.
 
 ## Build order
 
@@ -52,14 +79,50 @@ it doesn't use any real resources.
 3. The browser: an "Opening soon" screen after sign-in for anyone not let in.
 4. Localhost: give or take back a tester pass (Settings → the host), then
    publish the list.
-5. The playground: a `play` mode switched on by the inqbeta.dev hostname.
-   Calls go to in-browser stand-ins. Add the banner and Start again.
+5. The development site: the notice at the start and the banner; Publish
+   refused (test mints only) when the site is the development site; a `dev`
+   gate on the node with its own storage, and inqbeta.dev pointed at it;
+   wiping written up as node steps.
 6. Prove it in the test rig: Darren is let in, Tess is refused, then let in
-   with a pass, then refused once it's revoked. On .dev, everything works and
-   nothing reaches a server.
+   with a pass, then refused once it's revoked. On the development site,
+   Tess can do everything, and Publish is refused.
 
 ## Open questions
 
-- Where the published pass list lives: next to `incubator.json` (a redeploy for
-  each change) or on the gate (no redeploy). The gate is likelier to be right.
-- How strict the playground limits are.
+- ~~Where the published pass list lives~~ **Settled 5 October: on the gate**
+  (the Incubator's own storage), published at `GET /door`, read by the mint
+  too. Darren: "we can always change".
+- ~~How strict the playground limits are~~ No longer needed: the
+  development site uses real (test) services, with the node's usual
+  allowances.
+
+## As built (5 October 2026)
+
+**Step 1, the rule (q-core `door.ts`, 8 tests):** `isLetIn(did, { root,
+host, mode, links, passes, now })` gives `{ in: true, as: 'open' | 'root' |
+'linked' | 'pass' }` or `{ in: false, says }`. `givePass` and `takePass` make
+`inqbeta.tester-pass/1` receipts signed by the root (30 days unless said);
+`passList` keeps the newest per holder and ignores anything not signed by the
+root, for another host, or altered. `OPENING_SOON` is the sentence.
+
+**Step 2, the gate (`node/gate/server.mjs`, tested against q-core):**
+
+- `GET /door`: whether there's a door, whether it's open, the root, the host,
+  and the list (passes and links). `POST /door`: the root adds a pass, a
+  pass taken back, or a key link; anything not signed by the root is refused.
+  Kept in the filer at `/door/door.json`, read through a 30-second cache.
+- **Acting is checked** on: leaving a drop, posting to an inbox, filing in a
+  mint's ledger, listing or buying in a shop, and hiring kept storage. Each
+  refusal is a 403 with the sentence and `door: 'closed'`. Reading stays open.
+  The node's own mints always pass.
+- **Switched by settings in the node's `.env`:** `GATE_DOOR_ROOT` (unset
+  means no door, so the gate behaves as before), `GATE_DOOR_HOST`, and
+  `GATE_DOOR=open` once the host is live.
+- **Not yet:** the relay is reached by a space key, not a DID, so it isn't
+  checked; it's only reached through a hire, which is. The bellboy and
+  `/api/notifications` are next (see `q/door-brief.md`), with the mint on
+  Vercel, the Opening soon screen and Tester passes on localhost.
+
+**Don't switch the door on yet** on the Hetzner gate. inqbeta.dev uses the
+same gate today, so the door would lock the development site too. It goes on
+once the `dev` gate exists (step 5).

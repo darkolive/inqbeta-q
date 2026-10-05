@@ -66,7 +66,18 @@ decision, and why it comes before Offices, is in that handover under
   so it mostly vanishes, but it should either check a signed request or be
   removed in favour of the bell.
 
-## Questions to settle first (ask Darren, briefly)
+## Settled (Darren, 5 October)
+
+**Later that evening:** the playground became the development site (see
+step 7), so the playground limits no longer apply.
+
+He agreed all four recommendations: the pass list lives on the Incubator's
+own storage (the gate), "whatever it ends up using; we can always change";
+reading stays open and acting needs to be let in; passes last 30 days by
+default, named only on localhost; the playground has 1,000 play credits and
+20 MB.
+
+## The questions as they were asked
 
 1. **Where the pass list lives.** The ADR leans to the gate (no redeploy for
    each change). The mint runs on Vercel, not the node, so it must read the
@@ -104,10 +115,24 @@ decision, and why it comes before Offices, is in that handover under
    the lock is on the servers.
 6. **Localhost**: Settings → the host → **Tester passes**: give a pass (DID,
    end date), take one back, see who holds one, publish the list to the gate.
-7. **The playground** (`play` mode on the inqbeta.dev hostname): the mint,
-   store, join and shop calls go to in-browser stand-ins; a banner says
-   "Play: nothing here is real"; **Start again** clears it. New localStorage
-   keys go in `q-core/src/storage.ts`.
+7. **The development site** (revised 5 October, evening; ADR-Q-034 §5):
+   not a simulation. Everything works on inqbeta.dev (federations, your own
+   Drive or bucket, pass-through, kept storage, shops, mints), with test
+   money only: Publish is refused there. There's a plain notice at the start
+   and a banner: "development site, testing only, can be wiped at any time,
+   no real money". It gets its own `dev` gate on the node, so the door on
+   inqbeta.com never locks it.
+
+## Progress
+
+- ✅ Step 1: q-core `door.ts`, 8 tests.
+- ✅ Step 2: the gate's door (`GET`/`POST /door`, checked on drops, inboxes,
+  ledgers, shops and storage hires), tested against q-core. **Not switched
+  on yet**: the Hetzner gate also serves inqbeta.dev, so it waits for the
+  `dev` gate.
+- Next: the mint on Vercel (step 3), the bellboy check (step 4), Opening soon
+  (step 5), Tester passes on localhost (step 6), the development site
+  (step 7).
 
 ## Before building: the checks (audit A5–A7)
 

@@ -102,6 +102,112 @@ export async function signedReceipt(r) {
 }
 
 /*
+ * ---- The door (ADR-Q-034) ----
+ * While the host is in test, only its founder's root, keys linked to that
+ * root, and people the root has given a tester pass may act here. Reading
+ * stays open. The list of passes and links is kept here, posted by the root
+ * from localhost (POST /door) and read by anyone (GET /door), the mint too.
+ * The same rules as q-core's door.ts, written again here as the gate is
+ * plain JavaScript (as with signedReceipt above).
+ *
+ *   GATE_DOOR_ROOT  the founder's root did:key. Unset: there is no door.
+ *   GATE_DOOR_HOST  the host's federation DID, named on every pass.
+ *   GATE_DOOR=open  the host is live: everyone may act.
+ */
+export const OPENING_SOON = 'This site is opening soon. Ask its founder for a tester pass.';
+const TESTER_PASS = 'inqbeta.tester-pass/1';
+const KEY_LINK = 'https://schemas.inqbeta.local/identity/KeyLink.json';
+const DOOR = { root: (process.env.GATE_DOOR_ROOT ?? '').trim(), host: (process.env.GATE_DOOR_HOST ?? '').trim(), open: (process.env.GATE_DOOR ?? '').trim() === 'open' };
+const DOOR_PATH = `${FILER}/door/door.json`;
+const DOOR_MOST = 500;
+async function sigHolds(did, doc, signature) {
+	try {
+		const key = await crypto.subtle.importKey('raw', publicKeyFrom(did), { name: 'Ed25519' }, false, ['verify']);
+		return await crypto.subtle.verify({ name: 'Ed25519' }, key, unb64url(signature), new TextEncoder().encode(canonical(doc)));
+	} catch {
+		return false;
+	}
+}
+/** A key link (links.ts), checked offline: the root's signature always; the key's own for a link. */
+export async function linkHolds(l, root) {
+	if (!l || l.schema !== KEY_LINK || l.root !== root || !Array.isArray(l.signatures)) return false;
+	const { schema, event, root: r, key, label, origin, at } = l;
+	const st = { schema, event, root: r, key, label, origin, at };
+	const rootSig = l.signatures.find((x) => x.by === 'root');
+	if (!rootSig || rootSig.did !== root || !(await sigHolds(root, st, rootSig.signature))) return false;
+	if (event === 'identity.unlinked') return true;
+	const keySig = l.signatures.find((x) => x.by === 'key');
+	return event === 'identity.linked' && !!keySig && keySig.did === key && (await sigHolds(key, st, keySig.signature));
+}
+const isPass = (r, door) => r?.content?.schema === TESTER_PASS && r.content.host === door.host && typeof r.content.holder === 'string' && (r.content.event === 'pass.given' || r.content.event === 'pass.taken');
+/** Whether an item may go on the door's list: a pass or a link, signed by the root. */
+export async function doorItemOk(x, door = DOOR) {
+	if (!door.root) return false;
+	if (x?.schema === KEY_LINK) return linkHolds(x, door.root);
+	return isPass(x, door) && x.did === door.root && (await signedReceipt(x));
+}
+/** May `did` act? Null if so; otherwise the one sentence to say. */
+export async function letIn(did, items, door = DOOR, now = Date.now()) {
+	if (!door.root || door.open) return null;
+	if (typeof did !== 'string' || !did.startsWith('did:key:')) return OPENING_SOON;
+	if (did === door.root) return null;
+	let linked = null;
+	let unlinked = null;
+	let pass = null;
+	for (const x of items ?? []) {
+		if (x?.schema === KEY_LINK) {
+			if (x.key !== did || !(await linkHolds(x, door.root))) continue;
+			if (x.event === 'identity.linked') linked = linked && linked < x.at ? linked : x.at;
+			else unlinked = unlinked && unlinked < x.at ? unlinked : x.at;
+		} else if (isPass(x, door) && x.content.holder === did && x.did === door.root && (await signedReceipt(x))) {
+			if (!pass || x.content.at > pass.at) pass = x.content;
+		}
+	}
+	const at = new Date(now).toISOString();
+	if (linked && !(unlinked && unlinked <= at)) return null;
+	if (pass?.event === 'pass.given' && pass.until && Date.parse(pass.until) > now) return null;
+	return OPENING_SOON;
+}
+let doorCache = null;
+async function doorItems() {
+	if (doorCache && Date.now() - doorCache.at < 30_000) return doorCache.items;
+	const r = await fetch(DOOR_PATH).catch(() => null);
+	const held = r?.ok ? await r.json().catch(() => null) : null;
+	doorCache = { at: Date.now(), items: Array.isArray(held?.items) ? held.items : [] };
+	return doorCache.items;
+}
+/** The door's answer for whoever signed this request. The node's own mints always pass. */
+async function doorSays(did) {
+	if (!DOOR.root || DOOR.open || MINTS.has(did)) return null;
+	return letIn(did, await doorItems());
+}
+let doorQueue = Promise.resolve();
+async function door(req, res, origin) {
+	if (req.method === 'GET') return send(res, origin, 200, { schema: 'inqbeta.door/1', on: !!DOOR.root, open: !DOOR.root || DOOR.open, root: DOOR.root || null, host: DOOR.host || null, items: DOOR.root ? await doorItems() : [] });
+	if (req.method !== 'POST') return send(res, origin, 405, { says: 'Only GET and POST.' });
+	if (!DOOR.root) return send(res, origin, 404, { says: 'This node has no door.' });
+	const raw = await readBody(req, LEDGER_BYTES);
+	let item = null;
+	try { item = JSON.parse(raw ?? ''); } catch { item = null; }
+	if (!(await doorItemOk(item))) return send(res, origin, 403, { says: 'Only a pass or a link signed by the founder goes on the door.' });
+	const run = doorQueue.then(async () => {
+		const r = await fetch(DOOR_PATH).catch(() => null);
+		const held = r?.ok ? await r.json().catch(() => null) : null;
+		const items = Array.isArray(held?.items) ? held.items : [];
+		const sig = (x) => x.signature ?? x.signatures?.map((s) => s.signature).join('.');
+		if (!items.some((x) => sig(x) === sig(item))) items.push(item);
+		const form = new FormData();
+		form.append('file', new Blob([JSON.stringify({ items: items.slice(-DOOR_MOST) })], { type: 'application/json' }), 'door.json');
+		const kept = await fetch(DOOR_PATH, { method: 'POST', body: form }).catch((e) => ({ ok: false, status: e.message }));
+		doorCache = null;
+		return kept.ok ? { status: 200, body: { ok: true, items: items.length } } : { status: 502, body: { says: `Couldn’t keep it: ${kept.status}` } };
+	});
+	doorQueue = run.catch(() => {});
+	const { status, body } = await run.catch((e) => ({ status: 500, body: { says: e.message } }));
+	return send(res, origin, status, body);
+}
+
+/*
  * A drop: a card (or later a message) shared by link. The gate can't read it
  * — it's locked with a key that lives only in the link's #fragment, which no
  * server ever sees — so all it checks is that someone signed for it, that it's
@@ -308,6 +414,8 @@ async function ledgers(req, res, origin, mint, mode) {
 	const known = new Set((await ledgerList(mint, mode)).map((x) => x?.content?.agreement).filter(Boolean));
 	const wrong = await checkLedgerEntry(body, mint, mode, known);
 	if (wrong) return send(res, origin, 403, { says: wrong });
+	const shut = await doorSays(body.did);
+	if (shut) return send(res, origin, 403, { says: shut, door: 'closed' });
 	const name = String(body.contentHash ?? '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64);
 	if (!name) return send(res, origin, 400, { says: 'It has no content hash.' });
 	const form = new FormData();
@@ -396,6 +504,8 @@ async function shops(req, res, origin, did) {
 	if (raw === null) return send(res, origin, 413, { says: 'Too big.' });
 	let body;
 	try { body = JSON.parse(raw); } catch { return send(res, origin, 400, { says: 'That isn’t JSON.' }); }
+	const shut = await doorSays((body?.receipt ?? body)?.did);
+	if (shut) return send(res, origin, 403, { says: shut, door: 'closed' });
 	/* One at a time per shop: two buyers of the last jar can't both have it. */
 	const prev = shopQueue.get(did) ?? Promise.resolve();
 	const run = prev.then(async () => {
@@ -739,6 +849,8 @@ async function stores(req, res, origin, id, rest) {
 		try { body = JSON.parse(raw ?? ''); } catch { body = null; }
 		const out = await checkStoreHire(body, id, me, shopHeld);
 		if (out.says) return send(res, origin, 403, { says: out.says });
+		const shut = await doorSays(out.hire.did);
+		if (shut) return send(res, origin, 403, { says: shut, door: 'closed' });
 		const answer = await inStoreQueue(id, async () => {
 			const index = await storeIndex(id);
 			if (!index.hires.some((h) => h.agreement === out.hire.agreement)) index.hires.push(out.hire);
@@ -810,6 +922,8 @@ async function inboxes(req, res, origin, id, item) {
 		try { body = JSON.parse(raw); } catch { return send(res, origin, 400, { says: 'That isn’t JSON.' }); }
 		const wrong = await checkPost(body, id);
 		if (wrong) return send(res, origin, 403, { says: wrong });
+		const shut = await doorSays(body.did);
+		if (shut) return send(res, origin, 403, { says: shut, door: 'closed' });
 		if ((await inboxHeld(id)) + raw.length > TERMS.inboxHoldsBytes)
 			return send(res, origin, 507, { says: 'Their inbox is full just now. It empties as they collect what’s waiting, so try again later.', full: 'inbox' });
 		if (!fitsToday(body.did, raw.length))
@@ -900,6 +1014,8 @@ async function drops(req, res, origin, id) {
 	try { body = JSON.parse(raw); } catch { return send(res, origin, 400, { says: 'That isn’t JSON.' }); }
 	const wrong = await checkDrop(body);
 	if (wrong) return send(res, origin, 403, { says: wrong });
+	const shut = await doorSays(body.did);
+	if (shut) return send(res, origin, 403, { says: shut, door: 'closed' });
 	/* Named by what it holds, so the same drop twice is one file. */
 	const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(body.content.box.ct)));
 	const newId = Buffer.from(digest.slice(0, 16)).toString('base64url');
@@ -964,6 +1080,7 @@ export const server = http.createServer(async (req, res) => {
 	if (req.method === 'GET' && new URL(req.url, 'http://gate').pathname === '/terms') return send(res, origin, 200, TERMS);
 	const m = ROUTE.exec(decodeURIComponent(new URL(req.url, 'http://gate').pathname));
 	if (req.method === 'OPTIONS') return send(res, origin, 204);
+	if (new URL(req.url, 'http://gate').pathname === '/door') return door(req, res, origin);
 	const d = DROP.exec(new URL(req.url, 'http://gate').pathname);
 	if (d) return drops(req, res, origin, d[1]);
 	const ib = INBOX.exec(new URL(req.url, 'http://gate').pathname);
