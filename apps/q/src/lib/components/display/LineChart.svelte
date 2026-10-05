@@ -14,6 +14,8 @@
 		dotted?: boolean;
 		/** False: no line of its own; it's seen only as the edge of a band. */
 		line?: boolean;
+		/** What it shows in words (tooltip, table), when that isn't its height: a band's own size, say. */
+		amount?: (values: Record<string, number>) => number;
 		/** Draw the line only from this point on (it shades and reads as usual before), e.g. where it parts from another. */
 		from?: number;
 		/** A short sign shown with the label, e.g. ↓ or ↑. */
@@ -378,7 +380,9 @@
 		active = to;
 	}
 	const shown = $derived(points[active ?? -1] ?? null);
-	const says = (p: Point) => `${p.note ? `${p.note}. ` : ''}${whenLong(p.at)}: ${series.map((s) => `${s.label} ${format(p.values[s.key] ?? 0)}`).join(', ')}.`;
+	/* What a series shows in words: its own amount when it has one, else its height. */
+	const amountOf = (s: Series, values: Record<string, number>) => (s.amount ? s.amount(values) : (values[s.key] ?? 0));
+	const says = (p: Point) => `${p.note ? `${p.note}. ` : ''}${whenLong(p.at)}: ${series.map((s) => `${s.label} ${format(amountOf(s, p.values))}`).join(', ')}.`;
 </script>
 
 <figure class="card preset-outlined-surface-200-800 bg-surface-50-950 p-3 sm:p-4 flex flex-col gap-3">
@@ -453,7 +457,7 @@
 			<!-- the point being looked at -->
 			{#if active !== null && shown}
 				<line x1={x(active)} y1={T} x2={x(active)} y2={y(range.lo)} class="stroke-surface-500" stroke-width="2" stroke-dasharray="3 4" />
-				{#each series as s (s.key)}
+				{#each series.filter((s) => s.line !== false) as s (s.key)}
 					<circle cx={x(active)} cy={y(onLine(s.key, x(active)))} r="7" class="{FILL[s.tone]} stroke-surface-50-950" stroke-width="3" />
 				{/each}
 			{/if}
@@ -467,7 +471,7 @@
 				{#if shown.note}<p class="font-semibold">{shown.note}</p>{/if}
 				<p class="text-xs text-surface-700-300">{whenLong(shown.at)}</p>
 				{#each series as s (s.key)}
-					<p class="flex items-center gap-2"><span class="inline-block w-3 h-3 rounded-full {BG[s.tone]}"></span><span class="flex-1">{s.label}</span><strong class="tabular-nums">{format(shown.values[s.key] ?? 0)}</strong></p>
+					<p class="flex items-center gap-2"><span class="inline-block w-3 h-3 rounded-full {BG[s.tone]}"></span><span class="flex-1">{s.label}</span><strong class="tabular-nums">{format(amountOf(s, shown.values))}</strong></p>
 				{/each}
 			</div>
 		{/if}
@@ -486,7 +490,7 @@
 			<thead><tr><th>When</th><th>What</th>{#each series as s (s.key)}<th class="text-right">{s.label}</th>{/each}</tr></thead>
 			<tbody>
 				{#each points as p, i (i)}
-					<tr><td>{whenLong(p.at)}</td><td>{p.note ?? ''}</td>{#each series as s (s.key)}<td class="text-right tabular-nums">{format(p.values[s.key] ?? 0)}</td>{/each}</tr>
+					<tr><td>{whenLong(p.at)}</td><td>{p.note ?? ''}</td>{#each series as s (s.key)}<td class="text-right tabular-nums">{format(amountOf(s, p.values))}</td>{/each}</tr>
 				{/each}
 			</tbody>
 		</table>

@@ -78,7 +78,7 @@
 	const SERIES: Series[] = [
 		{ key: 'in', label: 'Received', tone: 'primary' },
 		{ key: 'out', label: 'Spent', tone: 'error' },
-		{ key: 'promised', label: 'Spent + committed', tone: 'warning', line: false }
+		{ key: 'promised', label: 'Committed', tone: 'warning', line: false, amount: (v) => (v.promised ?? 0) - (v.out ?? 0) }
 	];
 	const BANDS: Band[] = [
 		{ a: 'in', b: 'promised', tones: ['primary', 'error'] },
@@ -281,6 +281,6 @@
 			</div>
 		{/snippet}
 		{@render list()}
-		<LineChart series={SERIES} {points} start={span.start.toISOString()} end={span.end.toISOString()} smooth={0.018} zoom={{ below: 0.2, above: 0.15 }} plain {ticks} format={count} bands={BANDS} says={summary} saysTone={tone} label="Credits received, credits spent, and spent plus committed, added up over time" />
+		<LineChart series={SERIES} {points} start={span.start.toISOString()} end={span.end.toISOString()} smooth={0.018} zoom={{ below: 0.2, above: 0.15 }} plain {ticks} format={count} bands={BANDS} says={summary} saysTone={tone} label="Credits received and credits spent, added up over time, with what’s committed as a band above spent" />
 	</div>
 {/if}
