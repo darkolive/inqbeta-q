@@ -28,6 +28,15 @@
 export const OPEN_PATHS = ['/', '/data', '/user', '/contact', '/legal', '/docs', '/link', '/setup'];
 
 /** Pages anyone may read, shown with a plain header and the footer rather than the dashboard. */
+/**
+ * A receipt page (5 October 2026): a coin's check (/verify/) or a sealed
+ * receipt's location (/c/). Shown on its own — no header, no search, no
+ * footer — whoever opens it and whatever host it's on.
+ */
+export function isReceiptPage(path: string): boolean {
+	return path.startsWith('/verify/') || path.startsWith('/c/');
+}
+
 export function isPublicPage(path: string): boolean {
 	return path === '/setup' || path === '/contact' || path === '/docs' || path === '/legal' || path.startsWith('/legal/') || path === '/link' || path.startsWith('/card/') || path.startsWith('/verify/');
 }

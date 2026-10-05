@@ -13,7 +13,7 @@
 	 * not, this says so instead of failing blankly.
 	 */
 	import { Page, Section, Item, Status, Empty } from '@inqbeta/q-ui';
-	import SignIn from '$lib/components/SignIn.svelte';
+	import Thumbprint from '$lib/components/Thumbprint.svelte';
 	import { watch, type Identity } from '@inqbeta/q-core/passkey';
 	import { openWith } from '@inqbeta/q-core/seal';
 	import { confirmClaim, saveChannel, type ClaimView } from '$lib/channels';
@@ -68,17 +68,13 @@
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
+{#if !identity && !data.gone}
+	<!-- Sealed, and no passkey here yet: only the thumbprint (5 October 2026). -->
+	<Thumbprint />
+{:else}
 <Page title="A receipt for you" lead="Someone asked Q to add an address to their identity. This is what they left.">
 	{#if data.gone}
 		<Empty icon="lock" title="Nothing here" description={data.says} />
-	{:else if !identity}
-		<Section title="It is sealed">
-			<p class="mb-4">
-				This receipt was sealed to one passkey and cannot be read without it. If it is
-				yours, sign in and it opens by itself.
-			</p>
-			<div class="panel"><SignIn /></div>
-		</Section>
 	{:else if !forMe}
 		<Section title="Not this passkey">
 			<Item icon="lock" title="Sealed to someone else" subtitle={data.did}>
@@ -123,3 +119,4 @@
 		<p class="mt-4 text-warning-700-300" aria-live="polite">{says}</p>
 	{/if}
 </Page>
+{/if}

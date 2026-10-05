@@ -24,7 +24,7 @@
 	import BetaBadge from '$lib/components/BetaBadge.svelte';
 	import TestSiteNote from '$lib/components/TestSiteNote.svelte';
 	import SiteFooter from '$lib/components/SiteFooter.svelte';
-	import { isPublicPage } from '$lib/guard';
+	import { isPublicPage, isReceiptPage } from '$lib/guard';
 	import SearchBar from '$lib/components/SearchBar.svelte';
 	import SideNav from '$lib/components/SideNav.svelte';
 	import LanguageMenu from '$lib/components/LanguageMenu.svelte';
@@ -615,6 +615,10 @@
 	<meta name="robots" content="noindex" />
 </svelte:head>
 
+{#if isReceiptPage(page.url.pathname)}
+	<!-- A receipt, on its own (5 October 2026): just the receipt, nothing else around it. -->
+	<main class="mx-auto max-w-3xl px-4 py-8 sm:py-12">{@render children()}</main>
+{:else}
 <TestSiteNote />
 
 {#if !identity && !known && page.url.pathname === '/'}
@@ -939,4 +943,5 @@
 		{/each}
 	</Navigation.Menu>
 </Navigation>
+{/if}
 {/if}

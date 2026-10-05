@@ -70,6 +70,8 @@
 						<div><dt class="opacity-70">Federation</dt><dd class="role-token break-all" title={bank.federation}>{short(bank.federation)}</dd></div>
 						<div><dt class="opacity-70">Founded by</dt><dd class="role-token break-all" title={bank.founder}>{short(bank.founder)}</dd></div>
 					</dl>
+					<!-- Visit it, and join if you'd like to take part. -->
+					<a class="btn preset-filled-primary-500 min-h-11 self-start mt-2" href={bank.joinHref}>Visit {bank.name}</a>
 				</div>
 			</Section>
 		{/if}
