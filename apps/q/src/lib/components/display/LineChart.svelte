@@ -162,14 +162,41 @@
 		const mx = Math.max(...vs);
 		/* A share chart's view: a fraction below the lowest, a fraction above the highest. */
 		if (typeof zoom === 'object') {
-			const lo = Math.max(0, Math.floor(mn * (1 - zoom.below)));
-			const hi = Math.ceil(mx * (1 + zoom.above));
-			return hi > lo ? { lo, hi } : { lo: Math.max(0, lo - 1), hi: lo + 1 };
+			let lo = Math.max(0, mn * (1 - zoom.below));
+			let hi = mx * (1 + zoom.above);
+			/*
+			 * Keep heights honest (5 October 2026: committed at 55 beside
+			 * received at 450 looked nothing like a ninth): when the lowest line
+			 * is near nought anyway, start at nought, so twice as high is twice as
+			 * much. Zoom in only when every line is well above it.
+			 */
+			if (lo < hi * 0.35) lo = 0;
+			if (!(hi > lo)) hi = lo + 1;
+			/* Round both to the gridlines' step, so every gridline is a round number. */
+			const step = niceStep((hi - lo) / 4);
+			lo = Math.floor(lo / step) * step;
+			hi = Math.ceil(hi / step) * step;
+			return { lo, hi, step };
 		}
 		const pad = Math.max((mx - mn) * 0.08, 1);
 		return { lo: Math.max(0, Math.floor(mn - pad)), hi: Math.ceil(mx + pad) };
 	});
 	const y = (v: number) => T + (1 - (v - range.lo) / (range.hi - range.lo)) * (H - T - B);
+	/* A round step for gridlines: 1, 2 or 5 times a power of ten. */
+	function niceStep(n: number) {
+		if (!(n > 0)) return 1;
+		const p = 10 ** Math.floor(Math.log10(n));
+		for (const m of [1, 2, 5, 10]) if (m * p >= n) return m * p;
+		return 10 * p;
+	}
+	/* The gridlines between the bottom and the top, each labelled, so the height reads as a scale. */
+	const grid = $derived.by(() => {
+		const step = 'step' in range ? (range.step as number) : 0;
+		if (!step) return [];
+		const out: number[] = [];
+		for (let v = range.lo + step; v < range.hi - step / 2; v += step) out.push(v);
+		return out;
+	});
 
 	/*
 	 * A growth line (5 October 2026, Darren: "it's a growth chart … it's going
@@ -370,7 +397,11 @@
 			onkeydown={key}
 			onblur={() => (active = null)}
 		>
-			<!-- the bottom and the top, nothing in between to count -->
+			<!-- the bottom and the top, and round gridlines between when zoomed -->
+			{#each grid as g (g)}
+				<line x1={L} y1={y(g)} x2={W - R} y2={y(g)} class="stroke-surface-200-800" stroke-width="1" stroke-dasharray="2 6" />
+				<text x={L - 8} y={y(g) + 4} text-anchor="end" class="fill-surface-700-300 text-xs tabular-nums">{format(g)}</text>
+			{/each}
 			<line x1={L} y1={y(range.lo)} x2={W - R} y2={y(range.lo)} class="stroke-surface-400-600" stroke-width="2" />
 			<line x1={L} y1={y(range.hi)} x2={W - R} y2={y(range.hi)} class="stroke-surface-200-800" stroke-width="1" stroke-dasharray="4 6" />
 			<text x={L - 8} y={y(range.hi) + 4} text-anchor="end" class="fill-surface-700-300 text-xs tabular-nums">{format(range.hi)}</text>
