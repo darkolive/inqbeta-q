@@ -62,6 +62,18 @@ First run, on a local copy: 73 lists, 8 problems found — the legal pages' and
 footer's links under 44 pixels, empty tab titles on Setup, Attest and Google
 channels, the story Play button, and the Files page's sign-in button.
 
+**Pages that need you signed in.** Signed out, a page that isn't open sends
+you to the sign-in (`lib/guard.ts`). The runner notices: it passes "works
+signed out" and leaves that page's other checks for a person, saying why, so
+it never reports the sign-in page's results as the page's own.
+
+**Written tests** (`apps/q/scripts/page-tests.mts`): a page's own "AI can
+check" items, each a few lines that read what a person sees (words, buttons
+by name, where a link goes). 44 run today, all on pages anyone can open: the
+front door's sign-in, the story players, the legal pages, Docs, Contact, the
+directory, search links, the join and attest links. A check with no written
+test stays "not checked"; add one there to cover it.
+
 ## Changing a checklist
 
 Edit `checklists.json`. The list's version changes with any check, so reports
