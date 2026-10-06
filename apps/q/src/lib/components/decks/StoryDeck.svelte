@@ -383,7 +383,7 @@
 
 		<!-- The timeline: drag to skim, a tenth of a second at a time; a marker per scene. -->
 		<div class="flex items-center gap-3">
-			<button type="button" class="btn-icon preset-filled-primary-500 shrink-0" aria-label={playing ? 'Pause' : t >= total - 0.05 ? 'Play again' : 'Play'} onclick={toggle}>
+			<button type="button" class="btn-icon min-h-11 min-w-11 preset-filled-primary-500 shrink-0" aria-label={playing ? 'Pause' : t >= total - 0.05 ? 'Play again' : 'Play'} onclick={toggle}>
 				<Icon name={playing ? 'pause' : t >= total - 0.05 ? 'replay' : 'play'} size={20} stroke={2.5} />
 			</button>
 			<Slider

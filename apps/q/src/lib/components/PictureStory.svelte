@@ -132,18 +132,18 @@
 
 	<!-- Controls: back, play or pause (play again at the end), forward, and one dot per scene. -->
 	<div class="flex items-center justify-center gap-3">
-		<button type="button" class="btn-icon preset-tonal" aria-label={t('story.prev')} disabled={scene === 1} onclick={() => go(scene - 1)}>
+		<button type="button" class="btn-icon min-h-11 min-w-11 preset-tonal" aria-label={t('story.prev')} disabled={scene === 1} onclick={() => go(scene - 1)}>
 			<Icon name="chevronLeft" size={20} stroke={2.5} />
 		</button>
 		<button
 			type="button"
-			class="btn-icon preset-filled-primary-500"
+			class="btn-icon min-h-11 min-w-11 preset-filled-primary-500"
 			aria-label={playing ? t('story.pause') : scene === SCENES ? t('story.replay') : t('story.play')}
 			onclick={toggle}
 		>
 			<Icon name={playing ? 'pause' : scene === SCENES ? 'replay' : 'play'} size={20} stroke={2.5} />
 		</button>
-		<button type="button" class="btn-icon preset-tonal" aria-label={t('story.next')} disabled={scene === SCENES} onclick={() => go(scene + 1)}>
+		<button type="button" class="btn-icon min-h-11 min-w-11 preset-tonal" aria-label={t('story.next')} disabled={scene === SCENES} onclick={() => go(scene + 1)}>
 			<Icon name="chevronRight" size={20} stroke={2.5} />
 		</button>
 		<div class="flex items-center ms-1">
@@ -151,7 +151,7 @@
 				<!-- A small dot, a finger-sized target. -->
 				<button
 					type="button"
-					class="p-2 rounded-full cursor-pointer"
+					class="h-11 w-7 flex items-center justify-center rounded-full cursor-pointer"
 					aria-label={t('story.step').replace('{n}', String(n)).replace('{total}', String(SCENES))}
 					aria-current={n === scene ? 'step' : undefined}
 					onclick={() => go(n)}

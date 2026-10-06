@@ -77,7 +77,7 @@
 								<span class="text-sm opacity-60 shrink-0">{time(a.at)}</span>
 							</a>
 							{#if receiptOf(a.id)}
-								<button type="button" class="btn-icon preset-tonal mx-2 shrink-0" aria-label="See the receipt" title="See the receipt" onclick={() => view(receiptOf(a.id)!)}>
+								<button type="button" class="btn-icon min-h-11 min-w-11 preset-tonal mx-2 shrink-0" aria-label="See the receipt" title="See the receipt" onclick={() => view(receiptOf(a.id)!)}>
 									<Icon name="search" size={18} />
 								</button>
 							{/if}

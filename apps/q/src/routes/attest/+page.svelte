@@ -86,6 +86,8 @@
 	}
 </script>
 
+<svelte:head><title>{packet && isExternalVerification(packet) ? 'An external verification' : 'An evidence report'} — Q</title></svelte:head>
+
 <Page title={packet && isExternalVerification(packet) ? 'An external verification' : 'An evidence report'} lead="Everything here is checked on this device. Nothing about it was sent to a server.">
 	{#if unreadable}
 		<Empty icon="receipts" title="This link can’t be read" description="It may have been cut short when it was copied. Ask for it again." />

@@ -75,6 +75,8 @@
 	});
 </script>
 
+<svelte:head><title>Google Drive — Q</title></svelte:head>
+
 <Page title="Google Drive" lead="A storage channel: it carries locked files. It never signs you in to Q.">
 	<p class={stage === 'failed' ? 'text-error-600-400' : ''} role="status" aria-live="polite">{says}</p>
 	{#if stage === 'waiting' && !handedBack && (!identity || !ready)}

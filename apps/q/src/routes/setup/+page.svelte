@@ -44,6 +44,8 @@
 	const needsChoice = $derived(!!host?.file?.holds && !host.mark);
 </script>
 
+<svelte:head><title>Set up your host — Q</title></svelte:head>
+
 <Page title="Set up your host" lead="A few cards, one question each. When you’re done, your host is founded and ready to go live.">
 	{#if !dev}
 		<p class="card preset-tonal-surface p-4">Setting up a host happens on your own computer, in your copy of Q. This live site is already set up.</p>

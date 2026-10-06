@@ -66,7 +66,8 @@ async function look(page: Page, url: string, width: number, frame = false) {
 		const inFrame = (e: Element) => !!e.closest('header, nav, footer, aside') || !e.closest('main');
 		const small = [...document.querySelectorAll('button, a.btn, [role="button"], nav a, footer a')]
 			.filter(visible)
-			.filter((e) => e.getBoundingClientRect().height > 2 && !e.matches('a[href^="#"]') && inFrame(e) === frame)
+			/* Skip links, and links inside a sentence (they size with the text, as WCAG allows), don't count. */
+			.filter((e) => e.getBoundingClientRect().height > 2 && !e.matches('a[href^="#"]') && !(e.matches('a:not(.btn)') && !!e.closest('p')) && inFrame(e) === frame)
 			.filter((e) => e.getBoundingClientRect().height < 43.5)
 			.map((e) => (e.textContent || e.getAttribute('aria-label') || e.tagName).trim().slice(0, 40));
 		return {

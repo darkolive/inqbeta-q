@@ -94,7 +94,7 @@
 		<div class="flex-1 bg-surface-50-950 border-t border-surface-200-800 shadow-2xl overflow-hidden flex flex-col" transition:fly={{ y: -20, duration: 200 }}>
 			<!-- Close button -->
 			<div class="flex justify-end p-4">
-				<button onclick={close} aria-label="Close search" class="btn-icon hover:preset-tonal">
+				<button onclick={close} aria-label="Close search" class="btn-icon min-h-11 min-w-11 hover:preset-tonal">
 					<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="h-5 w-5" aria-hidden="true">
 						<path d="M18 6L6 18M6 6l12 12"/>
 					</svg>

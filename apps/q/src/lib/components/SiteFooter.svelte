@@ -26,18 +26,18 @@
 		<ShareLinks />
 		<nav aria-label={t('footer.label')} class="space-y-3">
 			<h2 class="h6"><QText text={t('footer.label')} /></h2>
-			<ul class="grid grid-cols-2 gap-x-6 gap-y-2 text-sm">
+			<ul class="grid grid-cols-2 gap-x-6 text-sm">
 				{#each LINKS as l (l.href)}
-					<li><a class="anchor" href={l.href}><QText text={t(l.key)} /></a></li>
+					<li><a class="anchor inline-flex items-center min-h-11" href={l.href}><QText text={t(l.key)} /></a></li>
 				{/each}
 				<li>
-					<a class="anchor inline-flex items-center gap-1.5" href={REPO} rel="noopener" target="_blank">
+					<a class="anchor inline-flex items-center gap-1.5 min-h-11" href={REPO} rel="noopener" target="_blank">
 						<FaIcon name="github" /><span>{t('footer.source')}</span>
 					</a>
 				</li>
 				{#if SPONSORS_URL}
 					<li>
-						<a class="anchor inline-flex items-center gap-1.5" href={SPONSORS_URL} rel="noopener" target="_blank">
+						<a class="anchor inline-flex items-center gap-1.5 min-h-11" href={SPONSORS_URL} rel="noopener" target="_blank">
 							<FaIcon name="github" /><span>{t('support.sponsor')}</span>
 						</a>
 					</li>

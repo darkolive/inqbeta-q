@@ -296,7 +296,7 @@
 				{/if}
 			</p>
 			<div class="actions">
-				<button type="button" class="btn preset-filled-primary-500" onclick={() => void signIn()}>
+				<button type="button" class="btn min-h-11 preset-filled-primary-500" onclick={() => void signIn()}>
 					Sign in with my passkey
 				</button>
 			</div>

@@ -22,7 +22,7 @@
 			{#each PAGES as p (p.href)}
 				<li>
 					<a
-						class="btn btn-sm {page.url.pathname === p.href ? 'preset-filled-primary-500' : 'preset-outlined-surface-500 hover:preset-filled-secondary-50-950'}"
+						class="btn btn-sm min-h-11 {page.url.pathname === p.href ? 'preset-filled-primary-500' : 'preset-outlined-surface-500 hover:preset-filled-secondary-50-950'}"
 						href={p.href}
 						aria-current={page.url.pathname === p.href ? 'page' : undefined}>{t(p.key)}</a
 					>

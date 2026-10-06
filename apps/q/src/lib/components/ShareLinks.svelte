@@ -32,7 +32,7 @@
 		if (copied) setTimeout(() => (copied = false), 2000);
 	}
 
-	const pill = 'btn btn-sm preset-outlined-surface-500 hover:preset-filled-secondary-50-950';
+	const pill = 'btn btn-sm min-h-11 preset-outlined-surface-500 hover:preset-filled-secondary-50-950';
 </script>
 
 <div class="space-y-3">
