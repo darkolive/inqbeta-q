@@ -1,0 +1,71 @@
+---
+updated: 2026-10-06
+about: Tuesday evening handover. What one long thread built on 6 October from the morning's job sheet, what Darren needs to do, and the next jobs in order. Read first in a new thread; it follows handover-2026-10-06.md (the job sheet, still the reference for tracks).
+---
+
+# Handover — Tuesday 6 October 2026, evening
+
+## Start here
+
+1. **Commit and push** what's on disk since the last commit (D2–D5 below and
+   the docs). Use `GIT_OPTIONAL_LOCKS=0` for any git command run from a Claude
+   session: a plain `git status` there can leave `.git/index.lock` behind
+   (the session can't delete files), which blocks the next commit.
+2. **Update the node** (A3): rsync and recreate the gate. It now carries the
+   revoked list (`/revoked/<federation>`), the office post list
+   (`/offices/<federation>`) and the ledger lock (`x-ledger-tip`). Until then
+   the host's servers fall back safely: no list means nothing known to be
+   revoked, no holders means the caretaker answers, no tip means the old
+   unlocked filing.
+3. Pick the next job below; start a fresh thread with this file.
+
+## Built today (all tested; svelte-check 0 errors; build passes)
+
+| Job | What | Where |
+|---|---|---|
+| A1, I1, I2 | Housekeeping: tsc clean (decks), 7 use-before-declaration bugs fixed, svelte-check and build run in a cloud copy | `decks/index.ts`, `CreditFlowDisplay`, `balance/[mint]` |
+| B1 | The door proved over HTTP (Darren in; Tess refused, passed, in, taken back, refused); **Publish refused on the development site** (it wasn't) | `q-core/test/door-rig.test.ts`, `api/host/money` |
+| D1 | **One credit = one unit of the mint's currency** (`Q_CURRENCY`, picker on Publish); `pencePerCredit` gone | `q-core/currency.ts`, ADR-Q-027 as built |
+| C1 | **Offices**: caretaker, treasurer, secretary, chair, safeguarding lead, steward, **verifier, reviewer, compliance officer**; appointed by the caretaker as UCAN mandates with a term; stand down, recall; `office.appoint` / `office.end` in Cedar | `q-core/offices.ts`, `q-actions/core/federation-offices.ts`, federation page Members → Offices |
+| C2 | **Acting in role, checked by servers**: take-up and set-down receipts; asks carry `acting`; `actingCovers`; reconcile asks for the office | `q-core/inrole.ts`, `api/mint` |
+| — | **Taking up an office is a declaration** (no conflict, or the interest declared) under the Nolan principles, every time; a **standing interest** in the mandate must be declared | `inrole.ts`, `RoleSwitch`, ADR-Q-038 addenda |
+| — | **Endings published**: recall or stand-down → federation-signed notice on the node; servers refuse at once | `offices.ts` `revocationNotice`, gate `/revoked`, `lib/server/revoked.ts` |
+| C3 | **The coin's contact office** (`Q_COIN_CONTACT`, coin designer) | ADR-Q-037 as built |
+| — | **Evidence reports and external verification**: internal compliance writes in role; a verifier of another federation weighs it knowing the declaration | `q-core/attestation.ts`, `lib/attestation.ts`, `/attest` |
+| D2–D4 | **Drift**, the **safety valve** (cash-outs pause over 20% drift or 30 days unreconciled; Cedar too), the **cash-out lock** (gate files one at a time on the books it was decided on) | `q-core/mint.ts` `valveOf`, gate ledger, ADR-Q-027 as built |
+| C5 | **The office's post**: holders publish where its post goes; **Ask the treasurer** reaches them; office post only in role, answered as the office | `offices.ts` `officePost`, gate `/offices`, `lib/messages.ts` `askOffice`, desk |
+
+Tests: q-core 596 pass, q-actions 61 pass.
+
+**A note on names**: q-core already has `assurance.ts` (evidentiary bars, from
+September). The new compliance work is `attestation.ts`. Check a name is free
+before creating a file.
+
+## Next, in order
+
+1. **E1–E4 treaties** (ADR-Q-042): unblocked now that offices (C1) and
+   currency (D1) exist. Banking card, treaty receipts, swap-first settlement,
+   the Cedar rules.
+2. **Co-signing**: a second office holder signs the same receipt (the Money
+   block's two signatures; ADR-Q-038 §6 when an action touches the declared
+   interest or the holder's own account). It unblocks C4.
+3. **C4, the federation's account in role** (ADR-Q-038 §8): needs co-signing
+   and evidence of the decision (until the Plans block, a minuted decision
+   receipt signed in role by the secretary or chair).
+4. **F1**: write ADR-Q-043, the stimulus valve (economy-controls.md).
+5. Smaller: the office's card; post for the caretaker; the story view (a
+   receipt's history in order); I3 phone pass; I4 docs README (ADRs 010–043);
+   I5 battery bell keys into `storage.ts`.
+
+## Decisions waiting on Darren
+
+Still open from the morning's list (treaty defaults, rate sources, the valve's
+settings for economy controls, drift thresholds — now built at 10% / 20% / 30
+days, change if wanted — urgent alerts out of role, handover of open
+threads, who can open a seal). New:
+
+- Should a role **set itself down** after a while (end of day, closing the
+  tab)? Today it stays until set down or signed out.
+- **Caretaker post**: should the caretaker publish an office post too (from
+  the founding grant), so "Ask" reaches them inside Q rather than by the
+  messages link?
