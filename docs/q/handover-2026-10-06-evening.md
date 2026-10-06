@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-06
+updated: 2026-10-06 (late)
 about: Tuesday evening handover. What one long thread built on 6 October from the morning's job sheet, what Darren needs to do, and the next jobs in order. Read first in a new thread; it follows handover-2026-10-06.md (the job sheet, still the reference for tracks).
 ---
 
@@ -94,3 +94,47 @@ check `/registry` and `/core-releases`.
 
 **Next on this thread:** the manifest rules a host must meet; a host
 withdrawing a club; renewal reminders; "only its people" visibility.
+
+## Late on 6 October: live, registered, and tested
+
+**Done and live on inqbeta.com:**
+
+- The node update (HETZNER.md Step 8). `GATE_REGISTRAR` is set, and compose
+  now passes it to the gate.
+- inqbeta.com is registered with Incubator, so the chain starts at its root.
+- The registry finds Incubator's node from the home file bundled at build
+  time. Reading it from the server's disk failed on Vercel.
+- A role now lasts only as long as the sign-in. A fresh sign-in sets down a
+  role left from a lapsed one, so every sign-in declares afresh (ADR-Q-038
+  addendum). Pressing Sign out already set it down.
+- **Testing** (`docs/q/testing.md`, `q/testing.md` in the project):
+  - 73 checklists hold 688 page checks, plus 15 that every page gets and one
+    per language: 2,221 checks in all.
+  - Testers take a checklist with a signed claim, then send a signed report.
+  - The AI runner is `apps/q/scripts/run-checks.mts`.
+  - The node keeps reports at `/checks`, and only from testers.
+  - Darren's first real report (the Legal checklist) is on the node.
+
+**Ideas Darren raised, not yet worked on:**
+
+- Roles as their own contained parts of the repo. Each office (treasurer,
+  verifier, compliance and so on) could be a self-contained piece, the way a
+  plugin is.
+- The testing engine as part of the plugin builder. A plugin, or a
+  component, comes with its own checklists, so building one means writing
+  how it's tested.
+
+**Branches to hand off on their own:**
+
+- **The storyboard, for writing courses**: `q/storyboard-courses-brief.md`.
+  Give a new thread that file alone, and work on a branch
+  (`story/courses`).
+
+**Next on the main thread**, in order:
+
+1. Fix what the AI runner found: the legal pages' and footer's links under
+   44 pixels; empty tab titles on Setup, Attest and the Google channel page;
+   the story Play button; the Files page's sign-in button.
+2. Give the runner its key and a tester pass, run it against inqbeta.com, and
+   write the first page-specific AI tests.
+3. Then the job sheet: treaties E1–E4, co-signing, C4, F1 (ADR-Q-043).
