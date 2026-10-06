@@ -1,0 +1,4797 @@
+[
+	{
+		"id": "frame-shell",
+		"page": "*",
+		"title": "Q's frame: menu, top bar and footer",
+		"group": "frame",
+		"needs": "A passkey, signed in; a phone for the bottom bar; a federation office to take up for the role band.",
+		"checks": [
+			{
+				"id": "fold",
+				"says": "On a wide screen, press 'Fold to icons' and check the side menu shrinks to one icon per group; press it again and it opens out.",
+				"how": "human",
+				"area": "layout"
+			},
+			{
+				"id": "fold-remembered",
+				"says": "Fold the menu, reload, and check it stays folded.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "flyout",
+				"says": "With the menu folded, press a group icon and check its pages open out beside it with the group's name and a line on what it is for; press elsewhere or Escape and check it closes.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "groups",
+				"says": "With the menu open, press a group heading and check its pages show and hide, and stay that way after a reload.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "every-link",
+				"says": "Press every item in the menu (You, Keys, Devices, Information, Address book, Communication, Agreements, Credits, Files, Receipts, Backups, the plugins, Marketplace, Installed, Settings) and check each goes to its page and is marked as current.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "current-group",
+				"says": "On a page reached another way (for example /questions or /messages), check its menu item and group are still marked as current.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "plugins-off",
+				"says": "Switch a plugin off on Installed plugins and check it leaves the menu.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "search",
+				"says": "Type in the top search bar and check it goes to the Search page with your words; press Enter to go at once.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "bell",
+				"says": "Press the bell and check the notifications panel opens with 'Mark all read' and 'Choose what reaches you', or 'No notifications'; press outside it to close it.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "language",
+				"says": "Open the language menu, choose Cymraeg, and check the page's words change and the button shows CY; change back to English.",
+				"how": "both",
+				"area": "words"
+			},
+			{
+				"id": "theme",
+				"says": "Flip the light/dark switch and check the whole page changes, and stays after a reload.",
+				"how": "both",
+				"area": "works"
+			},
+			{
+				"id": "sound",
+				"says": "Turn the sound switch on and check pages can be read aloud; turn it off and check they stop.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "phone-bar",
+				"says": "On a phone, check the bottom bar shows You, Talk, People, Files and Credits, each goes to its page, and the current one is marked.",
+				"how": "human",
+				"area": "layout"
+			},
+			{
+				"id": "footer",
+				"says": "Check the footer links go to Documentation, Contact, Privacy, Terms, Accessibility, Licences and Support, and the source link opens GitHub in a new tab.",
+				"how": "both",
+				"area": "works"
+			},
+			{
+				"id": "role-band",
+				"says": "Take up an office in a federation and check a band says 'Acting as … of …' on every page; press 'Set it down' and check the band goes.",
+				"how": "human",
+				"area": "safety"
+			}
+		]
+	},
+	{
+		"id": "home-front-door",
+		"page": "/",
+		"title": "You (front door)",
+		"group": "you",
+		"needs": "Signed out, in a fresh browser window",
+		"checks": [
+			{
+				"id": "sign-in-fills-screen",
+				"says": "Open the home page signed out: the sign-in fills the screen, with the question 'Where is your passkey?' and three pictures (This device, Key, Phone; on a phone, 'This phone').",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "place-hint-changes",
+				"says": "Tap each of the three passkey pictures in turn: the chosen one fills with colour and the hint line under them changes (for example 'A YubiKey — plug in or tap' for Key).",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "first-time-switch",
+				"says": "Press 'First time': a 'Name it (optional)' box appears, the big button reads 'Make my key', and the 'First time' button becomes 'I have a key'.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "have-key-switch-back",
+				"says": "After pressing 'First time', press 'I have a key': the name box goes and the big button reads 'Sign in' again.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "lost-key-opens-recovery",
+				"says": "Press 'Lost key': the recovery-card steps replace the sign-in buttons.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "make-key-real",
+				"says": "With a real device, choose 'First time', give a name, press 'Make my key' and follow your device's passkey prompt: you land signed in on your You page.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "cancel-passkey-warning",
+				"says": "Press 'Sign in' and cancel the device's passkey prompt: a warning box explains what happened, and nothing is signed in.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "arrow-down-scrolls",
+				"says": "Press the bouncing arrow under the sign-in: the page glides down to the 'What Q is' section.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "below-fold-sections",
+				"says": "Scroll down: you see, in order, 'What Q is', the picture story, 'What people use it for' with six cards, the security section, the credits, 'Stay in touch' and 'Keep it free'.",
+				"how": "ai",
+				"area": "layout"
+			},
+			{
+				"id": "story-player",
+				"says": "In the picture story, press Play, then Pause, Next and Previous: the pictures and caption change, Previous is greyed out on the first picture and Next on the last.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "stay-in-touch-bad-email",
+				"says": "In 'Stay in touch', type 'not-an-email' and press 'Keep me posted': the browser refuses it and nothing is sent.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "stay-in-touch-sent",
+				"says": "Type a real email address you can check and press 'Keep me posted': the form is replaced by 'Thank you — you’ll hear when there’s news.'",
+				"how": "both",
+				"area": "works"
+			},
+			{
+				"id": "stay-in-touch-where",
+				"says": "Under the email box, the line says the address goes only to Dark Olive's admin inbox.",
+				"how": "ai",
+				"area": "words"
+			},
+			{
+				"id": "keep-it-free-soon",
+				"says": "In 'Keep it free', with no donation link set up, a 'Contributions open soon' badge shows instead of a button, and the note says it is not a charity and there is no Gift Aid.",
+				"how": "ai",
+				"area": "money"
+			},
+			{
+				"id": "cannot-save-warning",
+				"says": "In a private window that cannot store anything (for example Firefox private browsing), a warning 'This browser has nowhere to save' appears under the sign-in before anything is made.",
+				"how": "human",
+				"area": "safety"
+			}
+		]
+	},
+	{
+		"id": "home",
+		"page": "/",
+		"title": "You",
+		"group": "you",
+		"needs": "Signed in, with a card made and a folder chosen",
+		"checks": [
+			{
+				"id": "new-person-card-steps",
+				"says": "Sign in with a brand-new passkey: instead of your card you see 'Welcome. Let’s make your card.' and four short steps.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "you-at-top",
+				"says": "With a card made, the top shows your cover, photo (or first letter), name and 'Last active …' or 'Signed in now'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "my-card-button",
+				"says": "Press 'My card' at the top: you go to Information on the Personal tab.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "change-details",
+				"says": "Press 'Change my details': the card steps open in place; pressing 'Not now' brings your card back unchanged.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "keep-vault-safe",
+				"says": "With no copies kept anywhere else, a 'Next: keep your vault safe' section with the backup steps shows under your card; 'Not now' hides it.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "greeting-by-clock",
+				"says": "The page heading greets you by the time on your device: Good morning before noon, Good afternoon until 6pm, Good evening after.",
+				"how": "human",
+				"area": "words"
+			},
+			{
+				"id": "join-home-federation",
+				"says": "If you have not joined Q's home federation, a 'Join …' box with 'Read and join' shows; after joining, it no longer shows.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "news-everything-new",
+				"says": "In 'News and updates', press 'Everything new': more news items appear and the button becomes 'Show fewer'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "activity-feed",
+				"says": "In 'Your activity', with nothing yet you see 'Nothing yet'; once you have messages or links, each row opens the right place and the magnifier opens its receipt.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "your-people",
+				"says": "In 'Your people', tap a face: the conversation with that person opens. The Write, Call and Invite buttons go to Messages, Video call and your Personal card.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "usage-card",
+				"says": "'Your use this month' shows what was sent through storage today, messages written and calls answered; numbers rise after you send a message.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "how-q-works-tabs",
+				"says": "In 'How Q works', choose each part (Receipts, Keys, Devices, Cards, Address book, Talking safely, Credits): its pictures play and 'Go to …' opens that page.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "everything-tiles",
+				"says": "In 'Everything', each tile opens its page and shows a number (for example Devices shows this one plus linked keys).",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "leave-no-trace-check",
+				"says": "Press 'Leave no trace' at the bottom: Q checks your copies and says either 'Everything is on …' or 'Nothing outside this browser holds all of it', with a list of what it cannot clear.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "leave-no-trace-not-now",
+				"says": "After the check, press 'Not now': the box goes back to the single 'Leave no trace' button and nothing is cleared.",
+				"how": "human",
+				"area": "safety"
+			}
+		]
+	},
+	{
+		"id": "keys",
+		"page": "/keys",
+		"title": "Keys",
+		"group": "you",
+		"needs": "Signed in, with a folder chosen",
+		"checks": [
+			{
+				"id": "story-plays",
+				"says": "Play the keys picture story at the top: it steps through its pictures with captions, and Previous, Next and Pause work.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "signed-out-sign-in",
+				"says": "Signed out, the 'Your passkey' section shows the sign-in choices (This device / phone / security key) and 'Lost your passkey? Use your recovery card'.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "passkey-details",
+				"says": "Signed in, 'Your passkey' shows your DID and fingerprint, with 'Sign in again to check' and 'Sign out'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "sign-in-again",
+				"says": "Press 'Sign in again to check' and touch your passkey: it says 'Same identity as before …'.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "only-way-in-warning",
+				"says": "With no other ways back in, 'Ways back in' warns 'Your passkey is your only way in.'",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "recovery-card",
+				"says": "Press 'Make a recovery card': the card's words show once with Print; 'I have it — save' stays greyed out until you type the five-letter last group.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "remove-way-back",
+				"says": "On a way back in, press 'Remove…': it asks to confirm; with only one left it says 'This is the last one.' and Remove is greyed out.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "add-security-key-cancel",
+				"says": "Press 'Add a security key', then 'Cancel': the form closes and nothing is added.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "no-linked-keys",
+				"says": "With no linked keys, 'Linked keys' says 'No linked keys yet'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "linked-key-drawer",
+				"says": "With a linked key, tap its row: a side panel shows its key, origin, date and status, and Close shuts it.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "unlink-key",
+				"says": "In the side panel press 'Unlink this key…', then 'Unlink': the status becomes Unlinked. 'Keep' instead leaves it linked.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "permission-take-back",
+				"says": "On a permission you gave, press 'Take back…': it warns 'What was done with it stays done.'; 'Take back' marks it 'Taken back'.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "link-request-bad",
+				"says": "In 'Approve a link request', paste some ordinary text and press 'Check it': it says 'There is no link request in that text.'",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "link-request-approve",
+				"says": "Paste a real link request from a site and press 'Check it', then 'Approve': it says the site is linked, with Copy and Download to give back to the site.",
+				"how": "human",
+				"area": "safety"
+			}
+		]
+	},
+	{
+		"id": "devices",
+		"page": "/devices",
+		"title": "Devices",
+		"group": "you",
+		"needs": "Signed in, ideally with one linked site",
+		"checks": [
+			{
+				"id": "story-plays",
+				"says": "Play the devices picture story: its pictures and captions step through with Play, Next and Previous.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "signed-out-locked",
+				"says": "Signed out, 'This device' says 'Not signed in' and 'Sites' shows 'Locked — Sign in to see your linked keys.'",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "this-device",
+				"says": "Signed in, 'This device' names your device and browser, says 'Root key, signed in', and shows where the passkey is kept and your DID.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "no-sites",
+				"says": "With nothing linked, 'Sites' says 'No linked sites' and points you to the Keys page.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "site-row",
+				"says": "With a linked site, its row shows the site, origin and date it was linked.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "site-drawer",
+				"says": "Tap a site row: a side panel shows Type 'Website', origin, key and when it was linked; Close shuts it.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "other-devices-empty",
+				"says": "With no other devices linked, 'Other devices' says 'None yet' and explains the Q phone app is where it will start.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "device-drawer",
+				"says": "With another device linked, tap its row: the side panel shows Type 'Device', its key and date.",
+				"how": "human",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "cards-personal",
+		"page": "/cards",
+		"tab": "personal",
+		"title": "Information",
+		"group": "you",
+		"needs": "Signed in, with a folder chosen",
+		"checks": [
+			{
+				"id": "signed-out",
+				"says": "Signed out, the page shows the cards picture story and the sign-in choices, with no tabs.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "no-folder",
+				"says": "Signed in with no folder yet, it says 'No folder yet' with a 'Choose a folder' button that opens Files.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "tab-in-address",
+				"says": "Open /cards?tab=personal and /cards?tab=nonsense: both open on the Personal tab; switching tabs changes the address.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "start-card",
+				"says": "With no Personal card yet, press 'Start': the steps open (you, contact, home, social, work).",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "steps-save",
+				"says": "Fill in your first name and step through to the end: your Personal card appears with your details.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "switches-kept",
+				"says": "Turn a detail's switch off: the card preview drops it and the corner says 'Keeping…' then 'Kept'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "share-disabled-empty",
+				"says": "Switch everything off: 'Share this card' is greyed out.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "share-link",
+				"says": "Press 'Share this card': a link to share appears; 'Done' hides it again.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "drop-pin",
+				"says": "In the home step press 'Drop a pin where I am': the browser asks for your location; allowing it shows 'Move it to where I am now' and 'Remove the pin'.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "change-details",
+				"says": "Press 'Change my details' under your card: the steps open with your saved answers filled in.",
+				"how": "human",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "cards-business",
+		"page": "/cards",
+		"tab": "business",
+		"title": "Information",
+		"group": "you",
+		"needs": "Signed in, with a Personal card",
+		"checks": [
+			{
+				"id": "no-work",
+				"says": "With no work added, the Business tab says 'No work added yet' with 'Add my work'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "add-my-work",
+				"says": "Press 'Add my work': it switches to the Personal tab and opens the work step.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "add-business-needs-name",
+				"says": "In the work step, start adding a business: 'Add this business' stays greyed out until it has a name.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "business-card-shows",
+				"says": "Add a business and finish: the Business tab shows a card named after it, with your cover, photo and name switched on.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "name-always-on",
+				"says": "On a business card, the business name cannot be switched off.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "share-business",
+				"says": "Press 'Share this card' on a business card: a link to share appears.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "add-another",
+				"says": "Press 'Add a business': it opens the Personal tab's work step again.",
+				"how": "human",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "cards-memberships",
+		"page": "/cards",
+		"tab": "memberships",
+		"title": "Information",
+		"group": "you",
+		"needs": "Signed in; for the full list, a member of at least one federation",
+		"checks": [
+			{
+				"id": "none",
+				"says": "With no memberships, the tab says 'No memberships yet' with 'See federations', which opens Federations.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "member-card",
+				"says": "After joining a federation, its membership card shows with its name, purpose and since when.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "caretaker-card",
+				"says": "For a federation you founded, its card shows you as caretaker, with a date until when.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "card-opens-federation",
+				"says": "Tap a membership card's link: it opens that federation's page.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "deep-link",
+				"says": "Open /cards?tab=memberships: the Memberships tab is chosen.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "standing-and-end",
+				"says": "Each membership card shows your standing (for example 'Suspended until …' or 'You left …' when that applies), when it ends ('Never on its own' if open-ended), and how the federation knows you.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "kept-for-you",
+				"says": "Each card says what the federation does not get: anything you keep just for you, and nothing beyond what you gave them.",
+				"how": "human",
+				"area": "safety"
+			}
+		]
+	},
+	{
+		"id": "cards-notifications",
+		"page": "/cards",
+		"tab": "notifications",
+		"title": "Information",
+		"group": "you",
+		"needs": "Signed in",
+		"checks": [
+			{
+				"id": "rows",
+				"says": "The Notifications tab shows 'What rings your bell' with Messages and Office post rows, each with a switch.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "switch-off",
+				"says": "Turn Messages off: its line changes to 'Off: nothing from here reaches you.'; turn it back on and the description returns.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "office-hours",
+				"says": "With Office post on, press 'In office hours': day buttons and From and Till boxes appear with a sentence saying your hours.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "toggle-day",
+				"says": "Press a day button: it toggles on or off and the hours sentence updates.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "any-time",
+				"says": "Press 'Any time': the days and hours disappear.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "no-federations-note",
+				"says": "With no news-sending federations joined, a line says one will appear here with its own switch.",
+				"how": "human",
+				"area": "words"
+			},
+			{
+				"id": "kept-after-reload",
+				"says": "Change a switch, reload the page and reopen the tab: your choice is still set.",
+				"how": "human",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "questions",
+		"page": "/questions",
+		"title": "Questions",
+		"group": "you",
+		"needs": "Signed in, with a folder chosen",
+		"checks": [
+			{
+				"id": "signed-out",
+				"says": "Signed out, the page shows only the sign-in choices.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "no-folder",
+				"says": "Signed in with no folder, it says 'No folder yet' with 'Choose a folder'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "set-buttons",
+				"says": "Press each question-set button at the top: the chosen one fills in and its questions show.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "address-shown",
+				"says": "Each set shows its own address and code under a note about the exact words being named by their hash.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "missing-answer",
+				"says": "Leave a required question empty and press 'Save my answers': a warning lists it as '— not answered.'",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "use-buttons",
+				"says": "Press 'Shown back', 'Counted' or 'Learned from' under a question: each toggles on and off.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "save",
+				"says": "Answer the questions and press 'Save my answers': it says it was written into your folder and lists your answers with what they may be used for.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "graph",
+				"says": "After saving, an 'As a graph' table shows a row per answer.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "answer-again",
+				"says": "Press 'Answer again', then 'Leave it as it was': the saved answers show again unchanged.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "schema",
+				"says": "'The Dgraph schema these questions imply' shows one line per question.",
+				"how": "human",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "contacts",
+		"page": "/contacts",
+		"title": "Address book",
+		"group": "you",
+		"needs": "Signed in, linked with at least one person",
+		"checks": [
+			{
+				"id": "story-plays",
+				"says": "Play the address book picture story: it steps through its pictures with captions.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "signed-out-locked",
+				"says": "Signed out, it says 'Locked — Sign in to view your contacts.'",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "linked-people",
+				"says": "Linked with someone, 'People you’re linked with' shows their card as they shared it.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "message-button",
+				"says": "Press 'Message' under a card: their conversation opens.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "video-call-button",
+				"says": "Press 'Video call' under a card: the Video call page opens ready to call that person.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "stats",
+				"says": "The three boxes show Total Contacts, Favorites and Schema Version v1.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "filter",
+				"says": "Press 'Favorites': only starred contacts show (or 'No contacts'); 'All' shows them all again.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "empty",
+				"says": "With nobody in the address book, it says 'No contacts' and explains they arrive through receipts.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "drawer",
+				"says": "Tap a contact row: a side panel shows their DID, when added and which channels they allow.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "favourite",
+				"says": "In the side panel press '☆ Add to favorites': the row gets a star and the Favorites count goes up.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "remove",
+				"says": "In the side panel press 'Remove': the panel closes and the contact is gone from the list.",
+				"how": "human",
+				"area": "safety"
+			}
+		]
+	},
+	{
+		"id": "communication",
+		"page": "/communication",
+		"title": "Communication",
+		"group": "you",
+		"needs": "Nothing",
+		"checks": [
+			{
+				"id": "story-plays",
+				"says": "Play the picture story: it steps through with captions, and Previous and Next work.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "messages-tile",
+				"says": "Press the Messages tile: it opens /messages.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "call-tile",
+				"says": "Press the Video call tile: it opens /call.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "menu-highlight",
+				"says": "Open Messages or Video call: Communication stays highlighted in the menu.",
+				"how": "ai",
+				"area": "layout"
+			},
+			{
+				"id": "lead-says-sealed",
+				"says": "The line under the heading says messages and calls are sealed so only the two of you can read or hear them.",
+				"how": "ai",
+				"area": "words"
+			},
+			{
+				"id": "tiles-say-what",
+				"says": "The two tiles each say in one line what they do: a signed copy for messages, device to device for calls.",
+				"how": "ai",
+				"area": "words"
+			}
+		]
+	},
+	{
+		"id": "messages",
+		"page": "/messages",
+		"title": "Messages",
+		"group": "you",
+		"needs": "Signed in, linked with at least one person",
+		"checks": [
+			{
+				"id": "signed-out",
+				"says": "Signed out, the 'How a message gets there' story is open and the sign-in choices show below.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "nobody-yet",
+				"says": "Signed in with nobody linked, it says 'No one to write to yet' with 'Share my card', which opens Information.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "story-folds",
+				"says": "Once you have conversations, the story folds into one line; 'Show' opens it and 'Hide' closes it.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "who-for-needs-something",
+				"says": "With nothing written, 'Who’s it for?' is greyed out; type a word and it lights up.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "pick-recipients",
+				"says": "Press 'Who’s it for?', tap one or more faces: the send button names them ('Send to …'). The back arrow returns to the message.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "send",
+				"says": "Send to one person: it says 'Sealing and sending…', then 'Sent to …' with 'Write another' and 'See the conversation'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "bad-link",
+				"says": "Press Link and type something that isn't a web address: a red line explains why, and 'Add the link' is greyed out.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "picture",
+				"says": "Press Picture and choose a photo: it shows in the message with a cross to take it out, and the footer gives its size.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "voice-note",
+				"says": "Press 'Voice note', then 'Start recording' and 'Stop': a voice note with a player is added. Refusing the microphone says 'Q wasn’t allowed to use the microphone.'",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "place-refused",
+				"says": "Press 'A place', then 'Use where I am' and refuse location: it says you can type the place instead.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "conversation-list",
+				"says": "Conversations list each person with the last message and time; unread ones are bold with a count and come first.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "write-to-someone",
+				"says": "On a wide screen, 'Write to someone' lists linked people you have not written to yet; tapping one opens their conversation.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "only-two-link",
+				"says": "The 'Only the two of you can read them' box opens Communication.",
+				"how": "human",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "messages-conversation",
+		"page": "/messages/[did]",
+		"title": "Messages",
+		"group": "you",
+		"needs": "Signed in, linked with at least one person",
+		"checks": [
+			{
+				"id": "signed-out",
+				"says": "Open a conversation address signed out: the sign-in choices show.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "not-linked",
+				"says": "Open /messages/ followed by a made-up DID while signed in: it says 'You’re not linked with them' with 'Back to messages'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "header",
+				"says": "Open a linked person's conversation: the top shows their face, name, 'Sealed for … only', a back arrow and Call.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "say-hello",
+				"says": "With no messages yet, the middle says 'Say hello to …'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "send-shows",
+				"says": "Type a message and press Send: it appears on the right in your colour with the time.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "send-disabled",
+				"says": "With nothing typed, Send is greyed out.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "their-messages",
+				"says": "Messages from them show on the left, and opening the page clears their unread count on Messages.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "pictures-grid",
+				"says": "Send two pictures in one message: they show two to a row.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "call-button",
+				"says": "Press Call: the Video call page opens to call this person.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "older-card-note",
+				"says": "For someone whose card came from an older Q, a line says there's nowhere to write to them yet and Send stays greyed out.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "tab-title",
+				"says": "The browser tab shows the person's name.",
+				"how": "human",
+				"area": "words"
+			}
+		]
+	},
+	{
+		"id": "messages-office",
+		"page": "/messages/office/[federation]/[office]",
+		"title": "Messages",
+		"group": "you",
+		"needs": "Signed in, a member of a federation with a treasurer or other office",
+		"checks": [
+			{
+				"id": "signed-out",
+				"says": "Open an office conversation signed out: the sign-in choices show.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "header",
+				"says": "Open an office conversation: the top shows the federation's logo and '[Office] · [federation]', never the face of the person holding it.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "nothing-yet",
+				"says": "With no messages, it says 'Nothing yet' and invites you to write to the office below.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "finding",
+				"says": "While loading, it says 'Finding who holds the office…'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "nobody-holds",
+				"says": "For an office nobody holds, it says 'Nobody holds the office just now' and points to the caretaker, with no box to write in.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "records-note",
+				"says": "Above the box, it says whoever holds the office, now or later, can read it.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "send",
+				"says": "Type a message and press Send: it appears on the right marked 'You' with the time, and the box empties.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "out-of-hours",
+				"says": "Outside the office's hours, a warning gives their hours, the box is called 'Leave a message', the button 'Leave it', and after sending it says it's waiting for them.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "reply-as-office",
+				"says": "A reply from the office holder shows on the left labelled with the office and federation.",
+				"how": "human",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "call-call",
+		"page": "/call",
+		"tab": "call",
+		"title": "Video call",
+		"group": "you",
+		"needs": "Signed in, linked with at least one person",
+		"checks": [
+			{
+				"id": "signed-out",
+				"says": "Signed out, the Video call page shows the sign-in choices.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "story-and-tabs",
+				"says": "Signed in, the call picture story shows, then two tabs: Call and 'Camera and sound'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "find-someone",
+				"says": "Press 'Find someone': a 'Find someone to call' box opens with a name field and Close.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "search-no-match",
+				"says": "Type a name nobody has: it says 'Nobody by that name in your people.'",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "choose-person",
+				"says": "Tap a person in the results: the page moves to 'Call [name]' with their face and a Call button.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "call-link",
+				"says": "Press 'Someone not in Q yet? Make a call link': the page shows 'Start a call' with an optional Q identity box.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "no-calls",
+				"says": "With no calls yet, 'Your calls' says 'No calls yet'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "calls-list",
+				"says": "After a call, 'Your calls' lists who, 'You called' or 'Missed', how long and when, with a camera button to call them again.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "voicemail-in-list",
+				"says": "A call with a voice message shows a player and a Save button that downloads it.",
+				"how": "human",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "call-camera",
+		"page": "/call",
+		"tab": "camera",
+		"title": "Video call",
+		"group": "you",
+		"needs": "Signed in, on a device with a camera and microphone",
+		"checks": [
+			{
+				"id": "asks-permission",
+				"says": "Open 'Camera and sound': the browser asks to use the camera and microphone.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "preview",
+				"says": "Allow it: your own picture shows mirrored in the preview.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "device-lists",
+				"says": "The Camera and Microphone lists name your devices; choosing another changes the preview.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "mic-meter",
+				"says": "Speak: the microphone level bar moves.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "test-sound",
+				"says": "Press 'Play a test sound': you hear a sound from the chosen speaker.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "voice-only",
+				"says": "Choose 'Voice only': the picture hides, it says 'Voice only' and the Camera list goes.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "quality-remembered",
+				"says": "Choose 'Data saver', reload and reopen the tab: 'Data saver' is still chosen.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "clean-up",
+				"says": "Untick 'Voice clean-up' and reload: it stays unticked.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "refused",
+				"says": "Refuse camera permission: a 'Camera / microphone' warning explains it, with 'Try again'.",
+				"how": "human",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "call-calling",
+		"page": "/call",
+		"title": "Video call",
+		"group": "you",
+		"needs": "Two people, each signed in on their own device, linked with each other",
+		"checks": [
+			{
+				"id": "back",
+				"says": "From 'Call [name]', press Back: you return to the Call tab.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "rings",
+				"says": "Press Call: the other person's Q rings; it says it's ringing on yours.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "invite-link",
+				"says": "Make a call link: an invitation link shows with Copy (which changes to 'Copied') and a box for their reply.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "connect-disabled",
+				"says": "With the reply box empty, Connect is greyed out.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "own-link",
+				"says": "Open your own call link in another tab: it says 'That is your own call. Send the link to the person you are calling.'",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "in-call",
+				"says": "When they answer, the call fills the screen with a quality badge and Mute, camera, Devices and Hang up buttons.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "mute",
+				"says": "Press Mute: the button turns amber and the other side sees 'They are muted'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "hang-up",
+				"says": "Press Hang up: 'Call ended' shows the signed steps, with 'Download the receipt', 'See it in Receipts' and 'Another call'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "no-answer-voicemail",
+				"says": "Call someone who doesn't answer: after the call ends it offers 'Leave … a message?' with 'Record a message'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "voicemail-send",
+				"says": "Record a message, press Stop, listen, then Send: it says 'Sent' and that they will find it in their bell.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "getting-through",
+				"says": "'Getting through' explains direct calls and whether a switchboard is set up.",
+				"how": "human",
+				"area": "words"
+			}
+		]
+	},
+	{
+		"id": "agreements",
+		"page": "/agreements",
+		"title": "Agreements",
+		"group": "you",
+		"needs": "Signed in, linked with at least one person",
+		"checks": [
+			{
+				"id": "signed-out",
+				"says": "Signed out, the page shows only the sign-in choices and no 'Write an agreement' button.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "empty",
+				"says": "With no agreements, it says 'No agreements yet' with the grass-cutting example and a 'Write an agreement' button.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "write-button",
+				"says": "Press 'Write an agreement' at the top: the new agreement steps open.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "waiting-for-you",
+				"says": "When someone sends you an offer, it shows under 'Waiting for you'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "in-progress",
+				"says": "An offer you sent and they haven't answered shows under 'In progress'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "settled-ended",
+				"says": "Settled agreements show under 'Settled'; declined or withdrawn ones under 'Ended'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "card-opens",
+				"says": "Tap an agreement card: its own page opens.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "shop",
+				"says": "With an item in your shop, a 'Your shop' section shows it, and 'See your shop' opens your shop.",
+				"how": "human",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "agreement",
+		"page": "/agreements/[id]",
+		"title": "Agreements",
+		"group": "you",
+		"needs": "Signed in, with an agreement in progress with another person",
+		"checks": [
+			{
+				"id": "signed-out",
+				"says": "Open an agreement address signed out: the sign-in choices show, with 'All agreements' at the top.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "not-found",
+				"says": "Open /agreements/ followed by a made-up id: it says 'This agreement isn’t in your vault, or hasn’t arrived yet.'",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "all-agreements",
+				"says": "Press 'All agreements': you go back to the list.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "answer-offer",
+				"says": "On an offer sent to you, 'Now' offers Agree, Counteroffer and Decline.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "agree",
+				"says": "Press Agree: it shows 'Checking…', then a green line saying it's done and sent to them, and 'What happened' gains a step.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "counteroffer",
+				"says": "Press Counteroffer: the steps open as 'Make a counteroffer' with the terms filled in.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "agreed-actions",
+				"says": "On an agreed agreement, 'Now' offers 'Say it’s done', 'Change the agreement' and a 'Settle up' panel.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "settle-part",
+				"says": "In 'Settle up', lower a credit amount and press Settle: it is sent and waits for the other person to confirm.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "settle-none-ticked",
+				"says": "Untick every line in 'Settle up': Settle is greyed out.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "confirm",
+				"says": "When the other person settles, 'Confirm the settlement' appears; confirming marks it 'Settled'.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "link-offer",
+				"says": "On an offer made for 'anyone I send a link to', press 'Make a link to send': a share link appears.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "timeline-receipt",
+				"says": "In 'What happened', press the magnifier on a step: its receipt opens.",
+				"how": "human",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "agreements-new",
+		"page": "/agreements/new",
+		"title": "Agreements",
+		"group": "you",
+		"needs": "Signed in, linked with at least one person, with some credits",
+		"checks": [
+			{
+				"id": "signed-out",
+				"says": "Open /agreements/new signed out: the sign-in choices show.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "next-needs-who",
+				"says": "On 'Who with', Next is greyed out until you choose someone, 'Anyone I send a link to' or 'My shop'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "shop-stock",
+				"says": "Choose 'My shop': a 'How many you have' box appears; 0 or 1000 keeps Next greyed out.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "paid-work-pounds",
+				"says": "Tick 'This is paid work': on the next step a Pounds choice appears alongside Credits.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "give-thing",
+				"says": "On 'What you’ll give', choose 'Something done or given': Next stays greyed out until you write something.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "over-promising",
+				"says": "Choose Credits and enter more than you have: the 'You have … credits you can promise' line turns red and Next is greyed out.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "same-kind-refused",
+				"says": "Give credits and ask for credits back: a red line says 'Not the same kind both ways' and Next is greyed out.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "optional-steps",
+				"says": "On 'When and where' and 'When it’s done', press Next with everything empty: it carries on.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "read-back",
+				"says": "On 'Read it back', the sentence reads 'You’ll give …, and … will give …', with any when, where and date.",
+				"how": "human",
+				"area": "words"
+			},
+			{
+				"id": "send",
+				"says": "Press 'Send the offer': you land on the new agreement's page.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "link-offer",
+				"says": "With 'Anyone I send a link to', the last button says 'Make the offer' and lands on the agreement with its link ready to share.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "back-and-not-now",
+				"says": "Back steps back with your answers kept; 'Not now' returns to Agreements without sending anything.",
+				"how": "human",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "balance",
+		"page": "/balance",
+		"title": "Credits",
+		"group": "you",
+		"needs": "Signed in, on a host with credits switched on",
+		"checks": [
+			{
+				"id": "signed-out",
+				"says": "Signed out, the page shows the sign-in choices and the 'How credits work' pictures.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "story-plays",
+				"says": "Play 'How credits work': it steps through six pictures with captions.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "reading",
+				"says": "While loading, it says 'Reading the mint…'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "not-set-up",
+				"says": "On a host without its own coin, it says 'Credits aren’t switched on here yet', with a line for the host.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "coin-row",
+				"says": "With credits on, 'Your coins' shows the coin's name, whose coin it is ('· test' in test mode), how many you hold and the face value.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "battery",
+				"says": "The coin row shows the cash-out battery reflecting what is held and committed.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "opens-statement",
+				"says": "Tap the coin: its statement page opens.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "older-test",
+				"says": "If you have test credits from before the mint, a line says they stay in your history.",
+				"how": "human",
+				"area": "money"
+			}
+		]
+	},
+	{
+		"id": "balance-mint",
+		"page": "/balance/[mint]",
+		"title": "Credits",
+		"group": "you",
+		"needs": "Signed in, on a host with credits switched on (test mode is fine)",
+		"checks": [
+			{
+				"id": "signed-out",
+				"says": "Open a coin's address signed out: the 'Credits ›' breadcrumb and the sign-in choices show.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "breadcrumb",
+				"says": "Press 'Credits' in the breadcrumb: you go back to /balance.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "not-ours",
+				"says": "Open /balance/ followed by a made-up id: it says 'This coin isn’t from this house' with a link back.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "test-mode-banner",
+				"says": "In test mode, a 'Test mode' banner says no money moves; in live mode a 'Live' banner says it's real money.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "scan-to-check",
+				"says": "Press 'Scan to check' under the coin: a panel opens to check the coin, and Close shuts it.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "three-numbers",
+				"says": "'Your credits', 'One credit' and 'Face value' show, and the first says how many are committed to agreements.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "buy",
+				"says": "Press Buy on '10 credits': it says 'Minting…', then '10 credits minted to you' and your credits go up by 10.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "cash-out-needs-account",
+				"says": "With no account set, Cash out shows 'Needed' and a link to Settings instead of a form.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "cash-out-limits",
+				"says": "With an account set, enter 0 or more than you can cash out: the Cash out button is greyed out.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "cash-out",
+				"says": "Cash out a few credits: it says they were cashed out and destroyed, and the amount paid (or that would be paid, in test mode).",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "ask-treasurer",
+				"says": "Press 'Ask the treasurer': a question box opens; Send stays greyed out until you type, and sending offers 'See the conversation'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "flow-receipts",
+				"says": "In 'Your credits in and out', tap Received or Spent: a receipt opens in a side panel.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "reconcile",
+				"says": "As the treasurer acting in role, press 'Reconcile now': it says the bank signed its books.",
+				"how": "human",
+				"area": "money"
+			}
+		]
+	},
+	{
+		"id": "data",
+		"page": "/data",
+		"title": "Files",
+		"group": "vault",
+		"needs": "Signed in, with a folder chosen",
+		"checks": [
+			{
+				"id": "signed-out-locked",
+				"says": "Signed out, it says 'Locked' with a 'Sign in with my passkey' button.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "no-folder",
+				"says": "Signed in with no folder, 'Your Q folder' offers 'Choose a folder' with a suggested name and good and bad places.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "asleep",
+				"says": "After restarting the browser, it says your folder needs allowing again, with 'Allow …'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "folder-facts",
+				"says": "With a folder, the top shows where it is and how many files, and whether they are all locked.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "add-files",
+				"says": "Press 'Add files' and choose a file: it says 'Locking…', then the file appears in the tree.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "drag-drop",
+				"says": "Drag a file onto the dashed box: the box lights up and the file is added and locked.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "empty",
+				"says": "With nothing added, it says 'Nothing here yet.' (or how many receipts there are, kept on Receipts).",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "preview",
+				"says": "Choose a picture or text file in the tree: it opens on the right, marked Locked, with Close.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "readable-copy",
+				"says": "Press 'Save a readable copy': a normal copy of the file is saved.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "delete-confirm",
+				"says": "Press Delete: it asks 'Delete for good?'; 'Keep it' cancels; Delete removes the file.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "unlocked-warning",
+				"says": "If a file was put in the folder without Q, a warning says anyone can read it, with 'Lock it' or 'Lock them all'.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "lock-explained",
+				"says": "Open 'What the lock does, and does not do': four plain points explain it.",
+				"how": "human",
+				"area": "words"
+			}
+		]
+	},
+	{
+		"id": "receipts",
+		"page": "/receipts",
+		"title": "Receipts",
+		"group": "vault",
+		"needs": "Signed in, with a folder and some receipts",
+		"checks": [
+			{
+				"id": "signed-out-locked",
+				"says": "Signed out, it says 'Locked' with a 'Sign in with my passkey' button.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "no-folder",
+				"says": "Signed in with no folder, it says 'No folder yet'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "groups",
+				"says": "Receipts show in groups: Course records, Links, Permissions, Calls and messages, Agreements, Founding and membership. Empty groups say 'None'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "search",
+				"says": "Type a word from a receipt's title in the search: only matching receipts show and the count line says 'Showing … matching'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "no-match",
+				"says": "Search for nonsense: each group says 'None match your filters.'",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "hold-filter",
+				"says": "Press 'Not holding': only receipts that don't hold up show; 'All' shows everything.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "type-filter",
+				"says": "Press 'Messages' in the type buttons: only message receipts show; 'All types' resets.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "system-toggle",
+				"says": "Press 'Show System': you are asked for your passkey; cancelling says 'System receipts require your passkey to view.'",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "drawer",
+				"says": "Tap a receipt row: a side panel shows it with 'Save a copy' and Close.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "status-words",
+				"says": "Each row's status reads 'Holds up', 'Signatures hold' or 'Does not hold'.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "check-again",
+				"says": "Press 'Check again' at the top: the receipts are re-checked.",
+				"how": "human",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "nodes",
+		"page": "/nodes",
+		"title": "Backups",
+		"group": "vault",
+		"needs": "Signed in, with a folder chosen",
+		"checks": [
+			{
+				"id": "steps",
+				"says": "The page opens with four backup steps: Here, Google Drive, Another copy, Safe.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "step-one-next",
+				"says": "On 'Here' with no folder, Next is greyed out until you choose a folder.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "google-skip",
+				"says": "On 'Google Drive', press Next without connecting: you move on.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "backup-file",
+				"says": "On 'Another copy', press 'Save a backup file': a zip downloads and a 'Saved …' badge shows.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "only-here-warning",
+				"says": "On 'Safe' with no copies anywhere, a warning says everything is on this device only.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "more-detail",
+				"says": "Open 'More detail': Main folder, Kept level automatically, Cloud and Other places show.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "connect-google",
+				"says": "In Cloud, press 'Connect Google Drive' and finish Google's sign-in: it shows Google Drive 'On' with 'Sync now'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "disconnect-confirm",
+				"says": "Press 'Disconnect…': 'Disconnect Google Drive' and 'Keep it' appear; 'Keep it' cancels.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "other-places-browser",
+				"says": "With the vault kept in this browser, 'Other places' says 'Not in this browser'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "add-location",
+				"says": "On a computer folder, press 'Add a location…' and choose a folder: it appears in the table.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "location-drawer",
+				"says": "Tap a location: a side panel shows its status with 'Sync Now' (or 'Allow & Sync') and 'Stop using this location'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "sync-all",
+				"says": "With a ready copy location, check a 'Sync all' button is offered, and that pressing it syncs every location.",
+				"how": "human",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "federations-list",
+		"page": "/federations",
+		"title": "Federations",
+		"group": "federations",
+		"needs": "Signed in, with at least one federation you founded, one you belong to and one saved draft; also a fresh account with none",
+		"checks": [
+			{
+				"id": "story-first",
+				"says": "With no clubs and no drafts, open the page and check 'What a federation is' is shown open with its pictures, and the 'Get started' section offers 'Start a club' and 'Join a club'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "story-folds",
+				"says": "With at least one club, check 'What a federation is' folds to one line and opens and closes when pressed, saying Show or Hide.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "host-card",
+				"says": "Check the 'Your host' card shows the host's name, purpose and a 'Your host' badge, and pressing it opens that federation's page.",
+				"how": "both",
+				"area": "works"
+			},
+			{
+				"id": "host-founder-badge",
+				"says": "Signed in as the host's founder, check the host card also says 'You founded it'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "your-clubs",
+				"says": "Check 'Your clubs' lists founded clubs first (filled circle, 'You founded it') then memberships (light circle, 'Member'), with the host first in whichever list it is in.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "club-opens",
+				"says": "Press a club card and check it opens that federation's own page at /federations/one.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "old-record-drawer",
+				"says": "Press a club marked 'Old record' and check a side panel opens with its type, details, status and key, and 'Close' shuts it.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "drafts",
+				"says": "Check each draft shows under 'Drafts' with a dashed circle, a 'Draft' badge and 'Carry on', and pressing it opens that draft for editing.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "new-federation",
+				"says": "Press 'New federation' and check it opens a blank draft at /federations/draft.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "clubs-off",
+				"says": "On a host where Federations is switched off, check 'Start a club' is replaced by 'No new clubs here', naming the host as a single site.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "signed-out-locked",
+				"says": "Signed out, check the page shows 'Locked — Sign in to see your federations' and no clubs, but the Features list still shows.",
+				"how": "ai",
+				"area": "safety"
+			},
+			{
+				"id": "features",
+				"says": "Check every tile under 'Features' names the federation it comes from and opens its own page when pressed.",
+				"how": "ai",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "federations-draft",
+		"page": "/federations/draft",
+		"title": "New federation (draft)",
+		"group": "federations",
+		"needs": "Signed in, on a host that offers clubs",
+		"checks": [
+			{
+				"id": "title-follows-name",
+				"says": "Type a name and check the page heading and tab title change to it, and 'Not saved yet' appears.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "save-first",
+				"says": "Press 'Save draft' and check it says 'Saved. It stays a draft until you found it.', the badge turns to 'Saved' and the address gains ?id=.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "save-disabled",
+				"says": "With nothing changed since the last save, check 'Save draft' cannot be pressed.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "reopen",
+				"says": "Go back to Federations, press 'Carry on' on the draft and check everything you typed comes back.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "event-last-day",
+				"says": "Choose the event kind and check a 'Last day' date box appears that will not take a day before today.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "news-choice",
+				"says": "Under 'News for members', switch between 'Yes, it sends news' and 'No' and check only one is chosen at a time.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "suggested-words",
+				"says": "Change the agreement text and check 'Use the suggested words' appears and puts the suggested wording back.",
+				"how": "human",
+				"area": "words"
+			},
+			{
+				"id": "consent-blocks",
+				"says": "Add a suggested block and one with '+ Write your own', move them with Up and Down, then Remove one; check the step numbers start at 2 and stay in order.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "still-needed",
+				"says": "With the name or purpose empty, check 'Found it…' cannot be pressed and 'Before it can be founded' lists what is missing.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "found-confirm",
+				"says": "Fill in everything, press 'Found it…' and check a 'Founding is final.' box names the club and the caretaker months, with 'Found it' and 'Not yet'.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "not-yet",
+				"says": "Press 'Not yet' and check the box closes and nothing is founded.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "found-it",
+				"says": "Press 'Found it', touch your passkey, and check you land on Federations with the new club under 'Your clubs' and the draft gone.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "refusal",
+				"says": "Set caretaker months outside the allowed range and try to found it; check a red message explains what the rule engine refused.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "not-found",
+				"says": "Open /federations/draft?id=nonsense and check it says 'Draft not found' with 'Back to federations'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "clubs-off",
+				"says": "On a host with Federations switched off, check the page says 'This host doesn’t offer clubs' and shows no form.",
+				"how": "both",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "federations-join",
+		"page": "/federations/join",
+		"title": "Join a federation (link)",
+		"group": "federations",
+		"needs": "An invitation link from a club's caretaker, and a second account to join with; for the caretaker parts, signed in as that club's founder",
+		"checks": [
+			{
+				"id": "bad-link",
+				"says": "Open /federations/join with nothing after the # and check it says 'This link can’t be read'.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "signed-out-trust",
+				"says": "Open a real invitation signed out and check the 'Who stands behind this' panel shows whether the host and club are registered, then the sign-in.",
+				"how": "both",
+				"area": "safety"
+			},
+			{
+				"id": "before-join",
+				"says": "Signed in, check the first step shows the club's name, purpose, 'Checked', the 'Who stands behind this' panel, how people join and when the invitation runs out.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "not-registered-warning",
+				"says": "Use an invitation from a host not registered with Incubator and check the panel turns amber and says you can still join and only you can decide.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "steps-count",
+				"says": "Press 'Start' and check 'Step 2 of N' and the progress bar move on with each 'I agree', one rule per screen.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "back-unagrees",
+				"says": "Press 'Back' on a step and check you return to the previous one and must agree to it again.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "not-for-me",
+				"says": "Press 'Not for me' on any step and check it says 'Nothing was signed.', and 'Start again' returns to the first step.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "known-as",
+				"says": "On 'How would you like to be known?', choose by name and picture and check 'Next' stays off until a name and a picture are given; anonymous needs neither.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "picture-too-big",
+				"says": "Choose a file that is not a picture and check it says 'That file could not be read as a picture.'",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "ready-to-sign",
+				"says": "Check 'Ready to sign' lists every rule you agreed to and how you will be known, and the button says 'Sign and join' or 'Sign and ask to join'.",
+				"how": "human",
+				"area": "words"
+			},
+			{
+				"id": "join-share",
+				"says": "Sign, and check it says 'Joined.' or 'Asked.' with a link to send the caretaker and 'Open the federation'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "already-joined",
+				"says": "Open the same invitation again and check it says 'You have already joined' with an 'Open it' link.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "own-invite",
+				"says": "As the founder, open your own invitation and check it says 'This is your own federation’s invitation.'",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "caretaker-accepts",
+				"says": "As the founder, open the link the joiner sent and check it shows 'Asking to join' or 'Joined', then 'Accept them' or 'Add to members' gives a link to send back.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "someone-else",
+				"says": "Open a joining, notice or office link with an account that has nothing to do with that club and check it says 'This link is for someone else'.",
+				"how": "human",
+				"area": "safety"
+			}
+		]
+	},
+	{
+		"id": "federations-one-role",
+		"page": "/federations/one",
+		"title": "Federation: acting in role",
+		"group": "federations",
+		"needs": "Signed in as a federation's founder; for the desk, a second account given an office such as reviewer",
+		"checks": [
+			{
+				"id": "not-found",
+				"says": "Open /federations/one?id=nonsense and check it says 'Not found' with 'Back to federations'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "card",
+				"says": "Check the club's card shows its purpose, how people join, its kind, and where you stand (for example 'You look after it' with the caretaker date, or 'Member since').",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "switch-shown",
+				"says": "As founder, check the 'Acting as: Me' switch shows; as a plain member with no office, check it does not.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "declaration",
+				"says": "Turn the switch on and check 'Before you act as Caretaker…: your declaration.' appears, with 'I have no conflict of interest' and 'I may have one, and I declare it'.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "declare-needs-words",
+				"says": "Choose 'I may have one, and I declare it' and check 'Sign and take it up' stays off until you write what it is.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "principles",
+				"says": "Open 'The seven principles you’re acting under' and check all seven are listed.",
+				"how": "human",
+				"area": "words"
+			},
+			{
+				"id": "take-up",
+				"says": "Sign, touch your passkey, and check the card turns coloured and says 'Acting as: Caretaker of …', and the caretaker-only tabs appear.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "set-down",
+				"says": "Turn the switch off and check it goes back to 'Me', the caretaker-only tabs go and you return to Home.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "not-now",
+				"says": "Turn the switch on, then press 'Not now', and check nothing is signed and you stay as 'Me'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "standing-interest",
+				"says": "With an office given with an interest, take it up and check that interest is already written in and cannot be removed from the declaration.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "desk",
+				"says": "Take up a reviewer office and check the desk shows its duties, the term end, 'Write a report' and 'Post for the office'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "report",
+				"says": "Fill in what you checked, choose a finding and write what you found; check 'Sign the report' then gives a link to send to a verifier.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "stand-down",
+				"says": "Press 'Stand down…', then 'Stand down', and check it says you have stood down, you are back to 'Me' and there is a link for the caretaker.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "put-forward",
+				"says": "Open the host's page from a 'put forward' link while not in role; check it says 'Take up your role as caretaker first' and the sign button is off until you do.",
+				"how": "human",
+				"area": "safety"
+			}
+		]
+	},
+	{
+		"id": "federations-one-home",
+		"page": "/federations/one",
+		"title": "Federation: Home",
+		"group": "federations",
+		"needs": "Signed in as a member or founder of a federation",
+		"checks": [
+			{
+				"id": "default-tab",
+				"says": "Open a federation and check the Home tab is chosen first.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "intro-slides",
+				"says": "Check the Home intro slides can be stepped through and put away.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "coming-up",
+				"says": "Check 'Coming up' says 'No events yet'.",
+				"how": "human",
+				"area": "words"
+			},
+			{
+				"id": "news-empty",
+				"says": "With no announcements, check 'News from the club' says 'Nothing yet'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "news-filled",
+				"says": "After an announcement is sent, check up to five show under 'News from the club', newest first, with their button if they have one.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "about",
+				"says": "Check 'About the club' shows how people join, the founded date and its key; as founder, also 'You look after it until'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "new-this-week",
+				"says": "In role as caretaker, after someone joins, check 'New this week' lists them; not in role, check it is hidden.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "snapshot",
+				"says": "On the host federation, check 'The network it runs' shows each machine as Working or Not answering, and 'Check again' asks again.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "snapshot-join",
+				"says": "On the host federation, check 'Join' shows the storage on offer and your credits, and Join is off with 'You need … credits' when you are short.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "tab-link",
+				"says": "Open the page with &tab=members on the address and check the Members tab opens straight away.",
+				"how": "human",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "federations-one-website",
+		"page": "/federations/one",
+		"title": "Federation: Website",
+		"group": "federations",
+		"needs": "Signed in as the host's founder, in role as caretaker",
+		"checks": [
+			{
+				"id": "hidden",
+				"says": "Not in role, check there is no Website tab.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "what-people-see",
+				"says": "Check 'What people see' shows the host's logo, name and purpose.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "view-website",
+				"says": "Press 'View website' and check the host's front page opens in a new tab.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "going-live-local",
+				"says": "On your own computer, check 'Going live' says this is the copy on your own computer and going live comes next.",
+				"how": "human",
+				"area": "words"
+			},
+			{
+				"id": "going-live-live",
+				"says": "On the live site, check 'Going live' says changes are made on the founder’s own computer.",
+				"how": "human",
+				"area": "words"
+			},
+			{
+				"id": "set-down",
+				"says": "Set your role down while on this tab and check you are moved back to Home.",
+				"how": "human",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "federations-one-services",
+		"page": "/federations/one",
+		"title": "Federation: Services",
+		"group": "federations",
+		"needs": "Signed in as the host's founder, in role as caretaker; on your own computer (localhost) for the key settings",
+		"checks": [
+			{
+				"id": "hidden",
+				"says": "Not in role, check there is no Services tab.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "live-site",
+				"says": "On the live site, check it says services are set on the founder’s own computer and shows only the pricing card.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "list",
+				"says": "On your own computer, check each service card shows its name, what it does, who provides it and On, Partly set or Not set.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "set-key",
+				"says": "Press 'Set' on a setting, type a value, press 'Save', touch your passkey; check it says it is saved on this computer and signed by you.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "secret-hidden",
+				"says": "Check a secret key is typed into a hidden box and afterwards shows only 'set' or its last characters, never the whole key.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "cancel",
+				"says": "Press 'Set', then 'Cancel', and check nothing changes.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "make-for-me",
+				"says": "On a setting that Q can make, press 'Make for me' and check it becomes set.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "federations-switch",
+				"says": "Switch Federations On and Off and check the chosen button stays pressed after saving.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "restart",
+				"says": "After saving a key that needs it, check 'Restart Q to use the new keys' explains how.",
+				"how": "human",
+				"area": "words"
+			},
+			{
+				"id": "vercel",
+				"says": "With Vercel connected, check each setting says whether it is on your live site and 'Send to live site' sends it.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "replace-twice",
+				"says": "Send one of Q's own secrets that the live site already has and check a warning asks 'Replace it' or 'Keep the live one' first.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "coin-money",
+				"says": "Check the coin designer and money publishing cards show below the services.",
+				"how": "human",
+				"area": "money"
+			}
+		]
+	},
+	{
+		"id": "federations-one-bank",
+		"page": "/federations/one",
+		"title": "Federation: Bank",
+		"group": "federations",
+		"needs": "The host federation's page; signed in, and holding some of its coins for the statement link",
+		"checks": [
+			{
+				"id": "host-only",
+				"says": "Check the Bank tab shows on the host federation and not on a club founded inside it.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "asking",
+				"says": "Open Bank and check it says 'Asking the mint…' while it loads.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "no-bank",
+				"says": "On a host with no mint switched on, check it says 'No bank yet'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "coin-check",
+				"says": "With a mint, check the coin's check shows whether it was minted here, its reserves and books, and what one coin is worth.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "statement",
+				"says": "Press 'Your statement with the bank' and check it opens your balance for that coin.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "public-page",
+				"says": "Press 'The coin’s public page' and check it opens the coin's verify page.",
+				"how": "human",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "federations-one-members",
+		"page": "/federations/one",
+		"title": "Federation: Members",
+		"group": "federations",
+		"needs": "Signed in as the founder, in role as caretaker, with at least one other member; a second account as a member",
+		"checks": [
+			{
+				"id": "member-view",
+				"says": "As a plain member, check you see 'Leaving', 'What members agree to' and 'What can never change', but no invite or member tools.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "invite",
+				"says": "As caretaker, write a note, choose 'Good for', press 'Make invitation' and check a link and code appear saying who it admits and until when.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "offices-list",
+				"says": "Check 'Offices' lists you as Caretaker with your end date, then any running offices with 'Recall…'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "no-members-no-office",
+				"says": "With no other members, check 'Give an office…' is off and says offices go to members.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "give-office",
+				"says": "Press 'Give an office…', choose an office, a member and a term, write how they were chosen; check 'Sign and give the office' gives a link to send them.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "give-needs-why",
+				"says": "Leave 'How they were chosen' empty and check 'Sign and give the office' stays off.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "recall",
+				"says": "Press 'Recall…', write why, press 'Recall' and check it says the office has ended and gives a link to send.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "suspend",
+				"says": "Press 'Suspend…', choose a length, write why, press 'Suspend'; check the member shows 'Suspended until' and a link to send them.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "lift",
+				"says": "On a suspended member, press 'Lift early' and check the suspension is lifted with a link to send.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "remove",
+				"says": "Press 'Remove…', choose the rule, write why, press 'Remove'; check they show as Removed with the reason.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "why-required",
+				"says": "Check 'Suspend' and 'Remove' stay off until 'Why, in plain words' is filled in, and 'Not now' or 'Keep them' closes the box.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "leave",
+				"says": "As a member, press 'Leave…', then 'Leave', and check it says you have left and keep every receipt, and the card says 'You left'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "stay",
+				"says": "Press 'Leave…', then 'Stay', and check nothing changes.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "agree-list",
+				"says": "Check 'What members agree to' lists the agreement first, the club's own steps, and 'What can never change' last.",
+				"how": "human",
+				"area": "words"
+			}
+		]
+	},
+	{
+		"id": "federations-one-communication",
+		"page": "/federations/one",
+		"title": "Federation: Communication",
+		"group": "federations",
+		"needs": "Signed in as the founder, in role as caretaker; a member account to see the result",
+		"checks": [
+			{
+				"id": "member-view",
+				"says": "As a member, check only 'Announcements' shows, with no form and no 'Take it down'.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "empty",
+				"says": "With nothing sent, check 'Announcements' says 'Nothing announced'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "button-wakes",
+				"says": "As caretaker, with title or message empty, check 'Sign and send' is off and it says the button wakes up when both are written.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "send",
+				"says": "Write a title and message, choose 'Shows for', press 'Sign and send', touch your passkey; check the stage words show, then 'Sent…' with the end date.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "button-link",
+				"says": "Add a button label and where it goes, send, and check the announcement shows that button and it opens the right page.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "file-fallback",
+				"says": "On a federation with no storage, send and check it offers 'Download announcements.json' with steps to publish it.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "take-down",
+				"says": "Press 'Take it down' on an announcement and check it goes from the list.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "in-bells",
+				"says": "As a member, check the announcement shows in your bell and on the Home tab.",
+				"how": "human",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "federations-one-settings",
+		"page": "/federations/one",
+		"title": "Federation: Settings",
+		"group": "federations",
+		"needs": "Signed in as the founder, in role as caretaker; for tester passes, the host's founder on localhost",
+		"checks": [
+			{
+				"id": "hidden",
+				"says": "Not in role, or as a plain member, check there is no Settings tab.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "register",
+				"says": "Check 'Registered with Incubator' shows 'Registered' or 'Not yet' and the three 'Who can find you' choices.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "register-site",
+				"says": "As the host, check 'Sign and register' stays off until the live site's address starts with https://.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "register-branch",
+				"says": "Choose 'My own branch' and check boxes appear for repository, branch and commit, with a warning if they do not match.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "register-done",
+				"says": "Press 'Sign and register', touch your passkey; check it says 'Registered…' and shows a QR code and your receipt page link.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "club-asks-host",
+				"says": "As a club inside the host, check it says the club registers through its host and offers a link asking the host to put it forward.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "tester-passes",
+				"says": "On the host founder's computer, check 'Tester passes' shows the door's state; away from it, check it says to open the page on localhost.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "give-pass",
+				"says": "Paste someone's DID, choose how long, press 'Give the pass' and check they are listed as 'Let in' until a date, with 'Take it back'.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "renew-invitation",
+				"says": "As the host, press 'Renew the invitation' and check it offers 'Download incubator.json' or, on your own computer, saves it with the new end date.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "no-nodes",
+				"says": "With no nodes, check the host sees 'No nodes yet' and a club sees its host's services 'In use' beside 'Your own node'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "list-node",
+				"says": "Press 'List a node…', fill in its name and mesh address, tick what it runs, press 'List it'; check it is listed and checked.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "node-health",
+				"says": "Check each service on a node shows Reached, Not reached or Not checked, and 'Check again' asks again.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "add-switchboard",
+				"says": "On a node with no switchboard, press 'Add it', give its public address and check it is then listed.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "withdraw",
+				"says": "Press 'Withdraw' on a node and check it says it is no longer listed and the record stays.",
+				"how": "human",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "network",
+		"page": "/network",
+		"title": "Where your work is kept",
+		"group": "federations",
+		"needs": "Signed in; for 'From the network', having taken storage from a federation",
+		"checks": [
+			{
+				"id": "signed-out",
+				"says": "Signed out, check the page shows the sign-in and no places.",
+				"how": "ai",
+				"area": "safety"
+			},
+			{
+				"id": "ways-back-in",
+				"says": "Check 'Ways back in' shows Covered, One fate or One way in, and any fix links to Keys.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "rule-engine",
+				"says": "Check 'Rule engine' says Ready with the Cedar version and actions loaded, or says it is waking or stopped.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "empty",
+				"says": "With no places, check it says 'No places yet'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "offered",
+				"says": "With a folder open in Q, check it is offered under 'Add a place', and 'Add it' tries it and shows whether it works.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "somewhere-else",
+				"says": "Press 'Somewhere else…', name a drive, choose its kind, press 'Add it' and check it is listed as 'Not tried'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "never-mind",
+				"says": "Press 'Somewhere else…', then 'Never mind', and check the form closes.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "safety",
+				"says": "With places added, check the summary says Safe, Thin or At risk and explains why.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "try-it",
+				"says": "On a folder place, press 'Try it' and check it says 'It works' or 'It does not'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "only-copy",
+				"says": "Add a place inside this browser and check it warns it cannot be the only place.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "from-network",
+				"says": "With storage from a federation, check 'From the network' shows it with its size, end date and 'The agreement', and 'Check again' asks the node.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "cannot-tell",
+				"says": "Check 'What Q cannot tell you yet' shows the two honest notes.",
+				"how": "human",
+				"area": "words"
+			}
+		]
+	},
+	{
+		"id": "attest",
+		"page": "/attest",
+		"title": "Evidence report or verification (link)",
+		"group": "federations",
+		"needs": "A report link from a reviewer; an account that is a verifier in a different federation; and the report's author's account",
+		"checks": [
+			{
+				"id": "bad-link",
+				"says": "Open /attest with nothing after the # and check it says 'This link can’t be read'.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "signed-out",
+				"says": "Open a real report link signed out and check only the sign-in shows, with nothing of the report.",
+				"how": "both",
+				"area": "safety"
+			},
+			{
+				"id": "report",
+				"says": "Signed in, check the report shows what was checked, who wrote it in which office, the finding, 'Signed and in role', and 'What its author declared'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "not-in-role",
+				"says": "Not acting as a verifier, check it says to take up your office as verifier, then open the link again.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "same-federation",
+				"says": "As a verifier of the same federation that wrote it, check it says an external verifier comes from another one.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "verify-form",
+				"says": "As a verifier of another federation, in role, check 'Verify it' offers the three outcomes.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "found-needed",
+				"says": "Choose 'Accepted, with notes' or 'Not accepted' and check 'What you found' appears and must be filled before signing.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "sign",
+				"says": "Fill in and press 'Sign the verification'; check it says 'Signed and kept' with a link to send back.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "verification-back",
+				"says": "As the author, open the verification link and check it shows the outcome, what they weighed, both declarations and 'Holds, against your report'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "keep",
+				"says": "Press 'Keep it with my report' and check it then says 'Kept.'",
+				"how": "human",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "registered-federation",
+		"page": "/registered/[federation]",
+		"title": "Registered with Incubator (receipt)",
+		"group": "federations",
+		"needs": "The receipt link of a registered federation, and one of a club inside a host; no sign-in needed",
+		"checks": [
+			{
+				"id": "not-registered",
+				"says": "Open /registered/ with a made-up name and check it says 'Not registered'.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "parts",
+				"says": "Open a real receipt and check it shows the logo, name, purpose, 'Registered with Incubator', who can find it, its site, the Q version, this version's date and its key.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "checked-list",
+				"says": "Check the ticked list of what Incubator checked is shown.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "core",
+				"says": "Check 'Its core' says 'Q’s core, unchanged', 'A branch of Q' with 'See what’s different', or 'Not checked'.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "go-to-site",
+				"says": "Press 'Go to site' and check it opens the federation's site.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "qr",
+				"says": "Check the QR code shows, and scanning it with a phone opens this same page.",
+				"how": "both",
+				"area": "works"
+			},
+			{
+				"id": "host-line",
+				"says": "On a club's receipt, check 'Its host' shows the host's state and 'Its receipt' opens the host's receipt.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "host-not",
+				"says": "On a club whose host is not registered, check it says 'Not registered now' and that the club is not either.",
+				"how": "both",
+				"area": "safety"
+			},
+			{
+				"id": "history",
+				"says": "On a federation with more than one version, check 'Its history' lists each version's date, visibility and site, newest first.",
+				"how": "ai",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "directory",
+		"page": "/directory",
+		"title": "Directory",
+		"group": "federations",
+		"needs": "Nothing needed; at least one host registered as Public for the filled view",
+		"checks": [
+			{
+				"id": "loading",
+				"says": "Open the page and check it says 'Reading the directory…' while it loads.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "empty",
+				"says": "With nobody public, check it says 'Nobody listed yet'.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "cards",
+				"says": "Check each card shows the federation's logo or icon, name and purpose.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "go-to-site",
+				"says": "Press 'Go to site' on a card and check it opens that federation's site.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "receipt",
+				"says": "Press 'Its receipt' and check it opens its /registered/ page.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "not-public",
+				"says": "Register a federation as 'Unlisted' or 'Only its people' and check it does not appear here.",
+				"how": "human",
+				"area": "safety"
+			}
+		]
+	},
+	{
+		"id": "exchanges",
+		"page": "/exchanges",
+		"title": "Exchanges",
+		"group": "market",
+		"needs": "Signed in",
+		"checks": [
+			{
+				"id": "menu",
+				"says": "Open Market in the menu and check 'Exchange' goes to /exchanges.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "signed-out",
+				"says": "Signed out, check it says 'Locked — Sign in to view your exchanges.'",
+				"how": "ai",
+				"area": "safety"
+			},
+			{
+				"id": "filters",
+				"says": "Signed in, check the three buttons All, Exchanges and Events show counts, and the pressed one is filled.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "empty",
+				"says": "Check the page says 'No exchanges yet' (the list is not yet connected to your receipts).",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "filter-switch",
+				"says": "Press each filter in turn and check the page stays on 'No exchanges yet' without errors.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "no-pretend-figures",
+				"says": "Check no made-up amounts or history are shown.",
+				"how": "human",
+				"area": "money"
+			}
+		]
+	},
+	{
+		"id": "offer",
+		"page": "/offer/[id]",
+		"title": "An offer for you (link)",
+		"group": "market",
+		"needs": "An offer link someone shared with you (from 'Offer by link'), and a second account",
+		"checks": [
+			{
+				"id": "signed-out",
+				"says": "Open the offer link signed out and check it says 'Someone has made you an offer' with the sign-in, and nothing about who it is from.",
+				"how": "ai",
+				"area": "safety"
+			},
+			{
+				"id": "opening",
+				"says": "Sign in and check it says 'Opening the offer…' while it checks and keeps it.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "to-agreement",
+				"says": "Check you are taken to the agreement, where you can accept, counteroffer or decline.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "first-only",
+				"says": "Open the same link with a second account and check a warning explains it cannot be opened, with 'Your agreements'.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "broken-key",
+				"says": "Open the link with the part after # changed and check a warning shows instead of the offer.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "linked-up",
+				"says": "After opening, check the person who made the offer appears in your people.",
+				"how": "human",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "shop",
+		"page": "/shop/[did]",
+		"title": "Shop",
+		"group": "market",
+		"needs": "Signed in, with test credits; a seller's shop link with at least one offer; and your own shop",
+		"checks": [
+			{
+				"id": "signed-out",
+				"says": "Open a shop link signed out and check only the sign-in shows.",
+				"how": "ai",
+				"area": "safety"
+			},
+			{
+				"id": "loading",
+				"says": "Signed in, check it says 'Opening the shop…' while it loads.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "bad-shop",
+				"says": "Open /shop/ with a made-up id and check a warning explains the shop could not be read.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "empty",
+				"says": "Open a shop with nothing in it and check it says 'Nothing in this shop just now'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "own-empty",
+				"says": "Open your own empty shop and check it says 'Nothing in your shop yet' with 'Add something'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "listings",
+				"says": "Check each offer shows what you get, what it costs, how many are left (or 'Sold out') and any dates.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "credits",
+				"says": "Check it says how many (test) credits you have to spend.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "short",
+				"says": "On an offer costing more than you have, check the button is off and it says 'You need … credits; you have …'.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "sold-out",
+				"says": "On a sold-out offer, check the button says 'Sold out' and cannot be pressed.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "buy",
+				"says": "Press 'Buy' (or 'Take it' or 'Hire') and check it opens the new agreement.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "own-shop",
+				"says": "On your own shop, check it shows 'Your shop’s link' to share, 'Add something', and 'See sales' instead of Buy.",
+				"how": "human",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "publishing-sites",
+		"page": "/sites",
+		"title": "Sites",
+		"group": "publishing",
+		"needs": "A passkey, signed in, with a folder set up under Copy locations.",
+		"checks": [
+			{
+				"id": "signed-out",
+				"says": "Open Sites while signed out and check the sign-in box shows instead of any sites.",
+				"how": "ai",
+				"area": "safety"
+			},
+			{
+				"id": "no-folder",
+				"says": "Signed in with no folder set up, check it says 'No folder yet' and points you to Copy locations.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "empty",
+				"says": "With no sites founded, check 'Your sites' says 'None yet' and the 'Found a site' form is below it.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "found-disabled",
+				"says": "Check 'Found this site' stays greyed out until both 'What it is called' and 'Its domain' have something in them.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "host-address",
+				"says": "Type a host-given address such as something.vercel.app into 'Its domain' and check a red line appears telling you to use the site's own domain.",
+				"how": "human",
+				"area": "words"
+			},
+			{
+				"id": "found",
+				"says": "Fill in a name and your own domain, press 'Found this site', and check the button says 'Founding…', then 'Founded' with a line saying its key is sealed in your vault, and the form clears.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "listed",
+				"says": "After founding, check the site appears under 'Your sites' with its name, domain, founding date, site key and 'Founded by', and its badge goes from 'Checking…' to 'Holds up'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "checks",
+				"says": "Check each site shows three lines, Founding, Key and Authority, each with a green or red badge and a sentence saying why.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "served",
+				"says": "Check 'Where it is served' says Vercel, and says whether it uses a kept token or this computer's own Vercel sign-in, plus when it was last released or 'Not yet released'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "token",
+				"says": "Open 'Keep a Vercel token in your vault instead', check 'Seal and keep it' is greyed out while the box is empty, then paste a token, press it, and check it says it was kept, sealed to your passkey.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "dns",
+				"says": "Open 'The DNS record' on a site and check it shows a Type, Name and Value to add at your domain registrar.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "set-aside",
+				"says": "Press 'Set aside' on a site, check a confirm box names the site and domain, press OK, and check the site leaves the list and a line says how many are set aside.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "set-aside-cancel",
+				"says": "Press 'Set aside' and then Cancel in the confirm box, and check the site stays listed.",
+				"how": "human",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "publishing-write",
+		"page": "/write",
+		"title": "Write",
+		"group": "publishing",
+		"needs": "A passkey, signed in, a folder, a founded site, and the site's source running on this computer (pnpm dev).",
+		"checks": [
+			{
+				"id": "signed-out",
+				"says": "Open Write while signed out and check the sign-in box shows instead of the editor.",
+				"how": "ai",
+				"area": "safety"
+			},
+			{
+				"id": "no-site",
+				"says": "Signed in with a folder but no site, check it says 'No site yet' and the 'Go to Sites' button takes you to Sites.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "source-missing",
+				"says": "With the site's source not running, check a line under Site explains that Write works on the site's files on this computer and to start them together.",
+				"how": "human",
+				"area": "words"
+			},
+			{
+				"id": "site-pick",
+				"says": "With a site loaded, check the Site menu lists your sites by name and domain and shows how many articles are in its source.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "new-address",
+				"says": "Under 'Start something new', choose Blog post, type a title, and check the hint shows its address under /blog/; switch to Project and check it changes to /our-work/.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "new-duplicate",
+				"says": "Type the title of an article that already exists and press 'Start writing', and check it refuses, saying it already exists and to open it instead.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "open",
+				"says": "Press Open on an existing article and check the writer fills the whole screen with '← Articles', the title, Layout and Preview, 'As text', 'Save a version' and 'Publish'.",
+				"how": "human",
+				"area": "layout"
+			},
+			{
+				"id": "layout-preview",
+				"says": "Switch between Layout and Preview (and with Ctrl or Cmd and full stop) and check the view flips; in Preview, if the site is not running, check it says 'Waiting for the site to draw it'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "as-text",
+				"says": "Press 'As text', check the whole article shows as words with a 'How to write' guide beside it, then 'Back to blocks' returns to the blocks with nothing lost.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "problems",
+				"says": "Break the article (for example a picture path that is not on the site in text view) and check a red list says what is wrong and Save and Publish are greyed out.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "save",
+				"says": "Change something and press 'Save a version', and check it says 'Done' and that a signed version is in your vault and the site has not changed, and the saved-versions count goes up.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "draft-summary",
+				"says": "Tick and untick 'Still a draft' and check the line under the title shows or drops ' · draft'; check the Summary, Date and 'For sharing' boxes keep what you type.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "publish",
+				"says": "Press 'Publish' and check a bar shows each step (Building, Signing, Sending to Vercel), then 'Done' with a 'See it on the site' link, or 'Not done' with the reason and a log.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "send-again",
+				"says": "Publish again without changing anything and check the button reads 'Send live again'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "back",
+				"says": "Press '← Articles' and check you return to the article lists and the page can scroll again.",
+				"how": "human",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "publishing-my-pages",
+		"page": "/my-pages",
+		"title": "Build a page",
+		"group": "publishing",
+		"needs": "A passkey, signed in, with a few answers and pictures in the vault.",
+		"checks": [
+			{
+				"id": "signed-out",
+				"says": "Open Build a page while signed out and check the sign-in box shows instead of the builder.",
+				"how": "ai",
+				"area": "safety"
+			},
+			{
+				"id": "empty",
+				"says": "Signed in with nothing added, check 'On the page' says 'Empty so far' and 'Publish this page' is greyed out.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "add",
+				"says": "Press each button under 'Add something' and check a matching row appears under 'On the page' with its Settings open.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "move",
+				"says": "With three blocks, use ↑ and ↓ and check the order changes; check ↑ is greyed out on the first and ↓ on the last.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "group",
+				"says": "Add a group-type block, press 'Add into', add another block, and check it lands indented inside the group; press 'Put them on the page instead' and check new blocks go back on the page.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "settings",
+				"says": "Open Settings on a block, change its heading, press 'Save settings' and check the row and preview update; open again, change it, press 'Never mind' and check nothing changed.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "picture",
+				"says": "Open Settings on an image or hero block and check pictures are chosen from your vault, not typed as an address.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "remove",
+				"says": "Press Remove on a block and check it leaves the list and the preview.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "preview",
+				"says": "Check 'What it will look like' appears once there is a block and shows the page drawn with your own answers and pictures.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "publish",
+				"says": "Press 'Publish this page' and check it says 'Published', shows its address, and says which of your answers the page reads; check it then appears under 'Pages you have published' as 'Yours'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "open",
+				"says": "Press Open on a published page and check it shows below as anyone you gave it to would see it, with a Close button.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "make-public",
+				"says": "Press 'Make it public' and check the button says 'Making…', then a 'Public page' section shows 'Signed, and it checks out', the file name and size, 'Open it on its own' and 'Save the file'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "check-file",
+				"says": "Under 'Check a public page', choose the file you just saved and check it says 'Holds up' and who signed it; change one letter in the file, choose it again and check it says 'Does not hold up'.",
+				"how": "human",
+				"area": "safety"
+			}
+		]
+	},
+	{
+		"id": "dostudy-courses",
+		"page": "/f/dostudy",
+		"title": "Courses",
+		"group": "dostudy",
+		"needs": "A passkey, signed in, with a folder; ideally some courses saved from DoStudy.",
+		"checks": [
+			{
+				"id": "signed-out",
+				"says": "Open Courses while signed out and check it says 'Locked' and to sign in to see your courses.",
+				"how": "ai",
+				"area": "safety"
+			},
+			{
+				"id": "no-folder",
+				"says": "Signed in with no folder, check it says 'No folder yet' and to choose your folder on the Files page.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "empty",
+				"says": "Signed in with a folder and no courses, check 'Courses' says '0 found' and 'No courses yet'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "listed",
+				"says": "With courses saved from DoStudy, check each shows its title, aim, small print and any status badge, and the count matches.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "reads",
+				"says": "If colleagues or reviewers have read a course, check a 'Reads' section lists them; with none, check the section is not shown.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "notes",
+				"says": "If there are sealed notes, check a 'Sealed notes' section lists them, each with a 'Sealed' badge.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "look-again",
+				"says": "Save a new course from DoStudy, press 'Look again', and check it appears without reloading the page.",
+				"how": "human",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "plugins-marketplace",
+		"page": "/marketplace",
+		"title": "Marketplace",
+		"group": "plugins",
+		"needs": "Nothing; signing in only to see it inside the menu.",
+		"checks": [
+			{
+				"id": "soon",
+				"says": "Open Marketplace and check it says 'Opening soon' and that plugins made by others will be listed here, signed and checked.",
+				"how": "both",
+				"area": "words"
+			},
+			{
+				"id": "no-listings",
+				"says": "Check no plugins are listed and there is nothing to buy or install.",
+				"how": "both",
+				"area": "works"
+			},
+			{
+				"id": "installed-link",
+				"says": "Press 'See installed plugins' and check it goes to the Installed plugins page.",
+				"how": "both",
+				"area": "works"
+			},
+			{
+				"id": "menu-current",
+				"says": "Signed in, check Plugins › Marketplace is marked as the current page in the side menu.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "menu-link",
+				"says": "In the side menu, open Plugins and press Marketplace, and check this page opens.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "from-installed",
+				"says": "On Installed plugins, press 'Find more plugins' and check it lands on this page.",
+				"how": "both",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "plugins-installed",
+		"page": "/plugins",
+		"title": "Installed plugins",
+		"group": "plugins",
+		"needs": "A passkey, signed in, so the side menu shows.",
+		"checks": [
+			{
+				"id": "list",
+				"says": "Open Installed plugins and check it lists Federations, Market, Publishing and DoStudy, each with an icon, a line on what it is for, On and Off, and up and down arrows.",
+				"how": "both",
+				"area": "works"
+			},
+			{
+				"id": "off",
+				"says": "Press Off on Publishing and check it shows an 'Off' badge, its Open button goes, and Publishing leaves the side menu.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "on",
+				"says": "Press On again and check the badge goes, Open comes back, and Publishing returns to the side menu.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "arrows",
+				"says": "Use the down arrow on the first plugin and check it swaps with the next one, and the side menu shows them in the new order.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "arrow-ends",
+				"says": "Check the up arrow is greyed out on the first plugin and the down arrow on the last.",
+				"how": "both",
+				"area": "works"
+			},
+			{
+				"id": "drag",
+				"says": "Drag a plugin by its ⋮⋮ handle onto another and check the row being dragged fades, the target lights up, and the order changes when you let go.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "remembered",
+				"says": "Switch one off and change the order, reload the page, and check both are still as you left them.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "open",
+				"says": "Press Open on a plugin (wide screen only) and check it goes to that plugin's first page.",
+				"how": "both",
+				"area": "works"
+			},
+			{
+				"id": "find-more",
+				"says": "Press 'Find more plugins' and check it goes to the Marketplace.",
+				"how": "both",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "settings-identity-security",
+		"page": "/settings",
+		"tab": "identity-security",
+		"title": "Settings: Identity, Security, Privacy and About",
+		"group": "settings",
+		"needs": "A passkey, signed in.",
+		"checks": [
+			{
+				"id": "signed-out",
+				"says": "Open Settings while signed out and check it says 'Locked' and to sign in to manage settings, with nothing else shown.",
+				"how": "ai",
+				"area": "safety"
+			},
+			{
+				"id": "did",
+				"says": "Signed in, check 'Your DID' under Identity shows your full DID, matching the one on Keys.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "access",
+				"says": "Check 'Access Level' shows a badge with the current session's level, green when it is 'attest'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "2fa-empty",
+				"says": "With 2FA not set up, check it says 'Not set up' and shows an email box and 'Set up 2FA'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "2fa-refuse",
+				"says": "Press 'Set up 2FA' with the email box empty and check it says 'Enter your email'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "2fa-setup",
+				"says": "Type an email and press 'Set up 2FA', and check it says 2FA is set up and that Q cannot see your email, and the badge turns to 'Enabled'.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "2fa-on",
+				"says": "With 2FA on, check only the first 12 characters of the contact hash are shown, never the email itself.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "2fa-off",
+				"says": "Press 'Disable 2FA' and check the badge goes back to 'Not set up' and the email box returns.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "privacy",
+				"says": "Check 'What we don't store' under Privacy lists three things Q does not keep (with a cross) and two it does (with a tick), and matches the Privacy notice.",
+				"how": "human",
+				"area": "words"
+			},
+			{
+				"id": "about",
+				"says": "Check About shows Q, 'Passkey identity for inQbeta'.",
+				"how": "human",
+				"area": "words"
+			},
+			{
+				"id": "menu-current",
+				"says": "Check Settings is marked as current at the foot of the side menu, folded or open.",
+				"how": "human",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "settings-channels",
+		"page": "/settings",
+		"tab": "channels",
+		"title": "Settings: Channels",
+		"group": "settings",
+		"needs": "A passkey, signed in, a folder, and an email inbox you can open.",
+		"checks": [
+			{
+				"id": "empty",
+				"says": "With no channels, check it says 'No channels yet' under the email box.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "button-disabled",
+				"says": "Check 'Leave a receipt there' is greyed out until the email box has something in it.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "send",
+				"says": "Type your email and press 'Leave a receipt there' (or press Enter), check the button says 'Sending…', then a line says it was sent and to open it on a device with your passkey, and the box clears.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "refused",
+				"says": "Type something that is not an email address and send, and check a reason is shown rather than 'Sent'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "email-empty",
+				"says": "Open the email that arrives and check it holds only a link, no code and nothing to type.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "listed",
+				"says": "After opening the receipt with your passkey, come back and check the channel is listed as Email with 'Verified' and the date.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "uses",
+				"says": "Press Notifications, Messages and News on a channel and check each one fills in when on and empties when off, and stays that way after a reload.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "busy",
+				"says": "While a use is being changed, check that channel's buttons are greyed out until it finishes.",
+				"how": "human",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "settings-cashing-out",
+		"page": "/settings",
+		"tab": "cashing-out",
+		"title": "Settings: Cashing out",
+		"group": "settings",
+		"needs": "A passkey, signed in, and a UK bank account you can use for testing.",
+		"checks": [
+			{
+				"id": "link",
+				"says": "Follow a 'Set it in Settings' link from a credits page and check it lands on the Cashing out section.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "not-set",
+				"says": "With no account, check it shows 'Not set', 'Set an account before you cash out', and the name, sort code and account number boxes.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "no-name",
+				"says": "Press 'Sign and save' with no name and check it says 'Not done' and asks for the name on the account.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "bad-sort",
+				"says": "Enter a sort code that is not six digits and check it says a sort code is six digits.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "bad-number",
+				"says": "Enter an account number that is not eight digits and check it says an account number is eight digits.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "save",
+				"says": "Fill all three correctly, press 'Sign and save', check the button says 'Signing…', then 'Done' with the last four digits, and the form closes.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "shown",
+				"says": "Check the account is shown only by its last four digits, with when it was set and 'signed by you'.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "change",
+				"says": "Press 'Change the account', save a different one, and check the button read 'Sign and change the account' and the new last four digits show.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "history",
+				"says": "After two or more changes, open 'Every change' and check each one is listed newest first, the oldest saying 'the first' and the rest 'replacing the one before'.",
+				"how": "human",
+				"area": "money"
+			}
+		]
+	},
+	{
+		"id": "settings-backups",
+		"page": "/settings",
+		"tab": "backups",
+		"title": "Settings: Backups",
+		"group": "settings",
+		"needs": "A passkey, signed in, with a vault.",
+		"checks": [
+			{
+				"id": "groups",
+				"says": "Check four groups show: Your cloud, Your own bucket, Your host's pass-through and A download, each with a line saying what it is and a set of choices.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "choose",
+				"says": "Pick a different choice in each group and check only the picked one is filled in.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "remembered",
+				"says": "Reload the page and check your choices are still picked.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "no-download",
+				"says": "In a browser that has never downloaded, check it says you haven't made a download in this browser yet.",
+				"how": "human",
+				"area": "words"
+			},
+			{
+				"id": "download",
+				"says": "Press 'Download now', check it says 'Making it…', then saves a file and says how many files, sealed, and to keep it somewhere safe.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "download-cancel",
+				"says": "Press 'Download now' and cancel the save box, and check no error message appears.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "last",
+				"says": "After a download, check the line says the date of your last download.",
+				"how": "human",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "settings-setup",
+		"page": "/setup",
+		"title": "Set up your host",
+		"group": "settings",
+		"needs": "For the live site, nothing. For the full steps, a fresh copy of Q running on your own computer (pnpm dev) and a passkey.",
+		"checks": [
+			{
+				"id": "live",
+				"says": "Open /setup on the live site and check it says setting up a host happens on your own computer and this live site is already set up, with no steps.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "public-frame",
+				"says": "Signed out on the live site, check the page shows the plain header (logo, language, light/dark, sound) and the footer, not the side menu.",
+				"how": "ai",
+				"area": "layout"
+			},
+			{
+				"id": "no-server",
+				"says": "On a copy where the set-up server is not answering, check it says so and asks whether it is running with pnpm dev.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "choice",
+				"says": "On a fresh copy that came with a host file, check it asks which you are, with 'Set up my own host' and 'I'm …'s founder'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "founder-signin",
+				"says": "Choose the founder card while signed out and check it asks you to sign in with the passkey that founded the host; press Back and check the choice returns.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "founder-prove",
+				"says": "Signed in with the founding passkey, press 'Prove it', check it says 'Checking…' then goes to the host's page.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "founder-wrong",
+				"says": "Press 'Prove it' with a different passkey and check a red message says why it was refused.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "own",
+				"says": "Choose 'Set up my own host' and check the step-by-step cards start; finishing them takes you to Federations.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "done",
+				"says": "On a copy already set up, check it says this computer's host is set up, with its name, how and when, and 'Go to your host' goes to Federations.",
+				"how": "human",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "settings-user",
+		"page": "/user",
+		"title": "My Dashboard",
+		"group": "settings",
+		"needs": "A passkey, signed in, with some items in the vault.",
+		"checks": [
+			{
+				"id": "stats",
+				"says": "Check four boxes show Your ID (the last 8 characters of your DID), Files, Receipts and Federations.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "signed-out",
+				"says": "Signed out, check Your ID shows '---' and the counts show 0, with nothing private on show.",
+				"how": "ai",
+				"area": "safety"
+			},
+			{
+				"id": "counts",
+				"says": "Check the Files and Receipts counts match what the Files and Receipts pages show.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "recent",
+				"says": "Check 'Recent Activity' lists up to five of your newest items, each with title and any status badge.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "empty",
+				"says": "With an empty vault, check 'Recent Activity' says 'No activity yet'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "newest",
+				"says": "Save something new (for example a card), come back, and check it is at the top of Recent Activity.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "federations",
+				"says": "Found or join a federation and check the Federations count goes up by one.",
+				"how": "human",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "open-search",
+		"page": "/search",
+		"title": "Search",
+		"group": "open",
+		"needs": "Nothing; signing in only to see it inside the menu.",
+		"checks": [
+			{
+				"id": "blank",
+				"says": "Open /search with nothing after it and check the heading says Search and a line says to type in the search bar.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "from-bar",
+				"says": "Type 'keys' in the top search bar and check that after a moment the page goes to Search with 'Results for \"keys\"'.",
+				"how": "both",
+				"area": "works"
+			},
+			{
+				"id": "nav-result",
+				"says": "Search for 'receipt' and check a Receipts result appears; press it and check it goes to Receipts.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "settings-result",
+				"says": "Search for 'settings' and check a Settings result appears and goes to Settings.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "sample-results",
+				"says": "Check that 'Recent receipt' and 'Federation invite' appear for any search, and pressing them does nothing; note these are sample results, not your own.",
+				"how": "both",
+				"area": "words"
+			},
+			{
+				"id": "suggestions",
+				"says": "Check the two suggestions repeat what you typed ('Show me my …', 'What's new about …') and pressing them does nothing.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "chips",
+				"says": "Check 'Show me more', 'Find related' and 'Tell me more' appear under the results and do nothing when pressed.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "escape",
+				"says": "In the top search bar, press Escape and check the text clears.",
+				"how": "ai",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "open-contact",
+		"page": "/contact",
+		"title": "Contact us",
+		"group": "open",
+		"needs": "Nothing. To check a message really arrives, access to Dark Olive's admin inbox.",
+		"checks": [
+			{
+				"id": "frame",
+				"says": "Open Contact signed out and check the plain header (logo, language, light/dark, sound) and the footer show, not the side menu.",
+				"how": "ai",
+				"area": "layout"
+			},
+			{
+				"id": "lead",
+				"says": "Check the line under the heading says it goes to Dark Olive's admin inbox and is not kept anywhere else, and no email address is shown on the page.",
+				"how": "ai",
+				"area": "words"
+			},
+			{
+				"id": "required",
+				"says": "Press Send with the email and message empty and check the browser stops you and points at the missing box.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "bad-email",
+				"says": "Type an email without an @ and press Send, and check the browser refuses it.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "sending",
+				"says": "Fill it in and press Send, and check the boxes and button are greyed out while it sends.",
+				"how": "both",
+				"area": "works"
+			},
+			{
+				"id": "sent",
+				"says": "Check that once sent, the form is replaced by a green 'Thank you — your message has been sent' box.",
+				"how": "both",
+				"area": "works"
+			},
+			{
+				"id": "arrives",
+				"says": "Check the message arrives once in Dark Olive's admin inbox with the name, email and message.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "failed",
+				"says": "With the network off, press Send and check a red line says it didn't send and to try again, and what you typed is kept.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "security",
+				"says": "Check the security link opens GitHub's private advisory form for inqbeta-q in a new tab.",
+				"how": "ai",
+				"area": "safety"
+			}
+		]
+	},
+	{
+		"id": "open-stories",
+		"page": "/stories",
+		"title": "The stories",
+		"group": "open",
+		"needs": "Nothing; speakers or headphones for the sound.",
+		"checks": [
+			{
+				"id": "index",
+				"says": "Open Stories and check a numbered list of stories shows on the left (above, on a phone), with the first one marked and showing.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "choose",
+				"says": "Press another story and check it replaces the one showing, its number is filled in, and the address ends with #its-name.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "back",
+				"says": "After choosing two stories, press the browser's Back and check the earlier story comes back.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "link",
+				"says": "Open /stories#vault directly and check the Vault story is the one showing.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "phone-scroll",
+				"says": "On a phone, choose a story and check the page scrolls up to the story.",
+				"how": "human",
+				"area": "layout"
+			},
+			{
+				"id": "sound",
+				"says": "Press the speaker button and check it fills in and the story is read aloud; press it again and check the sound stops.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "carry-on",
+				"says": "With sound on, let a story play to its end and check the next story opens and carries on by itself; check the last story ends the book.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "members",
+				"says": "If any story has a padlock, check that signed out it says it is for members, with the sign-in box.",
+				"how": "ai",
+				"area": "safety"
+			},
+			{
+				"id": "share",
+				"says": "Press 'Share all' and check it offers the link to /stories with the book's title.",
+				"how": "both",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "open-story",
+		"page": "/stories/[id]",
+		"title": "One story",
+		"group": "open",
+		"needs": "Nothing.",
+		"checks": [
+			{
+				"id": "shows",
+				"says": "Open /stories/vault and check the Vault story plays with its title and one-line summary at the top.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "all",
+				"says": "Press 'All stories' and check it goes to /stories.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "share",
+				"says": "Check 'This story's link' shows the link to this story and says anyone can watch it, signed in or not.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "copy",
+				"says": "Use the share or copy control and check the link it gives is the address of this story.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "not-found",
+				"says": "Open /stories/nothing-here and check it says 'Story not found' with an 'All stories' button.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "members",
+				"says": "For a members-only story, check that signed out it says it is for members, with the sign-in box and no share link.",
+				"how": "ai",
+				"area": "safety"
+			}
+		]
+	},
+	{
+		"id": "open-stories-make",
+		"page": "/stories/make",
+		"title": "Make a story book",
+		"group": "open",
+		"needs": "Nothing to start. On your own computer with the host's AI for real drafts.",
+		"checks": [
+			{
+				"id": "start",
+				"says": "Open Make a story book and check it shows 'Start a new book' and a line saying books are kept in this browser for now.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "new",
+				"says": "Press 'Start a new book' and check the seven steps show (The idea to Play) with The idea lit, an 'All books' button, and the address gains ?book=.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "idea",
+				"says": "Answer the title and 'what it's about' questions and check each shows as a chip you can press to change.",
+				"how": "both",
+				"area": "works"
+			},
+			{
+				"id": "steps",
+				"says": "Press a later step in the row and check it opens; check finished steps show as done.",
+				"how": "both",
+				"area": "works"
+			},
+			{
+				"id": "shelf",
+				"says": "Press 'All books' and check your book is listed with its title, number of stories, 'being made' and the date.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "reopen",
+				"says": "Press Open on the book and check it returns to the step you had reached.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "reload",
+				"says": "Reload the page with ?book= in the address and check the same book opens.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "delete",
+				"says": "Press Delete on a book and check it leaves the list.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "prompt",
+				"says": "Once a book has steps, open 'What Q tells the AI' and check it shows the full prompt built from your answers.",
+				"how": "both",
+				"area": "works"
+			},
+			{
+				"id": "private-window",
+				"says": "In a private window, start a book and answer a question, and check a red line warns that this browser isn't keeping your book.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "ai-line",
+				"says": "Away from your own computer, check the line under the shelf says why drafts are not written by the host's AI; on your own computer, check it names the AI model.",
+				"how": "human",
+				"area": "words"
+			}
+		]
+	},
+	{
+		"id": "open-verify",
+		"page": "/verify/[mint]",
+		"title": "Check a coin",
+		"group": "open",
+		"needs": "A coin's QR code or check link; one from this house and one made up.",
+		"checks": [
+			{
+				"id": "alone",
+				"says": "Open a coin's check link and check the page shows on its own: no top bar, no menu, no footer.",
+				"how": "ai",
+				"area": "layout"
+			},
+			{
+				"id": "asking",
+				"says": "Check it first says 'Asking the mint…' and then a verdict.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "ours",
+				"says": "With a coin from this house, check it says 'Minted here', names the house, and says Live or Test.",
+				"how": "both",
+				"area": "money"
+			},
+			{
+				"id": "holds-up",
+				"says": "For a coin from here, check 'Does the house hold up?' shows the reserves and books, what one coin is worth, and who to ask by office, not by name.",
+				"how": "both",
+				"area": "money"
+			},
+			{
+				"id": "not-ours",
+				"says": "Change the code in the address to a different mint and check it says 'Not from here' and names this house's mint instead.",
+				"how": "ai",
+				"area": "safety"
+			},
+			{
+				"id": "cant-check",
+				"says": "With the mint not answering, check it says 'Can't check' and why.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "visit",
+				"says": "If 'Who stands behind it' shows, press 'Visit …' and check it goes to that federation's join page.",
+				"how": "both",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "open-card",
+		"page": "/card/[id]",
+		"title": "A card for you (short link)",
+		"group": "open",
+		"needs": "A card link someone made for you (with its #key), and a passkey.",
+		"checks": [
+			{
+				"id": "signed-out",
+				"says": "Open the card link signed out and check it says someone wants to connect with you and to sign in to see who, with nothing of theirs shown.",
+				"how": "ai",
+				"area": "safety"
+			},
+			{
+				"id": "frame",
+				"says": "Signed out, check the plain header and footer show, not the side menu.",
+				"how": "ai",
+				"area": "layout"
+			},
+			{
+				"id": "drawer",
+				"says": "Sign in and check the card opens in a drawer from the right with 'A card for you' and Close.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "card",
+				"says": "Check the card shows their details, 'Signed by them, unchanged' and a 'Link up with …' button.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "link-up",
+				"says": "Press 'Link up with …', check it says 'Linking…' then a green message, and 'Open contacts' goes to your address book where they now appear.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "once",
+				"says": "Open the same link again in another browser with a different passkey and check it says 'This card can't be opened'.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "no-key",
+				"says": "Open the link without its #key part and check it says the card can't be opened.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "close",
+				"says": "Press Close (or click outside the drawer) and check you go to your home page.",
+				"how": "human",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "open-receipt",
+		"page": "/c/[token]",
+		"title": "A receipt for you",
+		"group": "open",
+		"needs": "A channel email you asked for from Settings, the passkey that asked, and a second passkey.",
+		"checks": [
+			{
+				"id": "alone",
+				"says": "Open the link from the email and check the page shows on its own: no top bar, no menu, no footer.",
+				"how": "ai",
+				"area": "layout"
+			},
+			{
+				"id": "thumbprint",
+				"says": "Signed out, check only a fingerprint button shows, labelled 'Open with your passkey', and nothing of the address.",
+				"how": "ai",
+				"area": "safety"
+			},
+			{
+				"id": "gone",
+				"says": "Open /c/ with a made-up code and check it says 'Nothing here' and that the receipt has expired or was never one of Q's.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "open",
+				"says": "Press the fingerprint and use the right passkey, and check it says 'Asking your passkey…' then shows the email address under 'What it says'.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "confirm",
+				"says": "Press 'Yes, that is mine', check it says 'Adding…', then 'Added' with 'Verified', and 'See your channels' goes to Settings where the channel is listed.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "wrong-passkey",
+				"says": "Open the link signed in as a different passkey and check it says 'Sealed to someone else', 'Cannot open', and explains to open it on the device that holds the right passkey.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "used",
+				"says": "Open the same link again after confirming and check it cannot be used to add the address a second time.",
+				"how": "human",
+				"area": "safety"
+			}
+		]
+	},
+	{
+		"id": "open-link",
+		"page": "/link",
+		"title": "A card for you (old link)",
+		"group": "open",
+		"needs": "A card link made before 2 October 2026 (the whole card in the #part), and a passkey.",
+		"checks": [
+			{
+				"id": "signed-out",
+				"says": "Open the link signed out and check it says someone wants to connect with you and to sign in to see who.",
+				"how": "ai",
+				"area": "safety"
+			},
+			{
+				"id": "frame",
+				"says": "Signed out, check the plain header and footer show, not the side menu.",
+				"how": "ai",
+				"area": "layout"
+			},
+			{
+				"id": "opens",
+				"says": "Sign in and check 'A card for you' shows their card, 'Signed by them, unchanged' and a 'Link up with …' button.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "link-up",
+				"says": "Press 'Link up with …' and check a green message, then 'Open contacts' shows them in your address book.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "broken",
+				"says": "Change a letter in the # part of the link and check it says 'This card can't be opened'.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "no-hash",
+				"says": "Signed in, open /link with nothing after it and check it says the card can't be opened rather than showing a blank page.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "both-ways",
+				"says": "After linking up, check the other person now has your card in their address book too.",
+				"how": "human",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "open-legal",
+		"page": "/legal",
+		"title": "Legal",
+		"group": "open",
+		"needs": "Nothing.",
+		"checks": [
+			{
+				"id": "list",
+				"says": "Open /legal and check it lists Privacy notice, Terms of use, Accessibility statement and Licences, each with a line on what it covers.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "links",
+				"says": "Press each one and check it opens the right page.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "tabs",
+				"says": "Check the row of four buttons at the top shows, with none marked as current on this page.",
+				"how": "ai",
+				"area": "layout"
+			},
+			{
+				"id": "english-note",
+				"says": "Switch the language to Welsh and check a note says these pages are in English for now.",
+				"how": "ai",
+				"area": "words"
+			}
+		]
+	},
+	{
+		"id": "open-legal-accessibility",
+		"page": "/legal/accessibility",
+		"title": "Accessibility statement",
+		"group": "open",
+		"needs": "Nothing.",
+		"checks": [
+			{
+				"id": "current",
+				"says": "Check 'Accessibility' is marked as current in the row of legal buttons.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "date",
+				"says": "Check it shows a 'Last updated' date.",
+				"how": "ai",
+				"area": "words"
+			},
+			{
+				"id": "true",
+				"says": "Check each thing under 'What Q does' is true of Q today (read aloud, six languages, light and dark, reduced motion, keyboard).",
+				"how": "human",
+				"area": "words"
+			},
+			{
+				"id": "contact",
+				"says": "Press 'tell us' and check it goes to the Contact page.",
+				"how": "ai",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "open-legal-licences",
+		"page": "/legal/licences",
+		"title": "Licences",
+		"group": "open",
+		"needs": "Nothing.",
+		"checks": [
+			{
+				"id": "current",
+				"says": "Check 'Licences' is marked as current in the row of legal buttons.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "parts",
+				"says": "Check it names the licence for the app and node (AGPL), the libraries (Apache 2.0) and the documentation (CC BY 4.0), and what is not covered.",
+				"how": "ai",
+				"area": "words"
+			},
+			{
+				"id": "source-links",
+				"says": "Press LICENSING.md, NOTICE and TRADEMARKS.md and check each opens that file on GitHub.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "darkolive",
+				"says": "Check the Dark Olive CIC link goes to darkolive.co.uk.",
+				"how": "ai",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "open-legal-privacy",
+		"page": "/legal/privacy",
+		"title": "Privacy notice",
+		"group": "open",
+		"needs": "Nothing.",
+		"checks": [
+			{
+				"id": "current",
+				"says": "Check 'Privacy' is marked as current in the row of legal buttons.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "date",
+				"says": "Check it shows a 'Last updated' date.",
+				"how": "ai",
+				"area": "words"
+			},
+			{
+				"id": "links",
+				"says": "Check the contact links go to the Contact page, and the Vercel, Resend, Cloudflare, Google, Hetzner and ICO links go to those sites.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "true",
+				"says": "Check what it says Q does not collect (no cookies, no analytics, no trackers) is true: open the browser's storage and network tools and look.",
+				"how": "both",
+				"area": "safety"
+			}
+		]
+	},
+	{
+		"id": "open-legal-terms",
+		"page": "/legal/terms",
+		"title": "Terms of use",
+		"group": "open",
+		"needs": "Nothing.",
+		"checks": [
+			{
+				"id": "current",
+				"says": "Check 'Terms' is marked as current in the row of legal buttons.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "date",
+				"says": "Check it shows a 'Last updated' date.",
+				"how": "ai",
+				"area": "words"
+			},
+			{
+				"id": "links",
+				"says": "Check 'report it privately' opens GitHub's advisory form, and 'licences' goes to the Licences page.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "recover",
+				"says": "Check it says plainly that Q cannot recover your records if your passkey, recovery card and backups are all lost.",
+				"how": "human",
+				"area": "words"
+			}
+		]
+	},
+	{
+		"id": "open-docs",
+		"page": "/docs",
+		"title": "Documentation",
+		"group": "open",
+		"needs": "Nothing.",
+		"checks": [
+			{
+				"id": "frame",
+				"says": "Open Documentation signed out and check the plain header and footer show, not the side menu.",
+				"how": "ai",
+				"area": "layout"
+			},
+			{
+				"id": "shelves",
+				"says": "Check six cards show: Start here, How the identity works, Decisions, Designs and guides, Origins, and Security and licences, each with an icon and a line.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "links",
+				"says": "Press each card and check it opens the matching folder or file of the inqbeta-q source on GitHub in a new tab, and none is a broken link.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "english-note",
+				"says": "Switch the language to another one and check a note says these pages are in English for now.",
+				"how": "ai",
+				"area": "words"
+			},
+			{
+				"id": "lead",
+				"says": "Check the line under the heading says what the documentation is.",
+				"how": "ai",
+				"area": "words"
+			},
+			{
+				"id": "footer-link",
+				"says": "Press Documentation in the footer of any page and check it opens this page.",
+				"how": "ai",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "open-channels-provider",
+		"page": "/channels/[provider]",
+		"title": "Back from Dropbox or OneDrive",
+		"group": "open",
+		"needs": "A passkey, signed in with a folder, and a Dropbox or OneDrive account; start from Connect under Backups.",
+		"checks": [
+			{
+				"id": "unknown",
+				"says": "Open /channels/nothing and check it says Q doesn't know that storage, in red, with 'Back to Backups'.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "no-code",
+				"says": "Open /channels/dropbox with nothing after it and check it says Dropbox didn't send a sign-in code back, with 'Back to Backups'.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "said-no",
+				"says": "Start Connect for Dropbox and refuse on Dropbox's page, and check it says Dropbox wasn't connected because you said no, which is fine.",
+				"how": "human",
+				"area": "words"
+			},
+			{
+				"id": "connect",
+				"says": "Connect Dropbox and agree, and check the page says Dropbox said yes, then 'Locking the connection into your vault…', then 'Connected', and goes to Backups.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "address-clean",
+				"says": "After it says yes, check the code has gone from the address bar.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "small-window",
+				"says": "When Connect opens a small window, check it says 'Done — you can close this window' and your other tab carries on.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "passkey",
+				"says": "If you were signed out when it came back, check it asks you to touch your passkey to finish and shows the sign-in box.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "onedrive",
+				"says": "Repeat the connect check with OneDrive and check the page is titled OneDrive.",
+				"how": "human",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "open-channels-google",
+		"page": "/channels/google",
+		"title": "Back from Google Drive",
+		"group": "open",
+		"needs": "A passkey, signed in with a folder, and a Google account; start from Connect under Backups.",
+		"checks": [
+			{
+				"id": "no-code",
+				"says": "Open /channels/google with nothing after it and check it says Google did not send a sign-in code back, in red, with 'Back to Copy locations'.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "error",
+				"says": "Open /channels/google?error=access_denied and check it says Google Drive was not connected because you said no, which is fine.",
+				"how": "ai",
+				"area": "words"
+			},
+			{
+				"id": "other-tab",
+				"says": "Open it with a code that did not start in this tab and check it says the sign-in did not start in this tab or was already used.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "connect",
+				"says": "Connect Google Drive and agree, and check the page says Google Drive said yes, then locks it into your vault, then 'Connected', and goes to Backups.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "address-clean",
+				"says": "After it says yes, check the code has gone from the address bar, so a reload cannot reuse it.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "small-window",
+				"says": "When Connect opens a small window, check it says 'Done — you can close this window' and your other tab carries on.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "back-link",
+				"says": "On a failure, press 'Back to Copy locations' and check it goes to Backups.",
+				"how": "ai",
+				"area": "works"
+			}
+		]
+	}
+]

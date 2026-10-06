@@ -53,6 +53,7 @@ export const STORED_KEYS: StoredKey[] = [
 	{ key: 'q.notify', where: 'local', kind: 'identity', holds: 'the notifications card: what rings, what is quiet, what is off (ADR-Q-016 §6)' },
 	{ key: 'q.office-keys', where: 'local', kind: 'identity', holds: 'the public key (DID) of each office you hold, so post arriving for it goes on its shelf in your folder sealed to the office (ADR-Q-038); forgotten when the office ends' },
 	{ key: 'q.notify.hours', where: 'local', kind: 'identity', holds: 'office hours for post to an office you hold: days, hours and time zone (ADR-Q-038); also carried in your signed office-post notices' },
+	{ key: 'q.tester', where: 'local', kind: 'device', holds: 'the name and device a tester gives on the Testing page, so each report needn’t ask again — a preference' },
 	{ key: 'q.plugins', where: 'local', kind: 'identity', holds: 'which installed plugins show in the menu, and in what order — also kept in the vault' },
 	{ key: 'q.call.choice', where: 'local', kind: 'device', holds: 'which camera and microphone this browser uses for calls — a preference' },
 	{ key: 'q-nav-folded', where: 'local', kind: 'device', holds: 'whether the side menu is folded to icons — a preference' },

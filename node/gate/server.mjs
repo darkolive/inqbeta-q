@@ -349,6 +349,46 @@ async function registryClubs(req, res, origin, host) {
 	const kept = await fetch(`${dir}${name}.json`, { method: 'POST', body: form }).catch((e) => ({ ok: false, status: e.message }));
 	return kept.ok ? send(res, origin, 200, { ok: true }) : send(res, origin, 502, { says: `Couldn’t keep it: ${kept.status}` });
 }
+/*
+ * ---- Testing Q (6 October 2026) ----
+ * Claims ("I'll take this checklist") and test reports, each signed by the
+ * tester. Kept only from whoever the door lets in (tester passes; everyone
+ * once the host is live). Anyone may read them.
+ *   GET  /checks                      { items: [receipt …] }
+ *   POST /checks                      a claim or report receipt
+ */
+const CHECKS_DIR = () => `${FILER}/checks/`;
+const CHECK_LIST = /^[a-z0-9][a-z0-9-]{0,79}$/;
+export function checkItemShape(r) {
+	const c = r?.content;
+	if (c?.schema !== 'inqbeta.check-claim/1' && c?.schema !== 'inqbeta.check-report/1') return false;
+	if (!CHECK_LIST.test(String(c.list ?? '')) || typeof c.version !== 'string' || (c.by !== 'human' && c.by !== 'ai') || typeof c.at !== 'string') return false;
+	return c.schema === 'inqbeta.check-claim/1' || (Array.isArray(c.results) && c.results.length > 0 && c.results.length <= 200);
+}
+async function checks(req, res, origin) {
+	if (req.method === 'GET') {
+		const items = [];
+		for (const full of await listJson(CHECKS_DIR(), 5000)) {
+			if (!full.endsWith('.json')) continue;
+			const f = await fetch(`${CHECKS_DIR()}${full.split('/').pop()}`).catch(() => null);
+			const x = f?.ok ? await f.json().catch(() => null) : null;
+			if (x) items.push(x);
+		}
+		return send(res, origin, 200, { schema: 'inqbeta.checks/1', items });
+	}
+	if (req.method !== 'POST') return send(res, origin, 405, { says: 'Only GET and POST.' });
+	const raw = await readBody(req, 64 * 1024);
+	let r = null;
+	try { r = JSON.parse(raw ?? ''); } catch { r = null; }
+	if (!checkItemShape(r) || !(await signedReceipt(r))) return send(res, origin, 400, { says: 'That isn’t a signed claim or test report.' });
+	const says = await doorSays(r.did);
+	if (says) return send(res, origin, 403, { says: 'Only testers can claim checklists and report on them while the host is in test. Ask the founder for a tester pass.' });
+	const name = `${r.content.list}--${String(r.contentHash ?? '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64)}`;
+	const form = new FormData();
+	form.append('file', new Blob([JSON.stringify(r)], { type: 'application/json' }), `${name}.json`);
+	const kept = await fetch(`${CHECKS_DIR()}${name}.json`, { method: 'POST', body: form }).catch((e) => ({ ok: false, status: e.message }));
+	return kept.ok ? send(res, origin, 200, { ok: true }) : send(res, origin, 502, { says: `Couldn’t keep it: ${kept.status}` });
+}
 let registryQueue = Promise.resolve();
 async function registry(req, res, origin, fed) {
 	if (req.method === 'GET' && !fed) {
@@ -1390,6 +1430,7 @@ export const server = http.createServer(async (req, res) => {
 	if (op) return officePosts(req, res, origin, op[1]);
 	const ar = ARCHIVE.exec(decodeURIComponent(new URL(req.url, 'http://gate').pathname));
 	if (ar) return archives(req, res, origin, ar[1], ar[2]);
+	if (new URL(req.url, 'http://gate').pathname === '/checks') return checks(req, res, origin);
 	if (new URL(req.url, 'http://gate').pathname === '/core-releases') return coreReleases(req, res, origin);
 	if (new URL(req.url, 'http://gate').pathname === '/registry') return registry(req, res, origin, null);
 	const rc = REGISTRY_CLUBS.exec(decodeURIComponent(new URL(req.url, 'http://gate').pathname));

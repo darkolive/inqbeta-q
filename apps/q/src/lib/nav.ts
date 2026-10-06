@@ -123,6 +123,15 @@ export const PLUGINS: NavGroup[] = [
 		kind: 'plugin',
 		about: 'Courses and the evidence you keep for them',
 		links: [{ href: '/f/dostudy', label: 'Courses', icon: 'courses' }]
+	},
+	/* Testing Q, page by page (6 October 2026): a checklist for every page, taken, tested and reported on, signed. */
+	{
+		id: 'testing',
+		label: 'Testing',
+		icon: 'check',
+		kind: 'plugin',
+		about: 'A checklist for every page: take one, test it, report back',
+		links: [{ href: '/testing', label: 'Checklists', icon: 'check' }]
 	}
 ];
 
