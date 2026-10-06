@@ -49,6 +49,8 @@
 	import { APPOINTABLE, OFFICE_MONTHS, hashAppointment, type OfficeHeld, type OfficeId } from '@inqbeta/q-core/offices';
 	import { FINDINGS, type Finding } from '@inqbeta/q-core/attestation';
 	import { report as writeEvidenceReport } from '$lib/attestation';
+	import { officeThreads, sendTo } from '$lib/messages';
+	import { peopleFrom } from '$lib/people';
 	import type { Found } from '$lib/features/registry';
 	import { standingAt } from '@inqbeta/q-core/membership';
 	import { onSecurePage, reachIndex, reachPostOffice, reachStorage, reachSwitchboard, reachThroughFrontDoor, type Reach } from '$lib/node-health';
@@ -603,6 +605,25 @@
 		recallWhy = '';
 		await refreshLedger();
 	}
+	/* The office's post (ADR-Q-038 §5): what was asked of it, seen only in role, answered as the office. */
+	const post = $derived(desk && identity ? officeThreads(ledger?.receipts ?? [], identity.did, id, desk.office) : []);
+	const deskPeople = $derived(peopleFrom(ledger, identity?.did ?? ''));
+	const whoIs = (did: string) => deskPeople.find((p) => p.did === did)?.name ?? members.find((m) => m.joining.member === did)?.called ?? `${did.slice(0, 14)}…${did.slice(-6)}`;
+	let replies = $state<Record<string, string>>({});
+	async function replyAsOffice(them: string) {
+		if (!desk) return;
+		const lastIn = [...(post.find((t) => t.them === them)?.messages ?? [])].reverse().find((m) => m.did === them);
+		const text = (replies[them] ?? '').trim();
+		if (!lastIn?.content.replyTo || !text) return;
+		busy = 'reply';
+		said = null;
+		const out = await sendTo({ did: them, inbox: lastIn.content.replyTo }, { kind: 'message', text, fromOffice: { federation: id, office: desk.office, ...(founding?.name ? { name: founding.name } : {}) } });
+		busy = null;
+		if (!out.ok) return void (said = { tone: 'bad', text: out.says });
+		replies = { ...replies, [them]: '' };
+		await refreshLedger();
+	}
+
 	/* A report, from a reviewer's or compliance officer's desk. */
 	let repSubject = $state('');
 	let repFinding = $state<Finding | ''>('');
@@ -741,7 +762,24 @@
 				{:else if desk.office === 'verifier'}
 					<p class="text-sm">When a report comes to you from another federation, open its link. You’ll see who wrote it and what they declared, and can accept it, accept it with notes, or say what you found.</p>
 				{/if}
-				<p class="text-sm opacity-80">The office’s post and its jobs come next.</p>
+				<!-- Post for the office: asked of the office, answered as the office. -->
+				<div class="flex flex-col gap-3">
+					<p class="font-bold">Post for the office</p>
+					{#if !post.length}
+						<p class="text-sm">Nothing yet. Questions people send to the {desk.called.toLowerCase()} wait here, for whoever holds the office.</p>
+					{:else}
+						{#each post as t (t.them)}
+							<div class="card preset-outlined-surface-200-800 p-3 flex flex-col gap-2">
+								<p class="font-semibold">{whoIs(t.them)}</p>
+								{#each t.messages as m (m.signature)}
+									<p class="text-sm {m.did === t.them ? '' : 'pl-4 border-l-2 border-secondary-500'}"><span class="opacity-70">{m.did === t.them ? whoIs(t.them) : `You, as ${desk.called.toLowerCase()}`} · {onDay(m.content.at)}:</span> {m.content.text}</p>
+								{/each}
+								<label class="label"><span class="label-text">Answer as {desk.called.toLowerCase()}</span><textarea class="textarea" rows="2" value={replies[t.them] ?? ''} oninput={(e) => (replies = { ...replies, [t.them]: e.currentTarget.value })}></textarea></label>
+								<button type="button" class="btn btn-sm preset-filled-primary-500 min-h-11 self-start" disabled={busy !== null || !(replies[t.them] ?? '').trim()} onclick={() => void replyAsOffice(t.them)}>{busy === 'reply' ? 'Sending…' : 'Send'}</button>
+							</div>
+						{/each}
+					{/if}
+				</div>
 				{#if !standingDown}
 					<button type="button" class="btn preset-tonal min-h-11 self-start" onclick={() => (standingDown = true)}>Stand down…</button>
 				{:else}

@@ -375,3 +375,29 @@ The gate needs updating on the node to carry it (job A3).
 - **Not yet**: the story view (a receipt's history read in order); finding
   verifiers in the directory; reports published to the federation's page.
 
+### As built, 6 October 2026: the office's desk and post (steps 3–4; job C5)
+
+- **Where post for an office goes**: on keeping an appointment, the holder
+  signs a notice naming their inbox, with the appointment as proof
+  (`inqbeta.office-post/1`, q-core `officePost`). The host's storage node
+  keeps the notices (the gate's `/offices/<federation>`, newest per holder
+  and office; it checks only that the holder signed it). Every reader checks
+  each notice itself (`officeAddresses`: the appointment, its term, the
+  revoked list), so a forged or ended one is passed over.
+- **Writing to an office** (`askOffice`): sealed to each holder now, tagged
+  `office`. On the coin statement, **Ask the treasurer** opens a box when
+  someone holds the office; with nobody in it, the link goes to the
+  caretaker.
+- **Seen only in role**: post tagged for an office, and what the holder sends
+  back for it (`fromOffice`), stays off their own messages and doesn't ring
+  the bell out of role. It's on the desk under **Post for the office**,
+  answered **as the office**; the person who asked sees the answer in their
+  own messages, labelled "As treasurer of Green Space".
+- **The desk** so far: what the office covers, the term, the report (for
+  reviewer and compliance), the post, and Stand down.
+- **Not yet**: the office's card (ADR-Q-015) to hand out; post for the
+  caretaker (who has no appointment, so no notice); offices of federations
+  other than the host's (only the host's node keeps the list); handing open
+  threads to the next holder (ADR-Q-037's open question); the desk's jobs
+  and things to reconcile.
+

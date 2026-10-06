@@ -159,6 +159,7 @@ history is passed on deliberately and is recorded. This is not yet decided.
 - **The coin statement's button** says "Ask the treasurer … of Green Space,
   whoever holds it now", and the coin check says questions go to the office,
   never to a named person.
-- **Next (step 3)**: publish who holds each office to the host, so the button
-  reaches the holder, not the caretaker.
-
+- **Step 3, built the same day**: holders publish where their office's post
+  goes (ADR-Q-038, *the office's desk and post*); the mint reports the current
+  holders, and **Ask the treasurer** seals the question to each of them. With
+  nobody in the office, the caretaker answers.

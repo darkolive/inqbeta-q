@@ -5,6 +5,7 @@
 	 * one box to write in. It only opens for someone there's already a receipt
 	 * with — the link-up — so there's always someone known on the other end.
 	 */
+	import { officeName } from '$lib/role.svelte';
 	import { page } from '$app/state';
 	import { tick } from 'svelte';
 	import { Empty, Icon } from '@inqbeta/q-ui';
@@ -93,6 +94,10 @@
 								<div class="grid gap-1 w-72 max-w-full {pics.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}">
 									{#each pics as a (a.sha256)}<AttachmentView {a} compact={pics.length > 1} {mine} />{/each}
 								</div>
+							{/if}
+							{#if m.content.fromOffice || m.content.office}
+								<!-- Office business (ADR-Q-037): said who it was for, or who it came from. -->
+								<span class="text-xs opacity-70">{m.content.fromOffice ? `As ${officeName(m.content.fromOffice.office).toLowerCase()}${m.content.fromOffice.name ? ` of ${m.content.fromOffice.name}` : ''}` : `To the ${officeName(m.content.office!.office).toLowerCase()}`}</span>
 							{/if}
 							{#if m.content.text}
 								<p class="card px-4 py-2 whitespace-pre-line {mine ? 'preset-filled-primary-500' : 'preset-filled-surface-200-800'}">{m.content.text}</p>

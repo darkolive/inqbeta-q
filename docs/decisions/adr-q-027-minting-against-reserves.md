@@ -366,3 +366,23 @@ needs advice before it's live.
 - **Not yet**: the story engine's model prices and the node's running costs
   are set in pence, so they're right for a pound-mint only; other currencies
   need a rate (ADR-Q-042 §3a).
+
+### As built, 6 October 2026 (jobs D2–D4): drift, the safety valve, the cash-out lock
+
+- **Drift** is in the books (q-core `booksOf` → `drift`, `driftOf`): 1 −
+  (cash + capital) ÷ credits out, in the currency; never below 0. The books
+  on the coin check and the Bank tab show it as a card: matched, watch it
+  (over 10%), or cash-outs paused (over 20%).
+- **The safety valve** (q-core `valveOf`): shut when drift is over 20%, or the
+  books haven't been reconciled for over 30 days (a bank never reconciled has
+  30 days from its first entry). Shut, cash-outs are refused in one sentence
+  saying why and how it reopens; buying is never paused. Enforced twice: the
+  mint API, and Cedar (`credits.cashout/cannot/valve-shut`, fact
+  `valveShut`).
+- **The cash-out lock** (audit A4): the gate files one entry at a time per
+  ledger and reports its **tip** (how many entries). The mint sends back the
+  tip it decided on (`x-ledger-tip`) when filing a cash-out ask or a spend;
+  if the books have moved, the gate refuses with 409, and the mint reads
+  again and decides again (up to three times). Proved with two asks at once:
+  one goes in, the other decides again. Needs the gate updated on the node.
+

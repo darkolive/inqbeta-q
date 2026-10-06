@@ -31,6 +31,7 @@
 	import type { ReceiptEntry } from '$lib/receipts';
 	import { readMint, buyCredits, cashOut, mintBalance, amount, worth, reconcile, payoutAccountOf, type MintView } from '$lib/money';
 	import Reconciled from '$lib/components/display/Reconciled.svelte';
+	import AskOffice from '$lib/components/AskOffice.svelte';
 	import { role } from '$lib/role.svelte';
 	import { OFFICE_COMMANDS, officeMay } from '@inqbeta/q-core/offices';
 
@@ -55,7 +56,6 @@
 	const ours = $derived(!!mint && mint.mint === asked);
 	const people = $derived(peopleFrom(ledger, me));
 	const names = $derived<Names>({ me, nameOf: (d) => (d === bank?.founder ? `${bank.name}’s founder` : people.find((p) => p.did === d)?.name) });
-	const linked = $derived(!!bank && people.some((p) => p.did === bank.founder));
 	const short = (d: string) => (d.length > 24 ? `${d.slice(0, 14)}…${d.slice(-6)}` : d);
 
 	/* A move's receipt, opened in the drawer: the same read-only card as everywhere. */
@@ -167,12 +167,7 @@
 				</div>
 				{#if bank}
 					<!-- Ask the office, not the person (ADR-Q-037): it reaches whoever holds it now. -->
-					<div class="flex flex-col items-end gap-1">
-						<a class="btn preset-tonal-primary min-h-11" href="/messages/{encodeURIComponent(mint.contact?.answerer ?? bank.founder)}" title={linked ? undefined : 'You’re not linked with them yet: their page says how.'}>
-							<Icon name="message" size={18} /> Ask the {(mint.contact?.called ?? 'Treasurer').toLowerCase()}
-						</a>
-						<span class="text-xs opacity-70">of {bank.name}, whoever holds it now</span>
-					</div>
+					<AskOffice federation={bank.federation} office={mint.contact?.office ?? 'treasurer'} called={mint.contact?.called ?? 'Treasurer'} of={bank.name} holders={mint.contact?.holders ?? []} fallbackHref="/messages/{encodeURIComponent(bank.founder)}" />
 				{/if}
 			</div>
 			<dl class="grid gap-3 sm:grid-cols-3 text-sm">
@@ -258,7 +253,10 @@
 				{:else}
 					<p class="text-sm"><Status tone="needs-you">Needed</Status> Cashing out pays only to your own account, as a standing order. <a class="anchor" href="/settings#cashing-out">Set it in Settings</a> first.</p>
 				{/if}
-				{#if canCashOut && account}
+				{#if mint.valve?.shut}
+					<!-- The safety valve (ADR-Q-027): paused, said plainly, with how it reopens. -->
+					<p class="card preset-tonal-error p-3" role="status">{mint.valve.says}</p>
+				{:else if canCashOut && account}
 					<label class="label">
 						<span class="label-text">How many credits (up to {canCashOut})</span>
 						<input class="input max-w-40" type="number" min="1" max={canCashOut} step="1" bind:value={outCredits} />

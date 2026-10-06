@@ -31,6 +31,8 @@ import { isDevelopmentSite } from '$lib/server/site';
 import type { HomeFile } from '$lib/home';
 
 export class MintRefused extends Error {}
+/** The books moved on while a cash-out or a spend was being decided (audit A4): read again, decide again. */
+export class LedgerMoved extends Error {}
 
 let identity: Promise<Identity> | null = null;
 /** The mint's own identity, from Q_MINT_SEED. */
@@ -127,9 +129,17 @@ export async function moneyOf(origin: string, host: Host): Promise<MoneyState> {
 const LOCAL = (mint: string, mode: MintMode) => path.resolve(process.cwd(), 'mint.local', `${mint.slice(-16)}-${mode}.json`);
 
 export async function readLedger(host: Host, mint: string, mode: MintMode): Promise<unknown[]> {
+	return (await readLedgerAt(host, mint, mode)).receipts;
+}
+
+/** The books and their tip (how many entries), so a cash-out or a spend can be filed only on the books it was decided on. */
+export async function readLedgerAt(host: Host, mint: string, mode: MintMode): Promise<{ receipts: unknown[]; tip: number | null }> {
 	if (host.storage) {
 		const r = await fetch(`${host.storage}/mint/${mint}/${mode}`, { signal: AbortSignal.timeout(15_000) }).catch(() => null);
-		if (r?.ok) return ((await r.json().catch(() => ({}))) as { receipts?: unknown[] }).receipts ?? [];
+		if (r?.ok) {
+			const j = (await r.json().catch(() => ({}))) as { receipts?: unknown[]; tip?: number };
+			return { receipts: j.receipts ?? [], tip: typeof j.tip === 'number' ? j.tip : null };
+		}
 		/* Say what the storage said, and which mint was asked for: the node keeps only mints listed in its GATE_MINTS. */
 		if (!dev) {
 			if (r?.status === 404) throw new MintRefused(`The storage doesn’t keep this mint’s books yet. On the node, GATE_MINTS needs to be ${mint}, then the gate restarted.`);
@@ -138,21 +148,29 @@ export async function readLedger(host: Host, mint: string, mode: MintMode): Prom
 	}
 	if (!dev) throw new MintRefused('This host has no storage node for the mint’s ledger.');
 	try {
-		return existsSync(LOCAL(mint, mode)) ? (JSON.parse(readFileSync(LOCAL(mint, mode), 'utf8')) as unknown[]) : [];
+		const receipts = existsSync(LOCAL(mint, mode)) ? (JSON.parse(readFileSync(LOCAL(mint, mode), 'utf8')) as unknown[]) : [];
+		return { receipts, tip: receipts.length };
 	} catch {
-		return [];
+		return { receipts: [], tip: 0 };
 	}
 }
 
-export async function appendLedger(host: Host, mint: string, mode: MintMode, receipt: { contentHash: string }): Promise<void> {
+/**
+ * File a receipt in the mint's ledger. With `onTip`, only if the books still
+ * hold that many entries (the tip it was decided on); otherwise LedgerMoved.
+ */
+export async function appendLedger(host: Host, mint: string, mode: MintMode, receipt: { contentHash: string }, onTip?: number | null): Promise<void> {
 	if (host.storage) {
-		const r = await fetch(`${host.storage}/mint/${mint}/${mode}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(receipt), signal: AbortSignal.timeout(15_000) }).catch(() => null);
+		const headers: Record<string, string> = { 'content-type': 'application/json', ...(typeof onTip === 'number' ? { 'x-ledger-tip': String(onTip) } : {}) };
+		const r = await fetch(`${host.storage}/mint/${mint}/${mode}`, { method: 'POST', headers, body: JSON.stringify(receipt), signal: AbortSignal.timeout(15_000) }).catch(() => null);
 		if (r?.ok) return;
+		if (r?.status === 409) throw new LedgerMoved('The books moved on while this was being decided.');
 		if (!dev) throw new MintRefused(`The storage didn’t keep it: ${r ? ((await r.json().catch(() => ({}))) as { says?: string }).says ?? r.status : 'no answer'}.`);
 	}
 	if (!dev) throw new MintRefused('This host has no storage node for the mint’s ledger.');
 	const had = await readLedger({ ...host, storage: undefined }, mint, mode);
 	if (had.some((x) => (x as { contentHash?: string }).contentHash === receipt.contentHash)) return;
+	if (typeof onTip === 'number' && had.length !== onTip) throw new LedgerMoved('The books moved on while this was being decided.');
 	mkdirSync(path.dirname(LOCAL(mint, mode)), { recursive: true });
 	writeFileSync(LOCAL(mint, mode), JSON.stringify([...had, receipt], null, 2));
 }

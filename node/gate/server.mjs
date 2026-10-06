@@ -156,6 +156,53 @@ async function revoked(req, res, origin, fed) {
 }
 
 /*
+ * ---- The office's post (ADR-Q-038 §5; 6 October 2026) ----
+ * Where post for an office goes: each holder signs a notice naming their
+ * inbox, with their appointment as proof. Kept here, newest per holder and
+ * office; read by anyone. The gate checks only that it's signed by the
+ * appointment's holder for this federation: senders' Qs check the rest.
+ *
+ *   GET  /offices/<federation DID>   { federation, items: [notice …] }
+ *   POST /offices/<federation DID>   a notice sealed by the holder
+ */
+const OFFICE_POST = 'inqbeta.office-post/1';
+const OFFICES_PATH = /^\/offices\/(did:key:z[1-9A-HJ-NP-Za-km-z]+)$/;
+const OFFICES_MOST = 500;
+const officesPath = (fed) => `${FILER}/offices/${fed.replace(/[^A-Za-z0-9]/g, '')}.json`;
+export async function officePostOk(x, fed) {
+	const c = x?.content;
+	return c?.schema === OFFICE_POST && c.federation === fed && c.appointment?.federation === fed && x.did === c.appointment?.holder && typeof c.office === 'string' && c.appointment.office === c.office && /^[A-Za-z0-9_-]{22}$/.test(c.inbox ?? '') && (await signedReceipt(x));
+}
+let officesQueue = Promise.resolve();
+async function officePosts(req, res, origin, fed) {
+	if (!FEDERATIONS.has(fed)) return send(res, origin, 404, { says: 'This node doesn’t serve that federation.' });
+	const read = async () => {
+		const r = await fetch(officesPath(fed)).catch(() => null);
+		const held = r?.ok ? await r.json().catch(() => null) : null;
+		return Array.isArray(held?.items) ? held.items : [];
+	};
+	if (req.method === 'GET') return send(res, origin, 200, { schema: 'inqbeta.offices/1', federation: fed, items: await read() });
+	if (req.method !== 'POST') return send(res, origin, 405, { says: 'Only GET and POST.' });
+	if (tooMany(`offices:${req.socket.remoteAddress ?? ''}`, Date.now(), 60)) return send(res, origin, 429, { says: 'Too many at once. Try again in a while.' });
+	const raw = await readBody(req, LEDGER_BYTES);
+	let item = null;
+	try { item = JSON.parse(raw ?? ''); } catch { item = null; }
+	if (!(await officePostOk(item, fed))) return send(res, origin, 403, { says: 'Only an office holder’s own signed notice goes on its list.' });
+	const run = officesQueue.then(async () => {
+		const key = (x) => `${x.content.office}|${x.did}`;
+		const items = (await read()).filter((x) => key(x) !== key(item) || x.content.at > item.content.at);
+		if (!items.some((x) => key(x) === key(item))) items.push(item);
+		const form = new FormData();
+		form.append('file', new Blob([JSON.stringify({ items: items.slice(-OFFICES_MOST) })], { type: 'application/json' }), 'offices.json');
+		const kept = await fetch(officesPath(fed), { method: 'POST', body: form }).catch((e) => ({ ok: false, status: e.message }));
+		return kept.ok ? { status: 200, body: { ok: true, items: items.length } } : { status: 502, body: { says: `Couldn’t keep it: ${kept.status}` } };
+	});
+	officesQueue = run.catch(() => {});
+	const { status, body } = await run.catch((e) => ({ status: 500, body: { says: e.message } }));
+	return send(res, origin, status, body);
+}
+
+/*
  * ---- The door (ADR-Q-034) ----
  * While the host is in test, only its founder's root, keys linked to that
  * root, and people the root has given a tester pass may act here. Reading
@@ -443,11 +490,14 @@ export async function checkLedgerEntry(r, mint, mode, known = new Set()) {
 	return 'That isn’t a mint receipt, a reconciliation or an agreement.';
 }
 const ledgerDir = (mint, mode) => `${FILER}/mint/${mint}/${mode}/`;
-async function ledgerList(mint, mode) {
+async function ledgerNames(mint, mode) {
 	const r = await fetch(ledgerDir(mint, mode), { headers: { accept: 'application/json' } }).catch(() => null);
 	if (!r?.ok) return [];
 	const j = await r.json().catch(() => ({}));
-	const names = (j.Entries ?? []).map((e) => String(e.FullPath ?? '').split('/').pop()).filter((n) => n.endsWith('.json'));
+	return (j.Entries ?? []).map((e) => String(e.FullPath ?? '').split('/').pop()).filter((n) => n.endsWith('.json'));
+}
+async function ledgerList(mint, mode) {
+	const names = await ledgerNames(mint, mode);
 	const out = [];
 	for (const n of names.slice(0, 5000)) {
 		const f = await fetch(`${ledgerDir(mint, mode)}${n}`).catch(() => null);
@@ -458,7 +508,11 @@ async function ledgerList(mint, mode) {
 }
 async function ledgers(req, res, origin, mint, mode) {
 	if (!MINTS.has(mint)) return send(res, origin, 404, { says: 'This node doesn’t keep that mint’s ledger.' });
-	if (req.method === 'GET') return send(res, origin, 200, { mint, mode, receipts: await ledgerList(mint, mode) });
+	if (req.method === 'GET') {
+		const receipts = await ledgerList(mint, mode);
+		/* The tip: how many entries the books hold. A writer that decided on them sends it back (x-ledger-tip), so two cash-outs at once can't both pass (audit A4). */
+		return send(res, origin, 200, { mint, mode, tip: (await ledgerNames(mint, mode)).length, receipts });
+	}
 	if (req.method !== 'POST') return send(res, origin, 405, { says: 'Only GET and POST.' });
 	if (tooMany(`ledger:${req.socket.remoteAddress ?? ''}`, Date.now(), LEDGER_POSTS_PER_HOUR)) return send(res, origin, 429, { says: 'Too many at once. Try again in a while.' });
 	const raw = await readBody(req, LEDGER_BYTES);
@@ -472,12 +526,27 @@ async function ledgers(req, res, origin, mint, mode) {
 	if (shut) return send(res, origin, 403, { says: shut, door: 'closed' });
 	const name = String(body.contentHash ?? '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64);
 	if (!name) return send(res, origin, 400, { says: 'It has no content hash.' });
-	const form = new FormData();
-	form.append('file', new Blob([JSON.stringify(body)], { type: 'application/json' }), `${name}.json`);
-	const r = await fetch(`${ledgerDir(mint, mode)}${name}.json`, { method: 'POST', body: form }).catch((e) => ({ ok: false, status: e.message }));
-	if (!r.ok) return send(res, origin, 502, { says: `Couldn’t keep it: ${r.status}` });
-	return send(res, origin, 200, { ok: true });
+	/*
+	 * One write at a time per ledger, and none on books that have moved since
+	 * the writer decided (audit A4, 6 October 2026): the mint sends the tip it
+	 * read; if another entry has landed since, it's refused with 409, and the
+	 * mint reads again and decides again.
+	 */
+	const expect = req.headers['x-ledger-tip'];
+	const key = `${mint}/${mode}`;
+	const run = (ledgerQueue.get(key) ?? Promise.resolve()).then(async () => {
+		const names = await ledgerNames(mint, mode);
+		if (expect !== undefined && Number(expect) !== names.length && !names.includes(`${name}.json`)) return { status: 409, body: { says: 'The books moved on while this was being decided. Try again.', tip: names.length } };
+		const form = new FormData();
+		form.append('file', new Blob([JSON.stringify(body)], { type: 'application/json' }), `${name}.json`);
+		const r = await fetch(`${ledgerDir(mint, mode)}${name}.json`, { method: 'POST', body: form }).catch((e) => ({ ok: false, status: e.message }));
+		return r.ok ? { status: 200, body: { ok: true, tip: names.includes(`${name}.json`) ? names.length : names.length + 1 } } : { status: 502, body: { says: `Couldn’t keep it: ${r.status}` } };
+	});
+	ledgerQueue.set(key, run.catch(() => {}));
+	const { status, body: out } = await run.catch((e) => ({ status: 500, body: { says: e.message } }));
+	return send(res, origin, status, out);
 }
+const ledgerQueue = new Map();
 
 /*
  * Shops (ADR-Q-026): a person's standing offers, held publicly so anyone can
@@ -1137,6 +1206,8 @@ export const server = http.createServer(async (req, res) => {
 	if (new URL(req.url, 'http://gate').pathname === '/door') return door(req, res, origin);
 	const rv = REVOKED.exec(decodeURIComponent(new URL(req.url, 'http://gate').pathname));
 	if (rv) return revoked(req, res, origin, rv[1]);
+	const op = OFFICES_PATH.exec(decodeURIComponent(new URL(req.url, 'http://gate').pathname));
+	if (op) return officePosts(req, res, origin, op[1]);
 	const d = DROP.exec(new URL(req.url, 'http://gate').pathname);
 	if (d) return drops(req, res, origin, d[1]);
 	const ib = INBOX.exec(new URL(req.url, 'http://gate').pathname);

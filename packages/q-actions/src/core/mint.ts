@@ -43,6 +43,7 @@ action "${id}" appliesTo {
     moneyConfirmed: Bool,
     approvedByAI: Bool,
     datedBeforePrevious: Bool,
+    valveShut: Bool,
   }
 };`;
 
@@ -82,6 +83,7 @@ export const CREDITS_MINT = define('credits.mint', 'A mint makes credits, only f
 export const CREDITS_CASHOUT = define('credits.cashout', 'A holder asks for pounds for credits they hold.', [
 	permit('credits.cashout', 'Record an ask to cash out, signed by the holder', 'holder'),
 	rule('credits.cashout', 'cannot', 'beyond-held', 'Ask for more than you hold and haven’t already asked for', 'context.credits > context.spendable'),
+	rule('credits.cashout', 'cannot', 'valve-shut', 'Cash out while the safety valve is shut: drift over 20%, or the books not reconciled for 30 days', 'context.valveShut'),
 	...common('credits.cashout')
 ]);
 
@@ -104,7 +106,7 @@ export const MINT_ACTIONS = [CREDITS_MINT, CREDITS_CASHOUT, CREDITS_BURN];
  * `currency` is the mint's: one credit is one unit of it. `moneyConfirmed` comes
  * from the payment provider (real money only; test mode never needs it).
  */
-export function mintFacts(prior: { json?: unknown; holds?: string }[], next: MintReceipt, currency: string, o: { moneyConfirmed?: boolean; approvedByAI?: boolean } = {}) {
+export function mintFacts(prior: { json?: unknown; holds?: string }[], next: MintReceipt, currency: string, o: { moneyConfirmed?: boolean; approvedByAI?: boolean; valveShut?: boolean } = {}) {
 	const c = next.content;
 	const b = booksOf(prior, c.mint, c.mode, currency);
 	/* The facts keep the names Pence: minor units of the mint's currency. */
@@ -135,6 +137,7 @@ export function mintFacts(prior: { json?: unknown; holds?: string }[], next: Min
 		live: c.mode === 'live',
 		moneyConfirmed: !!o.moneyConfirmed,
 		approvedByAI: !!o.approvedByAI,
+		valveShut: !!o.valveShut,
 		datedBeforePrevious: !!lastAt && c.at < lastAt
 	};
 	const action: MintAction = c.kind === 'mint' ? 'credits.mint' : c.kind === 'cashout' ? 'credits.cashout' : 'credits.burn';

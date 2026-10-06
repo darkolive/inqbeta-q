@@ -71,7 +71,7 @@
 		said = null;
 		const out = isAppointment(packet)
 			? mine
-				? await receiveAppointment(mine, packet)
+				? await receiveAppointment(mine, packet, identity)
 				: { ok: false as const, says: 'Your membership isn’t in this folder.' }
 			: own
 				? await receiveEndingAsCaretaker(identity, own, officeRecords, packet, await readHome().then((h) => (h.ok && h.federation === own!.founding.federation ? (h.services.storage ?? null) : null)).catch(() => null))

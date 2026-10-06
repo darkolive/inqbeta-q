@@ -136,6 +136,12 @@ export interface Books {
 	/** Does every credit exist somewhere, and is every credit backed? */
 	reconciled: boolean;
 	backed: boolean;
+	/**
+	 * Drift (ADR-Q-027 addendum, 5 October): 1 − (cash + capital at book
+	 * value) ÷ credits out, in the currency. 0 is fully matched; above 0 means
+	 * something is wrong (a missed payment, an unrecorded spend). Never below 0.
+	 */
+	drift: number;
 	/** Receipts left out, and why. */
 	problems: string[];
 }
@@ -149,7 +155,7 @@ const add = (m: Map<string, number>, k: string, n: number) => m.set(k, (m.get(k)
  */
 export function booksOf(receipts: { json?: unknown; holds?: string }[], mint: string, mode: MintMode, currency: string): Books {
 	const unit = minorPerCredit(currency);
-	const b: Books = { mint, mode, minted: 0, destroyed: 0, circulation: 0, cashIn: 0, cashOut: 0, cashReserve: 0, capitalReserve: 0, holders: new Map(), asked: new Map(), reconciled: true, backed: true, problems: [] };
+	const b: Books = { mint, mode, minted: 0, destroyed: 0, circulation: 0, cashIn: 0, cashOut: 0, cashReserve: 0, capitalReserve: 0, holders: new Map(), asked: new Map(), reconciled: true, backed: true, drift: 0, problems: [] };
 	const events = new Map<string, MintReceipt>();
 	const steps: AgreementReceipt[] = [];
 	for (const r of receipts) {
@@ -227,6 +233,7 @@ export function booksOf(receipts: { json?: unknown; holds?: string }[], mint: st
 	const held = [...b.holders.values()].reduce((n, v) => n + v, 0);
 	b.reconciled = held === b.circulation && [...b.holders.values()].every((v) => v >= 0);
 	b.backed = b.cashReserve + b.capitalReserve >= b.circulation * unit;
+	b.drift = driftOf(b.cashReserve + b.capitalReserve, b.circulation * unit);
 	if (!b.reconciled) b.problems.push(`The books don’t reconcile: holders have ${held}, but ${b.circulation} are in circulation.`);
 	if (!b.backed) b.problems.push('The reserves don’t cover the credits in circulation.');
 	return b;
@@ -235,4 +242,44 @@ export function booksOf(receipts: { json?: unknown; holds?: string }[], mint: st
 /** What a holder can still spend, offer or cash out: what they hold, less what they've asked to cash out. */
 export function spendable(b: Books, did: string): number {
 	return Math.max(0, (b.holders.get(did) ?? 0) - (b.asked.get(did) ?? 0));
+}
+
+/* ---- Drift and the safety valve (ADR-Q-027 addendum, 5 October 2026; jobs D2, D3) ---- */
+
+/** Warn above this drift. */
+export const DRIFT_WARN = 0.1;
+/** Above this drift, cash-outs pause; buying stays open, because it heals drift. */
+export const DRIFT_VALVE = 0.2;
+/** Books not reconciled for this long count as unknown: treated as over the valve. */
+export const UNRECONCILED_DAYS = 30;
+
+/** 1 − backing ÷ owed, never below 0; 0 when nothing is owed. */
+export const driftOf = (backing: number, owed: number): number => (owed > 0 ? Math.max(0, 1 - backing / owed) : 0);
+
+export interface Valve {
+	/** Cash-outs paused. */
+	shut: boolean;
+	/** Drift over the warning line. */
+	warn: boolean;
+	drift: number;
+	/** The books haven't been reconciled for too long, so their state is unknown. */
+	unknown: boolean;
+	/** One plain sentence. */
+	says: string;
+}
+
+/**
+ * Whether the safety valve is shut. `lastReconciledAt` is the bank's latest
+ * signed reconciliation; `openedAt` its first entry, for a bank never
+ * reconciled (a new bank has 30 days to do its first).
+ */
+export function valveOf(b: Pick<Books, 'drift' | 'circulation'>, o: { lastReconciledAt?: string | null; openedAt?: string | null; now?: Date } = {}): Valve {
+	const now = (o.now ?? new Date()).getTime();
+	const since = o.lastReconciledAt ?? o.openedAt ?? null;
+	const unknown = b.circulation > 0 && !!since && now - Date.parse(since) > UNRECONCILED_DAYS * 86_400_000;
+	const pct = Math.round(b.drift * 100);
+	if (unknown) return { shut: true, warn: true, drift: b.drift, unknown, says: `Cash-outs are paused: the bank hasn’t reconciled its books for over ${UNRECONCILED_DAYS} days. They reopen once it does. Buying stays open.` };
+	if (b.drift > DRIFT_VALVE) return { shut: true, warn: true, drift: b.drift, unknown, says: `Cash-outs are paused: ${pct}% of the credits out aren’t matched by money held (over ${DRIFT_VALVE * 100}%). Buying stays open, and brings it back.` };
+	if (b.drift > DRIFT_WARN) return { shut: false, warn: true, drift: b.drift, unknown, says: `${pct}% of the credits out aren’t matched by money held. Over ${DRIFT_VALVE * 100}%, cash-outs pause.` };
+	return { shut: false, warn: false, drift: b.drift, unknown, says: b.drift > 0 ? `${pct}% drift: within bounds.` : 'Every credit is matched by money held.' };
 }

@@ -18,7 +18,7 @@ const CURRENCY = 'GBP'; /* one credit = £1 */
 const ev = (who: Who, e: Partial<MintEvent> & Pick<MintEvent, 'kind' | 'credits' | 'mint'>) =>
 	sealWith(who, { schema: MINT_SCHEMA, source: MINT_SOURCE, mode: 'test', at: tick(), ...e } as MintEvent) as Promise<MintReceipt>;
 
-async function decide(prior: MintReceipt[], next: MintReceipt, o: { moneyConfirmed?: boolean; approvedByAI?: boolean } = {}) {
+async function decide(prior: MintReceipt[], next: MintReceipt, o: { moneyConfirmed?: boolean; approvedByAI?: boolean; valveShut?: boolean } = {}) {
 	const { action, facts } = mintFacts(prior.map((json) => ({ json })), next, CURRENCY, o);
 	const d = engine.decide((await loaded).get(action)!, { principal: { type: 'Person', id: next.did }, resource: { type: 'Mint', id: next.content.mint }, facts });
 	return { action, ...d };
@@ -79,4 +79,14 @@ test('cash-out and burn cannots: beyond what’s held, no ask, twice, not matchi
 	const benAsk = await ev(ben, { kind: 'cashout', mint: club.did, credits: 50, from: ben.did });
 	const benBurn = await ev(club, { kind: 'burn', mint: club.did, credits: 50, from: ben.did, pence: 5_000, asks: benAsk.contentHash, payout: 'r' });
 	assert.deepEqual((await decide([hall, benAsk], benBurn)).rules, ['credits.burn/cannot/beyond-reserve']);
+});
+
+test('credits.cashout: refused while the safety valve is shut; allowed when it’s open', async () => {
+	const { club, ana } = await world();
+	const bought = await ev(club, { kind: 'mint', mint: club.did, credits: 100, to: ana.did, pence: 10_000, cites: ['p'] });
+	const ask = await ev(ana, { kind: 'cashout', mint: club.did, credits: 40, from: ana.did });
+	assert.equal((await decide([bought], ask)).holds, true);
+	const shut = await decide([bought], ask, { valveShut: true });
+	assert.equal(shut.holds, false);
+	assert.ok(shut.rules.some((r) => r.includes('credits.cashout/cannot/valve-shut')), shut.rules.join(' '));
 });

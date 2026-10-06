@@ -77,6 +77,13 @@ export interface Message {
 	attachments?: Attachment[];
 	/** One piece of a big file (kind 'piece'): not conversation, joined on arrival. */
 	piece?: Piece;
+	/**
+	 * Written to an office, not a person (ADR-Q-037, ADR-Q-038 §5): sealed to
+	 * whoever holds it now, and seen by them only in role, on the office's desk.
+	 */
+	office?: { federation: string; office: string };
+	/** Sent by an office holder, in role, for the office: "Treasurer of Green Space". */
+	fromOffice?: { federation: string; office: string; name?: string };
 	/** Who else the same message went to, each with their own sealed copy. */
 	alsoTo?: string[];
 	at: string;

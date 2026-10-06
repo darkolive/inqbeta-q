@@ -15,6 +15,7 @@ import { sealWith, sealTo, openWith, checkReceipt, isSealedToPeople, type Sealed
 import { inboxOf, makePost, MESSAGE_SCHEMA, type Message } from '@inqbeta/q-core/inbox';
 import { saveLocked } from '@inqbeta/q-core/folder';
 import { readHome } from '$lib/home';
+import { role } from '$lib/role.svelte';
 import { isAgreementStep } from '@inqbeta/q-core/agreements';
 import { connectMqtt } from '$lib/mqtt-ws';
 import { receivePiece, keepFile } from '$lib/attachments';
@@ -51,7 +52,7 @@ export async function keepStep(step: SealedReceipt & { content: { agreement: str
 /** Write to someone you're linked with. Your signed copy is kept in your vault. */
 export async function sendTo(
 	to: { did: string; inbox?: string },
-	what: Pick<Message, 'kind'> & Partial<Pick<Message, 'text' | 'card' | 'link' | 'audio' | 'seconds' | 'call' | 'step' | 'attachments' | 'piece' | 'alsoTo'>>
+	what: Pick<Message, 'kind'> & Partial<Pick<Message, 'text' | 'card' | 'link' | 'audio' | 'seconds' | 'call' | 'step' | 'attachments' | 'piece' | 'alsoTo' | 'office' | 'fromOffice'>>
 ): Promise<{ ok: true; signed: Signed } | { ok: false; says: string }> {
 	const me = current();
 	if (!me) return { ok: false, says: 'Sign in first.' };
@@ -174,7 +175,8 @@ export function collectInbox(): Promise<number> {
 			}
 		}
 		arrived.sort((a, b) => first(a.content.kind) - first(b.content.kind) || a.content.at.localeCompare(b.content.at));
-		for (const m of arrived) for (const fn of listeners) fn(m);
+		/* Out of role, it's quiet (ADR-Q-038 §5): post for an office waits on its desk, and doesn't ring. */
+		for (const m of arrived) if (!m.content.office || role.isActing(m.content.office.federation, m.content.office.office)) for (const fn of listeners) fn(m);
 		return arrived.length;
 	})().finally(() => (collecting = null));
 	return collecting;
@@ -205,17 +207,59 @@ export function startMessaging(onCollected: (n: number) => void): () => void {
 	};
 }
 
+/**
+ * Office business, kept off your own messages (ADR-Q-038 §5): post addressed
+ * to an office you hold, and what you sent back for it. It's on the office's
+ * desk, seen in role.
+ */
+export const isOfficeBusiness = (s: Signed, me: string) => (s.content.to === me && !!s.content.office) || (s.did === me && !!s.content.fromOffice);
+
 /** A conversation with one person: both sides' signed messages, oldest first. */
 export function threadWith(receipts: { json?: unknown }[], me: string, them: string): Signed[] {
 	const out: Signed[] = [];
 	const seen = new Set<string>();
 	for (const r of receipts) {
 		const s = r.json as Signed | undefined;
-		if (s?.content?.schema !== MESSAGE_SCHEMA || (s.content.kind !== 'message' && s.content.kind !== 'voicemail') || seen.has(s.signature)) continue;
+		if (s?.content?.schema !== MESSAGE_SCHEMA || (s.content.kind !== 'message' && s.content.kind !== 'voicemail') || seen.has(s.signature) || isOfficeBusiness(s, me)) continue;
 		if ((s.did === me && s.content.to === them) || (s.did === them && s.content.to === me)) {
 			seen.add(s.signature);
 			out.push(s);
 		}
 	}
 	return out.sort((a, b) => a.content.at.localeCompare(b.content.at));
+}
+
+/** Post for an office and what was sent back for it, with each person, newest last: the office's desk. */
+export function officeThreads(receipts: { json?: unknown }[], me: string, federation: string, office: string): { them: string; messages: Signed[] }[] {
+	const by = new Map<string, Signed[]>();
+	const seen = new Set<string>();
+	for (const r of receipts) {
+		const s = r.json as Signed | undefined;
+		if (s?.content?.schema !== MESSAGE_SCHEMA || s.content.kind !== 'message' || seen.has(s.signature)) continue;
+		const inbound = s.content.to === me && s.content.office?.federation === federation && s.content.office.office === office;
+		const outbound = s.did === me && s.content.fromOffice?.federation === federation && s.content.fromOffice.office === office;
+		if (!inbound && !outbound) continue;
+		seen.add(s.signature);
+		const them = inbound ? s.did : s.content.to;
+		by.set(them, [...(by.get(them) ?? []), s]);
+	}
+	return [...by.entries()].map(([them, messages]) => ({ them, messages: messages.sort((a, b) => a.content.at.localeCompare(b.content.at)) })).sort((a, b) => b.messages.at(-1)!.content.at.localeCompare(a.messages.at(-1)!.content.at));
+}
+
+/**
+ * Write to an office (ADR-Q-037): sealed to each of its holders now, each in
+ * their own copy, tagged with the office so it waits on their desk. Your own
+ * signed copy is kept, so you see what you asked.
+ */
+export async function askOffice(to: { holder: string; inbox: string }[], office: { federation: string; office: string }, text: string): Promise<{ ok: true; reached: number } | { ok: false; says: string }> {
+	if (!to.length) return { ok: false, says: 'Nobody holds that office just now.' };
+	if (!text.trim()) return { ok: false, says: 'Write your question first.' };
+	let reached = 0;
+	let says = '';
+	for (const h of to) {
+		const out = await sendTo({ did: h.holder, inbox: h.inbox }, { kind: 'message', text: text.trim(), office });
+		if (out.ok) reached++;
+		else says = out.says;
+	}
+	return reached ? { ok: true, reached } : { ok: false, says };
 }

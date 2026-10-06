@@ -19,6 +19,7 @@
 	import { peopleFrom } from '$lib/people';
 	import { readIds } from '$lib/announcements';
 	import { MESSAGE_SCHEMA } from '@inqbeta/q-core/inbox';
+	import { isOfficeBusiness } from '$lib/messages';
 	import type { Signed } from '$lib/messages';
 	import Composer from '$lib/components/message/Composer.svelte';
 	import { refreshLedger } from '$lib/ledger';
@@ -41,7 +42,7 @@
 		const by = new Map<string, { last: Signed; unread: number }>();
 		for (const r of ledger?.receipts ?? []) {
 			const m = r.json as Signed | undefined;
-			if (m?.content?.schema !== MESSAGE_SCHEMA || (m.content.kind !== 'message' && m.content.kind !== 'voicemail')) continue;
+			if (m?.content?.schema !== MESSAGE_SCHEMA || (m.content.kind !== 'message' && m.content.kind !== 'voicemail') || isOfficeBusiness(m, me)) continue;
 			const them = m.did === me ? m.content.to : m.did;
 			const t = by.get(them) ?? { last: m, unread: 0 };
 			if (m.content.at > t.last.content.at) t.last = m;

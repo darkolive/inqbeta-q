@@ -22,7 +22,7 @@ export interface MintView {
 	/** How the coin looks, as its bank designed it. */
 	design?: CoinDesign;
 	/** Who answers for it (ADR-Q-037): the office, and who holds it today. */
-	contact?: { office: string; called: string; answerer: string; answererOffice: string };
+	contact?: { office: string; called: string; answerer: string; answererOffice: string; holders?: { holder: string; inbox: string }[] };
 	mode: 'test' | 'live';
 	/** The mint's currency (ISO 4217): one credit is one unit of it (ADR-Q-042 §3). */
 	currency: string;
@@ -33,7 +33,9 @@ export interface MintView {
 	lastReconciled?: { at: string; by: string; hash: string; receipt: ReconciliationReceipt } | null;
 	/** How many of the mint's own receipts have come since it. */
 	movesSince?: number;
-	books: { minted: number; destroyed: number; circulation: number; cashReserve: number; capitalReserve: number; reconciled: boolean; backed: boolean; holders: number };
+	books: { minted: number; destroyed: number; circulation: number; cashReserve: number; capitalReserve: number; reconciled: boolean; backed: boolean; holders: number; drift?: number };
+	/** The safety valve (ADR-Q-027): whether cash-outs are paused, and why. */
+	valve?: { shut: boolean; warn: boolean; drift: number; unknown: boolean; says: string };
 }
 
 let cached: { at: number; view: MintView | null; says?: string } | null = null;

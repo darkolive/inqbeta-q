@@ -458,3 +458,64 @@ export async function revokedSet(items: unknown[], federation: string): Promise<
 	}
 	return out;
 }
+
+/* ---- The office's post (ADR-Q-038 §5, ADR-Q-037 §2–3; job C5), 6 October 2026 ----
+ *
+ * An office has no inbox of its own: post for it goes to whoever holds it now.
+ * Only the holder can say where their inbox is (it comes from their vault
+ * key), so on keeping an appointment they sign a notice: "post for this
+ * office reaches me here", with the appointment as proof. The federation's
+ * storage node keeps the notices (the gate's /offices/<federation>); a
+ * sender's Q checks each one itself — the appointment, its term, the revoked
+ * list — so a forged or ended one is simply passed over.
+ */
+export const OFFICE_POST_SCHEMA = 'inqbeta.office-post/1';
+
+export interface OfficePost {
+	schema: typeof OFFICE_POST_SCHEMA;
+	source: 'inqbeta:q/offices';
+	federation: string;
+	office: OfficeId;
+	/** The holder's inbox id, where post for the office is left. */
+	inbox: string;
+	/** The appointment that makes them the holder, whole, so anyone can check it. */
+	appointment: Appointed;
+	at: string;
+}
+export type OfficePostReceipt = SealedReceipt & { content: OfficePost };
+
+/** The holder's notice: post for this office reaches my inbox. */
+export async function officePost(holder: Pick<Identity, 'did' | 'publicKey' | 'signing'>, a: Appointed, inbox: string, now = new Date()): Promise<OfficePostReceipt> {
+	if (toDid(holder.did) !== a.holder) throw new Error('Only the office’s holder can say where its post goes.');
+	if (!/^[A-Za-z0-9_-]{22}$/.test(inbox)) throw new Error('That isn’t an inbox.');
+	return (await sealWith(holder, { schema: OFFICE_POST_SCHEMA, source: 'inqbeta:q/offices', federation: a.federation, office: a.office, inbox, appointment: a, at: now.toISOString() } satisfies OfficePost)) as OfficePostReceipt;
+}
+
+export interface OfficeAddress {
+	office: OfficeId;
+	holder: string;
+	inbox: string;
+	until: number;
+}
+
+/**
+ * Who to write to for each office now, from a federation's notices: signed by
+ * the holder, carrying a sound appointment to them, still running, not
+ * revoked. The newest notice per holder and office wins.
+ */
+export async function officeAddresses(items: unknown[], federation: string, o: { revoked?: Set<string>; now?: Date } = {}): Promise<OfficeAddress[]> {
+	const now = o.now ?? new Date();
+	const best = new Map<string, { at: string; addr: OfficeAddress }>();
+	for (const x of items ?? []) {
+		const r = x as OfficePostReceipt;
+		const c = r?.content;
+		if (c?.schema !== OFFICE_POST_SCHEMA || c.federation !== federation || !c.appointment) continue;
+		const a = c.appointment;
+		if (r.did !== a.holder || a.federation !== federation || a.office !== c.office || !/^[A-Za-z0-9_-]{22}$/.test(c.inbox ?? '')) continue;
+		if (!(await checkReceipt(r)).ok || !(await checkAppointment(a, now)).ok) continue;
+		if (a.until * 1000 <= now.getTime() || a.mandates.some((m) => o.revoked?.has(m))) continue;
+		const key = `${a.office}|${a.holder}`;
+		if (!best.has(key) || best.get(key)!.at < c.at) best.set(key, { at: c.at, addr: { office: a.office, holder: a.holder, inbox: c.inbox, until: a.until } });
+	}
+	return [...best.values()].map((b) => b.addr);
+}

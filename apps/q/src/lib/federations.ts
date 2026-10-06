@@ -30,6 +30,9 @@ import {
 } from '@inqbeta/q-core/federations';
 import { foundingFacts } from '@inqbeta/q-actions/core/federation-found';
 import { appointFacts, endFacts } from '@inqbeta/q-actions/core/federation-offices';
+import { officePost } from '@inqbeta/q-core/offices';
+import { myInbox } from '$lib/messages';
+import { readHome } from '$lib/home';
 import { appoint, recall, standDown, checkAppointment, checkEnded, hashAppointment, officesHeld, revocationNotice, type Appointed, type Ended, type OfficeHeld, type OfficeId } from '@inqbeta/q-core/offices';
 import { actionHash, decide } from '$lib/actions/engine';
 import {
@@ -607,8 +610,23 @@ export async function recallOffice(
 	}
 }
 
-/** An appointment arrives for you: check it, and keep it with your membership. */
-export async function receiveAppointment(mine: MembershipRecord, a: Appointed): Promise<Outcome<{}>> {
+/**
+ * Tell the federation's storage node where post for your office goes (ADR-Q-038
+ * §5): your inbox, with the appointment as proof. Only for the host's own
+ * federation, whose node keeps the list. False when there's nowhere to tell.
+ */
+export async function publishOfficePost(identity: Identity, a: Appointed): Promise<boolean> {
+	const home = await readHome().catch(() => null);
+	const storage = home?.ok && home.federation === a.federation ? home.services.storage : undefined;
+	const inbox = await myInbox(identity);
+	if (!storage || !inbox) return false;
+	const notice = await officePost(identity, a, inbox.id);
+	const r = await fetch(`${storage.replace(/\/$/, '')}/offices/${a.federation}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(notice) }).catch(() => null);
+	return !!r?.ok;
+}
+
+/** An appointment arrives for you: check it, and keep it with your membership; tell the node where its post goes. */
+export async function receiveAppointment(mine: MembershipRecord, a: Appointed, identity?: Identity | null): Promise<Outcome<{ published?: boolean }>> {
 	if (a.federation !== mine.joining.federation || a.holder !== mine.joining.member) return { ok: false, says: 'This office is for someone else.' };
 	const c = await checkAppointment(a);
 	if (!c.ok) return { ok: false, says: c.says };
@@ -616,7 +634,7 @@ export async function receiveAppointment(mine: MembershipRecord, a: Appointed): 
 	const others: Appointed[] = [];
 	for (const x of mine.offices ?? []) if ((await hashAppointment(x)) !== h) others.push(x);
 	await keep('federations/memberships', `${short(mine.joining.federation)}.json`, { ...mine, offices: [...others, a], at: new Date().toISOString() });
-	return { ok: true };
+	return { ok: true, published: identity ? await publishOfficePost(identity, a).catch(() => false) : false };
 }
 
 /** Stand down from an office early. Returns the link to send the caretaker. */

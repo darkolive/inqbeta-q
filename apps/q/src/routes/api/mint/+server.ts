@@ -21,14 +21,15 @@
  */
 import { actingCovers } from '@inqbeta/q-core/inrole';
 import { revokedMandates } from '$lib/server/revoked';
+import { officeAddressesFor } from '$lib/server/offices';
 import { OFFICE_COMMANDS } from '@inqbeta/q-core/offices';
 import { json, type RequestHandler } from '@sveltejs/kit';
 import { sealWith, checkReceipt } from '@inqbeta/q-core/seal';
-import { MINT_SCHEMA, MINT_SOURCE, RECONCILED_SCHEMA, RECONCILE_ASK_SCHEMA, isMintEvent, isReconciliation, type MintEvent, type MintReceipt, type Reconciliation, type ReconciliationReceipt } from '@inqbeta/q-core/mint';
+import { MINT_SCHEMA, MINT_SOURCE, RECONCILED_SCHEMA, RECONCILE_ASK_SCHEMA, isMintEvent, isReconciliation, valveOf, type Books, type MintEvent, type MintReceipt, type Reconciliation, type ReconciliationReceipt } from '@inqbeta/q-core/mint';
 import { mintFacts } from '@inqbeta/q-actions/core/mint';
 import { doorSays } from '$lib/server/door';
 import { isDevelopmentSite } from '$lib/server/site';
-import { MintRefused, appendLedger, books, coinDesignOf, coinNameOf, decideMint, fileable, hostOf, mintIdentity, moneyOf, currencyOf, coinContactOf, readLedger } from '$lib/server/mint';
+import { MintRefused, appendLedger, books, coinDesignOf, coinNameOf, decideMint, fileable, hostOf, mintIdentity, moneyOf, currencyOf, coinContactOf, readLedger, readLedgerAt, LedgerMoved } from '$lib/server/mint';
 import { officeKind } from '@inqbeta/q-core/offices';
 import { minorPerCredit } from '@inqbeta/q-core/currency';
 
@@ -64,6 +65,13 @@ function stampAfter(times: (string | undefined)[]): string {
 const latestIn = (ledger: unknown[]) => ledger.map((r) => (r as { content?: { at?: string } })?.content?.at);
 
 /* The latest reconciliation in the books, and how many of the mint's own receipts have come since. */
+/* The safety valve (ADR-Q-027 addendum; job D3): drift, and how long since the books were reconciled. */
+function valveFor(ledger: unknown[], b: Books, mint: string, mode: string) {
+	const { last } = lastReconciliation(ledger, mint, mode);
+	const opened = ledger.filter((r): r is MintReceipt => isMintEvent(r) && r.content.mint === mint && r.content.mode === mode).map((r) => r.content.at).sort()[0] ?? null;
+	return valveOf(b, { lastReconciledAt: last?.content.at ?? null, openedAt: opened });
+}
+
 function lastReconciliation(ledger: unknown[], mint: string, mode: string) {
 	const recs = ledger.filter((r): r is ReconciliationReceipt => isReconciliation(r) && r.content.mint === mint && r.content.mode === mode).sort((a, b) => a.content.at.localeCompare(b.content.at));
 	const last = recs.at(-1) ?? null;
@@ -84,9 +92,11 @@ export const GET: RequestHandler = async ({ url }) => {
 			name: coinNameOf(state),
 			design: coinDesignOf(state),
 			/* Who answers for the coin (ADR-Q-037): the office, and who holds it today. Until office holders are published, the caretaker (the founder) answers. */
-			contact: (() => {
+			contact: await (async () => {
 				const office = coinContactOf(state);
-				return { office, called: officeKind(office)?.called ?? office, answerer: host.founder, answererOffice: 'caretaker' };
+				/* Whoever holds the office now, from their own signed notices; with nobody in it, the caretaker answers. */
+				const holders = (await officeAddressesFor(host)).filter((a) => a.office === office).map((a) => ({ holder: a.holder, inbox: a.inbox }));
+				return { office, called: officeKind(office)?.called ?? office, answerer: holders[0]?.holder ?? host.founder, answererOffice: holders.length ? office : 'caretaker', holders };
 			})(),
 			mode,
 			currency,
@@ -97,7 +107,8 @@ export const GET: RequestHandler = async ({ url }) => {
 				const { last, movesSince } = lastReconciliation(ledger, me.did, mode);
 				return { lastReconciled: last ? { at: last.content.at, by: last.content.by, hash: last.contentHash, receipt: last } : null, movesSince };
 			})(),
-			books: { minted: b.minted, destroyed: b.destroyed, circulation: b.circulation, cashReserve: b.cashReserve, capitalReserve: b.capitalReserve, reconciled: b.reconciled, backed: b.backed, holders: b.holders.size }
+			books: { minted: b.minted, destroyed: b.destroyed, circulation: b.circulation, cashReserve: b.cashReserve, capitalReserve: b.capitalReserve, reconciled: b.reconciled, backed: b.backed, holders: b.holders.size, drift: b.drift },
+			valve: (({ shut, warn, drift, unknown, says }) => ({ shut, warn, drift, unknown, says }))(valveFor(ledger, b, me.did, mode))
 		});
 	} catch (e) {
 		return refuse(e);
@@ -111,93 +122,102 @@ export const POST: RequestHandler = async ({ request, url }) => {
 	} catch {
 		return json({ ok: false, says: 'That isn’t JSON.' }, { status: 400 });
 	}
-	try {
-		const { host, me, mode, currency, unit } = await context(url.origin);
-		const ledger = await readLedger(host, me.did, mode);
-		/* The door (ADR-Q-034): while in test, only those let in may act. */
-		const asker = ((body.buy ?? body.cashout ?? body.file ?? body.reconcile) as { did?: string } | undefined)?.did;
-		const shut = isDevelopmentSite(url.origin) ? null : await doorSays(asker, host, mode);
-		if (shut) return json({ ok: false, says: shut, door: 'closed' }, { status: 403 });
+	/* A cash-out or a spend is filed only on the books it was decided on; if they moved, read again and decide again (audit A4). */
+	for (let attempt = 1; ; attempt++) {
+		try {
+			const { host, me, mode, currency, unit } = await context(url.origin);
+			const { receipts: ledger, tip } = await readLedgerAt(host, me.did, mode);
+			/* The door (ADR-Q-034): while in test, only those let in may act. */
+			const asker = ((body.buy ?? body.cashout ?? body.file ?? body.reconcile) as { did?: string } | undefined)?.did;
+			const shut = isDevelopmentSite(url.origin) ? null : await doorSays(asker, host, mode);
+			if (shut) return json({ ok: false, says: shut, door: 'closed' }, { status: 403 });
 
-		/* ---- Buy: minted to the buyer, citing the payment ---- */
-		if (body.buy) {
-			const r = body.buy as { did?: string; content?: { schema?: string; credits?: number; mint?: string; at?: string } };
-			if (!(await checkReceipt(r)).ok || r.content?.schema !== REQUEST_SCHEMA) throw new MintRefused('The request isn’t signed by you.');
-			const c = r.content;
-			if (c.mint !== me.did) throw new MintRefused('That request is for another mint.');
-			if (!c.at || Math.abs(Date.now() - Date.parse(c.at)) > FRESH_MS) throw new MintRefused('That request is too old. Try again.');
-			const credits = Math.trunc(Number(c.credits));
-			if (!(credits >= 1 && credits <= MOST_AT_ONCE)) throw new MintRefused(`Buy between 1 and ${MOST_AT_ONCE} credits at a time.`);
-			if (mode === 'live') throw new MintRefused('This host is live, and payments aren’t connected yet. Nothing has been charged.');
-			const event: MintEvent = { schema: MINT_SCHEMA, source: MINT_SOURCE, mint: me.did, kind: 'mint', credits, mode, to: r.did!, pence: credits * unit, cites: [`test-payment-${crypto.randomUUID()}`], at: stampAfter(latestIn(ledger)) };
-			const draft = { did: me.did, content: event, contentHash: '' } as MintReceipt;
-			const { facts } = mintFacts(ledger.map((json) => ({ json })), draft, currency);
-			const checked = await decideMint('credits.mint', me.did, me.did, facts);
-			const minted = (await sealWith(me, { ...event, checked })) as MintReceipt;
-			await appendLedger(host, me.did, mode, minted);
-			return json({ ok: true, minted });
-		}
+			/* ---- Buy: minted to the buyer, citing the payment ---- */
+			if (body.buy) {
+				const r = body.buy as { did?: string; content?: { schema?: string; credits?: number; mint?: string; at?: string } };
+				if (!(await checkReceipt(r)).ok || r.content?.schema !== REQUEST_SCHEMA) throw new MintRefused('The request isn’t signed by you.');
+				const c = r.content;
+				if (c.mint !== me.did) throw new MintRefused('That request is for another mint.');
+				if (!c.at || Math.abs(Date.now() - Date.parse(c.at)) > FRESH_MS) throw new MintRefused('That request is too old. Try again.');
+				const credits = Math.trunc(Number(c.credits));
+				if (!(credits >= 1 && credits <= MOST_AT_ONCE)) throw new MintRefused(`Buy between 1 and ${MOST_AT_ONCE} credits at a time.`);
+				if (mode === 'live') throw new MintRefused('This host is live, and payments aren’t connected yet. Nothing has been charged.');
+				const event: MintEvent = { schema: MINT_SCHEMA, source: MINT_SOURCE, mint: me.did, kind: 'mint', credits, mode, to: r.did!, pence: credits * unit, cites: [`test-payment-${crypto.randomUUID()}`], at: stampAfter(latestIn(ledger)) };
+				const draft = { did: me.did, content: event, contentHash: '' } as MintReceipt;
+				const { facts } = mintFacts(ledger.map((json) => ({ json })), draft, currency);
+				const checked = await decideMint('credits.mint', me.did, me.did, facts);
+				const minted = (await sealWith(me, { ...event, checked })) as MintReceipt;
+				await appendLedger(host, me.did, mode, minted);
+				return json({ ok: true, minted });
+			}
 
-		/* ---- Cash out: the holder's ask, kept; the credits destroyed; the payout recorded ---- */
-		if (body.cashout) {
-			const ask = body.cashout as MintReceipt;
-			if (!isMintEvent(ask) || ask.content.kind !== 'cashout' || !(await checkReceipt(ask)).ok) throw new MintRefused('The ask isn’t signed by you.');
-			if (ask.content.mint !== me.did || ask.content.mode !== mode) throw new MintRefused(mode === 'live' && ask.content.mode === 'test' ? 'This host is live now: test credits can’t be cashed out.' : 'That ask is for another mint.');
-			const account = ask.content.account;
-			if (!account || typeof account.receipt !== 'string' || !/^\d{4}$/.test(account.ends ?? '')) throw new MintRefused('Set your cashing-out account in Settings first: cashing out pays only to it, as a standing order.');
-			if (mode === 'live') throw new MintRefused('This host is live, and payouts aren’t connected yet. Your credits are untouched.');
-			const prior = ledger.map((json) => ({ json }));
-			const asked = mintFacts(prior, ask, currency);
-			await decideMint('credits.cashout', ask.did, me.did, asked.facts);
-			const burnEvent: MintEvent = { schema: MINT_SCHEMA, source: MINT_SOURCE, mint: me.did, kind: 'burn', credits: ask.content.credits, mode, from: ask.content.from, pence: ask.content.credits * unit, asks: ask.contentHash, account, payout: `test-standing-order-${crypto.randomUUID()}`, at: stampAfter([...latestIn(ledger), ask.content.at]) };
-			const draft = { did: me.did, content: burnEvent, contentHash: '' } as MintReceipt;
-			const { facts } = mintFacts([...prior, { json: ask }], draft, currency);
-			const checked = await decideMint('credits.burn', me.did, me.did, facts);
-			const burned = (await sealWith(me, { ...burnEvent, checked })) as MintReceipt;
-			await appendLedger(host, me.did, mode, ask);
-			await appendLedger(host, me.did, mode, burned);
-			return json({ ok: true, ask, burned });
-		}
+			/* ---- Cash out: the holder's ask, kept; the credits destroyed; the payout recorded ---- */
+			if (body.cashout) {
+				const ask = body.cashout as MintReceipt;
+				if (!isMintEvent(ask) || ask.content.kind !== 'cashout' || !(await checkReceipt(ask)).ok) throw new MintRefused('The ask isn’t signed by you.');
+				if (ask.content.mint !== me.did || ask.content.mode !== mode) throw new MintRefused(mode === 'live' && ask.content.mode === 'test' ? 'This host is live now: test credits can’t be cashed out.' : 'That ask is for another mint.');
+				const account = ask.content.account;
+				if (!account || typeof account.receipt !== 'string' || !/^\d{4}$/.test(account.ends ?? '')) throw new MintRefused('Set your cashing-out account in Settings first: cashing out pays only to it, as a standing order.');
+				if (mode === 'live') throw new MintRefused('This host is live, and payouts aren’t connected yet. Your credits are untouched.');
+				const prior = ledger.map((json) => ({ json }));
+				/* The safety valve: paused cash-outs say why, in one sentence; buying is never paused. */
+				const valve = valveFor(ledger, books(ledger, me.did, mode, currency), me.did, mode);
+				if (valve.shut) throw new MintRefused(valve.says);
+				const asked = mintFacts(prior, ask, currency, { valveShut: valve.shut });
+				await decideMint('credits.cashout', ask.did, me.did, asked.facts);
+				const burnEvent: MintEvent = { schema: MINT_SCHEMA, source: MINT_SOURCE, mint: me.did, kind: 'burn', credits: ask.content.credits, mode, from: ask.content.from, pence: ask.content.credits * unit, asks: ask.contentHash, account, payout: `test-standing-order-${crypto.randomUUID()}`, at: stampAfter([...latestIn(ledger), ask.content.at]) };
+				const draft = { did: me.did, content: burnEvent, contentHash: '' } as MintReceipt;
+				const { facts } = mintFacts([...prior, { json: ask }], draft, currency);
+				const checked = await decideMint('credits.burn', me.did, me.did, facts);
+				const burned = (await sealWith(me, { ...burnEvent, checked })) as MintReceipt;
+				/* The ask goes in only on the books it was decided on; then the burn that answers it. */
+				await appendLedger(host, me.did, mode, ask, tip);
+				await appendLedger(host, me.did, mode, burned);
+				return json({ ok: true, ask, burned });
+			}
 
-		/* ---- File: an agreement step in this mint's credits ---- */
-		if (body.file) {
-			const wrong = await fileable(body.file, me.did, mode, ledger);
-			if (wrong) throw new MintRefused(wrong);
-			await appendLedger(host, me.did, mode, body.file as { contentHash: string });
-			return json({ ok: true });
+			/* ---- File: an agreement step in this mint's credits ---- */
+			if (body.file) {
+				const wrong = await fileable(body.file, me.did, mode, ledger);
+				if (wrong) throw new MintRefused(wrong);
+				await appendLedger(host, me.did, mode, body.file as { contentHash: string }, tip);
+				return json({ ok: true });
+			}
+			/* ---- Reconcile: the treasurer asks; the mint adds up its books and signs them ---- */
+			if (body.reconcile) {
+				const r = body.reconcile as { did?: string; contentHash?: string; content?: { schema?: string; mint?: string; at?: string; acting?: unknown } };
+				if (!(await checkReceipt(r)).ok || r.content?.schema !== RECONCILE_ASK_SCHEMA) throw new MintRefused('The ask to reconcile isn’t signed.');
+				/* Asked for by an office, not a person (ADR-Q-038 step 2): the treasurer, or the caretaker, in role, with a mandate that covers it. */
+				const acting = await actingCovers(r.did ?? '', r.content.acting, { federation: host.federation, cmd: `${OFFICE_COMMANDS.money}/reconcile`, founder: host.founder, revoked: await revokedMandates(host) });
+				if (!acting.ok) throw new MintRefused(acting.says);
+				if (r.content.mint !== me.did) throw new MintRefused('That ask is for another bank.');
+				if (!r.content.at || Math.abs(Date.now() - Date.parse(r.content.at)) > FRESH_MS) throw new MintRefused('That ask is too old. Try again.');
+				const b = books(ledger, me.did, mode, currency);
+				const own = ledger.filter((x) => isMintEvent(x)) as MintReceipt[];
+				const latest = own.sort((x, y) => x.content.at.localeCompare(y.content.at)).at(-1) ?? null;
+				const content: Reconciliation = {
+					schema: RECONCILED_SCHEMA,
+					source: MINT_SOURCE,
+					mint: me.did,
+					mode,
+					books: { minted: b.minted, destroyed: b.destroyed, circulation: b.circulation, cashReserve: b.cashReserve, capitalReserve: b.capitalReserve, holders: b.holders.size, reconciled: b.reconciled, backed: b.backed },
+					covers: { count: own.length, latest: latest?.contentHash ?? null },
+					by: r.did!,
+					byOffice: acting.office,
+					...(acting.interest ? { byInterest: acting.interest } : {}),
+					asks: r.contentHash ?? '',
+					at: stampAfter([...latestIn(ledger), r.content.at])
+				};
+				const reconciliation = (await sealWith(me, content)) as ReconciliationReceipt;
+				await appendLedger(host, me.did, mode, r as { contentHash: string });
+				await appendLedger(host, me.did, mode, reconciliation);
+				return json({ ok: true, reconciliation });
+			}
+			return json({ ok: false, says: 'Buy, cash out, file, or reconcile.' }, { status: 400 });
+		} catch (e) {
+			if (e instanceof LedgerMoved && attempt < 3) continue;
+			if (e instanceof LedgerMoved) return json({ ok: false, says: 'The books are busy just now. Try again in a moment.' }, { status: 409 });
+			return refuse(e);
 		}
-		/* ---- Reconcile: the treasurer asks; the mint adds up its books and signs them ---- */
-		if (body.reconcile) {
-			const r = body.reconcile as { did?: string; contentHash?: string; content?: { schema?: string; mint?: string; at?: string; acting?: unknown } };
-			if (!(await checkReceipt(r)).ok || r.content?.schema !== RECONCILE_ASK_SCHEMA) throw new MintRefused('The ask to reconcile isn’t signed.');
-			/* Asked for by an office, not a person (ADR-Q-038 step 2): the treasurer, or the caretaker, in role, with a mandate that covers it. */
-			const acting = await actingCovers(r.did ?? '', r.content.acting, { federation: host.federation, cmd: `${OFFICE_COMMANDS.money}/reconcile`, founder: host.founder, revoked: await revokedMandates(host) });
-			if (!acting.ok) throw new MintRefused(acting.says);
-			if (r.content.mint !== me.did) throw new MintRefused('That ask is for another bank.');
-			if (!r.content.at || Math.abs(Date.now() - Date.parse(r.content.at)) > FRESH_MS) throw new MintRefused('That ask is too old. Try again.');
-			const b = books(ledger, me.did, mode, currency);
-			const own = ledger.filter((x) => isMintEvent(x)) as MintReceipt[];
-			const latest = own.sort((x, y) => x.content.at.localeCompare(y.content.at)).at(-1) ?? null;
-			const content: Reconciliation = {
-				schema: RECONCILED_SCHEMA,
-				source: MINT_SOURCE,
-				mint: me.did,
-				mode,
-				books: { minted: b.minted, destroyed: b.destroyed, circulation: b.circulation, cashReserve: b.cashReserve, capitalReserve: b.capitalReserve, holders: b.holders.size, reconciled: b.reconciled, backed: b.backed },
-				covers: { count: own.length, latest: latest?.contentHash ?? null },
-				by: r.did!,
-				byOffice: acting.office,
-				...(acting.interest ? { byInterest: acting.interest } : {}),
-				asks: r.contentHash ?? '',
-				at: stampAfter([...latestIn(ledger), r.content.at])
-			};
-			const reconciliation = (await sealWith(me, content)) as ReconciliationReceipt;
-			await appendLedger(host, me.did, mode, r as { contentHash: string });
-			await appendLedger(host, me.did, mode, reconciliation);
-			return json({ ok: true, reconciliation });
-		}
-		return json({ ok: false, says: 'Buy, cash out, file, or reconcile.' }, { status: 400 });
-	} catch (e) {
-		return refuse(e);
 	}
 };
