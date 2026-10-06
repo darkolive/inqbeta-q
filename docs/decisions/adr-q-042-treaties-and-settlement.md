@@ -1,6 +1,6 @@
 ---
 status: proposed (Darren, 5 October 2026)
-implementation: not started
+implementation: E1–E4 built 6 October 2026 (q-core treaties.ts; q-actions core/treaties.ts); the page and the burns not yet
 updated: 2026-10-05 (currency; partner health as drift; capacity gifts)
 ---
 
@@ -322,3 +322,54 @@ kind), ADR-Q-027 (minting, cash-out, the safety valve, levels of trust),
 ADR-Q-030 (the network market), ADR-Q-035 (the federation's bank; the
 cashing-out account); `origins/white-paper-2025-12.md` (Base Rate and
 Inflation Policy, Currency Neutrality, §8 reserve ratio).
+
+## As built (6 October 2026, night): E1–E4
+
+The records and the rules, in q-core and q-actions, tested. Nothing on a page
+yet (E5).
+
+- **The banking card** (`q-core/treaties.ts`, E1): `makeBankingCard` signed by
+  the federation's key, with the currency it's paid in, the last four digits,
+  and a SHA-256 fingerprint of the full details. A changed card is a new
+  receipt naming the one it replaces (`currentBankingCard` follows the
+  chain). `sealDetailsFor` seals the full details to the partner and the
+  federation only; `detailsMatch` refuses opened details that don't match the
+  card's fingerprint, so "pay this account instead" can't arrive as a message.
+- **The treaty** (E2): the purpose (ethics, offered, sought), both sides
+  (federation, mint, currency, test or live, banking card), the rate (par in
+  one currency; across two, a named source: Bank of England or ECB), the cap
+  (credits, and optionally a share of the holder's reserve), the period (1, 3,
+  7 or 30 days), exclusions, and a fixed end or none. `proposeTreaty`: side
+  A's key and its mandate holder sign; `agreeTreaty`: side B's key and its
+  holder sign exactly the same terms. `treatyParts` checks all four
+  signatures; any change breaks them. Refused at the source: test with live,
+  a rate other than par in one currency, no named source across two, a period
+  other than 1/3/7/30.
+- **Settlement** (E3): `settleSums` swaps first at the day's rate, then names
+  the net: who pays, how much in their own currency, and to which banking
+  card. The ADR's example holds exactly (Incubator 100, DoStudy 70: swap 70
+  each way, DoStudy pays £30 to Incubator's card); across currencies, €1 =
+  £0.87 swaps £50 for €57.47 and DoStudy redeems the remaining €42.53.
+  `proposeSettlement` and `agreeSettlement`: one record both federations
+  sign. `settlementParts` checks it balances, swapped first, pays the named
+  card, at the treaty's rate.
+- **Standing**: `treatyStanding` reads proposed, in force, suspended (a period
+  closed unsettled; a partner's drift over 20% or books unreconciled for over
+  30 days, warning over 10%), ending (after notice, `giveNotice`, 30 days) and
+  ended. `withinCap` checks the cap, and the share of reserve when given.
+- **The rules** (`q-actions/core/treaties.ts`, E4), in `CORE_ACTIONS`:
+  `treaty.agree` (both keys, each holder in role with the money mandate,
+  checked by `actingCovers`), `treaty.trade` (no treaty, suspended, over the
+  cap, a capacity gift, an excluded service, another rate, or test with live:
+  each refused by its own rule), `treaty.settle` (unbalanced, paying what could
+  be swapped, another card, another rate, the payer's valve shut), and
+  `treaty.end` (notice with a reason; holdings stay valid). "Approved by an
+  AI" is declared on agree and settle.
+
+Tests: q-core 613 pass; q-actions 65 pass.
+
+**Not yet:** the burns themselves on each mint when a settlement is signed
+(the swap as a burn with the swap as its value, the net as a cash-out); the
+rate fetched from the named source; trade receipts that record the rate on
+the day; treaties on the federation's page and the first treaty, Incubator
+and Dark Olive CIC, in test (E5).
