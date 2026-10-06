@@ -27,6 +27,8 @@ import {
 	type Suggestion
 } from '@inqbeta/q-core/storybook';
 import type { NextQuestion, StoryTask } from '@inqbeta/q-core/story-ai';
+import { practiceArt, type ArtTask } from '@inqbeta/q-core/art-ai';
+import { cleanArt, type CleanArt } from '@inqbeta/q-core/slide-art';
 
 const KEY = 'q.storybooks';
 
@@ -73,6 +75,8 @@ export interface AiState {
 	/** The host's AI is on here. */
 	ai: boolean;
 	model?: string;
+	/** The polished build's model ("Make it final"). */
+	finalModel?: string;
 	/** Why not, in plain words. */
 	says?: string;
 }
@@ -87,7 +91,7 @@ export async function aiHere(): Promise<AiState> {
 }
 
 /** What a job costs at most, in credits, before anything runs. */
-export async function quote(job: StoryTask): Promise<number> {
+export async function quote(job: StoryTask | ArtTask): Promise<number> {
 	const r = await fetch('/api/story', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ job, quote: true }) });
 	const out = (await r.json().catch(() => null)) as { upTo?: number; message?: string } | null;
 	if (!r.ok || typeof out?.upTo !== 'number') throw new Error(out?.message ?? 'The cost couldn’t be worked out.');
@@ -137,3 +141,20 @@ export async function readLink(url: string): Promise<{ name: string; text: strin
 	return { name: out.name ?? url, text: out.text, url: out.url ?? url };
 }
 
+
+/* ------------------------------------------------------- the polished build */
+
+export type ArtResult = { art: CleanArt & { notes: string }; upTo: number; used: number; by: 'host' | 'practice'; model?: string };
+
+/** One slide drawn or reviewed: the host's stronger model with what's left of the agreement, or practice. */
+export async function runArt(job: Exclude<ArtTask, { task: 'final' }>, agreed: number | 'practice'): Promise<ArtResult> {
+	if (agreed === 'practice') {
+		const svg = practiceArt(job.book, job.story, job.slide, job.task === 'art-review' ? job.round : 0);
+		const art = cleanArt(svg)!;
+		return { art: { ...art, notes: job.task === 'art' ? 'A practice drawing.' : 'Practice: the camera drifts in a touch.' }, upTo: 0, used: 0, by: 'practice' };
+	}
+	const r = await fetch('/api/story', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ job, agreed }) });
+	const out = (await r.json().catch(() => null)) as (ArtResult & { ok?: boolean; says?: string; message?: string }) | null;
+	if (!r.ok || !out?.ok) throw new Error(out?.says ?? out?.message ?? 'The AI couldn’t draw that just now. Nothing was changed.');
+	return { ...out, by: 'host' };
+}

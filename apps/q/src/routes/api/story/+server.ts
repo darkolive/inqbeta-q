@@ -28,6 +28,7 @@ import { dev } from '$app/environment';
 import { env } from '$env/dynamic/private';
 import { storyOf, emptyBook, unitOf, refOf, isStyleKey, tidy, REFS_MOST, REF_MOST, BRIEF_MOST, ANSWER_MOST, STYLE_OWN_MOST, type Book, type Ref } from '@inqbeta/q-core/storybook';
 import { htmlToText } from '@inqbeta/q-core/doc-text';
+import { artFromReply, artMessagesFor, artUpTo, ART_OUT, REVIEW_AT, type ArtTask } from '@inqbeta/q-core/art-ai';
 import { animateFromReply, askFromReply, creditsFor, draftFromReply, outlineFromReply, jsonIn, messagesFor, mostOut, redoFromReply, rippleFromReply, upToFor, type Rates, type StoryTask } from '@inqbeta/q-core/story-ai';
 
 export const prerender = false;
@@ -43,6 +44,12 @@ function door(request: Request, url: URL) {
 
 const keyOf = () => (env.AI_GATEWAY_API_KEY ?? '').trim();
 const modelOf = () => (env.STORY_MODEL ?? '').trim() || MODEL;
+/*
+ * The polished build's model ("Make it final"): set STORY_MODEL_FINAL to the
+ * strongest model the gateway offers, and its prices in STORY_FINAL_PENCE_PER_M_IN
+ * and _OUT. Unset, it is the story model at the story model's prices.
+ */
+const finalModelOf = () => (env.STORY_MODEL_FINAL ?? '').trim() || modelOf();
 const num = (x: string | undefined, d: number) => (Number.isFinite(Number(x)) && Number(x) > 0 ? Number(x) : d);
 
 async function ratesOf(fetcher: typeof fetch): Promise<Rates> {
@@ -55,6 +62,27 @@ async function ratesOf(fetcher: typeof fetch): Promise<Rates> {
 		/* no mint here yet: a credit is a pound */
 	}
 	return { inPerM: num(env.STORY_PENCE_PER_M_IN, 240), outPerM: num(env.STORY_PENCE_PER_M_OUT, 1200), minorPerCredit: minorPerCredit(currency) };
+}
+async function finalRatesOf(fetcher: typeof fetch): Promise<Rates> {
+	const r = await ratesOf(fetcher);
+	if (!(env.STORY_MODEL_FINAL ?? '').trim()) return r;
+	return { ...r, inPerM: num(env.STORY_FINAL_PENCE_PER_M_IN, 1200), outPerM: num(env.STORY_FINAL_PENCE_PER_M_OUT, 6000) };
+}
+/* An art job from the page: the book made to the rule, frames only as small pictures. */
+function artJobIn(j: Record<string, unknown>): ArtTask | null {
+	const book = bookIn(j.book);
+	const story = typeof j.story === 'string' ? j.story : '';
+	const slide = typeof j.slide === 'string' ? j.slide : '';
+	if (j.task === 'final' && story) return { task: 'final', book, story };
+	if (j.task === 'art' && story && slide) return { task: 'art', book, story, slide, ...(typeof j.before === 'string' ? { before: j.before.slice(0, 120_000) } : {}) };
+	if (j.task === 'art-review' && story && slide && typeof j.svg === 'string') {
+		const frames = (Array.isArray(j.frames) ? j.frames : [])
+			.filter((f): f is { at: number; image: string } => typeof f?.at === 'number' && typeof f?.image === 'string' && f.image.length < 400_000)
+			.slice(0, REVIEW_AT.length);
+		const dropped = (Array.isArray(j.dropped) ? j.dropped : []).filter((d): d is string => typeof d === 'string').slice(0, 20).map((d) => d.slice(0, 80));
+		return { task: 'art-review', book, story, slide, svg: j.svg.slice(0, 120_000), frames, dropped, round: typeof j.round === 'number' ? j.round : 1 };
+	}
+	return null;
 }
 
 /* The book from the page, made to the rule again: nothing else gets in. */
@@ -93,13 +121,15 @@ function jobIn(x: unknown): StoryTask {
 export const GET: RequestHandler = async ({ request, url, fetch }) => {
 	if (!dev) return json({ ai: false, says: 'The AI runs on the host’s own computer for now. You can practise every step here.' });
 	door(request, url);
-	return json({ ai: !!keyOf(), model: modelOf(), rates: await ratesOf(fetch), says: keyOf() ? '' : 'No AI key yet: set one in Services → AI. You can practise every step meanwhile.' });
+	return json({ ai: !!keyOf(), model: modelOf(), finalModel: finalModelOf(), rates: await ratesOf(fetch), says: keyOf() ? '' : 'No AI key yet: set one in Services → AI. You can practise every step meanwhile.' });
 };
 
 export const POST: RequestHandler = async ({ request, url, fetch }) => {
 	door(request, url);
 	const body = (await request.json().catch(() => null)) as { job?: unknown; quote?: boolean; agreed?: number; read?: unknown } | null;
 	if (typeof body?.read === 'string') return json(await readPage(body.read));
+	const raw = (body?.job ?? {}) as Record<string, unknown>;
+	if (raw.task === 'art' || raw.task === 'art-review' || raw.task === 'final') return artJob(raw, body ?? {}, fetch);
 	const job = jobIn(body?.job);
 	const rates = await ratesOf(fetch);
 	const upTo = upToFor(job, rates);
@@ -179,3 +209,36 @@ async function readPage(raw: string): Promise<{ ok: boolean; name?: string; text
 	}
 }
 
+
+/*
+ * The polished build (ADR-Q-033, "Make it final"): one slide drawn, or
+ * reviewed from its frames, by the stronger model. "final" is only ever
+ * quoted: the whole story's most, agreed once; each call then carries what's
+ * left of that agreement.
+ */
+async function artJob(raw: Record<string, unknown>, body: { quote?: boolean; agreed?: number }, fetcher: typeof fetch) {
+	const job = artJobIn(raw);
+	if (!job) error(400, 'That isn’t a job the story engine does.');
+	const rates = await finalRatesOf(fetcher);
+	const upTo = artUpTo(job, rates);
+	if (body.quote) return json({ ok: true, upTo, model: finalModelOf() });
+	if (job.task === 'final') error(400, 'The whole story is agreed, then drawn slide by slide.');
+	const key = keyOf();
+	if (!key) error(409, 'No AI key yet: set one in Services → AI.');
+	if (typeof body.agreed !== 'number' || body.agreed + 1e-9 < upTo) error(409, `This slide could cost up to ${upTo} credits, more than is left of what was agreed. Agree again.`);
+	const res = await fetcher((env.STORY_GATEWAY ?? '').trim() || GATEWAY, {
+		method: 'POST',
+		headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
+		body: JSON.stringify({ model: finalModelOf(), messages: artMessagesFor(job), max_tokens: ART_OUT, temperature: job.task === 'art' ? 0.7 : 0.4 }),
+		signal: AbortSignal.timeout(300_000)
+	}).catch((e) => error(502, `The AI couldn’t be reached: ${e instanceof Error ? e.message : e}`));
+	if (!res.ok) error(502, `The AI said no (${res.status}). ${(await res.text().catch(() => '')).slice(0, 200)}`);
+	const out = (await res.json()) as { choices?: { message?: { content?: string } }[]; usage?: { prompt_tokens?: number; completion_tokens?: number } };
+	const text = out.choices?.[0]?.message?.content ?? '';
+	const used = Math.min(upTo, creditsFor(out.usage?.prompt_tokens ?? 0, out.usage?.completion_tokens ?? 0, rates));
+	try {
+		return json({ ok: true, upTo, used, model: finalModelOf(), art: artFromReply(text) });
+	} catch (e) {
+		return json({ ok: false, upTo, used, says: e instanceof Error ? e.message : 'The AI’s picture couldn’t be read.' }, { status: 502 });
+	}
+}

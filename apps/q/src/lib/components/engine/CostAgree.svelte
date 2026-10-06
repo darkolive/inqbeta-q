@@ -5,8 +5,9 @@
 	 * it off: practise, at no cost, and say so plainly.
 	 */
 	import type { StoryTask } from '@inqbeta/q-core/story-ai';
+	import type { ArtTask } from '@inqbeta/q-core/art-ai';
 	import { quote, type AiState } from '$lib/story-engine';
-	let { ai, job, what, onrun, times = 1 }: { ai: AiState; job: () => StoryTask; what: string; onrun: (agreed: number | 'practice') => Promise<void>; /** One agreement for several calls (Q's questions): the most in all is shown too. */ times?: number } = $props();
+	let { ai, job, what, onrun, times = 1 }: { ai: AiState; job: () => StoryTask | ArtTask; what: string; onrun: (agreed: number | 'practice') => Promise<void>; /** One agreement for several calls (Q's questions): the most in all is shown too. */ times?: number } = $props();
 	let upTo = $state<number | null>(null);
 	let busy = $state(false);
 	let said = $state('');

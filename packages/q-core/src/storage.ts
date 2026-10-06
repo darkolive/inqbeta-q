@@ -21,6 +21,12 @@
  * out deliberately leaves it, so signing back in opens the same folder without
  * asking. Giving up a folder is `forgetFolder()` — a separate thing a person
  * does on purpose.
+ *
+ * ALSO NOT HERE: the story engine's pictures and recordings (ADR-Q-033, the
+ * polished build and video export). Drawn slides and the voice recordings for
+ * videos are kept in IndexedDB "q-story-art", each by its own content address,
+ * because they are too big for localStorage; a book's steps hold only the
+ * address. Device data: they belong to the books on this browser.
  */
 
 export type KeyKind =

@@ -16,6 +16,7 @@
 	import type { Frame } from './frame';
 	import Piece from '../engine/Piece.svelte';
 	import RecipePicture from '../engine/RecipePicture.svelte';
+	import ArtPicture from '../engine/ArtPicture.svelte';
 
 	/*
 	 * `look`: the book's look (5 October 2026). Q's own icons are drawn here;
@@ -30,7 +31,17 @@
 
 {#snippet pictures(f: Frame)}
 	{@const slide = story.slides[f.scene - 1]}
-	{#if slide?.motion && drawsItself(look)}
+	{#snippet moving()}
+		{#if slide?.motion && drawsItself(look)}
+			<svg viewBox="0 0 640 320" class="w-full h-auto" aria-hidden="true"><RecipePicture recipe={slide.motion} t={f.still ? 1 : f.p} /></svg>
+		{:else}
+			<svg viewBox="0 0 640 320" class="w-full h-auto" aria-hidden="true">{#if slide?.piece}<Piece piece={slide.piece} x={320} y={150} size={150} />{/if}</svg>
+		{/if}
+	{/snippet}
+	{#if slide?.art}
+		<!-- The polished build (6 October 2026): drawn by the stronger model, on the slide's own clock. -->
+		<ArtPicture hash={slide.art.hash} t={f.still ? Infinity : f.into} fallback={moving} />
+	{:else if slide?.motion && drawsItself(look)}
 		<!-- Brought to life (6 October 2026): the slide's scene recipe, performed. A still is its end. -->
 		<svg viewBox="0 0 640 320" class="w-full h-auto" aria-hidden="true">
 			<RecipePicture recipe={slide.motion} t={f.still ? 1 : f.p} />

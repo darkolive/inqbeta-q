@@ -16,6 +16,12 @@ export interface Frame {
 	at: (a: number) => number;
 	/** True for a slide's still: draw the scene as it ends. */
 	still: boolean;
+	/**
+	 * Seconds into this scene, unhurried by easing (6 October 2026: a slide
+	 * drawn by the polished build keeps its own clock, in step with the
+	 * voice). Infinity for a still, or with less motion asked for: the end.
+	 */
+	into: number;
 }
 
 export interface DeckScene {
@@ -74,7 +80,8 @@ export function frameAt(t: number, times: number[], moves = true): Frame {
 		on: (a, b = scenes) => (scene >= a && scene <= b ? 'opacity-100' : 'opacity-0'),
 		fade,
 		at: (a) => (scene < a ? 0 : scene > a ? 1 : p),
-		still: false
+		still: false,
+		into: moves ? Math.max(0, into) : Infinity
 	};
 }
 
@@ -86,6 +93,7 @@ export function stillOf(n: number, scenes: number): Frame {
 		on: (a, b = scenes) => (n >= a && n <= b ? 'opacity-100' : 'opacity-0'),
 		fade: '',
 		at: (a) => (n < a ? 0 : 1),
-		still: true
+		still: true,
+		into: Infinity
 	};
 }

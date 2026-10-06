@@ -4311,6 +4311,18 @@
 				"says": "On Play, with Q's own icons as the look, check each story has a 'Bring it to life' card. Press 'Practise instead (free)' and play the story: check pieces arrive and move while the words are said, the words are unchanged, and the card now says 'This story moves' with 'Back to stills', which returns it to stills. With another look, check the card says moving pictures for that look come later.",
 				"how": "both",
 				"area": "works"
+			},
+			{
+				"id": "make-final",
+				"says": "On Play, under a story, press 'Make it final' and 'Practise instead (free)' (or 'What will it cost?' on your own computer). Check it works slide by slide with a progress bar and four small frames it is looking at, then says 'Final build'. Play the story and check the drawn slides move in time with the words; 'Take off the final build' returns it to how it was.",
+				"how": "both",
+				"area": "works"
+			},
+			{
+				"id": "export-video",
+				"says": "On your own computer with an ElevenLabs key: press 'Make a video', choose a voice, a shape and your name. Check it offers to record the voice for a cost first, then 'Make the video' shows progress and gives a video to watch and 'Save the video'. Check the saved file plays with the voice, the words lighting as they are said, and your name on the end card. Making it again costs nothing.",
+				"how": "human",
+				"area": "works"
 			}
 		]
 	},

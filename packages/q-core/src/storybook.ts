@@ -30,6 +30,7 @@
  */
 import { canonical, sha256 } from './canonical';
 import { practiceRecipe, recipeOf, type Recipe } from './scene-recipe';
+import { artRefOf, type ArtRef } from './slide-art';
 
 /* ------------------------------------------------------------------ the rule */
 
@@ -98,6 +99,13 @@ export interface Slide {
 	 * A draft is stills; this is the paid step. See scene-recipe.ts.
 	 */
 	motion?: Recipe;
+	/**
+	 * The polished build (6 October 2026, "Make it final"): the slide drawn
+	 * and animated by the stronger model. Only its address is kept here; the
+	 * picture itself is kept beside the book (slide-art.ts). When it has art,
+	 * the player shows the art.
+	 */
+	art?: ArtRef;
 }
 export interface Story {
 	id: string;
@@ -138,6 +146,14 @@ export interface Book {
 	 * unit card. Null for an ordinary book.
 	 */
 	course: Unit | null;
+	/** The ElevenLabs voice its videos are spoken in (null: the host's own). */
+	voice?: Voice | null;
+}
+
+/** A voice for a book's videos: an ElevenLabs voice, by id, with the name the person saw. */
+export interface Voice {
+	id: string;
+	name: string;
 }
 
 /* ------------------------------------------------------------- a course unit */
@@ -317,6 +333,7 @@ export const SCENE_MOST = 400;
 export function slideOf(x: Partial<Slide> & { id?: string }, id: string): Slide {
 	const scene = tidy(x.scene, SCENE_MOST);
 	const motion = x.motion ? recipeOf(x.motion, isPiece) : null;
+	const art = x.art ? artRefOf(x.art) : null;
 	return {
 		id: typeof x.id === 'string' && x.id ? x.id : id,
 		title: tidy(x.title, TITLE_MOST),
@@ -325,7 +342,8 @@ export function slideOf(x: Partial<Slide> & { id?: string }, id: string): Slide 
 		...(scene ? { scene } : {}),
 		draft: !!x.draft,
 		...(x.show === true ? { show: true as const } : {}),
-		...(motion ? { motion } : {})
+		...(motion ? { motion } : {}),
+		...(art ? { art } : {})
 	};
 }
 
@@ -392,6 +410,10 @@ export type StepKind =
 	| 'recap'
 	/** A story brought to life: each slide's movement (or taken back to stills). */
 	| 'animate'
+	/** The polished build: a slide drawn by the stronger model (or taken off). */
+	| 'final'
+	/** The voice a book's videos are spoken in. */
+	| 'voice'
 	/** Stories suggested by the AI (or practice), before the person uses them. */
 	| 'outline'
 	/** A draft slide put back as it was, or taken out. */
@@ -439,7 +461,7 @@ export interface BookStep {
 	/** What they answered (words, choices), as given. */
 	answer: unknown;
 	/** On the book's chain: the book's own fields after this step. */
-	head?: { title: string; subtext: string; open: boolean; ready: boolean; order: string[]; refs?: Ref[]; brief?: BriefAnswer[]; style?: Style | null; course?: Unit | null };
+	head?: { title: string; subtext: string; open: boolean; ready: boolean; order: string[]; refs?: Ref[]; brief?: BriefAnswer[]; style?: Style | null; course?: Unit | null; voice?: Voice | null };
 	/** On a story's chain: the story after this step; null when it was taken out. */
 	story?: Story | null;
 	cost?: Cost;
@@ -488,6 +510,7 @@ export function bookFrom(steps: BookStep[], id = steps[0]?.book ?? ''): Book {
 			book.brief = s.head.brief ?? [];
 			book.style = s.head.style ?? null;
 			book.course = s.head.course ?? null;
+			book.voice = s.head.voice ?? null;
 		} else if (s.chain !== BOOK_CHAIN && s.story !== undefined) {
 			if (s.story === null) stories.delete(s.chain);
 			else stories.set(s.chain, s.story);
@@ -500,7 +523,7 @@ export function bookFrom(steps: BookStep[], id = steps[0]?.book ?? ''): Book {
 /** One story's history (or the book's own, with 'book'), oldest first. */
 export const historyOf = (steps: BookStep[], chain: string) => steps.filter((s) => s.chain === chain);
 
-const headOf = (b: Book, order = b.stories.map((s) => s.id)) => ({ title: b.title, subtext: b.subtext, open: b.open, ready: b.ready, order, refs: b.refs, brief: b.brief, style: b.style, ...(b.course ? { course: b.course } : {}) });
+const headOf = (b: Book, order = b.stories.map((s) => s.id)) => ({ title: b.title, subtext: b.subtext, open: b.open, ready: b.ready, order, refs: b.refs, brief: b.brief, style: b.style, ...(b.course ? { course: b.course } : {}), ...(b.voice ? { voice: b.voice } : {}) });
 
 /** Make a fresh id for a story or book (short, random, URL-safe). */
 export function freshId(prefix: string): string {
@@ -881,4 +904,33 @@ export const stillsOf = (story: Story): Story => ({ ...story, slides: story.slid
 /** Bringing a story to life, by practice: a plain recipe for each slide from its piece and scene. */
 export function practiceAnimate(story: Story): Story {
 	return storyOf({ ...story, slides: story.slides.map((s) => ({ ...s, motion: practiceRecipe(s.piece, s.scene) })) });
+}
+
+/* ------------------------------------------------------- the polished build, and the voice */
+
+/** Whether every slide in the story has been drawn for the polished build. */
+export const finished = (story: Story) => story.slides.length > 0 && story.slides.every((s) => !!s.art);
+/** The story without its polished art (its words, movement and everything else untouched). */
+export const unfinishedOf = (story: Story): Story => ({ ...story, slides: story.slides.map(({ art: _, ...s }) => s) });
+
+/*
+ * How long a slide is said for, in seconds: what the player reckons before a
+ * recording exists (decks/frame.ts: about 14 characters a second, a breath,
+ * never under 4.5). The first slide also says the story's title.
+ */
+export function slideSeconds(story: Story, i: number): number {
+	const s = story.slides[i];
+	if (!s) return 4.5;
+	const chars = s.title.length + s.subtext.length + (i === 0 ? story.title.length : 0);
+	return Math.round(Math.max(4.5, chars / 14 + 1.2) * 10) / 10;
+}
+
+/** The voice a book's videos are spoken in, or the host's own (null). */
+export async function setVoice(steps: BookStep[], bookId: string, voice: Voice | null, asks: string): Promise<BookStep[]> {
+	const b = bookFrom(steps, bookId);
+	const clean = voice && /^[A-Za-z0-9]{8,40}$/.test(voice.id) ? { id: voice.id, name: tidy(voice.name, 80) || 'A voice' } : null;
+	const head = headOf(b);
+	if (clean) (head as { voice?: Voice }).voice = clean;
+	else delete (head as { voice?: Voice }).voice;
+	return addStep(steps, { book: bookId, chain: BOOK_CHAIN, kind: 'voice', asks, answer: clean ?? 'the host’s own voice', head });
 }

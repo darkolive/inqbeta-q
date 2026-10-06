@@ -14,6 +14,8 @@
 	import StoryList from './StoryList.svelte';
 	import ShowIt from './ShowIt.svelte';
 	import BringToLife from './BringToLife.svelte';
+	import MakeFinal from './MakeFinal.svelte';
+	import ExportVideo from './ExportVideo.svelte';
 	import type { AiState } from '$lib/story-engine';
 	let { book, steps, commit, ai }: { book: Book; steps: BookStep[]; commit: (s: BookStep[]) => void; ai: AiState } = $props();
 
@@ -75,7 +77,7 @@
 				<StoryList stories={book.stories} {chosen} onchoose={(id) => (chosen = id)} />
 			</div>
 			<div class="flex flex-col items-center min-w-0">
-				{#if story}{#key story.id}<MadeDeck {story} look={book.style} />{#if book.course && !story.recap}<div class="mt-6 w-full flex justify-center"><ShowIt {book} {story} /></div>{/if}{/key}<div class="mt-6 w-full flex justify-center"><BringToLife {book} {steps} {commit} {ai} {story} /></div>{/if}
+				{#if story}{#key story.id}<MadeDeck {story} look={book.style} />{#if book.course && !story.recap}<div class="mt-6 w-full flex justify-center"><ShowIt {book} {story} /></div>{/if}{/key}<div class="mt-6 w-full flex flex-col items-center gap-4"><BringToLife {book} {steps} {commit} {ai} {story} /><MakeFinal {book} {steps} {commit} {ai} {story} /><ExportVideo {book} {steps} {commit} {story} /></div>{/if}
 			</div>
 		</div>
 	{/if}

@@ -364,3 +364,72 @@ Proved in the cloud copy: 6 new q-core tests; Darren's own book loaded, its
 people meet, a receipt appears, a key signs it, it passes across and is
 ticked, each folder keeps a copy) and played through; practice on another
 story; back to stills; no console errors.
+
+## Make it final, and export as video (6 October 2026, evening)
+
+Darren: "to have a really, really polished end product that you kind of
+like, I want to put this out, put my name to it. I'm willing to pay more
+tokens to have that kind of liquid feel, you know, where two people look
+like they're talking to each other … worth waiting five, ten minutes for a
+proper build. And … export … a video version of that story with the
+downloaded voice from ElevenLabs speaking it … a really nice promo piece."
+Asked three things, he chose: **the AI draws each slide**; **the video is
+made in the browser**; **the voice is picked per book**.
+
+So a story now has three levels: **draft** (stills), **bring it to life**
+(scene recipes), and **make it final** (drawn by the stronger model).
+
+**Make it final.** The whole story's cost is agreed once (`final`, quoted
+as the most every call could take). Then slide by slide: the stronger model
+(`STORY_MODEL_FINAL`, priced by `STORY_FINAL_PENCE_PER_M_IN/OUT`; unset, the
+story model) **draws** the slide as one SVG with CSS animations, timed in the
+slide's seconds, carrying on the slide before (`art`); Q **plays it and takes
+four pictures** of moments through it; the model **looks at them and
+refines it**, twice (`art-review`, the frames sent as images). Each slide is
+kept as it's finished; stop or fail, and what's built stays. The briefing
+(q-core `art-ai.ts`, `ART_RULES`) asks for liquid movement (easing,
+anticipation, overlap, arcs, a gentle camera), people who turn and talk,
+one world from slide to slide, and a clear still by the end.
+
+- **Safe by construction** (q-core `slide-art.ts`): `cleanArt` rebuilds the
+  SVG from an allowlist of drawing elements, attributes and CSS (keyframes
+  and plain rules); no scripts, handlers, links out, foreign content, text
+  or anything loaded; references only inside the picture. What it drops is
+  told to the next round.
+- **Played in a sealed frame**: each picture plays in its own sandboxed
+  iframe (no scripts, a policy that loads nothing), so its style sheet can't
+  reach Q's page. Q holds every animation still and sets its clock from the
+  deck: `Frame.into`, real seconds into the slide (added to decks/frame.ts).
+- **Kept beside the book**: pictures are too big for each step to repeat,
+  so they're kept once in IndexedDB "q-story-art" by their SHA-256; a slide
+  holds only `art: { hash, seconds, model }`.
+- Practice draws a plain hand-made picture, so the whole build can be tried
+  free.
+
+**Export as video** (`lib/video/export.ts`), made in the browser:
+- **The voice**: chosen per book from the host's ElevenLabs voices (a clone
+  of the maker's own listed first; `book.voice`, a `voice` step). Each
+  slide's words (the first also says the story's title) are recorded with
+  the timings of every word (`api/voice`, the with-timestamps call Q's own
+  voice build uses; cost agreed first), kept beside the book, so a second
+  video costs nothing.
+- **The film**: a title card; each slide as long as its recording plus a
+  breath; an end card with the maker's name and "Made with Q". Every frame
+  is drawn at its exact moment (the slide's art, its movement, or its piece)
+  with its words lighting as they're said, burned in for watching with the
+  sound off.
+- **The file**: H.264 and AAC through WebCodecs, put together by `mp4-muxer`
+  (MIT; the one new dependency). Where a browser can't make those (Firefox,
+  Chromium on Linux), VP9 and Opus instead, which YouTube takes, and the
+  page says so. Wide 1920 × 1080, tall 1080 × 1920, square 1080 × 1080.
+- **Also fixed on the way**: the art's address was checked as hex while Q's
+  content addresses are base64url, so finished slides were dropped when kept.
+
+Proved in the cloud copy against stand-ins for the gateway and ElevenLabs
+(`STORY_GATEWAY`, `VOICE_API`): Darren's *Two people make a receipt* made
+final (5 slides, each drawn and reviewed twice with four frames, the stray
+script in the stand-in's drawing removed), played in the deck, the voice
+recorded in a chosen voice, and exported tall and wide: 53-second MP4s at
+30 frames a second, words lighting, end card "By Darren Knipe". 13 new
+q-core tests. The real stronger model and real ElevenLabs haven't been
+called yet.

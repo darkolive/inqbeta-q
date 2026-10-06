@@ -23,7 +23,8 @@
 		"@cedar-policy/cedar-wasm": "4.13.0",
 		"@inqbeta/q-actions": "workspace:*",
 		"@inqbeta/q-core": "workspace:*",
-		"@inqbeta/q-ui": "workspace:*"
+		"@inqbeta/q-ui": "workspace:*",
+		"mp4-muxer": "5.2.2"
 	},
 	"devDependencies": {
 		"@skeletonlabs/skeleton": "^5.0.1",
