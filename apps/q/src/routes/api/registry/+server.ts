@@ -26,13 +26,19 @@ const CORS = { 'access-control-allow-origin': '*', 'access-control-allow-methods
 const say = (says: string, status = 409) => json({ ok: false, says }, { status, headers: CORS });
 
 /*
- * Incubator's node, from its home file. On Vercel the static files aren't on
- * the server's disk, so it's read the way the mint reads it: from the site.
+ * Incubator's node, from its home file: on disk on localhost; on Vercel, where
+ * static files aren't on the server's disk, the copy bundled at build time;
+ * failing both, read from the site itself as the mint does.
  */
+const BUNDLED = import.meta.glob<{ services?: { storage?: unknown } }>('/static/incubator.json', { eager: true, import: 'default' });
 async function storageAt(origin: string): Promise<string | null> {
-	const s = readHomeFile()?.services?.storage;
-	if (typeof s === 'string' && s) return s.replace(/\/$/, '');
-	return (await hostOf(origin).catch(() => null))?.storage ?? null;
+	const ok = (s: unknown) => (typeof s === 'string' && /^https?:\/\//.test(s) ? s.replace(/\/$/, '') : null);
+	return (
+		ok(readHomeFile()?.services?.storage) ??
+		ok(Object.values(BUNDLED)[0]?.services?.storage) ??
+		(await hostOf(origin).catch(() => null))?.storage ??
+		null
+	);
 }
 
 export const OPTIONS: RequestHandler = async () => new Response(null, { status: 204, headers: CORS });
