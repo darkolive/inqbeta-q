@@ -540,3 +540,50 @@ down any role left from before, signing that it ended. A reload or a new tab
 within the same sign-in keeps it. So every sign-in that takes up an office
 declares afresh, never under an earlier day's declaration. (`passkey.ts`
 `watch` now says how the identity came: `here`, `kept` or `other-tab`.)
+
+## As built, 6 October 2026 (night): two signatures, recorded decisions, the federation's spend (step 6, and the core of step 8)
+
+- **Two signatures** (`q-core/cosign.ts`). `needsSecond` names why a second
+  holder must sign:
+  - `money`: any `/fed/money` command, from the Money block's "two
+    signatures on any spend";
+  - `own`: the action touches the holder's own account;
+  - `interest`: the holder declared an interest on taking up the office.
+
+  `askSecond`: the first holder, in role, signs the action in full with a
+  plain-words line for the second to read. `signSecond`: another holder, in
+  role, signs the same words. It refuses the same person twice, the person
+  the action pays or touches, and a second holder who declared an interest.
+  `checkCosigned` checks both signatures on the same words, and that each
+  signer's office proof (`actingCovers`) covers the command. A secretary, for
+  example, can't be the second signature on money. Until the second signs,
+  it's only asked.
+- **Recorded decisions** (`q-core/decisions.ts`). Until the Plans block
+  brings votes, a decision is minuted by the secretary or chair, in role
+  (`/fed/minutes`). It records what was decided, how (a meeting, a members'
+  vote, an agreed budget line, a standing rule), when, and for money the most
+  it allows and until when. `decisionCovers` checks the decision is sound
+  evidence for spending an amount now, counting what has already been spent
+  under it.
+- **`federation.spend`** (q-actions `core/federation-money.ts`), in the core
+  actions. The federation's own credits are spent or cashed out only with all
+  of these:
+  - two office holders in role;
+  - a recorded decision for at least the amount;
+  - payment into the federation's own account, or to the payee the decision
+    names;
+  - the mint's safety valve open.
+
+  "One person holding the purse alone" is enforced. "Approved by an AI" is
+  declared.
+
+Tests: q-core 617 pass; q-actions 68 pass.
+
+**Not yet (the rest of step 8, C4):** on the page, in role, the federation's
+statement and **Cash out for the federation**, plus the flow between holders:
+- the first holder asks;
+- the request reaches the other money holders' office post;
+- the second reads it and signs;
+- the mint files it.
+
+The secretary's **Minute a decision** form is not built either.
