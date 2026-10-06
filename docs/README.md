@@ -1,7 +1,7 @@
 ---
 implementation: current
 decision: none
-updated: 2026-09-26
+updated: 2026-10-06
 ---
 
 # Q docs — index
@@ -21,7 +21,7 @@ a description of the code:
 | **record** | True on the day it was written. Read for history. |
 | **superseded** | Replaced; the note says by what. |
 
-Statuses were set on 26 September from each doc's date, `q/what-is-real.md`
+ADRs 010–043 were added on 6 October 2026 from each ADR's own status and as-built notes. Statuses were set on 26 September from each doc's date, `q/what-is-real.md`
 and the 25 September audit — not from a line-by-line re-read. Correct one when
 you find it wrong, and move each doc to front-matter
 (`implementation:` / `decision:`) as it is next touched.
@@ -39,6 +39,40 @@ you find it wrong, and move each doc to front-matter
 | [ADR-Q-007 Federations, membership and strands](decisions/adr-q-007-federations-membership-and-strands.md) | decision | Accepted 28 Sep; nothing built — replaces `federation.ts` |
 | [ADR-Q-008 Must and cannot](decisions/adr-q-008-must-and-cannot.md) | decision | Kernel principle: every action has must / may / cannot; nothing built |
 | [ADR-Q-009 Actions, action index and engine](decisions/adr-q-009-actions-index-and-engine.md) | decision | Cedar (browser WASM + Rust on Spin); MQTT for news only; spike passed (~0.25 ms per decision); `packages/q-actions` built, 25 tests; Rust and Spin 4.1 agree with WASM |
+| [ADR-Q-010 Messages](decisions/adr-q-010-messages.md) | proposed | Built: sealed person-to-person messages through the node's post office; office post (ADR-Q-037/038) |
+| [ADR-Q-011 Read aloud](decisions/adr-q-011-read-aloud.md) | built | Recorded voice; the story player uses it |
+| [ADR-Q-012 The vault pointer](decisions/adr-q-012-vault-pointer.md) | built | Needs a passkey that can carry it |
+| [ADR-Q-013 Your own AI keys, or Q credits](decisions/adr-q-013-ai-keys-and-credits.md) | proposed | Not built; the story engine uses the host's key on localhost |
+| [ADR-Q-014 The bellboy, the directory and the storage unit](decisions/adr-q-014-bellboy-directory-storage-unit.md) | proposed | The node runs all three (HETZNER.md) |
+| [ADR-Q-015 Cards with a purpose](decisions/adr-q-015-cards-with-a-purpose.md) | proposed | Started: profile, templates, CardFace, tabs, sharing by ticking |
+| [ADR-Q-016 Incubator is a federation](decisions/adr-q-016-incubator-is-a-federation.md) | proposed | Started: home federation, joining, announcements, notifications |
+| [ADR-Q-017 Incubator runs the commons](decisions/adr-q-017-incubator-runs-the-commons.md) | proposed | Started: usage from receipts; storage allowance at the gate |
+| [ADR-Q-018 Install on your own computer first](decisions/adr-q-018-install-local-first.md) | proposed | Started: local mode, set-up cards, Services |
+| [ADR-Q-019 Copies, and the master they come from](decisions/adr-q-019-copies-and-the-master.md) | proposed | Trust travels down built 6 Oct: core fingerprinted as served, branches name their source, clubs through their host |
+| [ADR-Q-020 Federations are a plugin](decisions/adr-q-020-federations-are-a-plugin.md) | proposed | Started: the host's Federations switch |
+| [ADR-Q-021 Directory Enquiries](decisions/adr-q-021-directory-enquiries.md) | proposed | Registration with Incubator, receipt pages, the directory (6 Oct) |
+| [ADR-Q-022 Voice messages, and the receptionist](decisions/adr-q-022-voice-messages-and-the-receptionist.md) | proposed | Started: Part A steps 1–2 |
+| [ADR-Q-023 Credits, rewards and the exchange](decisions/adr-q-023-credits-rewards-and-the-exchange.md) | proposed | Started: the four credit actions in Cedar, balances, the Credits page |
+| [ADR-Q-024 The balance sheet](decisions/adr-q-024-the-balance-sheet.md) | proposed | Not started (job G1) |
+| [ADR-Q-025 Agreements](decisions/adr-q-025-agreements.md) | proposed | Started: receipts and standing, six rules, Write an agreement |
+| [ADR-Q-026 Offers by link](decisions/adr-q-026-offers-by-link.md) | decided | Built 3 Oct: open and standing offers, shops |
+| [ADR-Q-027 Minting against reserves](decisions/adr-q-027-minting-against-reserves.md) | decided | Test mode end to end; currency (D1), drift, the safety valve, the ledger lock (D2–D4) |
+| [ADR-Q-028 Copies in order](decisions/adr-q-028-copies-in-order.md) | decided | Steps 1–7 built |
+| [ADR-Q-029 Component sets](decisions/adr-q-029-component-sets.md) | decided | The four sets built |
+| [ADR-Q-030 The network market](decisions/adr-q-030-the-network-market.md) | proposed | Step 1 started: kept storage by the month |
+| [ADR-Q-031 Crowdfunding and test beds](decisions/adr-q-031-crowdfunding-and-test-beds.md) | proposed | Not started |
+| [ADR-Q-032 A message that carries things](decisions/adr-q-032-a-message-that-carries-things.md) | accepted | Step 1 built: the message card and attachments |
+| [ADR-Q-033 The story player and engine](decisions/adr-q-033-the-story-player-and-engine.md) | accepted (player) | Player built; engine first draft; storyboard for courses is a separate branch (q/storyboard-courses-brief.md) |
+| [ADR-Q-034 The door and the playground](decisions/adr-q-034-the-door-and-the-playground.md) | decision | Door and tester passes built; development site's own gate |
+| [ADR-Q-035 The federation's bank](decisions/adr-q-035-the-federation-bank.md) | decision | Bank tab, statement, cashing-out account, reconciliation |
+| [ADR-Q-036 Credits held by rule](decisions/adr-q-036-credits-held-by-rule.md) | proposed | Not started (grants; attestations for ADR-Q-043) |
+| [ADR-Q-037 Ask the office, not the person](decisions/adr-q-037-ask-the-office.md) | decision | Built: the coin's contact office, office post, office hours |
+| [ADR-Q-038 Acting in role](decisions/adr-q-038-acting-in-role.md) | decision | Built: offices, declarations (Nolan), in-role receipts, records and the shelf, two signatures, minuted decisions, the federation's account (C4) |
+| [ADR-Q-039 Working for an organisation](decisions/adr-q-039-working-for-an-organisation.md) | proposed | Not started |
+| [ADR-Q-040 The day photo](decisions/adr-q-040-the-day-photo.md) | proposed | Not started |
+| [ADR-Q-041 Behind closed doors](decisions/adr-q-041-behind-closed-doors.md) | proposed | Not started |
+| [ADR-Q-042 Treaties and settlement](decisions/adr-q-042-treaties-and-settlement.md) | proposed | E1–E4 built in q-core/q-actions; the page (E5) and the burns not yet |
+| [ADR-Q-043 The stimulus valve](decisions/adr-q-043-the-stimulus-valve.md) | proposed | The valve, queues and capacity gift in q-core, tested; three questions for Darren |
 | [Safari saves; Back up now is the safety](decisions/2026-09-23-safari-saves-back-up-now.md) | decision | Button since made proven (audit phase 0) |
 
 ## Current

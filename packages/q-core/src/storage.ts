@@ -74,6 +74,15 @@ export const STORED_KEYS: StoredKey[] = [
 	{ key: 'q-continuity', where: 'local', kind: 'device', holds: 'signed continuity envelopes (ADR-Q-005) — public by design, kept so a way-in passkey can sign in on this browser; survives sign-out' }
 ];
 
+/**
+ * Keys made up as they're written (a DID or a mint in the name). Each family
+ * is declared by its prefix, and signing out clears every key that starts with
+ * an identity prefix.
+ */
+export const STORED_PREFIXES: (Omit<StoredKey, 'key'> & { prefix: string })[] = [
+	{ prefix: 'q:battery-said:', where: 'local', kind: 'identity', holds: 'which battery warning (half, a quarter, the last cell, empty) this person was last given for each coin, so the bell says each once (lib/battery-watch.ts)' }
+];
+
 /** Everything that goes when somebody signs out. */
 export function identityKeys(): StoredKey[] {
 	return STORED_KEYS.filter((k) => k.kind === 'identity');
@@ -92,6 +101,19 @@ export function clearIdentityStorage(): void {
 			(k.where === 'session' ? sessionStorage : localStorage).removeItem(k.key);
 		} catch {
 			/* Private window, blocked storage, or nothing to remove. */
+		}
+	}
+	for (const p of STORED_PREFIXES.filter((x) => x.kind === 'identity')) {
+		try {
+			const store = p.where === 'session' ? sessionStorage : localStorage;
+			const doomed: string[] = [];
+			for (let i = 0; i < store.length; i++) {
+				const k = store.key(i);
+				if (k?.startsWith(p.prefix)) doomed.push(k);
+			}
+			for (const k of doomed) store.removeItem(k);
+		} catch {
+			/* as above */
 		}
 	}
 }

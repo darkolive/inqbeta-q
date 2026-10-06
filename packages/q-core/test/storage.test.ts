@@ -105,7 +105,11 @@ test('clearing works, and a browser that refuses one key still loses the rest', 
 		removeItem: (k: string) => {
 			if (k === 'inqbeta-session' && refusals++ === 0) throw new Error('blocked');
 			store.delete(k);
-		}
+		},
+		get length() {
+			return store.size;
+		},
+		key: (i: number) => [...store.keys()][i] ?? null
 	};
 	const g = globalThis as unknown as { localStorage?: unknown; sessionStorage?: unknown };
 	const hadLocal = g.localStorage;
@@ -115,7 +119,9 @@ test('clearing works, and a browser that refuses one key still loses the rest', 
 
 	try {
 		for (const k of STORED_KEYS) store.set(k.key, 'something');
+		store.set('q:battery-said:did:key:zAna:did:key:zMint', '2');
 		clearIdentityStorage();
+		assert.ok(![...store.keys()].some((k) => k.startsWith('q:battery-said:')), 'keys declared by prefix go too');
 
 		for (const k of identityKeys()) {
 			if (k.key === 'inqbeta-session') continue; // the one that refused
