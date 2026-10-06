@@ -4305,6 +4305,12 @@
 				"says": "For a course unit, open 'What Q tells the AI' and check it holds the unit card, 'How you teach' as the teacher's voice, and the course rules (why first, the picture carries the idea, nothing to remember, Show it last).",
 				"how": "ai",
 				"area": "works"
+			},
+			{
+				"id": "bring-to-life",
+				"says": "On Play, with Q's own icons as the look, check each story has a 'Bring it to life' card. Press 'Practise instead (free)' and play the story: check pieces arrive and move while the words are said, the words are unchanged, and the card now says 'This story moves' with 'Back to stills', which returns it to stills. With another look, check the card says moving pictures for that look come later.",
+				"how": "both",
+				"area": "works"
 			}
 		]
 	},

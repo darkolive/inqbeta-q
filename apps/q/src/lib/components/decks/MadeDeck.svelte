@@ -15,6 +15,7 @@
 	import StoryDeck from './StoryDeck.svelte';
 	import type { Frame } from './frame';
 	import Piece from '../engine/Piece.svelte';
+	import RecipePicture from '../engine/RecipePicture.svelte';
 
 	/*
 	 * `look`: the book's look (5 October 2026). Q's own icons are drawn here;
@@ -29,7 +30,15 @@
 
 {#snippet pictures(f: Frame)}
 	{@const slide = story.slides[f.scene - 1]}
-	{#if !drawsItself(look)}
+	{#if slide?.motion && drawsItself(look)}
+		<!-- Brought to life (6 October 2026): the slide's scene recipe, performed. A still is its end. -->
+		<svg viewBox="0 0 640 320" class="w-full h-auto" aria-hidden="true">
+			<RecipePicture recipe={slide.motion} t={f.still ? 1 : f.p} />
+			{#each story.slides as _, i (i)}
+				<circle cx={320 + (i - (n - 1) / 2) * 22} cy="306" r="5" class={i < f.scene ? 'fill-primary-500' : 'fill-surface-300-700'} />
+			{/each}
+		</svg>
+	{:else if !drawsItself(look)}
 		<div class="transition-opacity duration-500 motion-reduce:transition-none" style="opacity: {0.35 + 0.65 * f.p}"><ScenePicture scene={slide?.scene} style={look} big /></div>
 	{:else}
 	{@const grow = 0.82 + 0.18 * f.p}

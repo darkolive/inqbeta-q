@@ -14,6 +14,7 @@
 import {
 	bookFrom,
 	freshId,
+	practiceAnimate,
 	practiceAsk,
 	practiceDraft,
 	practiceOutline,
@@ -109,6 +110,11 @@ export async function run(job: StoryTask, agreed: number | 'practice'): Promise<
 			const story = job.book.stories.find((s) => s.id === job.story);
 			if (!story) throw new Error('That story isn’t in the book.');
 			return { ...base, story: practiceRedo(story, job.answers as RedoAnswers) };
+		}
+		if (job.task === 'animate') {
+			const story = job.book.stories.find((s) => s.id === job.story);
+			if (!story) throw new Error('That story isn’t in the book.');
+			return { ...base, story: practiceAnimate(story) };
 		}
 		return { ...base, suggestions: practiceRipple(job.book, job.changed) };
 	}

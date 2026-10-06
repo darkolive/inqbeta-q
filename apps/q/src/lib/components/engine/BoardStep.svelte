@@ -57,7 +57,7 @@
 
 				{#each story.slides as slide, i (slide.id)}
 					{#if form === slide.id}
-						<SlideForm {slide} onsave={async (s, asks) => (await slides((all) => all.map((x) => (x.id === slide.id ? { ...x, ...s, draft: false } : x)), asks, s), (form = null))} oncancel={() => (form = null)} />
+						<SlideForm {slide} onsave={async (s, asks) => (await slides((all) => all.map((x) => (x.id === slide.id ? { ...x, ...s, draft: false, ...(s.scene !== x.scene ? { motion: undefined } : {}) } : x)), asks, s), (form = null))} oncancel={() => (form = null)} />
 					{:else}
 						<SlideCard {slide} n={i + 1} look={book.style}>
 							{#snippet actions()}

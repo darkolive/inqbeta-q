@@ -322,3 +322,45 @@ Playwright at 1280 and 390 wide, no console errors; an ordinary book
 unchanged). **Not yet:** the real model (the first unit is to be written
 with it, cost agreed first); evidence sealed into the vault; DoStudy
 reading units from here.
+
+## Bringing a story to life: scene recipes (6 October 2026, later)
+
+Darren, on playing his first book made with the real model (*How this site
+works*): "what it's not doing in the slideshow is giving animations, which I
+know takes a lot of render time, but that's the sort of point of what you
+want to pay for … a simple draft experience where you're just seeing
+stills, but to really feel it … we want to see those moving parts and charts
+moving." Asked how to start, he chose **scene recipes first**; generated
+video clips for the other looks come later, as a dearer tier.
+
+- **A draft is stills; "Bring it to life" is the paid step**, one story at a
+  time, the cost agreed first (`animate` job). The AI choreographs each
+  slide as a **scene recipe** (q-core `scene-recipe.ts`): at most 6 actors,
+  each one of Q's pieces, placed on a 100 × 100 stage; at most 10 moves from
+  a small vocabulary (enter, leave, move, pass, copy, link, glow, shake,
+  grow), each starting at a point in the slide and taking a quarter of it;
+  at most one chart of shapes (bars, a line, a ring), never real figures
+  unless the person's material gave them.
+- **Data, never code.** `recipeOf` keeps known pieces, real actors, places on
+  the stage and moves that name actors that exist; everything else is
+  dropped. The words never change; `animateFromReply` only adds movement.
+- **Performed, not rendered.** `stageAt` says where everything is at any
+  moment; the player draws it with the same pieces and timing as Q's own
+  stories (`RecipePicture` in `MadeDeck`): it plays at once, a still is its
+  end, and before it plays the slide shows how it ends, like a poster. A
+  second person on a stage is drawn in the olive, so two people read as two.
+- **Kept and undone like everything else.** The movement is on the story's
+  chain (`animate` steps); *Back to stills* takes it off; *Choreograph it
+  again* asks again. Changing a slide's scene clears its movement.
+- Only Q's own icons move for now; other looks say moving pictures come
+  later. The AI isn't sent the material again for this job (it would only
+  cost more). Practice makes a plain recipe from each slide's piece and
+  scene, free.
+- **Also fixed:** the AI route dropped a course unit's card when it rebuilt
+  the book, so a unit sent to the real model was written as an ordinary book.
+
+Proved in the cloud copy: 6 new q-core tests; Darren's own book loaded, its
+*Two people make a receipt* story choreographed as the AI is asked to (two
+people meet, a receipt appears, a key signs it, it passes across and is
+ticked, each folder keeps a copy) and played through; practice on another
+story; back to stills; no console errors.

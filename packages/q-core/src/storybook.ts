@@ -29,6 +29,7 @@
  * Pure. No storage, no AI.
  */
 import { canonical, sha256 } from './canonical';
+import { practiceRecipe, recipeOf, type Recipe } from './scene-recipe';
 
 /* ------------------------------------------------------------------ the rule */
 
@@ -91,6 +92,12 @@ export interface Slide {
 	 * Still a title and a subtext; always a story's last slide (storyOf moves it).
 	 */
 	show?: true;
+	/**
+	 * How the slide moves, once the story is brought to life (6 October
+	 * 2026): Q's pieces on a stage and what they do, performed by the player.
+	 * A draft is stills; this is the paid step. See scene-recipe.ts.
+	 */
+	motion?: Recipe;
 }
 export interface Story {
 	id: string;
@@ -309,6 +316,7 @@ export const SCENE_MOST = 400;
 /** A slide made to the rule: title and subtext, a known piece or none, and its scene if it has one. */
 export function slideOf(x: Partial<Slide> & { id?: string }, id: string): Slide {
 	const scene = tidy(x.scene, SCENE_MOST);
+	const motion = x.motion ? recipeOf(x.motion, isPiece) : null;
 	return {
 		id: typeof x.id === 'string' && x.id ? x.id : id,
 		title: tidy(x.title, TITLE_MOST),
@@ -316,7 +324,8 @@ export function slideOf(x: Partial<Slide> & { id?: string }, id: string): Slide 
 		piece: isPiece(x.piece) ? x.piece : null,
 		...(scene ? { scene } : {}),
 		draft: !!x.draft,
-		...(x.show === true ? { show: true as const } : {})
+		...(x.show === true ? { show: true as const } : {}),
+		...(motion ? { motion } : {})
 	};
 }
 
@@ -381,6 +390,8 @@ export type StepKind =
 	| 'course'
 	/** The recap made again from the outcomes. */
 	| 'recap'
+	/** A story brought to life: each slide's movement (or taken back to stills). */
+	| 'animate'
 	/** Stories suggested by the AI (or practice), before the person uses them. */
 	| 'outline'
 	/** A draft slide put back as it was, or taken out. */
@@ -859,4 +870,15 @@ export async function evidenceOf(book: Book, outcome: Story, kept: { words?: str
 export async function evidenceHolds(e: Evidence): Promise<boolean> {
 	const { id, ...body } = e;
 	return id === (await sha256(canonical(body)));
+}
+
+/* ------------------------------------------------------- bringing a story to life */
+
+/** Whether any slide in the story moves. */
+export const moves = (story: Story) => story.slides.some((s) => !!s.motion);
+/** The story as stills again: every slide's movement taken off (its words untouched). */
+export const stillsOf = (story: Story): Story => ({ ...story, slides: story.slides.map(({ motion: _, ...s }) => s) });
+/** Bringing a story to life, by practice: a plain recipe for each slide from its piece and scene. */
+export function practiceAnimate(story: Story): Story {
+	return storyOf({ ...story, slides: story.slides.map((s) => ({ ...s, motion: practiceRecipe(s.piece, s.scene) })) });
 }

@@ -12,7 +12,8 @@
 	import { icons, ICON_ATTRS } from '@inqbeta/q-ui/icons';
 	import { Key, Tick, Cross, Folder, Cloud, Phone, Screen, Laptop, Card, Padlock, Envelope, Coin } from '../story';
 
-	let { piece, x, y, size = 120 }: { piece: Piece; x: number; y: number; size?: number } = $props();
+	/* `other`: a second person on the same stage, in the olive, so two people are told apart at a glance. */
+	let { piece, x, y, size = 120, other = false }: { piece: Piece; x: number; y: number; size?: number; other?: boolean } = $props();
 
 	/* Each piece's own width, and where its middle is from the point it's drawn at. */
 	const SHAPE: Record<string, { w: number; dx: number; dy: number }> = {
@@ -51,8 +52,8 @@
 		{:else if piece === 'cross'}<Cross x={0} y={0} />
 		{:else if piece === 'person'}
 			<!-- Someone: a head and shoulders, in the orange. -->
-			<circle cx="0" cy="-16" r="16" class="fill-secondary-500" />
-			<path d="M-30 34a30 30 0 0 1 60 0z" class="fill-secondary-500" />
+			<circle cx="0" cy="-16" r="16" class={other ? 'fill-primary-500' : 'fill-secondary-500'} />
+			<path d="M-30 34a30 30 0 0 1 60 0z" class={other ? 'fill-primary-500' : 'fill-secondary-500'} />
 		{/if}
 	</g>
 {:else if ICON[piece]}

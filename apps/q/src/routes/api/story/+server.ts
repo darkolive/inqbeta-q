@@ -26,9 +26,9 @@ import { DEFAULT_CURRENCY, currencyFrom, minorPerCredit } from '@inqbeta/q-core/
 import { error, json, type RequestHandler } from '@sveltejs/kit';
 import { dev } from '$app/environment';
 import { env } from '$env/dynamic/private';
-import { storyOf, emptyBook, refOf, isStyleKey, tidy, REFS_MOST, REF_MOST, BRIEF_MOST, ANSWER_MOST, STYLE_OWN_MOST, type Book, type Ref } from '@inqbeta/q-core/storybook';
+import { storyOf, emptyBook, unitOf, refOf, isStyleKey, tidy, REFS_MOST, REF_MOST, BRIEF_MOST, ANSWER_MOST, STYLE_OWN_MOST, type Book, type Ref } from '@inqbeta/q-core/storybook';
 import { htmlToText } from '@inqbeta/q-core/doc-text';
-import { askFromReply, creditsFor, draftFromReply, outlineFromReply, jsonIn, messagesFor, mostOut, redoFromReply, rippleFromReply, upToFor, type Rates, type StoryTask } from '@inqbeta/q-core/story-ai';
+import { animateFromReply, askFromReply, creditsFor, draftFromReply, outlineFromReply, jsonIn, messagesFor, mostOut, redoFromReply, rippleFromReply, upToFor, type Rates, type StoryTask } from '@inqbeta/q-core/story-ai';
 
 export const prerender = false;
 
@@ -74,6 +74,8 @@ function bookIn(x: unknown): Book {
 		.map((a) => ({ asks: tidy(a.asks, 300), answer: typeof a.answer === 'string' ? a.answer.slice(0, ANSWER_MOST) : '', ...(a.free ? { free: true } : {}) }));
 	const st = b.style as { key?: unknown; own?: unknown } | null | undefined;
 	book.style = st && (st.key === 'own' || isStyleKey(st.key)) ? { key: st.key as 'own', ...(typeof st.own === 'string' && st.own.trim() ? { own: tidy(st.own, STYLE_OWN_MOST) } : {}) } : null;
+	/* A course unit's card (ADR-Q-033, courses): without it the AI would write an ordinary book. */
+	book.course = b.course && typeof b.course === 'object' ? unitOf(b.course) : null;
 	return book;
 }
 function jobIn(x: unknown): StoryTask {
@@ -84,6 +86,7 @@ function jobIn(x: unknown): StoryTask {
 	if (j.task === 'draft') return { task: 'draft', book };
 	if (j.task === 'redo' && typeof j.story === 'string') return { task: 'redo', book, story: j.story, answers: (j.answers ?? {}) as Record<string, string> };
 	if (j.task === 'ripple' && typeof j.changed === 'string') return { task: 'ripple', book, changed: j.changed };
+	if (j.task === 'animate' && typeof j.story === 'string') return { task: 'animate', book, story: j.story };
 	error(400, 'That isn’t a job the story engine does.');
 }
 
@@ -124,6 +127,7 @@ export const POST: RequestHandler = async ({ request, url, fetch }) => {
 			: job.task === 'outline' ? { outline: outlineFromReply(reply) }
 			: job.task === 'draft' ? { stories: draftFromReply(job.book, reply) }
 			: job.task === 'redo' ? { story: redoFromReply(job.book, job.story, reply) }
+			: job.task === 'animate' ? { story: animateFromReply(job.book, job.story, reply) }
 			: { suggestions: rippleFromReply(job.book, job.changed, reply) };
 		return json({ ok: true, upTo, used, model: modelOf(), ...result });
 	} catch (e) {

@@ -13,7 +13,9 @@
 	import { storyVoice, setStoryVoice } from '../decks/voice.svelte';
 	import StoryList from './StoryList.svelte';
 	import ShowIt from './ShowIt.svelte';
-	let { book, steps, commit }: { book: Book; steps: BookStep[]; commit: (s: BookStep[]) => void } = $props();
+	import BringToLife from './BringToLife.svelte';
+	import type { AiState } from '$lib/story-engine';
+	let { book, steps, commit, ai }: { book: Book; steps: BookStep[]; commit: (s: BookStep[]) => void; ai: AiState } = $props();
 
 	let chosen = $state<string | null>(null);
 	$effect(() => {
@@ -73,7 +75,7 @@
 				<StoryList stories={book.stories} {chosen} onchoose={(id) => (chosen = id)} />
 			</div>
 			<div class="flex flex-col items-center min-w-0">
-				{#if story}{#key story.id}<MadeDeck {story} look={book.style} />{#if book.course && !story.recap}<div class="mt-6 w-full flex justify-center"><ShowIt {book} {story} /></div>{/if}{/key}{/if}
+				{#if story}{#key story.id}<MadeDeck {story} look={book.style} />{#if book.course && !story.recap}<div class="mt-6 w-full flex justify-center"><ShowIt {book} {story} /></div>{/if}{/key}<div class="mt-6 w-full flex justify-center"><BringToLife {book} {steps} {commit} {ai} {story} /></div>{/if}
 			</div>
 		</div>
 	{/if}

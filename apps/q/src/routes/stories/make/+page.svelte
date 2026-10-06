@@ -141,7 +141,7 @@
 				{:else if at === 4 && writing}<BoardStep {book} {steps} {commit} ondone={() => go(4)} />
 				{:else if at === 4}<div class="max-w-3xl"><DraftStep {book} {steps} {commit} {ai} ondone={() => go(5)} onwrite={() => go(4, true)} /></div>
 				{:else if at === 5}<ReviewStep {book} {steps} {commit} {ai} ondone={() => go(6)} />
-				{:else}<PlayStep {book} {steps} {commit} />{/if}
+				{:else}<PlayStep {book} {steps} {commit} {ai} />{/if}
 			</div>
 			{#if steps.length}<History steps={steps.filter((s) => s.chain === 'book')} title={book.title || 'the book'} />{/if}
 			{#if steps.length}

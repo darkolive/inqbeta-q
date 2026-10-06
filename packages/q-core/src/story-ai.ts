@@ -62,13 +62,15 @@ import {
 	type Story,
 	type Suggestion
 } from './storybook';
+import { ACTORS_MOST, CHART_MOST, MOVES, MOVES_MOST, MOVE_TIME, recipeOf } from './scene-recipe';
 
 export type StoryTask =
 	| { task: 'ask'; book: Book }
 	| { task: 'outline'; book: Book; more?: string; current?: string[] }
 	| { task: 'draft'; book: Book }
 	| { task: 'redo'; book: Book; story: string; answers: RedoAnswers }
-	| { task: 'ripple'; book: Book; changed: string };
+	| { task: 'ripple'; book: Book; changed: string }
+	| { task: 'animate'; book: Book; story: string };
 
 /** The most stories a suggested outline offers, and the fewest. */
 export const OUTLINE_MOST = 6;
@@ -185,6 +187,7 @@ const shapeFor = (book: Book) => (book.course ? COURSE_SLIDE_SHAPE : SLIDE_SHAPE
 
 /** What one job asks for. */
 function taskText(t: StoryTask): string {
+	if (t.task === 'animate') return animateText(t);
 	if (t.task === 'ask') {
 		const n = t.book.brief.length;
 		const lens = t.book.course
@@ -250,10 +253,48 @@ function taskText(t: StoryTask): string {
 		.join('\n\n');
 }
 
+/*
+ * Bringing a story to life (6 October 2026): the AI choreographs each slide
+ * as a scene recipe (scene-recipe.ts), performed by Q's player with Q's own
+ * pieces. Told the vocabulary exactly; whatever comes back is made to it.
+ */
+function animateText(t: Extract<StoryTask, { task: 'animate' }>): string {
+	const story = t.book.stories.find((s) => s.id === t.story);
+	const slides = (story?.slides ?? []).map((x) => ({ id: x.id, title: x.title, subtext: x.subtext, scene: x.scene || undefined, piece: x.piece || undefined, show: x.show || undefined }));
+	return [
+		`Bring one story to life: "${story?.title ?? t.story}". Until now each slide was a still. Now you choreograph each slide as a short piece of movement, like a moving diagram, that the reader watches while the slide's words are said.`,
+		`<story_slides>\n${JSON.stringify(slides, null, 1)}\n</story_slides>`,
+		`<stage>
+The stage is 100 wide and 100 high: x from the left, y from the top. Keep things between 10 and 90. Put at most ${ACTORS_MOST} actors on it, each one of Q's pieces: ${Object.keys(PIECES).join(', ')}. Sizes: small, medium, large.
+Moves (at most ${MOVES_MOST} a slide). "at" is when a move starts, from 0 (the slide begins) to ${1 - MOVE_TIME} (each move takes a quarter of the slide):
+${Object.entries(MOVES).map(([k, v]) => `- ${k}: ${v}`).join('\n')}
+An actor with an "enter" move isn't there until it enters; any other actor is there from the start.
+Optionally one chart of shapes: bars, a line, or a ring, with up to ${CHART_MOST} values from 0 to 1. Shapes only: it shows how things compare or change, never real figures, unless the person's material gave them.
+</stage>`,
+		'Direct it like an animator explaining an idea: the movement IS the explanation. Follow each slide\'s scene. Show the one idea of the slide: something handed over, a connection made, a lock closing, a copy kept by each, something refused, something growing. Start simple, build to the moment that matters (around the middle), then let it settle so the end reads as a clear still. Keep the same actors in the same places from slide to slide, so the story feels like one world: someone on the left stays on the left. Nothing moves that doesn\'t explain.',
+		`Answer as {"slides":[{"id":"<slide id>","motion":{"actors":[{"id":"you","piece":"person","x":25,"y":60,"size":"medium"}],"moves":[{"do":"enter","who":"you","at":0,"from":"left"}],"chart":{"kind":"bars","values":[0.3,0.6,0.9],"x":50,"y":50,"at":0.4}}}]}. Leave "chart" out when there isn't one. Every slide gets a motion.`
+	].join('\n\n');
+}
+
+/** A story brought to life: each slide given back its movement, made to the recipe's rules. Words never change. */
+export function animateFromReply(book: Book, storyId: string, reply: unknown): Story {
+	const old = book.stories.find((s) => s.id === storyId);
+	if (!old) throw new Error('That story isn’t in the book.');
+	const list = ((reply as { slides?: unknown })?.slides ?? []) as { id?: unknown; motion?: unknown }[];
+	const byId = new Map((Array.isArray(list) ? list : []).filter((x) => typeof x?.id === 'string').map((x) => [x.id as string, x.motion]));
+	const slides = old.slides.map((s) => {
+		const motion = recipeOf(byId.get(s.id), isPiece);
+		return motion ? { ...s, motion } : s;
+	});
+	if (!slides.some((s, i) => s.motion && s.motion !== old.slides[i].motion)) throw new Error('The AI didn’t send back any movement. Try again.');
+	return storyOf({ ...old, slides });
+}
+
 /** The messages for one job: the standing part, then the book's brief, the book as it stands, and the task. */
 export function messagesFor(t: StoryTask): { role: 'system' | 'user'; content: string }[] {
-	const parts = [briefText(t.book)];
-	if (t.task !== 'ask' && t.task !== 'outline') parts.push(bookNow(t.book));
+	/* Choreography needs the idea, the look and the voice, not the material again: it would only cost more. */
+	const parts = [briefText(t.task === 'animate' ? { ...t.book, refs: [], brief: [] } : t.book)];
+	if (t.task !== 'ask' && t.task !== 'outline' && t.task !== 'animate') parts.push(bookNow(t.book));
 	else if (t.book.stories.length && t.task === 'outline') parts.push(bookNow(t.book));
 	parts.push(`<task>\n${taskText(t)}\n</task>`);
 	return [
@@ -270,6 +311,7 @@ export function mostOut(t: StoryTask): number {
 	if (t.task === 'ask') return 500;
 	if (t.task === 'outline') return 700;
 	if (t.task === 'draft') return Math.min(8000, 800 + needingWork(t.book).length * 1000);
+	if (t.task === 'animate') return 600 + (t.book.stories.find((s) => s.id === t.story)?.slides.length ?? SLIDES_MOST) * 450;
 	return 2000;
 }
 
