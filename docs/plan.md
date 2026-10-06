@@ -1,5 +1,5 @@
 ---
-updated: 2026-10-05
+updated: 2026-10-06
 about: The working plan — every idea captured so far, in the order it gets built, and how each piece is done. Claude follows this; Darren adds to it.
 ---
 
@@ -12,6 +12,13 @@ This is that. **Ideas go in the inbox at the bottom as they come**; each one
 is placed into a phase at the next pause. The order below is chosen so that
 each piece makes the next one smaller: shared parts first, then what's built
 on them.
+
+## Next (6 October): see the job sheet
+
+`q/handover-2026-10-06.md` lists every job left on 5 October, by track, with
+priorities. Recommended order: housekeeping; prove the door; the currency
+change (ADR-Q-042 §3); Offices; then in-role receipts, Ask the office, the
+federation's account, drift and the safety valve, treaties.
 
 ## Next (decided 5 October, evening)
 

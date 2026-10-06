@@ -1,7 +1,7 @@
 ---
 status: decided (Darren, 3 October 2026) — every host runs in test mode until its operator publishes
 implementation: test mode working end to end — mint, cashout and burn receipts and the books (q-core mint.ts), publishing (q-core money.ts), the rules in Cedar (q-actions core/mint.ts, server engine node.ts), the host's /api/mint with its ledger at the gate (or mint.local/ on localhost), Buy and Cash out on Credits, agreements in the mint's credits filed with its ledger, Money and Publish on the console, 3 October 2026. Not yet: real payments and payouts
-updated: 2026-10-04
+updated: 2026-10-05
 ---
 
 # ADR-Q-027 — Minting against reserves: credits made when value comes in, destroyed when it goes out
@@ -286,3 +286,59 @@ home page never claiming more than it can show:
 A penny sent with the mint's id in the reference proves the payout account
 is the host's own; the levels prove what's in it. A screenshot proves
 neither: it can be edited, and nobody can check it.
+
+## Addendum, 5 October 2026: one credit is one unit of currency, and how the host pays its costs
+
+### The currency replaces the rate
+
+From ADR-Q-042 §3: a mint names its **currency** when it's made (GBP, EUR,
+USD …), and **one credit is one whole unit of it**. Publishing step 1 (§7)
+no longer sets "what one credit costs and pays out"; it names the currency,
+which can never change. In code, the mint's `pencePerCredit` becomes
+`currency`, with one credit worth one unit (minor units from ISO 4217).
+Inflation shows in prices, not in the coin.
+
+### No credit without a pound, and no advances
+
+With advance credits ruled out (`docs/q/economy-controls.md`: nobody borrows
+from the mint against future work), every credit in circulation came from
+value in. So every credit should be matched by a pound in the reserve, or by
+capital at its book value. Darren: "there is no reason that credits are not
+underwritten, matched by pounds in a bank account, other than the bank
+account doesn't reconcile."
+
+### How the host pays its costs
+
+The 4 October addendum allowed a host to spend the reserve directly on running
+the node (£85 of £100, a 15% ratio). That is replaced. Every move carries its
+accounting classification (ADR-Q-024 §3), so the books tell two kinds of
+spending apart:
+
+| The host spends on | How | Effect on backing |
+|---|---|---|
+| **An asset** (a hard drive, a building, equipment) | from the reserve, recorded as a tangible asset at cost | none at first: the asset is **capital backing** at its book value (§5) |
+| **Running costs** (power, rent, a tutor) | only by **cashing out credits the host has earned** by delivering services, like anyone else | none: credits and pounds leave together |
+| **Depreciation** of an asset | recorded each period by the asset's published rule | backing falls by that amount; the host tops it up from what it earns |
+
+### Drift: the one figure that says the books are sound
+
+```
+drift = 1 − (cash reserve + assets at book value) ÷ credits in circulation
+```
+
+- **0%**: fully matched.
+- **Over 10%**: a warning, shown with the trust figure on the federation's home
+  page.
+- **Over 20%**: the safety valve shuts cash-outs (buying stays open, because
+  it heals drift), and treaties suspend (ADR-Q-042 §8).
+- **Books not reconciled for over 30 days** count as unknown, treated as over
+  20%.
+
+Drift above zero now means something is genuinely wrong (a missed payment, an
+unrecorded spend, depreciation not covered), never ordinary running costs.
+This replaces the 4 October addendum's example minimum ratio of 20% with a
+much tighter line: backing must stay above 80% (drift under 20%), because
+ordinary running costs no longer come out of the reserve.
+
+Capital backing is still the part most likely to be regulated (§5), and still
+needs advice before it's live.

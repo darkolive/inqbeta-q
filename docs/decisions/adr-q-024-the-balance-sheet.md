@@ -1,7 +1,7 @@
 ---
 status: proposed
 implementation: not started (3 October 2026)
-updated: 2026-10-03
+updated: 2026-10-05
 ---
 
 # ADR-Q-024 — The balance sheet: what you hold, what you've promised, and where you stand
@@ -128,6 +128,71 @@ members over time, and what moved under each treaty. No "wealth" figure.
 5. A club's summary.
 6. Then ADR-Q-023's build order carries on (spend, usage receipts, rewards,
    trades, offers), each move already having its place.
+
+## Addendum, 5 October 2026: the self-employed statement
+
+Darren:
+
+> "Allowing for the various accounting codes … makes categorising it into
+> tangibles, intangible assets, expenses, depreciation all very
+> straightforward and recorded … financial statements that would enable a
+> self-employed, self-tax-assessed person [to] produce all of their income and
+> expenditure … If it's recorded as a personal expense or a personal exchange,
+> then those credits are just staying in the system … that's for the
+> individual to explain … nothing to do with Incubator. If, however, you choose
+> to declare … the schema types of accounts means that allocation of costs and
+> allowable expenses will show what your tax bill likely is."
+
+### 1. A business receipt can carry a category
+
+`accounting.hint: 'business'` gains an optional **category**, chosen by the
+person when they record the move (or suggested from the agreement's kind,
+never decided for them):
+
+- **income** (sales, fees, work paid in credits or pounds);
+- **expense**, in the headings of HMRC's self-employment pages: goods bought
+  for resale, travel and vehicle, staff, premises (rent, rates, power,
+  insurance), repairs, office and phone, advertising, bank charges,
+  professional fees, other;
+- **asset**: equipment, a vehicle, a building share, recorded at cost, with
+  **capital allowances** shown separately (in UK tax, depreciation itself is
+  not an allowable expense);
+- **intangible**: software, a licence, a course completed for the business.
+
+### 2. Valued in pounds at the time
+
+A business move records its value in pounds when it happens (ADR-Q-023 §5),
+so a job paid in credits counts as income at that value. One credit is one
+unit of the mint's currency (ADR-Q-042 §3), so for a pound-mint the value is
+simply the credits.
+
+### 3. The statement adds a "Self-employed" view
+
+For a chosen UK tax year: income, expenses by heading, assets and their
+allowances, and **net profit**, each total opening the receipts behind it, in
+PDF and CSV. Personal moves are left out and listed only as a count ("42
+personal exchanges, not included").
+
+Marked plainly: **"Your own receipts, totalled by the categories you chose.
+Not tax advice. What's allowable is HMRC's decision."**
+
+### 4. What it doesn't claim
+
+- **Good records are strong evidence, not the last word.** HMRC still decides
+  what's allowable (the "wholly and exclusively" test). Double entry proves
+  the books balance, not that every category is right.
+- **A label doesn't decide what something is.** Regular paid work marked
+  "personal" can still be trading income. Q records the label the person
+  chose; the responsibility is theirs, between them, their bank and HMRC.
+- **No estimate of a tax bill** is shown as fact. If one is ever added, it's
+  plainly "a rough guide from your figures", with the rates and allowances it
+  used and their date.
+
+### Build
+
+After step 4 above: the category on business moves, the self-employed view on
+the statement, its export, and a test bed (ADR-Q-031) of a pretend sole
+trader's year that adds up.
 
 ## Non-claims
 
