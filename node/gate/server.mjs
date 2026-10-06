@@ -707,7 +707,12 @@ export async function checkLedgerEntry(r, mint, mode, known = new Set()) {
 		return r.did === mint ? null : 'Only the mint signs its reconciliation.';
 	}
 	if (c?.schema === 'inqbeta.mint-reconcile-ask/1') return c.mint === mint ? null : 'That ask is for another mint.';
-	return 'That isn’t a mint receipt, a reconciliation or an agreement.';
+	/* The federation's own money, filed by the mint (ADR-Q-038 §8): its banking card, decisions, and spends asked and agreed. */
+	if (c?.schema === 'inqbeta.mint-federation/1') {
+		if (c.mint !== mint || c.mode !== mode) return 'It belongs to another mint or mode.';
+		return r.did === mint ? null : 'Only the mint files the federation’s money records.';
+	}
+	return 'That isn’t a mint receipt, a reconciliation, a federation money record or an agreement.';
 }
 const ledgerDir = (mint, mode) => `${FILER}/mint/${mint}/${mode}/`;
 async function ledgerNames(mint, mode) {

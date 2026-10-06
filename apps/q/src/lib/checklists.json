@@ -2502,6 +2502,76 @@
 		]
 	},
 	{
+		"id": "federations-one-account",
+		"page": "/federations/one",
+		"tab": "bank",
+		"title": "Federation: its own account, in role",
+		"group": "federations",
+		"needs": "The host's founder and a second person holding the treasurer office; a secretary or chair for minutes. Test mode.",
+		"checks": [
+			{
+				"id": "only-in-role",
+				"says": "Out of role, the Bank tab shows the coin and its books but not the federation’s own account; take up an office and “… ’s own account” appears at the top.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "card",
+				"says": "As caretaker, sign the federation’s banking card (name, sort code, account): it then says “Paid into the account ending …” with only the last four digits.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "card-bad",
+				"says": "Type a five-digit sort code: it says a sort code is six numbers, and the sign button stays off.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "minute",
+				"says": "As secretary or chair, minute a decision (what, how, on, up to): it appears under Decisions with “0 spent”.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "minute-not-treasurer",
+				"says": "As treasurer, there’s no “Minute a decision”: only the secretary, chair or caretaker can.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "ask",
+				"says": "As treasurer, Cash out for the federation: credits, the decision, what it’s for. Sign: it waits under Cash-outs, saying why two must sign, and “free to move” drops by that much.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "not-yourself",
+				"says": "The holder who asked sees “Waiting for another office holder…”, with no button to sign it themselves.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "second",
+				"says": "As the caretaker (or another money office holder), press “I’ve read it: sign as second”: it says Paid, the federation’s credits drop, and the decision shows how much was spent.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "over-decision",
+				"says": "Ask for more than the decision has left: the second signature is refused, saying how much the decision allows and how much is already spent.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "secretary-cant-second",
+				"says": "As secretary, there’s no button to sign a cash-out as second: the secretary’s office doesn’t cover money.",
+				"how": "human",
+				"area": "safety"
+			}
+		]
+	},
+	{
 		"id": "federations-one-members",
 		"page": "/federations/one",
 		"title": "Federation: Members",

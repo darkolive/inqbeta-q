@@ -118,6 +118,36 @@ export function isMintEvent(x: unknown): x is MintReceipt {
 	return c?.schema === MINT_SCHEMA && typeof c.mint === 'string' && Number.isInteger(c.credits) && c.credits > 0;
 }
 
+/* ---- The federation's own money, moved in role (ADR-Q-038 §8; 6 October 2026, C4) ----
+ *
+ * The mint keeps the federation's banking card, its minuted decisions, and
+ * spends asked and agreed by two office holders, each wrapped and signed by
+ * the mint so they sit in its books with everything else. An `agreed` entry is
+ * what a burn answers when the federation cashes out: the same holder (the
+ * federation) and the same credits, as with a member's own ask.
+ */
+export const FED_MONEY_SCHEMA = 'inqbeta.mint-federation/1';
+export type FedMoneyKind = 'bank-card' | 'decision' | 'asked' | 'agreed';
+export interface FedMoneyEntry {
+	schema: typeof FED_MONEY_SCHEMA;
+	source: typeof MINT_SOURCE;
+	mint: string;
+	mode: MintMode;
+	kind: FedMoneyKind;
+	federation: string;
+	/** The record itself: the banking card, the decision, or the two-signature record. */
+	record: unknown;
+	/** asked, agreed: the credits it moves, and the decision it names. */
+	credits?: number;
+	decision?: string;
+	at: string;
+}
+export type FedMoneyReceipt = SealedReceipt & { content: FedMoneyEntry };
+export function isFedMoney(x: unknown): x is FedMoneyReceipt {
+	const c = (x as FedMoneyReceipt | null)?.content;
+	return c?.schema === FED_MONEY_SCHEMA && typeof c.mint === 'string' && typeof c.federation === 'string' && ['bank-card', 'decision', 'asked', 'agreed'].includes(c.kind);
+}
+
 export interface Books {
 	mint: string;
 	mode: MintMode;
@@ -158,8 +188,10 @@ export function booksOf(receipts: { json?: unknown; holds?: string }[], mint: st
 	const b: Books = { mint, mode, minted: 0, destroyed: 0, circulation: 0, cashIn: 0, cashOut: 0, cashReserve: 0, capitalReserve: 0, holders: new Map(), asked: new Map(), reconciled: true, backed: true, drift: 0, problems: [] };
 	const events = new Map<string, MintReceipt>();
 	const steps: AgreementReceipt[] = [];
+	const fedAgreed: FedMoneyReceipt[] = [];
 	for (const r of receipts) {
 		if (r.holds === 'no') continue;
+		if (isFedMoney(r.json) && r.json.content.kind === 'agreed' && r.json.did === mint && r.json.content.mint === mint && r.json.content.mode === mode) fedAgreed.push(r.json);
 		if (isMintEvent(r.json) && r.json.content.mint === mint && r.json.content.mode === mode) events.set(r.json.contentHash, r.json);
 		else if (isAgreementStep(r.json)) steps.push(r.json);
 	}
@@ -185,6 +217,12 @@ export function booksOf(receipts: { json?: unknown; holds?: string }[], mint: st
 			if (!c.from || r.did !== c.from) { reject(r, 'only the holder can ask to cash out their credits.'); continue; }
 			asks.set(r.contentHash, r);
 		}
+	}
+
+	/* The federation's own cash-outs, agreed by two office holders: they stand as its asks. */
+	for (const f of fedAgreed) {
+		if (!Number.isInteger(f.content.credits) || (f.content.credits ?? 0) < 1) continue;
+		asks.set(f.contentHash, { ...f, content: { schema: MINT_SCHEMA, source: MINT_SOURCE, mint, kind: 'cashout', credits: f.content.credits!, mode, from: f.content.federation, at: f.content.at } } as MintReceipt);
 	}
 
 	/* Credits moved between members by agreements, in this mint. */

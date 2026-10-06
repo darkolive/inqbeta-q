@@ -12,7 +12,7 @@
  */
 import { ACTION_SCHEMA, type ActionDefinition, type Rule } from '../actions';
 import { CEDAR_VERSION } from '../version';
-import { booksOf, spendable, type MintReceipt } from '@inqbeta/q-core/mint';
+import { booksOf, isFedMoney, spendable, type FedMoneyReceipt, type MintReceipt } from '@inqbeta/q-core/mint';
 import { minorPerCredit } from '@inqbeta/q-core/currency';
 
 type MintAction = 'credits.mint' | 'credits.cashout' | 'credits.burn';
@@ -114,7 +114,13 @@ export function mintFacts(prior: { json?: unknown; holds?: string }[], next: Min
 	const person = (id: string) => ({ __entity: { type: 'Person', id: id || 'nobody' } });
 	const holder = c.kind === 'mint' ? (c.to ?? '') : (c.from ?? '');
 	const asks = prior.map((r) => r.json).filter((j): j is MintReceipt => (j as MintReceipt | undefined)?.content?.kind === 'cashout');
-	const ask = c.kind === 'burn' && c.asks ? asks.find((a) => a.contentHash === c.asks && a.content.mint === c.mint) : undefined;
+	/* The federation's own cash-out, agreed by two office holders and filed by the mint (ADR-Q-038 §8): its ask. */
+	const fedAsks = prior.map((r) => r.json).filter((j): j is FedMoneyReceipt => isFedMoney(j) && j.content.kind === 'agreed' && j.did === c.mint);
+	const fed = c.kind === 'burn' && c.asks ? fedAsks.find((a) => a.contentHash === c.asks && a.content.mint === c.mint) : undefined;
+	const ask = c.kind === 'burn' && c.asks
+		? (asks.find((a) => a.contentHash === c.asks && a.content.mint === c.mint) ??
+			(fed ? ({ ...fed, did: fed.content.federation, content: { ...c, kind: 'cashout', from: fed.content.federation, credits: fed.content.credits ?? 0 } } as unknown as MintReceipt) : undefined))
+		: undefined;
 	const paid = new Set(prior.map((r) => r.json as MintReceipt | undefined).filter((j) => j?.content?.kind === 'burn' && j.did === c.mint).map((j) => j!.content.asks));
 	const lastAt = prior.map((r) => r.json as MintReceipt | undefined).filter((j) => j?.content?.mint === c.mint).map((j) => j!.content.at).sort().at(-1);
 	/* For a burn, what's held counts the ask it answers as still theirs to destroy. */

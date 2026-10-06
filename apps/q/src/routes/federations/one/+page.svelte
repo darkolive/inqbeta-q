@@ -75,6 +75,7 @@
 	import RoleSwitch from '$lib/components/RoleSwitch.svelte';
 	import RegisterHost from '$lib/components/RegisterHost.svelte';
 	import PutForward from '$lib/components/PutForward.svelte';
+	import FederationAccount from '$lib/components/FederationAccount.svelte';
 	import { readPutForwardHash } from '$lib/registry';
 	import TesterPasses from '$lib/components/TesterPasses.svelte';
 	import { role } from '$lib/role.svelte';
@@ -872,6 +873,8 @@
 			<!-- Bank: the federation's mint, open to anyone (ADR-Q-035, 5 October 2026). -->
 			{#if isHome && home?.ok}
 				<Tabs.Content value="bank">
+					<!-- In role, the federation's own account (ADR-Q-038 §8): its statement, banking card, decisions and cash-outs. -->
+					{#if identity && role.proof(id)}<FederationAccount {identity} acting={role.proof(id)!} record={own} name={founding.name} />{/if}
 					<FederationBank name={founding.name} {identity} />
 				</Tabs.Content>
 			{/if}

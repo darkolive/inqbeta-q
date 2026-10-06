@@ -8,6 +8,13 @@
  *   POST { file: receipt }    an agreement step in the mint's credits, filed in its ledger
  *   POST { reconcile: ask }   the treasurer's (or caretaker's) signed ask, made in role → the books added up and signed (ADR-Q-035, ADR-Q-038)
  *
+ * The federation's own account (ADR-Q-038 §8; 6 October 2026, C4), each filed
+ * by the mint in its books:
+ *   POST { fedcard }          its banking card, signed by the federation's key
+ *   POST { fedminute }        a decision, minuted in role by the secretary or chair
+ *   POST { fedask }           a cash-out for the federation, signed by one office holder in role
+ *   POST { fedagree }         the same, signed by a second → checked (federation.spend), the credits destroyed, the payout recorded
+ *
  * While the host is in test, every POST asks the door first (ADR-Q-034).
  *
  * A cash-out goes only to the holder's cashing-out account, named in the ask
@@ -29,7 +36,13 @@ import { MINT_SCHEMA, MINT_SOURCE, RECONCILED_SCHEMA, RECONCILE_ASK_SCHEMA, isMi
 import { mintFacts } from '@inqbeta/q-actions/core/mint';
 import { doorSays } from '$lib/server/door';
 import { isDevelopmentSite } from '$lib/server/site';
-import { MintRefused, appendLedger, books, coinDesignOf, coinNameOf, decideMint, fileable, hostOf, mintIdentity, moneyOf, currencyOf, coinContactOf, readLedger, readLedgerAt, LedgerMoved } from '$lib/server/mint';
+import { checkBankingCard } from '@inqbeta/q-core/treaties';
+import { checkCosigned, hashCosigned, type Cosigned } from '@inqbeta/q-core/cosign';
+import { decisionCovers, type DecisionReceipt } from '@inqbeta/q-core/decisions';
+import { federationAccount } from '@inqbeta/q-core/federation-money';
+import { FED_MONEY_SCHEMA, type FedMoneyEntry, type FedMoneyReceipt } from '@inqbeta/q-core/mint';
+import { spendFacts } from '@inqbeta/q-actions/core/federation-money';
+import { MintRefused, decideFederationSpend, appendLedger, books, coinDesignOf, coinNameOf, decideMint, fileable, hostOf, mintIdentity, moneyOf, currencyOf, coinContactOf, readLedger, readLedgerAt, LedgerMoved } from '$lib/server/mint';
 import { officeKind } from '@inqbeta/q-core/offices';
 import { minorPerCredit } from '@inqbeta/q-core/currency';
 
@@ -108,7 +121,9 @@ export const GET: RequestHandler = async ({ url }) => {
 				return { lastReconciled: last ? { at: last.content.at, by: last.content.by, hash: last.contentHash, receipt: last } : null, movesSince };
 			})(),
 			books: { minted: b.minted, destroyed: b.destroyed, circulation: b.circulation, cashReserve: b.cashReserve, capitalReserve: b.capitalReserve, reconciled: b.reconciled, backed: b.backed, holders: b.holders.size, drift: b.drift },
-			valve: (({ shut, warn, drift, unknown, says }) => ({ shut, warn, drift, unknown, says }))(valveFor(ledger, b, me.did, mode))
+			valve: (({ shut, warn, drift, unknown, says }) => ({ shut, warn, drift, unknown, says }))(valveFor(ledger, b, me.did, mode)),
+			/* The federation's own account (ADR-Q-038 §8): open to read, like the rest of the bank. */
+			federation: await federationAccount(ledger, b, { mint: me.did, mode, federation: host.federation })
 		});
 	} catch (e) {
 		return refuse(e);
@@ -116,7 +131,7 @@ export const GET: RequestHandler = async ({ url }) => {
 };
 
 export const POST: RequestHandler = async ({ request, url }) => {
-	let body: { buy?: unknown; cashout?: unknown; file?: unknown; reconcile?: unknown };
+	let body: { buy?: unknown; cashout?: unknown; file?: unknown; reconcile?: unknown; fedcard?: unknown; fedminute?: unknown; fedask?: unknown; fedagree?: unknown };
 	try {
 		body = await request.json();
 	} catch {
@@ -128,7 +143,8 @@ export const POST: RequestHandler = async ({ request, url }) => {
 			const { host, me, mode, currency, unit } = await context(url.origin);
 			const { receipts: ledger, tip } = await readLedgerAt(host, me.did, mode);
 			/* The door (ADR-Q-034): while in test, only those let in may act. */
-			const asker = ((body.buy ?? body.cashout ?? body.file ?? body.reconcile) as { did?: string } | undefined)?.did;
+			const lastSigner = (x: unknown) => ((x as Cosigned | undefined)?.signatures ?? []).at(-1)?.did;
+			const asker = body.fedask || body.fedagree ? lastSigner(body.fedask ?? body.fedagree) : ((body.buy ?? body.cashout ?? body.file ?? body.reconcile ?? body.fedcard ?? body.fedminute) as { did?: string } | undefined)?.did;
 			const shut = isDevelopmentSite(url.origin) ? null : await doorSays(asker, host, mode);
 			if (shut) return json({ ok: false, says: shut, door: 'closed' }, { status: 403 });
 
@@ -212,6 +228,63 @@ export const POST: RequestHandler = async ({ request, url }) => {
 				await appendLedger(host, me.did, mode, r as { contentHash: string });
 				await appendLedger(host, me.did, mode, reconciliation);
 				return json({ ok: true, reconciliation });
+			}
+			/* ---- The federation's own account (ADR-Q-038 §8) ---- */
+			const fileFed = async (kind: FedMoneyEntry['kind'], record: unknown, extra: Partial<FedMoneyEntry> = {}, onTip?: number) => {
+				const content: FedMoneyEntry = { schema: FED_MONEY_SCHEMA, source: MINT_SOURCE, mint: me.did, mode, kind, federation: host.federation, record, ...extra, at: stampAfter(latestIn(ledger)) };
+				const filed = (await sealWith(me, content)) as FedMoneyReceipt;
+				await appendLedger(host, me.did, mode, filed, onTip);
+				return filed;
+			};
+			const revoked = () => revokedMandates(host);
+			if (body.fedcard) {
+				const c = await checkBankingCard(body.fedcard, host.federation);
+				if (!c.ok) throw new MintRefused(c.says);
+				await fileFed('bank-card', body.fedcard, {}, tip ?? undefined);
+				return json({ ok: true, says: c.says });
+			}
+			if (body.fedminute) {
+				const d = await decisionCovers(body.fedminute, { federation: host.federation, founder: host.founder, revoked: await revoked() });
+				if (!d.ok) throw new MintRefused(d.says);
+				await fileFed('decision', body.fedminute, {}, tip ?? undefined);
+				return json({ ok: true, says: d.says });
+			}
+			if (body.fedask || body.fedagree) {
+				const cos = (body.fedask ?? body.fedagree) as Cosigned;
+				const action = (cos?.action ?? {}) as { credits?: number; to?: string; decision?: string };
+				if (cos?.federation !== host.federation) throw new MintRefused('That’s another federation’s money.');
+				if (cos.cmd !== `${OFFICE_COMMANDS.money}/cash-out`) throw new MintRefused('Only a cash-out for the federation is asked here.');
+				const credits = Math.trunc(Number(action.credits));
+				if (credits !== action.credits || !(credits >= 1 && credits <= MOST_AT_ONCE)) throw new MintRefused(`Cash out between 1 and ${MOST_AT_ONCE} credits at a time.`);
+				const b = books(ledger, me.did, mode, currency);
+				const acct = await federationAccount(ledger, b, { mint: me.did, mode, federation: host.federation });
+				if (!acct.card) throw new MintRefused('Set the federation’s banking card first: the federation is paid only into it.');
+				const decision = acct.decisions.find((d) => d.hash === action.decision);
+				if (!decision) throw new MintRefused('Name a decision that allows it: minuted by the secretary or chair.');
+				const hash = await hashCosigned(cos);
+				const c = await checkCosigned(cos, { founder: host.founder, revoked: await revoked() });
+				if (body.fedask) {
+					if (c.ok || !c.waiting) throw new MintRefused(c.ok ? 'This already has two signatures: send it to be paid.' : c.says);
+					if (acct.waiting.some((w) => w.hash === hash)) return json({ ok: true, says: 'It’s already waiting for a second signature.' });
+					if (credits > acct.spendable) throw new MintRefused(`The federation can move ${acct.spendable} credits just now.`);
+					await fileFed('asked', cos, { credits, decision: decision.hash }, tip ?? undefined);
+					return json({ ok: true, says: 'Asked. It waits on the federation’s books for a second office holder to sign.' });
+				}
+				/* Agreed by two: the rules, the valve, then filed and paid. */
+				if (!acct.waiting.some((w) => w.hash === hash)) throw new MintRefused('That cash-out wasn’t asked here, or it’s already been paid.');
+				const valve = valveFor(ledger, b, me.did, mode);
+				const facts = await spendFacts(cos, decision.receipt, { federation: host.federation, account: acct.card.hash, spentSoFar: decision.spent, valveShut: valve.shut, founder: host.founder, revoked: await revoked() });
+				await decideFederationSpend(lastSigner(cos) ?? '', host.federation, facts);
+				if (mode === 'live') throw new MintRefused('This host is live, and payouts aren’t connected yet. The federation’s credits are untouched.');
+				const agreed = await fileFed('agreed', cos, { credits, decision: decision.hash }, tip ?? undefined);
+				const prior = [...ledger, agreed].map((json) => ({ json }));
+				const account = { receipt: acct.card.hash, ends: acct.card.ends };
+				const burnEvent: MintEvent = { schema: MINT_SCHEMA, source: MINT_SOURCE, mint: me.did, kind: 'burn', credits, mode, from: host.federation, pence: credits * unit, asks: agreed.contentHash, account, payout: `test-standing-order-${crypto.randomUUID()}`, at: stampAfter([...latestIn(ledger), agreed.content.at]) };
+				const { facts: burnFacts } = mintFacts(prior, { did: me.did, content: burnEvent, contentHash: '' } as MintReceipt, currency);
+				const checked = await decideMint('credits.burn', me.did, me.did, burnFacts);
+				const burned = (await sealWith(me, { ...burnEvent, checked })) as MintReceipt;
+				await appendLedger(host, me.did, mode, burned);
+				return json({ ok: true, says: `Paid: ${credits} credits to the federation’s account ending ${acct.card.ends}.`, burned });
 			}
 			return json({ ok: false, says: 'Buy, cash out, file, or reconcile.' }, { status: 400 });
 		} catch (e) {

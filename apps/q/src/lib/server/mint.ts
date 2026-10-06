@@ -25,6 +25,7 @@ import { currencyFrom } from '@inqbeta/q-core/currency';
 import { booksOf, isMintEvent, type MintMode, type MintReceipt } from '@inqbeta/q-core/mint';
 import { isAgreementStep } from '@inqbeta/q-core/agreements';
 import { MINT_ACTIONS } from '@inqbeta/q-actions/core/mint';
+import { FEDERATION_SPEND } from '@inqbeta/q-actions/core/federation-money';
 import { nodeEngine } from '@inqbeta/q-actions/node';
 import { readHomeFile, readServicesFile, type ServicesFile } from '$lib/server/host';
 import { isDevelopmentSite } from '$lib/server/site';
@@ -197,6 +198,16 @@ export async function fileable(r: unknown, mint: string, mode: MintMode, ledger:
 /* ---- The rules ---- */
 const hashes = new Map<string, string>();
 /** Decide a mint step with Cedar. Refuses (MintRefused) with the rules' own words. */
+let spendHash: string | null = null;
+/** The federation's own money (ADR-Q-038 §8): two holders, a decision, paid rightly. Throws the rules' words if not. */
+export async function decideFederationSpend(principal: string, federation: string, facts: Record<string, unknown>): Promise<{ action: string; rules: string[] }> {
+	const engine = nodeEngine();
+	spendHash ??= await engine.load([FEDERATION_SPEND]);
+	const d = engine.decide(spendHash, { principal: { type: 'Person', id: principal }, resource: { type: 'Federation', id: federation }, facts });
+	if (!d.holds) throw new MintRefused(d.because.join(' '));
+	return { action: spendHash, rules: d.rules };
+}
+
 export async function decideMint(action: string, principal: string, mint: string, facts: Record<string, unknown>): Promise<{ action: string; rules: string[] }> {
 	const engine = nodeEngine();
 	if (!hashes.size) for (const a of MINT_ACTIONS) hashes.set(a.id, await engine.load([a]));

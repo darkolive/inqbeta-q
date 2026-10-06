@@ -587,3 +587,48 @@ statement and **Cash out for the federation**, plus the flow between holders:
 - the mint files it.
 
 The secretary's **Minute a decision** form is not built either.
+
+## As built, 6 October 2026 (night, later): the federation's account on the page (step 8, C4)
+
+- **On the Bank tab, in role**, at the top: *{Federation}'s own account*. It
+  shows:
+  - what the federation holds and what's free to move;
+  - the banking card it's paid into (last four digits only);
+  - its decisions;
+  - its cash-outs.
+
+  Out of role, none of it shows.
+- **Who can do what:**
+  - **The caretaker** signs the banking card with the federation's own key.
+    A change is a new card naming the old one.
+  - **The secretary or chair** (or the caretaker) minutes decisions: what,
+    how, when, and up to how much.
+  - **Any office with the money mandate** (treasurer or caretaker) asks for a
+    cash-out. It names the credits and the decision, and gives a line for the
+    second signer to read. The request then waits on the federation's books,
+    and what's asked is held back.
+  - **A different money holder** reads it and signs as second. The bank
+    checks `federation.spend` (two holders, the decision with what's already
+    spent under it, the federation's own card, the valve), files the
+    agreement, and burns the credits against it as a cash-out
+    (`credits.burn`), paid to the card.
+- **The mint's books keep it all.** Every record is wrapped and signed by the
+  mint (`inqbeta.mint-federation/1`: bank card, decision, asked, agreed), so
+  the node's ledger keeps it with everything else, and the gate accepts these
+  only from the mint. An `agreed` record is what the burn answers, exactly as
+  a member's own ask is. The books refuse paying the same agreed record twice.
+- **Read back:** `q-core/federation-money.ts` `federationAccount` gives what
+  it holds, the card, decisions with what's been spent under each, what's
+  waiting and what's paid. The mint's GET includes it.
+- **Proved** in q-actions (`federation-cashout.test.ts`), with real Cedar.
+  The test runs the card, the minute, the ask and the second signature
+  through `federation.spend`, the agreed record, `credits.burn` and the
+  books: the federation 500 → 380, the decision 120 spent, and a second burn
+  refused.
+- **Testing:** a new checklist, *Federation: its own account, in role*, with
+  ten checks for people.
+- **Not yet:**
+  - the request reaching the other holders' bell or office post; for now it
+    waits on the Bank tab;
+  - a live payout;
+  - decisions by members' vote (the Plans block).
