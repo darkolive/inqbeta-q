@@ -529,3 +529,14 @@ on the device (`q.office-keys`) so arriving post can be shelved sealed to it.
 Your own receipts (your appointment, your take-ups, what you signed) stay in
 your vault: they're yours.
 
+
+## Addendum, 6 October 2026 (late): a role lasts as long as the sign-in
+
+Signing out already set a role down. A sign-in that lapsed (30 quiet minutes,
+12 hours, the browser closed) did not: the role was still on the device, and
+signing in again as the same person brought it back without a new
+declaration. Now a fresh sign-in (a passkey touch, not a kept session) sets
+down any role left from before, signing that it ended. A reload or a new tab
+within the same sign-in keeps it. So every sign-in that takes up an office
+declares afresh, never under an earlier day's declaration. (`passkey.ts`
+`watch` now says how the identity came: `here`, `kept` or `other-tab`.)

@@ -14,7 +14,11 @@
  * the office, its mandates and the take-up, which the server checks.
  *
  * Kept on this device too (q:acting) so the band survives a reload. Signing
- * out sets it down.
+ * out sets it down; so does signing in afresh (6 October 2026). A role carries
+ * on only while the same sign-in does: a reload or a new tab within it keeps
+ * the role, but once the sign-in has lapsed (30 quiet minutes, 12 hours, the
+ * browser closed) coming back means declaring again. Each take-up is a fresh
+ * declaration under the Nolan principles, never one carried over from before.
  */
 import { officeKind } from '@inqbeta/q-core/offices';
 import { takeUp as takeUpReceipt, setDown as setDownReceipt, type Acting as ActingProof, type Declaration, type InRoleReceipt, isInRole } from '@inqbeta/q-core/inrole';
@@ -79,9 +83,12 @@ function start() {
 	started = true;
 	/* Outside any render: the passkey's changes arrive on their own schedule. */
 	queueMicrotask(() =>
-		watch((id) => {
+		watch((id, from) => {
 			if (identity && !id && acting) void role.setDown();
+			/* Signed in afresh, not carried on from a kept sign-in: the role lapsed with the sign-in before. */
+			const fresh = !identity && !!id && from === 'here';
 			identity = id;
+			if (fresh && acting) void role.setDown();
 			/* A role taken up by someone else on this device isn't yours. */
 			if (id && acting?.takenUp && acting.takenUp.did !== id.did) {
 				acting = null;
@@ -119,7 +126,7 @@ export const role = {
 		const was = acting;
 		acting = null;
 		remember(null);
-		if (was?.takenUp && identity && isInRole(was.takenUp)) void keep((await setDownReceipt(identity, was.takenUp)) as InRoleReceipt);
+		if (was?.takenUp && identity && was.takenUp.did === identity.did && isInRole(was.takenUp)) void keep((await setDownReceipt(identity, was.takenUp)) as InRoleReceipt);
 	},
 	/** What an ask made in role carries, for the server to check; null when not in role for this federation. */
 	proof(federation: string): ActingProof | null {

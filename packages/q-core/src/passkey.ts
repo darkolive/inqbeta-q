@@ -150,7 +150,9 @@ export async function identityFromSeed(seed: ArrayBuffer | Uint8Array): Promise<
  * ------------------------------------------------------------------ */
 
 let held: Identity | null = null;
-const listeners = new Set<(id: Identity | null) => void>();
+/** How an identity came to be held: a touch here, a session kept from before, or another tab signing out. */
+export type HeldFrom = 'here' | 'kept' | 'other-tab';
+const listeners = new Set<(id: Identity | null, from?: HeldFrom) => void>();
 
 /*
  * The one thing kept between visits: the PUBLIC DID, so the header can show
@@ -183,16 +185,16 @@ export function current(): Identity | null {
 }
 
 /** Called with the identity whenever it changes, and once straight away. */
-export function watch(fn: (id: Identity | null) => void): () => void {
+export function watch(fn: (id: Identity | null, from?: HeldFrom) => void): () => void {
 	listeners.add(fn);
 	fn(held);
 	return () => listeners.delete(fn);
 }
 
-function hold(id: Identity | null, from: 'here' | 'kept' | 'other-tab' = 'here') {
+function hold(id: Identity | null, from: HeldFrom = 'here') {
 	held = id;
 	remember(id?.did ?? null);
-	for (const fn of listeners) fn(id);
+	for (const fn of listeners) fn(id, from);
 	if (from === 'here') void keepSession(id);
 	if (!id && from === 'here') tellOtherTabs('signed-out');
 }
