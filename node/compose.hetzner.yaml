@@ -96,6 +96,9 @@ services:
       GATE_DOOR_ROOT: ${GATE_DOOR_ROOT:-}
       GATE_DOOR_HOST: ${GATE_DOOR_HOST:-}
       GATE_DOOR: ${GATE_DOOR:-}
+      # Incubator's registrar (ADR-Q-021, ADR-Q-019): only this DID adds to
+      # /registry and /core-releases. Unset: nobody can add.
+      GATE_REGISTRAR: ${GATE_REGISTRAR:-}
     volumes:
       - ./gate:/gate:ro
 
@@ -125,6 +128,7 @@ services:
       GATE_INBOX_HOLDS_MB: ${GATE_INBOX_HOLDS_MB:-25}
       GATE_SEND_MB_PER_DAY: ${GATE_SEND_MB_PER_DAY:-50}
       GATE_ORIGINS: https://inqbeta.dev,http://localhost:3100
+      GATE_REGISTRAR: ${DEV_GATE_REGISTRAR:-}
     volumes:
       - ./gate:/gate:ro
 

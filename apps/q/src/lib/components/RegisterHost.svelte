@@ -10,18 +10,29 @@
 	 * Trust travels down (ADR-Q-019 addendum): Incubator also fingerprints the
 	 * core your site serves. A straight copy matches a release; a branch names
 	 * its repository, branch and commit, so anyone can follow what's different.
+	 *
+	 * A club on a host (`host` given) registers through it: its site and core
+	 * are the host's, and the host's caretaker puts it forward first, from a
+	 * link the club's founder sends. The host sees the clubs it has put forward.
 	 */
 	import { QrCode } from '@skeletonlabs/skeleton-svelte';
 	import { Icon, Status } from '@inqbeta/q-ui';
 	import { signerFor, type Identity } from '@inqbeta/q-core/passkey';
 	import { openFederationKey } from '@inqbeta/q-core/membership';
 	import { hashCard, makeCard, VISIBILITY, type Visibility } from '@inqbeta/q-core/registration';
-	import { incubatorOrigin, readRegistration, type Entry } from '$lib/registry';
+	import { incubatorOrigin, putForwardLink, readClubs, readRegistration, type Entry } from '$lib/registry';
+	import type { ClubOnHostReceipt } from '@inqbeta/q-core/registration';
+	import ShareLink from './ShareLink.svelte';
 	import type { FederationRecord } from '$lib/federations';
 	import { CORE_SERVED_PATH, readCoreServed, sourceProblem, type CoreServed } from '@inqbeta/q-core/core-served';
 	import pkg from '../../../package.json';
 
-	let { identity, record, logo }: { identity: Identity; record: FederationRecord; logo?: string } = $props();
+	let { identity, record, logo, host = null }: { identity: Identity; record: FederationRecord; logo?: string; host?: { federation: string; name: string } | null } = $props();
+	let clubs = $state<ClubOnHostReceipt[]>([]);
+	$effect(() => {
+		if (!host) void readClubs(record.founding.federation).then((c) => (clubs = c));
+	});
+	const askLink = $derived(host && typeof location !== 'undefined' ? putForwardLink(location.origin, host.federation, record.founding.federation, record.founding.name) : '');
 
 	const federation = $derived(record.founding.federation);
 	let current = $state<Entry | null>(null);
@@ -42,8 +53,11 @@
 			})
 			.catch(() => {});
 	});
-	const source = $derived(branch ? { repo: repo.trim(), branch: branchName.trim(), commit: commit.trim() } : null);
+	const source = $derived(branch && !host ? { repo: repo.trim(), branch: branchName.trim(), commit: commit.trim() } : null);
 	const sourceSays = $derived(source ? sourceProblem(source) : null);
+	$effect(() => {
+		if (host && typeof location !== 'undefined') site = location.origin;
+	});
 	$effect(() => {
 		void readRegistration(federation).then((r) => {
 			current = r.latest;
@@ -76,6 +90,7 @@
 				visibility,
 				runs: { q: served?.release ?? pkg.version, ...(served?.commit ? { commit: served.commit } : {}) },
 				...(source ? { source } : {}),
+				...(host ? { host: host.federation } : {}),
 				previous: current ? await hashCard(current.card) : null
 			});
 			const r = await fetch(`${incubatorOrigin()}/api/registry`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ card }) });
@@ -110,6 +125,13 @@
 			{/each}
 		</div>
 	</fieldset>
+	{#if host}
+		<div class="flex flex-col gap-3 text-sm">
+			<p>Your club registers through its host, <span class="font-bold">{host.name}</span>, on its site ({site}). First its caretaker puts you forward, once. Send them this link:</p>
+			{#if askLink}<ShareLink link={askLink} label="Ask {host.name} to put you forward" note="It opens your host’s page for its caretaker, with one button to sign." subject="Please put {record.founding.name} forward" message="Could you put {record.founding.name} forward with Incubator, so it can register? It’s one signature:" />{/if}
+			<p>When they have, register here.</p>
+		</div>
+	{:else}
 	<label class="label">
 		<span class="label-text">Your live site’s address</span>
 		<input class="input" type="url" inputmode="url" bind:value={site} />
@@ -144,6 +166,7 @@
 			{#if sourceSays && (repo || branchName)}<p class="text-sm preset-tonal-warning card p-3">{sourceSays}</p>{/if}
 		</div>
 	{/if}
+	{/if}
 	<button type="button" class="btn preset-filled-primary-500 min-h-11 self-start" disabled={busy || !/^https:\/\//.test(site.trim()) || !!sourceSays} onclick={() => void send()}>{busy ? 'Signing… touch your passkey' : current ? 'Sign and update' : 'Sign and register'}</button>
 	{#if said}<p class="card p-3 text-sm {said.good ? 'preset-tonal-success' : 'preset-tonal-error'}" aria-live="polite">{said.text}</p>{/if}
 
@@ -156,6 +179,20 @@
 				<p>Your receipt page. Put its code on your site, like a coin’s: anyone can scan it and check you.</p>
 				<a class="anchor break-all" href={page} rel="noopener">{page} <Icon name="arrowRight" size={14} /></a>
 			</div>
+		</div>
+	{/if}
+
+	{#if !host && clubs.length}
+		<div class="flex flex-col gap-2 border-t border-surface-200-800 pt-4">
+			<p class="label-text">Clubs you’ve put forward</p>
+			<ul class="flex flex-col gap-1 text-sm">
+				{#each clubs as c (c.contentHash)}
+					<li class="flex flex-wrap gap-2 items-center">
+						<span class="font-bold">{c.content.putForward.name}</span>
+						<a class="anchor" href={`${incubatorOrigin()}/registered/${encodeURIComponent(c.content.club)}`} rel="noopener">Its receipt</a>
+					</li>
+				{/each}
+			</ul>
 		</div>
 	{/if}
 </section>

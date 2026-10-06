@@ -83,10 +83,14 @@ Proved end to end on a rig (a site, the gate, Incubator on localhost): the
 straight copy registered as unchanged, a changed core refused, the same change
 with its branch named registered as a branch.
 
-**Darren, on top of Start here:** the node update (A3) now also carries
-`/archive`, `/registry` and `/core-releases`; make `Q_REGISTRAR_SEED`
-(Services → Registry) and put its DID on the node as `GATE_REGISTRAR`.
+**Clubs, through their host**, also built: the club's founder sends a link,
+the host's caretaker signs once, Incubator countersigns, the club registers
+and holds only while its host does. Proved on the rig, refusals included.
 
-**Next on this thread:** a host putting its clubs forward (today only a site's
-home federation can register); the manifest rules a host must meet; renewal
-reminders; "only its people" visibility.
+**Darren, on top of Start here:** node/HETZNER.md **Step 8** is the whole node
+update: the registrar key, its DID into `/srv/node/.env` as `GATE_REGISTRAR`
+(compose now passes it to the gate; before, it couldn't), rsync, recreate,
+check `/registry` and `/core-releases`.
+
+**Next on this thread:** the manifest rules a host must meet; a host
+withdrawing a club; renewal reminders; "only its people" visibility.

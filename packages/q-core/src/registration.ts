@@ -56,6 +56,8 @@ export interface CardStatement {
 	visibility: Visibility;
 	/** The Q it runs. */
 	runs: { q: string; commit?: string };
+	/** A club on a host names its host's federation (ADR-Q-019 addendum: trust travels down). */
+	host?: string;
 	/** A branch of Q names where its source is (ADR-Q-019 addendum); a straight copy needn't. */
 	source?: SourceOf;
 	/** The card before this one, by hash; null for the first. */
@@ -99,6 +101,7 @@ export async function makeCard(federation: Signer, founder: Signer, o: Omit<Card
 		...(o.logo ? { logo: o.logo } : {}),
 		visibility: o.visibility,
 		runs: o.runs,
+		...(o.host ? { host: o.host } : {}),
 		...(o.source ? { source: { repo: o.source.repo.trim().replace(/\/$/, ''), branch: o.source.branch.trim(), commit: o.source.commit.trim() } } : {}),
 		previous: o.previous,
 		at: now.toISOString()
@@ -125,6 +128,7 @@ export async function checkCard(x: unknown, founding?: FederationFounding): Prom
 	if (!r || !(await verify(c.founder, unsigned(c), r.signature))) return { ok: false, says: 'Its founder didn’t sign this card.' };
 	if (!siteOk(c.site)) return { ok: false, says: 'Its site’s address isn’t one Q can check.' };
 	if (!VISIBILITY.some((v) => v.id === c.visibility)) return { ok: false, says: 'It doesn’t say who may find it.' };
+	if (c.host !== undefined && (!/^did:key:z[1-9A-HJ-NP-Za-km-z]+$/.test(c.host) || c.host === c.federation)) return { ok: false, says: 'Its host isn’t a federation.' };
 	if (c.source && sourceProblem(c.source)) return { ok: false, says: `Its source: ${sourceProblem(c.source)}` };
 	if (founding && (founding.federation !== c.federation || founding.root !== c.founder)) return { ok: false, says: 'The card isn’t from the federation, or the founder, that the site was founded by.' };
 	return { ok: true, says: `${c.name}, signed by the federation and its founder.` };
@@ -140,15 +144,17 @@ export interface Registered {
 	site: string;
 	/** What Incubator checked, each in a line. */
 	checked: string[];
-	/** What Incubator found of the core the site serves (ADR-Q-019 addendum). */
+	/** What Incubator found of the core the site serves (ADR-Q-019 addendum); for a club, its host's. */
 	core?: CoreFinding;
+	/** For a club: the host it was registered through. It holds only while its host does. */
+	host?: string;
 	until: string;
 	at: string;
 }
 export type RegisteredReceipt = SealedReceipt & { content: Registered };
 
 /** Incubator's countersignature, once it has checked. */
-export async function register(registrar: Pick<Identity, 'did' | 'publicKey' | 'signing'>, card: FederationCard, checked: string[], now = new Date(), core?: CoreFinding): Promise<RegisteredReceipt> {
+export async function register(registrar: Pick<Identity, 'did' | 'publicKey' | 'signing'>, card: FederationCard, checked: string[], now = new Date(), core?: CoreFinding, host?: string): Promise<RegisteredReceipt> {
 	const content: Registered = {
 		schema: REGISTERED_SCHEMA,
 		source: 'inqbeta:incubator/registry',
@@ -158,6 +164,7 @@ export async function register(registrar: Pick<Identity, 'did' | 'publicKey' | '
 		site: card.site,
 		checked,
 		...(core ? { core } : {}),
+		...(host ? { host } : {}),
 		until: new Date(now.getTime() + REGISTRATION_DAYS * 86_400_000).toISOString(),
 		at: now.toISOString()
 	};
@@ -181,4 +188,76 @@ export async function latestCard(cards: unknown[]): Promise<FederationCard | nul
 	const hashes = new Set(await Promise.all(ok.map(hashCard)));
 	const chained = ok.filter((c) => c.previous === null || hashes.has(c.previous));
 	return chained.sort((a, b) => b.at.localeCompare(a.at))[0] ?? null;
+}
+
+/*
+ * A host puts a club forward (ADR-Q-019 addendum, 6 October 2026). Trust
+ * travels down: a club on a host is registered only through its host. The
+ * host's federation key and its caretaker sign that the club lives on it;
+ * Incubator countersigns once it has checked the host is registered; then the
+ * club can register, and holds only while its host does.
+ */
+export const PUT_FORWARD_SCHEMA = 'inqbeta.put-forward/1';
+export const CLUB_ON_HOST_SCHEMA = 'inqbeta.club-on-host/1';
+
+export interface PutForwardStatement {
+	schema: typeof PUT_FORWARD_SCHEMA;
+	event: 'host.put-forward';
+	host: string;
+	caretaker: string;
+	club: string;
+	/** The club's name, as the host knows it. */
+	name: string;
+	at: string;
+}
+export type PutForward = PutForwardStatement & { signatures: Signature[] };
+
+export async function putForward(host: Signer, caretaker: Signer, o: { club: string; name: string }, now = new Date()): Promise<PutForward> {
+	if (!/^did:key:z[1-9A-HJ-NP-Za-km-z]+$/.test(o.club)) throw new Error('That isn’t a federation’s ID.');
+	const st: PutForwardStatement = { schema: PUT_FORWARD_SCHEMA, event: 'host.put-forward', host: toDid(host.did), caretaker: toDid(caretaker.did), club: o.club, name: o.name.trim(), at: now.toISOString() };
+	if (st.club === st.host) throw new Error('A host doesn’t put itself forward; it registers.');
+	return {
+		...st,
+		signatures: [
+			{ by: 'host', did: st.host, signature: await host.signCanonical(st) },
+			{ by: 'caretaker', did: st.caretaker, signature: await caretaker.signCanonical(st) }
+		]
+	};
+}
+
+export async function checkPutForward(x: unknown, founding?: FederationFounding): Promise<Check> {
+	const p = x as PutForward;
+	if (p?.schema !== PUT_FORWARD_SCHEMA || !Array.isArray(p.signatures)) return { ok: false, says: 'This isn’t a host putting a club forward.' };
+	const h = p.signatures.find((s) => s.by === 'host' && s.did === p.host);
+	const c = p.signatures.find((s) => s.by === 'caretaker' && s.did === p.caretaker);
+	if (!h || !(await verify(p.host, unsigned(p), h.signature))) return { ok: false, says: 'The host’s key didn’t sign this.' };
+	if (!c || !(await verify(p.caretaker, unsigned(p), c.signature))) return { ok: false, says: 'Its caretaker didn’t sign this.' };
+	if (founding && (founding.federation !== p.host || founding.root !== p.caretaker)) return { ok: false, says: 'It isn’t from the host’s own founder.' };
+	return { ok: true, says: `${p.name}, put forward by its host.` };
+}
+
+export interface ClubOnHost {
+	schema: typeof CLUB_ON_HOST_SCHEMA;
+	source: 'inqbeta:incubator/registry';
+	host: string;
+	club: string;
+	putForward: PutForward;
+	at: string;
+}
+export type ClubOnHostReceipt = SealedReceipt & { content: ClubOnHost };
+
+/** Incubator's countersignature on a host putting a club forward. */
+export async function acceptPutForward(registrar: Pick<Identity, 'did' | 'publicKey' | 'signing'>, p: PutForward, now = new Date()): Promise<ClubOnHostReceipt> {
+	const content: ClubOnHost = { schema: CLUB_ON_HOST_SCHEMA, source: 'inqbeta:incubator/registry', host: p.host, club: p.club, putForward: p, at: now.toISOString() };
+	return (await sealWith(registrar, content)) as ClubOnHostReceipt;
+}
+
+/** Is this club put forward by this host, countersigned by Incubator's registrar? */
+export async function clubOnHost(list: unknown[], host: string, club: string, registrar: string): Promise<ClubOnHostReceipt | null> {
+	for (const x of [...list].reverse()) {
+		const r = x as ClubOnHostReceipt;
+		if (r?.content?.schema !== CLUB_ON_HOST_SCHEMA || r.did !== registrar || r.content.host !== host || r.content.club !== club) continue;
+		if ((await checkReceipt(r)).ok && (await checkPutForward(r.content.putForward)).ok && r.content.putForward.host === host && r.content.putForward.club === club) return r;
+	}
+	return null;
 }

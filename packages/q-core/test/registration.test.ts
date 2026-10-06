@@ -32,3 +32,29 @@ test('a new host’s card, checked against its founding, registered, updated, ru
 	const orphan = await makeCard(fed, signerFor(ana), { ...base, previous: 'receipt:sha256:nothing' }, new Date('2026-12-01T12:00:00Z'));
 	assert.equal((await latestCard([card, next, orphan]))?.visibility, 'public', 'a card that names no known card before it isn’t the latest');
 });
+
+test('a host puts a club forward; Incubator countersigns; only that host, that club, that registrar', async () => {
+	const { putForward, checkPutForward, acceptPutForward, clubOnHost } = await import('../src/registration');
+	const ana = await identityFromSeed(seed(11));
+	const bo = await identityFromSeed(seed(12));
+	const incubator = await identityFromSeed(seed(13));
+	const host = await foundFederation(signerFor(ana), { ...newDraft(NOW), name: 'Hill Farm', purpose: 'Growing.' }, { now: NOW });
+	const club = await foundFederation(signerFor(bo), { ...newDraft(NOW), name: 'Seed Swap', purpose: 'Swapping seeds.' }, { now: NOW });
+	const p = await putForward(signerFor(host.key), signerFor(ana), { club: club.founding.federation, name: 'Seed Swap' }, NOW);
+	assert.ok((await checkPutForward(p, host.founding)).ok);
+	assert.equal((await checkPutForward(p, club.founding)).ok, false, 'not from that host’s founder');
+	assert.equal((await checkPutForward({ ...p, club: host.founding.federation })).ok, false, 'tampered');
+	await assert.rejects(putForward(signerFor(host.key), signerFor(ana), { club: host.founding.federation, name: 'x' }), /registers/);
+
+	const accepted = await acceptPutForward(incubator, p, NOW);
+	assert.ok(await clubOnHost([accepted], host.founding.federation, club.founding.federation, incubator.did));
+	assert.equal(await clubOnHost([accepted], host.founding.federation, club.founding.federation, bo.did), null, 'only Incubator’s registrar');
+	assert.equal(await clubOnHost([accepted], club.founding.federation, host.founding.federation, incubator.did), null, 'that host, that club');
+
+	/* The club's card names its host. */
+	const card = await makeCard(signerFor(club.key), signerFor(bo), { name: 'Seed Swap', purpose: 'Swapping seeds.', site: 'https://hillfarm.example', visibility: 'public', runs: { q: '0.1.0' }, host: host.founding.federation, previous: null }, NOW);
+	assert.ok((await checkCard(card, club.founding)).ok);
+	assert.equal((await checkCard({ ...card, host: card.federation })).ok, false, 'a club isn’t its own host');
+	const reg = await register(incubator, card, ['through its host'], NOW, undefined, host.founding.federation);
+	assert.equal(reg.content.host, host.founding.federation);
+});

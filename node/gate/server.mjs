@@ -315,6 +315,40 @@ async function coreReleases(req, res, origin) {
 	const kept = await fetch(`${CORE_DIR()}${r.content.sha256}.json`, { method: 'POST', body: form }).catch((e) => ({ ok: false, status: e.message }));
 	return kept.ok ? send(res, origin, 200, { ok: true }) : send(res, origin, 502, { says: `Couldn’t keep it: ${kept.status}` });
 }
+/*
+ * Clubs a host has put forward (ADR-Q-019 addendum): the host's statement,
+ * countersigned by Incubator's registrar, kept under the host.
+ *   GET  /registry/<host>/clubs   { items: [receipt …] }
+ *   POST /registry/<host>/clubs   receipt (inqbeta.club-on-host/1), signed by GATE_REGISTRAR
+ */
+const REGISTRY_CLUBS = /^\/registry\/(did:key:z[1-9A-HJ-NP-Za-km-z]+)\/clubs$/;
+export async function clubOnHostOk(r, host, registrar = REGISTRAR) {
+	const c = r?.content;
+	return !!registrar && r?.did === registrar && c?.schema === 'inqbeta.club-on-host/1' && c.host === host && /^did:key:z[1-9A-HJ-NP-Za-km-z]+$/.test(String(c.club ?? '')) && c.putForward?.host === host && c.putForward?.club === c.club && (await signedReceipt(r));
+}
+async function registryClubs(req, res, origin, host) {
+	const dir = `${registryDir(host)}clubs/`;
+	if (req.method === 'GET') {
+		const items = [];
+		for (const full of await listJson(dir, 2000)) {
+			if (!full.endsWith('.json')) continue;
+			const f = await fetch(`${dir}${full.split('/').pop()}`).catch(() => null);
+			const x = f?.ok ? await f.json().catch(() => null) : null;
+			if (x) items.push(x);
+		}
+		return send(res, origin, 200, { schema: 'inqbeta.registry-clubs/1', host, items });
+	}
+	if (req.method !== 'POST') return send(res, origin, 405, { says: 'Only GET and POST.' });
+	const raw = await readBody(req, LEDGER_BYTES);
+	let r = null;
+	try { r = JSON.parse(raw ?? ''); } catch { r = null; }
+	if (!(await clubOnHostOk(r, host))) return send(res, origin, 403, { says: 'Only Incubator’s registrar adds a host’s clubs.' });
+	const name = String(r.content.club).replace(/[^A-Za-z0-9]/g, '');
+	const form = new FormData();
+	form.append('file', new Blob([JSON.stringify(r)], { type: 'application/json' }), `${name}.json`);
+	const kept = await fetch(`${dir}${name}.json`, { method: 'POST', body: form }).catch((e) => ({ ok: false, status: e.message }));
+	return kept.ok ? send(res, origin, 200, { ok: true }) : send(res, origin, 502, { says: `Couldn’t keep it: ${kept.status}` });
+}
 let registryQueue = Promise.resolve();
 async function registry(req, res, origin, fed) {
 	if (req.method === 'GET' && !fed) {
@@ -1358,6 +1392,8 @@ export const server = http.createServer(async (req, res) => {
 	if (ar) return archives(req, res, origin, ar[1], ar[2]);
 	if (new URL(req.url, 'http://gate').pathname === '/core-releases') return coreReleases(req, res, origin);
 	if (new URL(req.url, 'http://gate').pathname === '/registry') return registry(req, res, origin, null);
+	const rc = REGISTRY_CLUBS.exec(decodeURIComponent(new URL(req.url, 'http://gate').pathname));
+	if (rc) return registryClubs(req, res, origin, rc[1]);
 	const rg = REGISTRY_ONE.exec(decodeURIComponent(new URL(req.url, 'http://gate').pathname));
 	if (rg) return registry(req, res, origin, rg[1]);
 	const d = DROP.exec(new URL(req.url, 'http://gate').pathname);

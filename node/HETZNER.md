@@ -391,3 +391,44 @@ docker compose -f compose.yaml -f compose.hetzner.yaml --profile dev up -d gate-
 ```
 
 Only `/dev` goes. inqbeta.com's storage is never touched.
+
+## Step 8 — offices, records, the registry and the core (6 October 2026)
+
+The gate now also keeps: endings of offices (`/revoked/<federation>`), where
+each office's post goes (`/offices/<federation>`), each office's records
+(`/archive/<federation>/<office key>`), the ledger lock (`x-ledger-tip`),
+Incubator's registry (`/registry`) and Q's signed core releases
+(`/core-releases`). Only Incubator's registrar can add to the last two, so the
+node needs its DID.
+
+1. **The registrar key.** On localhost, Settings → Services → **Registry** →
+   make it. Put `Q_REGISTRAR_SEED` in Vercel (Production) and redeploy.
+2. **Its DID.** Incubator says it:
+
+   ```sh
+   curl -s https://inqbeta.com/api/registry | python3 -c 'import json,sys; print(json.load(sys.stdin)["registrar"])'
+   ```
+
+3. **On the node**, add it to `/srv/node/.env`:
+
+   ```sh
+   GATE_REGISTRAR=did:key:…
+   ```
+
+4. **Update the files** (above, "Updating the node's files") and recreate:
+
+   ```sh
+   cd /srv/node && docker compose up -d --force-recreate gate
+   ```
+
+5. **Check** (each should answer with JSON, not "Nothing here"):
+
+   ```sh
+   S=https://storage.135-181-156-21.sslip.io
+   curl -s $S/health; echo
+   curl -s $S/registry; echo                 # {"schema":"inqbeta.registry/1","items":[]}
+   curl -s $S/core-releases; echo            # {"schema":"inqbeta.core-releases/1","items":[]}
+   ```
+
+The first registration (yours) also files Incubator's own core release, so
+after it `/core-releases` has one item.

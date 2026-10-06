@@ -74,6 +74,8 @@
 	import FederationBank from '$lib/components/FederationBank.svelte';
 	import RoleSwitch from '$lib/components/RoleSwitch.svelte';
 	import RegisterHost from '$lib/components/RegisterHost.svelte';
+	import PutForward from '$lib/components/PutForward.svelte';
+	import { readPutForwardHash } from '$lib/registry';
 	import TesterPasses from '$lib/components/TesterPasses.svelte';
 	import { role } from '$lib/role.svelte';
 	import { onDevelopmentSite } from '$lib/site';
@@ -299,6 +301,8 @@
 	const offices = $derived([...new Set([...(hostFounder ? ['caretaker'] : []), ...held.map((h) => h.office)])]);
 	/* The founder's tools need the federation key, which only the caretaker holds: they show only in that role. */
 	const acting = $derived(offices.includes('caretaker') && role.isActing(id, 'caretaker'));
+	/* A club asking this host to put it forward (ADR-Q-019 addendum), from the link its founder sent. */
+	const clubAsking = typeof location === 'undefined' ? null : readPutForwardHash(location.hash);
 	/* Another office taken up here: its desk (ADR-Q-038 §3). */
 	const desk = $derived(role.acting?.federation === id && role.acting.office !== 'caretaker' ? (held.find((h) => h.office === role.acting!.office) ?? null) : null);
 	/* Setting the role down leaves the office's tabs: back to Home. */
@@ -845,6 +849,10 @@
 		{/if}
 		{#if tellThem && !(own && acting)}
 			<div class="mb-6"><ShareLink link={tellThem.link} label="Send this" note={tellThem.note} /></div>
+		{/if}
+
+		{#if clubAsking && isHome && own && identity}
+			<div class="mb-6"><PutForward {identity} record={own} club={clubAsking.club} name={clubAsking.name} {acting} /></div>
 		{/if}
 
 		<Tabs value={tab} onValueChange={(d) => (tab = d.value)}>
@@ -1394,7 +1402,7 @@
 					]}
 				/>
 				<!-- Registered with Incubator (ADR-Q-021): the host's receipt, and whether it's listed. -->
-				{#if isHome && own && identity}<div class="mb-6"><RegisterHost {identity} record={own} logo={home?.ok ? home.logo : undefined} /></div>{/if}
+				{#if own && identity && home?.ok}<div class="mb-6"><RegisterHost {identity} record={own} logo={isHome ? home.logo : undefined} host={isHome ? null : { federation: home.federation, name: home.name }} /></div>{/if}
 				<!--
 					Only the host itself has a standing invitation for everyone who signs up
 					(ADR-Q-016). A club founded inside it never sees this: which federation is

@@ -15,12 +15,18 @@
 	import { QrCode } from '@skeletonlabs/skeleton-svelte';
 	import { VISIBILITY } from '@inqbeta/q-core/registration';
 	import { compareLink } from '@inqbeta/q-core/core-served';
-	import { readRegistration, logoOf, type Entry } from '$lib/registry';
+	import { readRegistration, logoOf, hostTrust, type Entry, type HostTrust } from '$lib/registry';
 
 	const federation = $derived(decodeURIComponent(page.params.federation ?? ''));
 	let found = $state<{ latest: Entry | null; history: Entry[] } | null>(null);
 	$effect(() => void readRegistration(federation).then((r) => (found = r)));
 	const card = $derived(found?.latest?.card ?? null);
+	/* Trust travels down (ADR-Q-019 addendum): a club holds only while its host does. */
+	const hostDid = $derived(found?.latest?.registered.content.host ?? null);
+	let host = $state<HostTrust | null>(null);
+	$effect(() => {
+		if (hostDid) void hostTrust(hostDid).then((h) => (host = h));
+	});
 	const onDay = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 	const here = $derived(typeof location !== 'undefined' ? location.href : '');
 </script>
@@ -35,6 +41,7 @@
 	{:else}
 		{@const e = found.latest}
 		{@const core = e.registered.content.core}
+		{@const holds = e.holds && host?.state !== 'not'}
 		<div class="flex flex-wrap gap-6 items-start">
 			<div class="card preset-outlined-surface-200-800 bg-surface-50-950 p-5 flex flex-col gap-4 flex-[999_1_28rem] min-w-0">
 				<div class="flex items-center gap-4">
@@ -44,7 +51,7 @@
 					<div class="flex flex-col gap-1 min-w-0">
 						<p class="h4">{card.name}</p>
 						<div class="flex flex-wrap gap-2">
-							<Status tone={e.holds ? 'good' : 'bad'}>{e.holds ? 'Registered with Incubator' : 'Not registered now'}</Status>
+							<Status tone={holds ? 'good' : 'bad'}>{holds ? 'Registered with Incubator' : 'Not registered now'}</Status>
 							<Status tone="plain">{VISIBILITY.find((v) => v.id === card.visibility)?.called}</Status>
 						</div>
 					</div>
@@ -56,6 +63,17 @@
 					<div><dt class="opacity-70">This version</dt><dd>{onDay(card.at)}</dd></div>
 					<div><dt class="opacity-70">Federation</dt><dd class="role-token text-xs break-all" title={card.federation}>{card.federation.slice(0, 18)}…{card.federation.slice(-6)}</dd></div>
 				</dl>
+				{#if hostDid}
+					<div class="flex flex-wrap items-center gap-3 text-sm">
+						<span class="opacity-70">Its host</span>
+						{#if host}
+							<Status tone={host.state === 'not' ? 'bad' : host.state === 'registered' ? 'good' : 'plain'}>{host.state === 'not' ? 'Not registered now' : 'Registered'}</Status>
+							{#if host.state !== 'not'}<span class="font-bold">{host.entry.card.name}</span>{/if}
+							<a class="anchor whitespace-nowrap" href={`/registered/${encodeURIComponent(hostDid)}`}>Its receipt <Icon name="arrowRight" size={14} /></a>
+						{:else}<span class="opacity-60">Checking…</span>{/if}
+					</div>
+					{#if host?.state === 'not'}<p class="text-sm card preset-tonal-error p-3">Its host isn’t registered with Incubator now, so this club isn’t either. What its members signed stays theirs.</p>{/if}
+				{/if}
 				{#if core}
 					<div class="flex flex-wrap items-center gap-3 text-sm">
 						<span class="opacity-70">Its core</span>

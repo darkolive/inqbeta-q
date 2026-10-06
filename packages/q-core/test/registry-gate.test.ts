@@ -5,7 +5,7 @@ import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { identityFromSeed, signerFor } from '../src/passkey';
 import { foundFederation, newDraft } from '../src/federations';
-import { hashCard, makeCard, register } from '../src/registration';
+import { acceptPutForward, hashCard, makeCard, putForward, register } from '../src/registration';
 import { signCoreRelease } from '../src/core-served';
 
 const files = new Map<string, Buffer>();
@@ -72,6 +72,16 @@ test('register, update to public, list; a stranger can’t add; core releases', 
 		const releases = ((await (await fetch(`${gate}/core-releases`)).json()) as { items: { content: { sha256: string } }[] }).items;
 		assert.deepEqual(releases.map((r) => r.content.sha256), ['c'.repeat(64)]);
 		assert.equal(((await (await fetch(`${gate}/registry`)).json()) as { items: unknown[] }).items.length, 1, 'core releases aren’t federations');
+
+		/* Clubs put forward, kept under the host; only the registrar adds; not federations themselves. */
+		const pf = await putForward(signerFor(a.key), signerFor(ana), { club: b.founding.federation, name: 'Quiet Club' });
+		const clubs = (x: unknown, host = a.founding.federation) => fetch(`${gate}/registry/${host}/clubs`, { method: 'POST', body: JSON.stringify(x) });
+		assert.equal((await clubs(await acceptPutForward(mallory, pf))).status, 403, 'only the registrar');
+		assert.equal((await clubs(await acceptPutForward(incubator, pf), b.founding.federation)).status, 403, 'under its own host only');
+		assert.equal((await clubs(await acceptPutForward(incubator, pf))).status, 200);
+		const put = ((await (await fetch(`${gate}/registry/${a.founding.federation}/clubs`)).json()) as { items: { content: { club: string } }[] }).items;
+		assert.deepEqual(put.map((x) => x.content.club), [b.founding.federation]);
+		assert.equal(((await (await fetch(`${gate}/registry/${a.founding.federation}`)).json()) as { items: unknown[] }).items.length, 2, 'the host’s history is unchanged');
 	} finally {
 		server.close();
 		filer.close();

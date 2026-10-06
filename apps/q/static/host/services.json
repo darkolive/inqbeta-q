@@ -43,6 +43,60 @@
       "source": "inqbeta:q/host",
       "did": "did:key:z6MkpdzRhpXvNuvxCfYHk1EX2h3kAe61tJbWi58ijkeg8pVc",
       "publicKey": "l1SZFrbv2cFP2Ld26PBEPu0RlkIlIYn6d01DMVHfsX8",
+      "signedAt": "2026-10-06T11:36:35.326Z",
+      "contentHash": "pM8gjHfB4OKNdf8QNwe3YhLQrZsfTs4boVofOUVZKYE",
+      "signature": "pQA8Y6mwdcdr5Ze3Cbecew_oukMfI-rBznYFQo0518yBbeoWCXW4hpIOkugYdKzyoRdG2_X3xQUz6T0mNL8eCw",
+      "content": {
+        "schema": "inqbeta.host-service/1",
+        "source": "inqbeta:q/host",
+        "host": "did:key:z6Mkvo5GNipFGRo6v29PbHnFXjvh8UFjLuBDnXYpRGzB6GCP",
+        "service": "money",
+        "setting": "Q_COIN_CONTACT",
+        "ends": "caretaker",
+        "at": "2026-10-06T11:36:35.326Z"
+      }
+    },
+    {
+      "schema": "inqbeta.receipt/1",
+      "source": "inqbeta:q/host",
+      "did": "did:key:z6MkpdzRhpXvNuvxCfYHk1EX2h3kAe61tJbWi58ijkeg8pVc",
+      "publicKey": "l1SZFrbv2cFP2Ld26PBEPu0RlkIlIYn6d01DMVHfsX8",
+      "signedAt": "2026-10-06T11:36:35.300Z",
+      "contentHash": "47_4AzTdi-d88DggPAXkWA35LM3da91ErGa3SrjwbQc",
+      "signature": "2XcHvFfJiSJWYpKuMTAC3-jL_rxHtNQFDP4YTBF8OtKfxBUOVlzuIfJD1lS7W0U1VZlQjEiexkBy1XRSGrVKAg",
+      "content": {
+        "schema": "inqbeta.host-service/1",
+        "source": "inqbeta:q/host",
+        "host": "did:key:z6Mkvo5GNipFGRo6v29PbHnFXjvh8UFjLuBDnXYpRGzB6GCP",
+        "service": "money",
+        "setting": "Q_COIN_DESIGN",
+        "ends": "picture|secondary|black|white|/host/coin.png?v=57b1445ce437|",
+        "at": "2026-10-06T11:36:35.293Z"
+      }
+    },
+    {
+      "schema": "inqbeta.receipt/1",
+      "source": "inqbeta:q/host",
+      "did": "did:key:z6MkpdzRhpXvNuvxCfYHk1EX2h3kAe61tJbWi58ijkeg8pVc",
+      "publicKey": "l1SZFrbv2cFP2Ld26PBEPu0RlkIlIYn6d01DMVHfsX8",
+      "signedAt": "2026-10-06T11:36:35.319Z",
+      "contentHash": "MVR9PfcWyMS68fwd5qGeGUdiYStUKQMy_bMjRFNjBSk",
+      "signature": "4FCpfzGY2kU_51oh0roE-HVaXCGomwGL50ZXXf86mSJkpFiA4J9GsmIbSZ_oPnTyr481vV1atCOQtOf6oGzWAA",
+      "content": {
+        "schema": "inqbeta.host-service/1",
+        "source": "inqbeta:q/host",
+        "host": "did:key:z6Mkvo5GNipFGRo6v29PbHnFXjvh8UFjLuBDnXYpRGzB6GCP",
+        "service": "money",
+        "setting": "Q_COIN_NAME",
+        "ends": "Qoin",
+        "at": "2026-10-06T11:36:35.319Z"
+      }
+    },
+    {
+      "schema": "inqbeta.receipt/1",
+      "source": "inqbeta:q/host",
+      "did": "did:key:z6MkpdzRhpXvNuvxCfYHk1EX2h3kAe61tJbWi58ijkeg8pVc",
+      "publicKey": "l1SZFrbv2cFP2Ld26PBEPu0RlkIlIYn6d01DMVHfsX8",
       "signedAt": "2026-10-03T15:28:56.754Z",
       "contentHash": "G1EYjXph-7oeFhq7Qv4L_0m35G8CNZeqd6EtYE9ysnQ",
       "signature": "wpmwOyMPKO3HklwHjWGPtDOyNjqDPLVkiTkDP3JzTTbrAbFJ9oQo5KxFIDzVNjqikXDIydhZsAWVHRD7RjSOBQ",
@@ -54,6 +108,24 @@
         "setting": "Q_CREDIT_PENCE",
         "ends": "100",
         "at": "2026-10-03T15:28:56.745Z"
+      }
+    },
+    {
+      "schema": "inqbeta.receipt/1",
+      "source": "inqbeta:q/host",
+      "did": "did:key:z6MkpdzRhpXvNuvxCfYHk1EX2h3kAe61tJbWi58ijkeg8pVc",
+      "publicKey": "l1SZFrbv2cFP2Ld26PBEPu0RlkIlIYn6d01DMVHfsX8",
+      "signedAt": "2026-10-06T11:26:52.542Z",
+      "contentHash": "CxLYOqVTF2LJyZOGRgYV22zyaABvyfLdOhSpaEGgNHg",
+      "signature": "sb1hQzzTw3s-tCP_m6CXF06TtibXTi_F-4I4io280KSqtfu3hZJDfwBTLCUCawa_KKry9nSOhsDtSMJUBoQvBQ",
+      "content": {
+        "schema": "inqbeta.host-service/1",
+        "source": "inqbeta:q/host",
+        "host": "did:key:z6Mkvo5GNipFGRo6v29PbHnFXjvh8UFjLuBDnXYpRGzB6GCP",
+        "service": "money",
+        "setting": "Q_CURRENCY",
+        "ends": "£",
+        "at": "2026-10-06T11:26:52.525Z"
       }
     },
     {
@@ -90,6 +162,24 @@
         "setting": "Q_MINT_SEED",
         "ends": "AhW8",
         "at": "2026-10-03T14:26:46.791Z"
+      }
+    },
+    {
+      "schema": "inqbeta.receipt/1",
+      "source": "inqbeta:q/host",
+      "did": "did:key:z6MkpdzRhpXvNuvxCfYHk1EX2h3kAe61tJbWi58ijkeg8pVc",
+      "publicKey": "l1SZFrbv2cFP2Ld26PBEPu0RlkIlIYn6d01DMVHfsX8",
+      "signedAt": "2026-10-06T11:26:01.816Z",
+      "contentHash": "fbnJZLve5x_LXZNRYSoTG9BArAGo8w0tMt236Dt--so",
+      "signature": "PsVtDW3h0yQcOs0ElR1Wt2KPd3E23paNUZTq_dHcBootZGau1KpwvEa3RuS9F7ntvYLCc4F9XAKr1T-4E5rjCg",
+      "content": {
+        "schema": "inqbeta.host-service/1",
+        "source": "inqbeta:q/host",
+        "host": "did:key:z6Mkvo5GNipFGRo6v29PbHnFXjvh8UFjLuBDnXYpRGzB6GCP",
+        "service": "registry",
+        "setting": "Q_REGISTRAR_SEED",
+        "ends": "Tk4A",
+        "at": "2026-10-06T11:26:01.803Z"
       }
     },
     {

@@ -454,7 +454,19 @@ offer.
 - *Testing on your own machine:* a localhost site registers only with an
   Incubator that is itself on localhost.
 
-**Not yet:** a club registering through its host (today only the federation a
-site serves as its home can register, so a club can't be registered without its
-host by construction, but there's no way yet for a host to put its clubs
-forward); the manifest rules a host must meet; renewal reminders.
+- *Clubs, through their host.* A club on a host registers only through it.
+  The club's founder sends their host's caretaker a link (Register card →
+  **Ask … to put you forward**); it opens the host's page with one button.
+  The caretaker, in role, signs `inqbeta.put-forward/1` with the host's key
+  and their own; Incubator checks the host is registered and the signer is its
+  founder, countersigns (`inqbeta.club-on-host/1`) and keeps it under the host
+  (`/registry/<host>/clubs`). Then the club registers: its card names its
+  `host`; its site must be the host's; its core is the host's, said as
+  "Through its host: …". The club's receipt page shows **Its host** with the
+  host's own badge, and a club whose host is no longer registered shows "Not
+  registered now", while what its members signed stays theirs. Proved on the
+  rig: before being put forward, refused; put forward by a stranger, refused;
+  another site, refused; then registered.
+
+**Not yet:** the manifest rules a host must meet; a host withdrawing a club;
+renewal reminders; "only its people" visibility.
