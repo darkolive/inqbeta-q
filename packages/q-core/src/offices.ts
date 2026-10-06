@@ -480,15 +480,17 @@ export interface OfficePost {
 	inbox: string;
 	/** The appointment that makes them the holder, whole, so anyone can check it. */
 	appointment: Appointed;
+	/** When post for the office rings for them; out of hours it waits, and the asker is told. Absent: any time. */
+	hours?: OfficeHours;
 	at: string;
 }
 export type OfficePostReceipt = SealedReceipt & { content: OfficePost };
 
 /** The holder's notice: post for this office reaches my inbox. */
-export async function officePost(holder: Pick<Identity, 'did' | 'publicKey' | 'signing'>, a: Appointed, inbox: string, now = new Date()): Promise<OfficePostReceipt> {
+export async function officePost(holder: Pick<Identity, 'did' | 'publicKey' | 'signing'>, a: Appointed, inbox: string, now = new Date(), hours?: OfficeHours | null): Promise<OfficePostReceipt> {
 	if (toDid(holder.did) !== a.holder) throw new Error('Only the office’s holder can say where its post goes.');
 	if (!/^[A-Za-z0-9_-]{22}$/.test(inbox)) throw new Error('That isn’t an inbox.');
-	return (await sealWith(holder, { schema: OFFICE_POST_SCHEMA, source: 'inqbeta:q/offices', federation: a.federation, office: a.office, inbox, appointment: a, at: now.toISOString() } satisfies OfficePost)) as OfficePostReceipt;
+	return (await sealWith(holder, { schema: OFFICE_POST_SCHEMA, source: 'inqbeta:q/offices', federation: a.federation, office: a.office, inbox, appointment: a, ...(hours && hoursOk(hours) ? { hours } : {}), at: now.toISOString() } satisfies OfficePost)) as OfficePostReceipt;
 }
 
 export interface OfficeAddress {
@@ -496,6 +498,50 @@ export interface OfficeAddress {
 	holder: string;
 	inbox: string;
 	until: number;
+	hours?: OfficeHours;
+}
+
+/* ---- Office hours (Darren, 6 October: "between which hours … and if those hours are out of hours, then some kind of out-of-hours message") ---- */
+
+/** Days (0 Sunday … 6 Saturday) and hours, in a time zone. `to` is exclusive: 9–17 is nine till five. */
+export interface OfficeHours {
+	days: number[];
+	from: number;
+	to: number;
+	/** IANA time zone, e.g. Europe/London. */
+	zone: string;
+}
+export const WEEKDAYS_9_TO_5 = (zone: string): OfficeHours => ({ days: [1, 2, 3, 4, 5], from: 9, to: 17, zone });
+
+export function hoursOk(h: unknown): h is OfficeHours {
+	const x = h as OfficeHours;
+	if (!x || !Array.isArray(x.days) || !x.days.length || !x.days.every((d) => Number.isInteger(d) && d >= 0 && d <= 6)) return false;
+	if (!Number.isInteger(x.from) || !Number.isInteger(x.to) || x.from < 0 || x.to > 24 || x.from >= x.to) return false;
+	try {
+		new Intl.DateTimeFormat('en-GB', { timeZone: x.zone });
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+/** Is it within these hours now, in their own time zone? No hours: always. */
+export function inHours(h: OfficeHours | null | undefined, now = new Date()): boolean {
+	if (!h || !hoursOk(h)) return true;
+	const parts = new Intl.DateTimeFormat('en-GB', { timeZone: h.zone, weekday: 'short', hour: 'numeric', hourCycle: 'h23' }).formatToParts(now);
+	const day = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(parts.find((p) => p.type === 'weekday')?.value ?? '');
+	const hour = Number(parts.find((p) => p.type === 'hour')?.value);
+	return h.days.includes(day) && hour >= h.from && hour < h.to;
+}
+
+/** Hours in words: "Monday to Friday, 9 till 5 (UK time)". */
+export function hoursInWords(h: OfficeHours): string {
+	const names = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+	const d = [...h.days].sort((a, b) => a - b);
+	const run = d.length > 2 && d.every((x, i) => i === 0 || x === d[i - 1] + 1);
+	const days = d.length === 7 ? 'Every day' : run ? `${names[d[0]]} to ${names[d.at(-1)!]}` : d.map((x) => names[x]).join(', ');
+	const clock = (n: number) => (n === 0 || n === 24 ? 'midnight' : n === 12 ? 'noon' : n < 12 ? `${n}am` : `${n - 12}pm`);
+	return `${days}, ${clock(h.from)} till ${clock(h.to)} (${h.zone.replace(/_/g, ' ')} time)`;
 }
 
 /**
@@ -515,7 +561,7 @@ export async function officeAddresses(items: unknown[], federation: string, o: {
 		if (!(await checkReceipt(r)).ok || !(await checkAppointment(a, now)).ok) continue;
 		if (a.until * 1000 <= now.getTime() || a.mandates.some((m) => o.revoked?.has(m))) continue;
 		const key = `${a.office}|${a.holder}`;
-		if (!best.has(key) || best.get(key)!.at < c.at) best.set(key, { at: c.at, addr: { office: a.office, holder: a.holder, inbox: c.inbox, until: a.until } });
+		if (!best.has(key) || best.get(key)!.at < c.at) best.set(key, { at: c.at, addr: { office: a.office, holder: a.holder, inbox: c.inbox, until: a.until, ...(c.hours && hoursOk(c.hours) ? { hours: c.hours } : {}) } });
 	}
 	return [...best.values()].map((b) => b.addr);
 }

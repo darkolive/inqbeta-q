@@ -9,18 +9,25 @@
  * It's decided on this device and kept here. Nobody else sees it, and a
  * federation can't tell who has turned it down or off.
  */
+import { hoursOk, inHours, type OfficeHours } from '@inqbeta/q-core/offices';
+
 export type Reach = 'ring' | 'quiet' | 'off';
 
-/** 'people', or 'fed:<federation DID>'. Card updates and system come later. */
-export type Source = 'people' | `fed:${string}`;
+/**
+ * 'people' (personal messages), 'offices' (post for an office you hold,
+ * ADR-Q-038), or 'fed:<federation DID>' (a federation's news). Work and
+ * business come with business cards (ADR-Q-039).
+ */
+export type Source = 'people' | 'offices' | `fed:${string}`;
 
 /**
  * What each source may choose. 2 October 2026 (Darren): "it's either you get
  * notified of things from that source, or you don't." So: on (the bell rings
  * and counts) or off. A choice of "quiet" kept from before counts as on.
  */
-export const CHOICES: Record<'people' | 'fed', Reach[]> = {
+export const CHOICES: Record<'people' | 'offices' | 'fed', Reach[]> = {
 	people: ['ring', 'off'],
+	offices: ['ring', 'off'],
 	fed: ['ring', 'off']
 };
 
@@ -32,7 +39,7 @@ export const SAYS: Record<Reach, { label: string; means: string }> = {
 
 /* Belongs to whoever is signed in, so it goes when they sign out (q-core storage.ts). */
 const KEY = 'q.notify';
-const DEFAULTS = { people: 'ring', fed: 'ring' } as const;
+const DEFAULTS = { people: 'ring', offices: 'ring', fed: 'ring' } as const;
 
 function readAll(): Record<string, Reach> {
 	try {
@@ -43,7 +50,7 @@ function readAll(): Record<string, Reach> {
 }
 
 export function reachFor(source: Source, all: Record<string, Reach> = readAll()): Reach {
-	const kind = source === 'people' ? 'people' : 'fed';
+	const kind = source === 'people' ? 'people' : source === 'offices' ? 'offices' : 'fed';
 	const chosen = all[source] === 'quiet' ? 'ring' : all[source];
 	return chosen && CHOICES[kind].includes(chosen) ? chosen : DEFAULTS[kind];
 }
@@ -87,3 +94,29 @@ export function watchReach(cb: (all: Record<string, Reach>) => void): () => void
 		window.removeEventListener('storage', onStorage);
 	};
 }
+
+/* ---- Office hours (ADR-Q-038, 6 October 2026) ----
+ * When post for an office you hold rings. Out of hours it waits on the desk,
+ * quietly; you can check in any time. Kept on this device, and carried in
+ * your signed office-post notices, so whoever writes is told before they send.
+ */
+const HOURS_KEY = 'q.notify.hours';
+export function officeHours(): OfficeHours | null {
+	try {
+		const h = JSON.parse(localStorage.getItem(HOURS_KEY) ?? 'null') as unknown;
+		return hoursOk(h) ? h : null;
+	} catch {
+		return null;
+	}
+}
+export function setOfficeHours(h: OfficeHours | null): void {
+	try {
+		if (h && hoursOk(h)) localStorage.setItem(HOURS_KEY, JSON.stringify(h));
+		else localStorage.removeItem(HOURS_KEY);
+	} catch {
+		/* No storage: any time. */
+	}
+	window.dispatchEvent(new CustomEvent(KEY));
+}
+/** Should post for an office ring now? On, and in your hours. */
+export const officePostRings = (now = new Date()) => reachFor('offices') === 'ring' && inHours(officeHours(), now);

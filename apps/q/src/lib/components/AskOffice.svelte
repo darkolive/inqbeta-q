@@ -7,8 +7,13 @@
 	import { Icon } from '@inqbeta/q-ui';
 	import { askOffice } from '$lib/messages';
 	import { refreshLedger } from '$lib/ledger';
+	import { officeHref } from '$lib/office-post';
+	import { hoursInWords, inHours, type OfficeHours } from '@inqbeta/q-core/offices';
 
-	let { federation, office, called, of, holders = [], fallbackHref }: { federation: string; office: string; called: string; of: string; holders?: { holder: string; inbox: string }[]; fallbackHref: string } = $props();
+	let { federation, office, called, of, holders = [], fallbackHref }: { federation: string; office: string; called: string; of: string; holders?: { holder: string; inbox: string; hours?: OfficeHours }[]; fallbackHref: string } = $props();
+
+	/* Out of hours, said before sending: the message waits for them. */
+	const outOfHours = $derived(!!holders.length && holders.every((h) => !inHours(h.hours)));
 
 	let open = $state(false);
 	let text = $state('');
@@ -19,7 +24,7 @@
 		said = null;
 		const out = await askOffice(holders, { federation, office }, text);
 		busy = false;
-		said = out.ok ? { good: true, text: `Sent to the ${called.toLowerCase()} of ${of}. The answer comes to your messages.` } : { good: false, text: out.says };
+		said = out.ok ? { good: true, text: `${outOfHours ? 'Left' : 'Sent'} for the ${called.toLowerCase()} of ${of}. The answer comes to your messages.` } : { good: false, text: out.says };
 		if (out.ok) {
 			text = '';
 			open = false;
@@ -37,9 +42,10 @@
 	<span class="text-xs opacity-70">of {of}, whoever holds it now{holders.length ? '' : ' (the caretaker, until it’s filled)'}</span>
 	{#if open}
 		<div class="card preset-tonal-surface p-3 mt-2 w-full max-w-md flex flex-col gap-2">
+			{#if outOfHours}<p class="card preset-tonal-warning p-2 text-sm">Out of hours. Their hours are {hoursInWords(holders[0].hours!)}. Leave your message: it’ll be waiting for them.</p>{/if}
 			<label class="label"><span class="label-text">Your question</span><textarea class="textarea" rows="3" bind:value={text}></textarea></label>
 			<button type="button" class="btn preset-filled-primary-500 min-h-11 self-end" disabled={busy || !text.trim()} onclick={() => void send()}>{busy ? 'Sending…' : 'Send'}</button>
 		</div>
 	{/if}
-	{#if said}<p class="text-sm card p-2 {said.good ? 'preset-tonal-success' : 'preset-tonal-error'}" aria-live="polite">{said.text}</p>{/if}
+	{#if said}<p class="text-sm card p-2 {said.good ? 'preset-tonal-success' : 'preset-tonal-error'}" aria-live="polite">{said.text}{#if said.good} <a class="anchor" href={officeHref({ federation, office })}>See the conversation</a>{/if}</p>{/if}
 </div>

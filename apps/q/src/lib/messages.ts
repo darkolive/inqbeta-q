@@ -16,6 +16,7 @@ import { inboxOf, makePost, MESSAGE_SCHEMA, type Message } from '@inqbeta/q-core
 import { saveLocked } from '@inqbeta/q-core/folder';
 import { readHome } from '$lib/home';
 import { role } from '$lib/role.svelte';
+import { officePostRings } from '$lib/notify';
 import { isAgreementStep } from '@inqbeta/q-core/agreements';
 import { connectMqtt } from '$lib/mqtt-ws';
 import { receivePiece, keepFile } from '$lib/attachments';
@@ -175,8 +176,8 @@ export function collectInbox(): Promise<number> {
 			}
 		}
 		arrived.sort((a, b) => first(a.content.kind) - first(b.content.kind) || a.content.at.localeCompare(b.content.at));
-		/* Out of role, it's quiet (ADR-Q-038 §5): post for an office waits on its desk, and doesn't ring. */
-		for (const m of arrived) if (!m.content.office || role.isActing(m.content.office.federation, m.content.office.office)) for (const fn of listeners) fn(m);
+		/* Post for an office rings in role, or in your office hours if you've left it on; otherwise it waits on the desk, quietly (ADR-Q-038). */
+		for (const m of arrived) if (!m.content.office || role.isActing(m.content.office.federation, m.content.office.office) || officePostRings()) for (const fn of listeners) fn(m);
 		return arrived.length;
 	})().finally(() => (collecting = null));
 	return collecting;

@@ -95,7 +95,7 @@ export const GET: RequestHandler = async ({ url }) => {
 			contact: await (async () => {
 				const office = coinContactOf(state);
 				/* Whoever holds the office now, from their own signed notices; with nobody in it, the caretaker answers. */
-				const holders = (await officeAddressesFor(host)).filter((a) => a.office === office).map((a) => ({ holder: a.holder, inbox: a.inbox }));
+				const holders = (await officeAddressesFor(host)).filter((a) => a.office === office).map((a) => ({ holder: a.holder, inbox: a.inbox, ...(a.hours ? { hours: a.hours } : {}) }));
 				return { office, called: officeKind(office)?.called ?? office, answerer: holders[0]?.holder ?? host.founder, answererOffice: holders.length ? office : 'caretaker', holders };
 			})(),
 			mode,

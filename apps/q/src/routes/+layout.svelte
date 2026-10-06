@@ -6,6 +6,7 @@
 	 * - Desktop: Sidebar navigation (left) + content (right)
 	 * - Mobile: Bottom bar navigation + full-width content
 	 */
+	import { officeName } from '$lib/role.svelte';
 	import '../app.css';
 	import { onMount } from 'svelte';
 	import { page, updated } from '$app/state';
@@ -445,6 +446,12 @@
 				return;
 			}
 			if (m.content.kind === 'call-reply' || m.content.kind === 'call-declined') return;
+			/* Post for an office you hold: said as the office, and it rings by your office settings (messages.ts decided it may). */
+			if (m.content.office) {
+				announce = `Post for the ${officeName(m.content.office.office).toLowerCase()}`;
+				ring();
+				return;
+			}
 			announce = m.content.kind === 'linked-back' ? `${who} linked with you` : m.content.kind === 'voicemail' ? `Voice message from ${who}` : `New message from ${who}`;
 			if (reachFor('people') === 'ring') ring();
 		});

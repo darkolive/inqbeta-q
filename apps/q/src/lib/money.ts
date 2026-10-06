@@ -6,6 +6,7 @@
  * your balance is added up from your own receipts like everything else.
  * In test mode everything works and no money moves.
  */
+import type { OfficeHours } from '@inqbeta/q-core/offices';
 import type { Acting as ActingProof } from '@inqbeta/q-core/inrole';
 import { creditsWorth, money } from '@inqbeta/q-core/currency';
 import { sealWith } from '@inqbeta/q-core/seal';
@@ -22,7 +23,7 @@ export interface MintView {
 	/** How the coin looks, as its bank designed it. */
 	design?: CoinDesign;
 	/** Who answers for it (ADR-Q-037): the office, and who holds it today. */
-	contact?: { office: string; called: string; answerer: string; answererOffice: string; holders?: { holder: string; inbox: string }[] };
+	contact?: { office: string; called: string; answerer: string; answererOffice: string; holders?: { holder: string; inbox: string; hours?: OfficeHours }[] };
 	mode: 'test' | 'live';
 	/** The mint's currency (ISO 4217): one credit is one unit of it (ADR-Q-042 §3). */
 	currency: string;

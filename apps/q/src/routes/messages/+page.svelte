@@ -20,6 +20,8 @@
 	import { readIds } from '$lib/announcements';
 	import { MESSAGE_SCHEMA } from '@inqbeta/q-core/inbox';
 	import { isOfficeBusiness } from '$lib/messages';
+	import { officeOfMine, officeHref, federationLook, type OfficeRef } from '$lib/office-post';
+	import { officeName } from '$lib/role.svelte';
 	import type { Signed } from '$lib/messages';
 	import Composer from '$lib/components/message/Composer.svelte';
 	import { refreshLedger } from '$lib/ledger';
@@ -42,7 +44,7 @@
 		const by = new Map<string, { last: Signed; unread: number }>();
 		for (const r of ledger?.receipts ?? []) {
 			const m = r.json as Signed | undefined;
-			if (m?.content?.schema !== MESSAGE_SCHEMA || (m.content.kind !== 'message' && m.content.kind !== 'voicemail') || isOfficeBusiness(m, me)) continue;
+			if (m?.content?.schema !== MESSAGE_SCHEMA || (m.content.kind !== 'message' && m.content.kind !== 'voicemail') || isOfficeBusiness(m, me) || officeOfMine(m, me)) continue;
 			const them = m.did === me ? m.content.to : m.did;
 			const t = by.get(them) ?? { last: m, unread: 0 };
 			if (m.content.at > t.last.content.at) t.last = m;
@@ -53,6 +55,28 @@
 			.map(([did, t]) => ({ did, ...t, person: people.find((p) => p.did === did) }))
 			/* Anything not yet read first, then the newest. */
 			.sort((a, b) => Number(!!b.unread) - Number(!!a.unread) || b.last.content.at.localeCompare(a.last.content.at));
+	});
+	/* Conversations with an office (ADR-Q-038): shown as the federation and the office, never the holder's face. */
+	const officeTalks = $derived.by(() => {
+		const me = identity?.did ?? '';
+		const by = new Map<string, { ref: OfficeRef; last: Signed; unread: number }>();
+		for (const r of ledger?.receipts ?? []) {
+			const m = r.json as Signed | undefined;
+			if (m?.content?.schema !== MESSAGE_SCHEMA || m.content.kind !== 'message') continue;
+			const ref = officeOfMine(m, me);
+			if (!ref) continue;
+			const key = `${ref.federation}|${ref.office}`;
+			const t = by.get(key) ?? { ref, last: m, unread: 0 };
+			if (m.content.at > t.last.content.at) t.last = m;
+			if (ref.name && !t.ref.name) t.ref = ref;
+			if (m.did !== me && !seen.has(m.contentHash)) t.unread++;
+			by.set(key, t);
+		}
+		return [...by.values()].sort((a, b) => b.last.content.at.localeCompare(a.last.content.at));
+	});
+	let looks = $state<Record<string, { name: string; logo?: string }>>({});
+	$effect(() => {
+		for (const t of officeTalks) if (!looks[t.ref.federation]) void federationLook(t.ref.federation, t.ref.name).then((l) => (looks = { ...looks, [t.ref.federation]: l }));
 	});
 	const ready = $derived(ledger?.state === 'ready' || ledger?.state === 'no-folder');
 	const unread = $derived(threads.reduce((n, t) => n + t.unread, 0));
@@ -89,7 +113,7 @@
 
 	{#if !identity}
 		<div class="panel"><SignIn /></div>
-	{:else if !threads.length && !notYet.length}
+	{:else if !threads.length && !notYet.length && !officeTalks.length}
 		<Empty icon="message" title="No one to write to yet" description="Share your card with someone. When you've linked up, you can write to each other here.">
 			<a class="btn preset-filled-primary-500 min-h-11" href="/cards"><Icon name="share" size={16} /> Share my card</a>
 		</Empty>
@@ -103,6 +127,26 @@
 					Conversations
 					{#if unread}<span class="badge preset-filled-primary-500">{unread} new</span>{/if}
 				</h2>
+				{#if officeTalks.length}
+					<ul class="card preset-outlined-surface-200-800 bg-surface-50-950 divide-y divide-surface-200-800 overflow-hidden" aria-label="Offices you've written to">
+						{#each officeTalks as t (`${t.ref.federation}|${t.ref.office}`)}
+							{@const look = looks[t.ref.federation]}
+							<li class={t.unread ? 'border-s-4 border-primary-500' : ''}>
+								<a href={officeHref(t.ref)} class="flex items-center gap-4 p-4 hover:bg-surface-100-900 min-h-11">
+									{@render face({ name: look?.name ?? t.ref.name ?? '?', picture: look?.logo })}
+									<span class="flex-1 min-w-0">
+										<span class="block {t.unread ? 'font-bold' : ''}">{officeName(t.ref.office)} · {look?.name ?? t.ref.name ?? 'A federation'}</span>
+										<span class="text-sm opacity-70 truncate block">{t.last.did === identity.did ? 'You: ' : ''}{gist(t.last)}</span>
+									</span>
+									<span class="flex flex-col items-end gap-1 shrink-0">
+										<span class="text-xs opacity-60">{when(t.last.content.at)}</span>
+										{#if t.unread}<span class="badge-icon preset-filled-primary-500 text-xs">{t.unread}</span>{/if}
+									</span>
+								</a>
+							</li>
+						{/each}
+					</ul>
+				{/if}
 				{#if threads.length}
 					<ul class="card preset-outlined-surface-200-800 bg-surface-50-950 divide-y divide-surface-200-800 overflow-hidden">
 						{#each threads as t (t.did)}
@@ -124,7 +168,7 @@
 							</li>
 						{/each}
 					</ul>
-				{:else}
+				{:else if !officeTalks.length}
 					<p class="card preset-tonal-surface p-4">No conversations yet. Write your first message above.</p>
 				{/if}
 			</section>

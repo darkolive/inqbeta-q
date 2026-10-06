@@ -39,6 +39,7 @@
 		type MemberRecord,
 		type MembershipRecord,
 		appointOffice,
+		publishOfficePost,
 		recallOffice,
 		standDownOffice,
 		myOffices,
@@ -605,6 +606,19 @@
 		recallWhy = '';
 		await refreshLedger();
 	}
+	/* Taking up an office refreshes where its post goes, and your office hours, on the node. Once per office per visit. */
+	const refreshed = new Set<string>();
+	$effect(() => {
+		const d = desk;
+		const me = identity;
+		const m = mine;
+		if (!d?.appointment || !me || !m || refreshed.has(d.appointment)) return;
+		refreshed.add(d.appointment);
+		void (async () => {
+			for (const a of m.offices ?? []) if ((await hashAppointment(a)) === d.appointment) await publishOfficePost(me, a).catch(() => false);
+		})();
+	});
+
 	/* The office's post (ADR-Q-038 §5): what was asked of it, seen only in role, answered as the office. */
 	const post = $derived(desk && identity ? officeThreads(ledger?.receipts ?? [], identity.did, id, desk.office) : []);
 	const deskPeople = $derived(peopleFrom(ledger, identity?.did ?? ''));

@@ -271,3 +271,44 @@ ADR-Q-007 (federations; the person above), ADR-Q-014 (bellboy, directory,
 storage), ADR-Q-015 (cards with a purpose), ADR-Q-017 (treaties), ADR-Q-019
 (copies, authenticated hosts, marketplace, compliance), ADR-Q-020 (federations
 are a plugin), `q/node-sizes.md`, `q/home-node.md`, `releases.ts`.
+
+## Addendum, 6 October 2026: registering is being receipted; being listed is a choice
+
+Darren: "brand new host, brand new install … they do it all offline, localhost.
+They've got their site ready … mint its coin, everything in place. It then
+goes live. And how does it get found? It has to have signed up on our site and
+registered. And by that person registering on our site, they receipt their
+federation, register it with Incubator, and it appears on our directory. And
+they get on their site, just like a minted coin does, exactly the same thing,
+but it takes you to the receipt of the federation, the receipt page. And you
+can click on go to site, and it will open up the host's website. And that can
+be updated any given time through the receipt … that's how we decentralise,
+but we can always be found somewhere."
+
+> "In the federation receipt card, you put: do you want to be found? Public,
+> only seen by … all of those things get locked into the card settings, which
+> the federation owner can control. And so that way, the federation can still
+> get authenticated, receipted by Incubator by registering, which means they
+> get the key, they're valid … can show all of the confidence of that, that it
+> is an exact repo of us … but they can still be invisible. But if they want
+> to be found, then they can."
+
+**Decided (proposed):**
+
+- **Registering is separate from listing.** A new host registers its
+  federation with Incubator from localhost when it goes live: its signed
+  federation card goes to Incubator, which checks it and countersigns a
+  **registration receipt**. That's authentication (ADR-Q-019 §3): the host is
+  valid, its key known, its version shown.
+- **Visibility is on the card, set by the founder**: **public** (in Find, for
+  everyone); **only seen by** (members, treaty partners, people with the
+  link); **unlisted** (authenticated and checkable by anyone holding its
+  receipt, but never in Find). Changing it is a new signed version of the card.
+- **The federation's receipt page**, like a coin's verify page (ADR-Q-035): its
+  QR code on the host's own site leads to Incubator's page for the
+  registration, showing the card, that it's authenticated, the version it
+  runs, and **Go to site**. Updated by the host signing a new version; the
+  page always shows the latest, and its history.
+- Listing (§1–2) then reads the registration's visibility: only **public**
+  registrations appear in Find and in the directory releases.
+

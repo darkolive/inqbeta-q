@@ -32,6 +32,7 @@ import { foundingFacts } from '@inqbeta/q-actions/core/federation-found';
 import { appointFacts, endFacts } from '@inqbeta/q-actions/core/federation-offices';
 import { officePost } from '@inqbeta/q-core/offices';
 import { myInbox } from '$lib/messages';
+import { officeHours } from '$lib/notify';
 import { readHome } from '$lib/home';
 import { appoint, recall, standDown, checkAppointment, checkEnded, hashAppointment, officesHeld, revocationNotice, type Appointed, type Ended, type OfficeHeld, type OfficeId } from '@inqbeta/q-core/offices';
 import { actionHash, decide } from '$lib/actions/engine';
@@ -620,7 +621,7 @@ export async function publishOfficePost(identity: Identity, a: Appointed): Promi
 	const storage = home?.ok && home.federation === a.federation ? home.services.storage : undefined;
 	const inbox = await myInbox(identity);
 	if (!storage || !inbox) return false;
-	const notice = await officePost(identity, a, inbox.id);
+	const notice = await officePost(identity, a, inbox.id, new Date(), officeHours());
 	const r = await fetch(`${storage.replace(/\/$/, '')}/offices/${a.federation}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(notice) }).catch(() => null);
 	return !!r?.ok;
 }

@@ -401,3 +401,56 @@ The gate needs updating on the node to carry it (job A3).
   threads to the next holder (ADR-Q-037's open question); the desk's jobs
   and things to reconcile.
 
+## Addendum, 6 October 2026 (evening): the office speaks as the federation; hours
+
+Darren: "if you ask the officer, treasurer, for example, a question, then
+whoever is in that role receives that question and responds in the capacity
+of that role. So the avatar would be the federation's avatar, whether that's
+the company logo, whatever that may be. So any messages you see relating to a
+federation would appear as the federation and the officer responding."
+
+> "In your own settings, you should be able to choose on your notification
+> bell whether you receive work and business notifications, federation officer
+> notifications, as well as user messages, personal. And if it is a
+> federation notification, to have the option to say between which hours, and
+> you can check in any time yourself. And if those hours are out of hours,
+> then some kind of out-of-hours message appears back, which is why you can
+> always automatically leave a message. That would be a very safe way of
+> managing control over that sort of noise."
+
+**Decided:**
+
+- **One conversation with the office, shown as the federation.** For the
+  person asking, post to and from an office is one thread: the federation's
+  logo and name, and the office ("Treasurer · Green Space"), never the
+  holder's own face. Writing back goes to the office again, so it reaches
+  whoever holds it then.
+- **The bell, by kind**: personal messages; federation office post; work and
+  business (when business cards arrive, ADR-Q-039). Each on or off.
+- **Office hours** for office post: days and hours. In hours it rings; out of
+  hours it waits on the desk, quietly; the holder can check in any time.
+- **Out of hours is said before sending.** The holder's hours travel in their
+  signed office-post notice, so the asker's Q shows them the office's hours
+  and lets them leave a message, whatever state the holder's own device is in.
+
+**Built the same evening:**
+
+- **Office hours** (q-core `OfficeHours`, `inHours`, `hoursInWords`): days and
+  hours in the holder's own time zone, set on the bell card under **Office
+  post** ("Any time" or "In office hours"), kept on the device
+  (`q.notify.hours`) and carried in the holder's signed office-post notice,
+  refreshed each time they take up the office.
+- **The bell, by kind**: Messages (personal), **Office post** (new), and each
+  federation's news. Office post rings in role, or in your hours if it's on;
+  otherwise it waits on the desk, quietly.
+- **The asker's side**: one conversation per office, at
+  `/messages/office/<federation>/<office>`, headed by the federation's logo and
+  name and the office; the holder's face never shows. Out of hours it says so
+  ("Out of hours. The treasurer's hours are Monday to Friday, 9am till 5pm …
+  Leave your message: it'll be waiting for them.") and the button says
+  **Leave it**. Messages lists office conversations as the federation.
+- **Not yet**: work and business notifications (with business cards,
+  ADR-Q-039); the federation's logo for federations other than this host's;
+  an automatic reply *sent back* out of hours (not needed while the asker is
+  told before sending).
+

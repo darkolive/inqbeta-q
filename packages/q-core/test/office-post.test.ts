@@ -61,3 +61,19 @@ test('the treasurer’s post reaches Sam while he holds it; not a forger; not af
 		filer.close();
 	}
 });
+
+test('office hours: in their own time zone, said in words; a notice carries them', async () => {
+	const { inHours, hoursInWords, WEEKDAYS_9_TO_5, officePost, officeAddresses, appoint } = await import('../src/offices');
+	const h = WEEKDAYS_9_TO_5('Europe/London');
+	assert.equal(inHours(h, new Date('2026-10-06T10:00:00Z')), true, 'Tuesday 11am in London');
+	assert.equal(inHours(h, new Date('2026-10-06T16:30:00Z')), false, 'Tuesday 5:30pm in London');
+	assert.equal(inHours(h, new Date('2026-10-04T10:00:00Z')), false, 'Sunday');
+	assert.equal(inHours(null), true, 'no hours: any time');
+	assert.equal(hoursInWords(h), 'Monday to Friday, 9am till 5pm (Europe/London time)');
+	const darren = await identityFromSeed(seed(11));
+	const sam = await identityFromSeed(seed(12));
+	const f = await foundFederation(signerFor(darren), { ...newDraft(), name: 'Green Space', purpose: 'Gardening.' });
+	const a = await appoint(signerFor(f.key), signerFor(darren), { federation: f.founding.federation, office: 'treasurer', holder: sam.did, months: 12, says: 'Chosen.', grant: b64url(f.grant.bytes) });
+	const n = await officePost(sam, a, INBOX, new Date(), h);
+	assert.deepEqual((await officeAddresses([n], f.founding.federation))[0].hours, h);
+});
