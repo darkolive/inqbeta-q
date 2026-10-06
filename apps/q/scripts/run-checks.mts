@@ -57,7 +57,8 @@ async function look(page: Page, url: string, width: number, frame = false) {
 		return null;
 	});
 	await page.waitForTimeout(1500);
-	const seen = await page.evaluate((frame) => {
+	/* A page may send you on (signed out, to sign in): look again once it has settled. */
+	const read = () => page.evaluate((frame) => {
 		const visible = (e: Element) => {
 			const b = e.getBoundingClientRect();
 			return b.width > 0 && b.height > 0 && getComputedStyle(e).visibility !== 'hidden';
@@ -75,11 +76,22 @@ async function look(page: Page, url: string, width: number, frame = false) {
 			title: document.title.trim(),
 			text: (document.body.innerText || '').trim().length,
 			wide: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+			/* What sticks out past the right edge, so a sideways scroll says where it comes from. */
+			past: [...document.querySelectorAll('body *')]
+				.filter((e) => e.getBoundingClientRect().right > document.documentElement.clientWidth + 0.5 && e.getBoundingClientRect().width > 0)
+				.filter((e, _i, all) => !all.some((o) => o !== e && o.contains(e)))
+				.map((e) => `${e.tagName.toLowerCase()}${e.id ? '#' + e.id : ''}.${[...e.classList].slice(0, 4).join('.')} (to ${Math.round(e.getBoundingClientRect().right)})`)
+				.slice(0, 4),
 			small: [...new Set(small)].slice(0, 8),
 			noAlt: [...document.querySelectorAll('img')].filter((i) => !i.hasAttribute('alt')).map((i) => (i.getAttribute('src') || '').slice(0, 60)).slice(0, 8),
 			placeholders: [...document.querySelectorAll('input[placeholder], textarea[placeholder]')].filter((i) => (i.getAttribute('placeholder') || '').trim()).map((i) => i.getAttribute('placeholder')!.slice(0, 40)).slice(0, 8)
 		};
 	}, frame);
+	const seen = await read().catch(async () => {
+		await page.waitForLoadState('networkidle').catch(() => {});
+		await page.waitForTimeout(1500);
+		return read();
+	});
 	return { status: r?.status() ?? 0, errors, ...seen };
 }
 
@@ -106,7 +118,7 @@ for (const l of LISTS) {
 		ok('every-loads', wide.status > 0 && wide.status < 400 && !errs.length && wide.text > 20, `Status ${wide.status}; ${errs.slice(0, 3).join(' | ') || 'the page was nearly empty'}`);
 		ok('every-title', wide.h1 >= 1 && !!wide.title, `${wide.h1} main headings; tab title “${wide.title}”`);
 		ok('every-signed-out', wide.status > 0 && wide.status < 400 && wide.text > 20, 'Signed out, the page was empty or refused.');
-		ok('every-phone', phone.wide <= 1, `At 390 pixels it scrolls sideways by ${phone.wide} pixels.`);
+		ok('every-phone', phone.wide <= 1, `At 390 pixels it scrolls sideways by ${phone.wide} pixels. Sticking out: ${phone.past.join(', ') || 'nothing found'}.`);
 		ok('every-targets', !wide.small.length && !phone.small.length, `Under 44 pixels tall: ${[...new Set([...wide.small, ...phone.small])].join(', ')}`);
 		ok('every-alt', !wide.noAlt.length, `Pictures with no alt: ${wide.noAlt.join(', ')}`);
 		ok('every-no-placeholders', !wide.placeholders.length, `Placeholder text: ${wide.placeholders.join(', ')}`);

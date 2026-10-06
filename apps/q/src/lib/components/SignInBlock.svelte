@@ -278,7 +278,7 @@
 			</button>
 		</div>
 		{#if olderToo && mode === 'in'}
-			<button type="button" class="btn btn-sm preset-tonal min-h-11" disabled={working} onclick={() => void go(true)}>
+			<button type="button" class="btn btn-sm preset-tonal min-h-11 h-auto max-w-full whitespace-normal text-center" disabled={working} onclick={() => void go(true)}>
 				{t('signin.older')}
 			</button>
 		{/if}
