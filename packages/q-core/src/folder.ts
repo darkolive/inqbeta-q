@@ -516,6 +516,8 @@ function commonTop(names: string[]): string | null {
  * saved into a subfolder. Nothing starting with a dot. */
 function belongsInBackup(parts: string[]): boolean {
 	const name = parts[parts.length - 1];
+	/* An office's papers are the federation's, synced to its own storage: never in your personal backup (ADR-Q-038). */
+	if (parts[0] === OFFICE_SHELF) return false;
 	if (parts[0] === UCAN_FOLDER) return name.endsWith('.ucan');
 	if (parts.length === 1) return belongsInVault(name);
 	return true;
@@ -968,6 +970,8 @@ export async function listItems(): Promise<FolderItem[]> {
 			if (h.kind === 'directory') {
 				/* ucan/ holds signed permission tokens, shown under Receipts, not Files. */
 				if (!prefix && h.name === UCAN_FOLDER) continue;
+				/* Office records are the federation's, opened on the office's desk, not among your own files. */
+				if (!prefix && h.name === OFFICE_SHELF) continue;
 				if (depth < VAULT_DEPTH) subs.push(walk(h as FileSystemDirectoryHandle, `${prefix}${h.name}/`, depth + 1));
 				continue;
 			}
@@ -1349,4 +1353,75 @@ export async function proveFolder(into?: FileSystemDirectoryHandle): Promise<Pro
 		proof: { tried: true, wrote: true, readBack: back !== null, matched, at },
 		...(leftBehind ? { leftBehind } : {})
 	};
+}
+
+/* ---- The office shelf (ADR-Q-038, 6 October 2026) ----
+ *
+ * Darren: "the federation folder lives inside your working folder and then
+ * syncs to the designated storage … it always ensures that there is a DID
+ * sign-in authorising that part … and the only storage you have is whilst you
+ * hold that role."
+ *
+ * A real folder, "Office records", inside your working folder, with one shelf
+ * per office you hold. What's on it is sealed to the office's key, not
+ * yours, so only the office's keys open it; it's the working copy of the
+ * office's records, whose home is the federation's storage. Never in your
+ * personal backup or among your own files; emptied when the office ends.
+ */
+export const OFFICE_SHELF = 'Office records';
+
+async function shelfDir(shelf: string, create: boolean): Promise<FileSystemDirectoryHandle | null> {
+	if (!dir) return null;
+	const safe = shelf.replace(/[^A-Za-z0-9 _.-]/g, '').slice(0, 80);
+	if (!safe) return null;
+	try {
+		const top = await (dir as FileSystemDirectoryHandle).getDirectoryHandle(OFFICE_SHELF, { create });
+		return await top.getDirectoryHandle(safe, { create });
+	} catch {
+		return null;
+	}
+}
+
+/** Put something on an office's shelf (already sealed to the office's key). */
+export async function shelfPut(shelf: string, name: string, text: string): Promise<boolean> {
+	const d = await shelfDir(shelf, true);
+	if (!d) return false;
+	await writeIn(d, name.replace(/[^A-Za-z0-9_.-]/g, '').slice(0, 120) || 'item.json', text);
+	return true;
+}
+
+/** Everything on an office's shelf, as text. */
+export async function shelfRead(shelf: string): Promise<string[]> {
+	const d = await shelfDir(shelf, false);
+	if (!d) return [];
+	const out: string[] = [];
+	for await (const h of children(d)) {
+		if (h.kind !== 'file' || h.name.startsWith('.')) continue;
+		out.push(await (await (h as FileSystemFileHandle).getFile()).text());
+	}
+	return out;
+}
+
+/** The shelves on this folder now. */
+export async function shelves(): Promise<string[]> {
+	if (!dir) return [];
+	try {
+		const top = await (dir as FileSystemDirectoryHandle).getDirectoryHandle(OFFICE_SHELF, { create: false });
+		const out: string[] = [];
+		for await (const h of children(top)) if (h.kind === 'directory') out.push(h.name);
+		return out;
+	} catch {
+		return [];
+	}
+}
+
+/** Empty and remove a shelf: the office has ended, and its papers stay with the federation. */
+export async function shelfClear(shelf: string): Promise<void> {
+	if (!dir) return;
+	try {
+		const top = await (dir as FileSystemDirectoryHandle).getDirectoryHandle(OFFICE_SHELF, { create: false });
+		await top.removeEntry(shelf, { recursive: true });
+	} catch {
+		/* nothing there */
+	}
 }

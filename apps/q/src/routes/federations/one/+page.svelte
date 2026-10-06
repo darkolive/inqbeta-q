@@ -51,7 +51,7 @@
 	import { FINDINGS, type Finding } from '@inqbeta/q-core/attestation';
 	import { report as writeEvidenceReport } from '$lib/attestation';
 	import { officeThreads, sendTo, type Signed } from '$lib/messages';
-	import { readOfficeRecords, fileInOfficeRecords, cachedOfficePost } from '$lib/office-post';
+	import { readOfficeRecords, fileInOfficeRecords, readShelf, rememberOfficeKey, clearShelf } from '$lib/office-post';
 	import { openKeyring } from '@inqbeta/q-core/offices';
 	import { peopleFrom } from '$lib/people';
 	import type { Found } from '$lib/features/registry';
@@ -73,6 +73,7 @@
 	import CoinDesigner from '$lib/components/CoinDesigner.svelte';
 	import FederationBank from '$lib/components/FederationBank.svelte';
 	import RoleSwitch from '$lib/components/RoleSwitch.svelte';
+	import RegisterHost from '$lib/components/RegisterHost.svelte';
 	import TesterPasses from '$lib/components/TesterPasses.svelte';
 	import { role } from '$lib/role.svelte';
 	import { onDevelopmentSite } from '$lib/site';
@@ -635,7 +636,8 @@
 			for (const x of m.offices ?? []) if ((await hashAppointment(x)) === d.appointment) a = x;
 			const ring = a?.sealedKeys ? await openKeyring(a.sealedKeys, me) : null;
 			recordsSay = ring ? '' : 'This appointment came without the keys to the office’s records, so only post that reached you here shows.';
-			records = [...(ring ? await readOfficeRecords(ring).catch(() => []) : []), ...cachedOfficePost()];
+			if (a?.officeKey) rememberOfficeKey(id, d.office, a.officeKey);
+			records = ring ? [...(await readOfficeRecords(ring).catch(() => [])), ...(await readShelf(ring).catch(() => []))] : [];
 		})();
 	});
 	const post = $derived(desk && identity ? officeThreads([...(ledger?.receipts ?? []), ...records.map((json) => ({ json }))], identity.did, id, desk.office) : []);
@@ -693,7 +695,9 @@
 		busy = null;
 		if (!out.ok) return void (said = { tone: 'bad', text: out.says, rules: 'rules' in out ? out.rules : undefined });
 		await role.setDown();
-		said = { tone: 'good', text: 'You’ve stood down. Back to being just you.' };
+		/* The office's papers stay with the federation: its shelf in your folder is emptied. */
+		await clearShelf(id, a.office).catch(() => {});
+		said = { tone: 'good', text: 'You’ve stood down. Back to being just you. The office’s records stay with the federation.' };
 		tellThem = { link: out.link, note: 'Send this to the caretaker, so their record shows the office is free.' };
 		standingDown = false;
 		downWhy = '';
@@ -1389,6 +1393,8 @@
 						{ title: 'What can never change', says: 'Anyone may leave at any time and keep their receipts. No vote can remove that.' }
 					]}
 				/>
+				<!-- Registered with Incubator (ADR-Q-021): the host's receipt, and whether it's listed. -->
+				{#if isHome && own && identity}<div class="mb-6"><RegisterHost {identity} record={own} logo={home?.ok ? home.logo : undefined} /></div>{/if}
 				<!--
 					Only the host itself has a standing invitation for everyone who signs up
 					(ADR-Q-016). A club founded inside it never sees this: which federation is

@@ -372,3 +372,89 @@ ADR-Q-003 (sites), ADR-Q-005 (identity, ways back in), ADR-Q-007
 (federations, treaties), ADR-Q-016 (Incubator is a federation), ADR-Q-017 (the
 commons; the editable surface and fixed core), ADR-Q-018 (install on your own
 computer first), `LICENSING.md`, `TRADEMARKS.md`.
+
+## Addendum, 6 October 2026 (night): trust travels down; branches show their work
+
+Darren, looking at the first registered host on the directory: "that's a lovely
+receipt, just like the mint coin … the same principle applies to hosts
+registering with Incubator that confirms the core and everything is untouched
+and that it meets whatever the manifest rules are decided, and also can point
+to a Git branch history from the source of Incubator if they've gone and
+created their own. That would be lovely to see what they did, because you can
+really then see the skill of the direction of that branch, but it's still
+authenticated and verified as a valid QR code … no federation inside your host
+world can get authenticated themselves unless you are. So that's the way that
+users will say: look, this isn't a trusted site, so I'm not going to register
+here … a very good, easy, self-ruling mechanism that travels down."
+
+**Decided (proposed):**
+
+1. **A host's registration (ADR-Q-021) carries its authentication** (§3b): the
+   core it serves checked against Incubator's signed core list (§3a), and its
+   manifest against the rules a host must meet. The badge says "core checked as
+   served", never more than can be checked.
+2. **A branch shows its work.** A host built from its own branch names its Git
+   repository and the commit it runs; the receipt page links to it and shows
+   where it parts from Incubator's history. Pages, plugins and look may differ
+   freely; the core must match for the badge.
+3. **Trust travels down.** A club inside a host can be authenticated only while
+   its host is; its receipt page shows the chain, Incubator → host → club, each
+   with its own badge.
+4. **People are told before they join.** Signing up on a host that isn't
+   authenticated shows, first: "This host isn't authenticated by Incubator. Its
+   clubs can't be either." The choice stays theirs.
+5. **Nothing signed is voided.** A host that loses its badge shows "not
+   authenticated" for itself and its clubs; what people signed stays theirs and
+   valid (ADR-Q-007, Layer A).
+
+
+**Settled with Darren, the same night:** "it's either an authentic repo
+running, and so the hashes match. And if anything changes, it just breaks …
+Or it's a branch and you can follow through what's different and also still
+validate it as being a Q-Core project." So point 2 is softened: a branch whose
+core differs is still registered, as a branch, provided its card names its
+repository, branch and commit. What can't be registered is a core that differs
+and says nothing. It is the badge that breaks, never the site: the AGPL lets
+anyone run it, and a public branch with its commit named is also its source
+offer.
+
+**As built (6 October 2026, night):**
+
+- *The core, as served.* `packages/q-core/core-files.json` names the core
+  (canonical, did, passkey, seal, vault, keys, receipts, chain, links, session,
+  ucan/*). The build (`apps/q/vite.config.ts`) puts exactly these into one
+  self-contained chunk, `q-kernel`, and, after the files are written, writes
+  `/_q/core.json`: `inqbeta.core-served/1` with release, commit, the chunk's
+  path and the sha256 of its bytes. Checked: the fingerprint is stable when
+  pages change, and changes when a core file does.
+- *Incubator's core releases.* Whenever Incubator registers anyone, it reads
+  its own `/_q/core.json`, fingerprints its own chunk, and if that release is
+  new, its registrar signs it (`inqbeta.core-release/1`) and files it on its
+  node (`GET/POST /core-releases`; only `GATE_REGISTRAR` adds). So each
+  release Incubator runs becomes the master's signed word, with nobody having
+  to remember to publish it.
+- *The judgement* (`q-core/core-served.ts`, `judgeCore`). Incubator fetches the
+  registering site's `/_q/core.json` and the chunk it names, fingerprints the
+  bytes itself, and finds: **unchanged** (matches a release), **a branch**
+  (differs, and the card names its source), or **changed** (differs and says
+  nothing, or the site's word doesn't match what it serves). Changed is
+  refused; the finding is kept, signed, in the registration (`core`) and said
+  in its "checked" lines.
+- *The card* gains `source: { repo, branch, commit }`, signed with the rest.
+  The console's Register card asks "Straight from Incubator" or "My own
+  branch", and fills the commit from the site's own build.
+- *The receipt page* shows "Q's core, unchanged · release" or "A branch of Q"
+  with **See what's different**: a GitHub compare from the nearest release's
+  commit on `darkolive/inqbeta-q` to the branch's commit.
+- *Before you join* (`HostTrust`): on the join page, before signing in and
+  again with the invitation, and on the home page's Join card. It shows the
+  host and, for a club, the club, each Registered / A branch of Q / Testing /
+  Not registered, with a link to its receipt. Not registered is said plainly,
+  with "You can still join." Only the federation's name is looked up.
+- *Testing on your own machine:* a localhost site registers only with an
+  Incubator that is itself on localhost.
+
+**Not yet:** a club registering through its host (today only the federation a
+site serves as its home can register, so a club can't be registered without its
+host by construction, but there's no way yet for a host to put its clubs
+forward); the manifest rules a host must meet; renewal reminders.

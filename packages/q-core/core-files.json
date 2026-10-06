@@ -1,0 +1,16 @@
+{
+	"about": "What counts as Q's core (ADR-Q-019 \u00a73a; docs/identity/kernel.md): signing in, keys, sealing, how receipts are checked, and permission tokens. The build puts exactly these into one self-contained chunk, q-kernel, whose fingerprint Incubator checks as served. Change any of them and a copy's core is 'changed'.",
+	"files": [
+		"canonical",
+		"did",
+		"passkey",
+		"seal",
+		"vault",
+		"keys",
+		"receipts",
+		"chain",
+		"links",
+		"session",
+		"ucan/*"
+	]
+}

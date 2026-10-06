@@ -252,6 +252,103 @@ async function archives(req, res, origin, fed, key) {
 }
 
 /*
+ * ---- The registry (ADR-Q-021 addendum; 6 October 2026) ----
+ * Federations registered with Incubator: each entry is the federation's card
+ * (signed by its key and founder) with Incubator's registration (signed by its
+ * registrar). Only the registrar adds entries; anyone may read a federation's
+ * history; the list shows only public registrations still running.
+ *
+ *   GET  /registry                    { items: [{ card, registered } …] } public, running, newest per federation
+ *   GET  /registry/<federation DID>   { items: [{ card, registered } …] } its whole history
+ *   POST /registry/<federation DID>   { card, registered }, registered signed by GATE_REGISTRAR
+ */
+const REGISTRAR = (process.env.GATE_REGISTRAR ?? '').trim();
+const REGISTRY_ONE = /^\/registry\/(did:key:z[1-9A-HJ-NP-Za-km-z]+)$/;
+const registryDir = (fed) => `${FILER}/registry/${fed ? fed.replace(/[^A-Za-z0-9]/g, '') + '/' : ''}`;
+async function listJson(dirUrl, most = 500) {
+	const r = await fetch(dirUrl, { headers: { accept: 'application/json' } }).catch(() => null);
+	const j = r?.ok ? await r.json().catch(() => ({})) : {};
+	return (j.Entries ?? []).map((e) => String(e.FullPath ?? '')).slice(-most);
+}
+async function registryHistory(fed) {
+	const out = [];
+	for (const full of await listJson(registryDir(fed))) {
+		if (!full.endsWith('.json')) continue;
+		const f = await fetch(`${registryDir(fed)}${full.split('/').pop()}`).catch(() => null);
+		const x = f?.ok ? await f.json().catch(() => null) : null;
+		if (x) out.push(x);
+	}
+	return out.sort((a, b) => String(a?.registered?.content?.at ?? '').localeCompare(String(b?.registered?.content?.at ?? '')));
+}
+export async function registryEntryOk(x, fed, registrar = REGISTRAR) {
+	const r = x?.registered;
+	return !!registrar && r?.did === registrar && r?.content?.schema === 'inqbeta.federation-registered/1' && r.content.federation === fed && x?.card?.federation === fed && x?.card?.schema === 'inqbeta.federation-card/1' && (await signedReceipt(r));
+}
+/*
+ * ---- Q's core releases (ADR-Q-019 addendum; 6 October 2026) ----
+ * Each release's core fingerprint, as Incubator ran it, signed by its registrar.
+ *   GET  /core-releases   { items: [receipt …] }
+ *   POST /core-releases   receipt, signed by GATE_REGISTRAR; one per fingerprint
+ */
+const CORE_DIR = () => `${FILER}/core-releases/`;
+export async function coreReleaseOk(r, registrar = REGISTRAR) {
+	return !!registrar && r?.did === registrar && r?.content?.schema === 'inqbeta.core-release/1' && /^[0-9a-f]{64}$/.test(String(r.content.sha256 ?? '')) && (await signedReceipt(r));
+}
+async function coreReleases(req, res, origin) {
+	if (req.method === 'GET') {
+		const items = [];
+		for (const full of await listJson(CORE_DIR(), 2000)) {
+			if (!full.endsWith('.json')) continue;
+			const f = await fetch(`${CORE_DIR()}${full.split('/').pop()}`).catch(() => null);
+			const x = f?.ok ? await f.json().catch(() => null) : null;
+			if (x) items.push(x);
+		}
+		return send(res, origin, 200, { schema: 'inqbeta.core-releases/1', items });
+	}
+	if (req.method !== 'POST') return send(res, origin, 405, { says: 'Only GET and POST.' });
+	const raw = await readBody(req, LEDGER_BYTES);
+	let r = null;
+	try { r = JSON.parse(raw ?? ''); } catch { r = null; }
+	if (!(await coreReleaseOk(r))) return send(res, origin, 403, { says: 'Only Incubator’s registrar adds core releases.' });
+	const form = new FormData();
+	form.append('file', new Blob([JSON.stringify(r)], { type: 'application/json' }), `${r.content.sha256}.json`);
+	const kept = await fetch(`${CORE_DIR()}${r.content.sha256}.json`, { method: 'POST', body: form }).catch((e) => ({ ok: false, status: e.message }));
+	return kept.ok ? send(res, origin, 200, { ok: true }) : send(res, origin, 502, { says: `Couldn’t keep it: ${kept.status}` });
+}
+let registryQueue = Promise.resolve();
+async function registry(req, res, origin, fed) {
+	if (req.method === 'GET' && !fed) {
+		const items = [];
+		const now = new Date().toISOString();
+		for (const full of await listJson(registryDir(''), 2000)) {
+			const name = full.replace(/\/$/, '').split('/').pop();
+			if (!name || name.endsWith('.json')) continue;
+			const history = await registryHistory(`did:key:${name.replace(/^didkey/, '')}`).catch(() => []);
+			const last = history.at(-1);
+			if (last?.registered?.content?.visibility === 'public' && last.registered.content.until > now) items.push(last);
+		}
+		return send(res, origin, 200, { schema: 'inqbeta.registry/1', items });
+	}
+	if (!fed) return send(res, origin, 404, { says: 'Nothing here.' });
+	if (req.method === 'GET') return send(res, origin, 200, { schema: 'inqbeta.registry/1', federation: fed, items: await registryHistory(fed) });
+	if (req.method !== 'POST') return send(res, origin, 405, { says: 'Only GET and POST.' });
+	const raw = await readBody(req, LEDGER_BYTES);
+	let item = null;
+	try { item = JSON.parse(raw ?? ''); } catch { item = null; }
+	if (!(await registryEntryOk(item, fed))) return send(res, origin, 403, { says: 'Only Incubator’s registrar adds to the registry.' });
+	const name = String(item.registered.contentHash ?? '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64);
+	const run = registryQueue.then(async () => {
+		const form = new FormData();
+		form.append('file', new Blob([JSON.stringify(item)], { type: 'application/json' }), `${name}.json`);
+		const kept = await fetch(`${registryDir(fed)}${name}.json`, { method: 'POST', body: form }).catch((e) => ({ ok: false, status: e.message }));
+		return kept.ok ? { status: 200, body: { ok: true } } : { status: 502, body: { says: `Couldn’t keep it: ${kept.status}` } };
+	});
+	registryQueue = run.catch(() => {});
+	const { status, body } = await run.catch((e) => ({ status: 500, body: { says: e.message } }));
+	return send(res, origin, status, body);
+}
+
+/*
  * ---- The door (ADR-Q-034) ----
  * While the host is in test, only its founder's root, keys linked to that
  * root, and people the root has given a tester pass may act here. Reading
@@ -1259,6 +1356,10 @@ export const server = http.createServer(async (req, res) => {
 	if (op) return officePosts(req, res, origin, op[1]);
 	const ar = ARCHIVE.exec(decodeURIComponent(new URL(req.url, 'http://gate').pathname));
 	if (ar) return archives(req, res, origin, ar[1], ar[2]);
+	if (new URL(req.url, 'http://gate').pathname === '/core-releases') return coreReleases(req, res, origin);
+	if (new URL(req.url, 'http://gate').pathname === '/registry') return registry(req, res, origin, null);
+	const rg = REGISTRY_ONE.exec(decodeURIComponent(new URL(req.url, 'http://gate').pathname));
+	if (rg) return registry(req, res, origin, rg[1]);
 	const d = DROP.exec(new URL(req.url, 'http://gate').pathname);
 	if (d) return drops(req, res, origin, d[1]);
 	const ib = INBOX.exec(new URL(req.url, 'http://gate').pathname);

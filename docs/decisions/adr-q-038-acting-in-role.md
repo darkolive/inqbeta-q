@@ -508,3 +508,24 @@ your office allows you to access."
   host's (only the host's node keeps them); appointments made before tonight
   carry no keys, and the desk says so.
 
+### The office shelf: in your working folder, while you hold the office (6 October 2026, night)
+
+Darren: "does the federation folder live inside your working folder and then
+sync to the designated storage? That's probably the best way, because it
+always ensures there is a DID sign-in authorising that part … and the only
+storage you have is whilst you hold that role."
+
+**Decided and built:** the office's working copy lives in your working folder
+(opened by your passkey), in a real folder named **Office records**, one shelf
+per office you hold ("Treasurer of …"). Everything on it is **sealed to the
+office's key**, not yours: your sign-in opens the folder, the office's keys
+open the papers. It's **never in your personal backup** or among your own
+files (the backup and the file listing skip it), and its home is the
+federation's storage (the office archive). It's **emptied when the office
+ends**: on standing down, on a recall arriving, and, once per sign-in, for
+any office you no longer hold (a term run out). It replaces the browser-only
+working copy from earlier the same night. The office's public key is kept
+on the device (`q.office-keys`) so arriving post can be shelved sealed to it.
+Your own receipts (your appointment, your take-ups, what you signed) stay in
+your vault: they're yours.
+

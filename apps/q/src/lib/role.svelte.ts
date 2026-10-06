@@ -66,23 +66,31 @@ async function keep(r: { contentHash: string; content: { event: string; at: stri
 	});
 }
 
-let acting = $state<Acting | null>(null);
+/*
+ * Loaded once, when this module first runs in a browser: never while a page
+ * is reading it (Svelte refuses state changed mid-render, and the open pages
+ * went blank, 6 October 2026).
+ */
+let acting = $state<Acting | null>(typeof window === 'undefined' ? null : load());
 let started = false;
 let identity: Identity | null = null;
 function start() {
 	if (started || typeof window === 'undefined') return;
 	started = true;
-	acting = load();
-	watch((id) => {
-		if (identity && !id && acting) void role.setDown();
-		identity = id;
-		/* A role taken up by someone else on this device isn't yours. */
-		if (id && acting?.takenUp && acting.takenUp.did !== id.did) {
-			acting = null;
-			remember(null);
-		}
-	});
+	/* Outside any render: the passkey's changes arrive on their own schedule. */
+	queueMicrotask(() =>
+		watch((id) => {
+			if (identity && !id && acting) void role.setDown();
+			identity = id;
+			/* A role taken up by someone else on this device isn't yours. */
+			if (id && acting?.takenUp && acting.takenUp.did !== id.did) {
+				acting = null;
+				remember(null);
+			}
+		})
+	);
 }
+if (typeof window !== 'undefined') start();
 
 export const role = {
 	/** The role taken up, if any. */

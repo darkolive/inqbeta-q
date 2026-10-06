@@ -69,3 +69,24 @@ threads, who can open a seal). New:
 - **Caretaker post**: should the caretaker publish an office post too (from
   the founding grant), so "Ask" reaches them inside Q rather than by the
   messages link?
+
+## Later that night: records, registration, trust travels down
+
+| What | Where |
+|---|---|
+| **An office's records belong to the federation**: each office has its own key, handed on with every appointment and turned over when someone leaves; its archive is on the federation's node; whoever holds the office reads its history | `offices.ts` keyrings and archive, gate `/archive/<fed>/<officeKey>`, ADR-Q-038 |
+| **The office shelf**: office post lives in your working folder under *Office records*, sealed to the office, never in your personal backup, emptied when the office ends | `folder.ts` `shelf*`, `lib/office-post.ts` |
+| **Registering with Incubator**: the federation card (visibility: public, only its people, unlisted), Incubator's countersignature, a receipt page with QR and **Go to site**, the directory | `q-core/registration.ts`, `api/registry`, `/registered/<fed>`, `/directory`, gate `/registry`, ADR-Q-021 |
+| **Trust travels down**: every build writes `/_q/core.json` naming its core chunk; Incubator fingerprints the bytes the site serves and finds *unchanged*, *a branch* (source named on the card, with **See what's different**) or *changed* (refused). Incubator signs each release it runs, by itself. **Before you join** shows the host (and club) as Registered, A branch of Q, Testing or Not registered | `core-files.json`, `vite.config.ts`, `q-core/core-served.ts`, `lib/server/core.ts`, `HostTrust.svelte`, gate `/core-releases`, ADR-Q-019 addendum |
+
+Proved end to end on a rig (a site, the gate, Incubator on localhost): the
+straight copy registered as unchanged, a changed core refused, the same change
+with its branch named registered as a branch.
+
+**Darren, on top of Start here:** the node update (A3) now also carries
+`/archive`, `/registry` and `/core-releases`; make `Q_REGISTRAR_SEED`
+(Services → Registry) and put its DID on the node as `GATE_REGISTRAR`.
+
+**Next on this thread:** a host putting its clubs forward (today only a site's
+home federation can register); the manifest rules a host must meet; renewal
+reminders; "only its people" visibility.

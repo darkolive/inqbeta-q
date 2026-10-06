@@ -6,6 +6,7 @@
 	 * - Desktop: Sidebar navigation (left) + content (right)
 	 * - Mobile: Bottom bar navigation + full-width content
 	 */
+	import { tidyOfficeShelves } from '$lib/federations';
 	import { officeName } from '$lib/role.svelte';
 	import '../app.css';
 	import { onMount } from 'svelte';
@@ -532,6 +533,8 @@
 				restoreBackups(k.backups);
 			}
 			keptReady = true;
+			/* Once per sign-in: empty the shelf of any office you no longer hold (ADR-Q-038). */
+			void tidyOfficeShelves(ledger!.found.filter((f) => f.kind === 'membership').map((f) => f.item), did).catch(() => {});
 		});
 	});
 	/* The bell's number, counted only once the read marks are back: never a number that then vanishes. */

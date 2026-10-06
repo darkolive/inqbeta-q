@@ -6,6 +6,9 @@
 import { MESSAGE_SCHEMA } from '@inqbeta/q-core/inbox';
 import { archiveItem, officeAddresses, officeIdentities, readArchive, revokedSet, type OfficeAddress, type OfficeId, type OfficeKeyring } from '@inqbeta/q-core/offices';
 import { current } from '@inqbeta/q-core/passkey';
+import { sealTo, openWith, checkReceipt, type SealedToPeople } from '@inqbeta/q-core/seal';
+import { shelfPut, shelfRead, shelfClear, shelves } from '@inqbeta/q-core/folder';
+import { officeName } from '$lib/role.svelte';
 import { readHome } from '$lib/home';
 import type { Signed } from '$lib/messages';
 
@@ -96,22 +99,80 @@ export async function readOfficeRecords(ring: OfficeKeyring): Promise<Signed[]> 
 	return out;
 }
 
-/* ---- The working copy: post for an office, on this device only, until the archive has it ---- */
-const CACHE = 'q.office-cache';
-const CACHE_MOST = 200;
-export function cacheOfficePost(m: Signed): void {
+/* ---- The office shelf (ADR-Q-038): the working copy, in your folder, sealed to the office ---- *
+ * "Office records" in your working folder, one shelf per office you hold:
+ * each letter sealed to the office's key, never in your personal backup,
+ * emptied when the office ends. The record itself is the archive on the
+ * federation's storage; the shelf is what this device works from.
+ */
+const KEYS = 'q.office-keys';
+const keyMap = (): Record<string, string> => {
 	try {
-		const all = JSON.parse(localStorage.getItem(CACHE) ?? '[]') as Signed[];
-		if (all.some((x) => x.signature === m.signature)) return;
-		localStorage.setItem(CACHE, JSON.stringify([...all, m].slice(-CACHE_MOST)));
+		return JSON.parse(localStorage.getItem(KEYS) ?? '{}') as Record<string, string>;
 	} catch {
-		/* no room: the archive still has it */
+		return {};
+	}
+};
+/** The office's key now (a public DID, from the appointment), so arriving post can be shelved sealed to it. */
+export function rememberOfficeKey(federation: string, office: string, key: string): void {
+	try {
+		localStorage.setItem(KEYS, JSON.stringify({ ...keyMap(), [`${federation}|${office}`]: key }));
+	} catch {
+		/* the shelf waits for the desk */
 	}
 }
-export function cachedOfficePost(): Signed[] {
+function forgetOfficeKey(federation: string, office: string): void {
+	const m = keyMap();
+	delete m[`${federation}|${office}`];
 	try {
-		return JSON.parse(localStorage.getItem(CACHE) ?? '[]') as Signed[];
+		localStorage.setItem(KEYS, JSON.stringify(m));
 	} catch {
-		return [];
+		/* nothing kept */
+	}
+}
+/** The shelf's name on disk: readable in Finder, unique per federation and office. */
+export const shelfName = (federation: string, office: string) => `${officeName(office)} of ${federation.slice(-10)}`;
+
+/** Put a letter for an office on its shelf, sealed to the office's key. Nothing if the key isn't known here yet. */
+export async function shelveOfficePost(m: Signed): Promise<void> {
+	const ref = m.content.office ?? m.content.fromOffice;
+	const key = ref ? keyMap()[`${ref.federation}|${ref.office}`] : undefined;
+	if (!ref || !key) return;
+	const { sealed } = await sealTo(m, [key], `The ${officeName(ref.office).toLowerCase()}’s records`, { zip: true });
+	await shelfPut(shelfName(ref.federation, ref.office), `${m.contentHash.slice(0, 24)}.json`, JSON.stringify(sealed)).catch(() => false);
+}
+
+/** What's on an office's shelf, opened with its keys. */
+export async function readShelf(ring: OfficeKeyring): Promise<Signed[]> {
+	const ids = await officeIdentities(ring);
+	const out: Signed[] = [];
+	for (const text of await shelfRead(shelfName(ring.federation, ring.office)).catch(() => [])) {
+		try {
+			const sealed = JSON.parse(text) as SealedToPeople;
+			const id = ids.find((k) => sealed.recipients?.some((r) => r.did === k.did));
+			if (!id) continue;
+			const opened = await openWith(sealed, id);
+			if (opened.ok && (await checkReceipt(opened.body)).ok) out.push(opened.body as Signed);
+		} catch {
+			/* not one of ours */
+		}
+	}
+	return out;
+}
+
+/** The office has ended: empty its shelf, and forget its key here. Its papers stay with the federation. */
+export async function clearShelf(federation: string, office: string): Promise<void> {
+	await shelfClear(shelfName(federation, office));
+	forgetOfficeKey(federation, office);
+}
+
+/** Empty every shelf for an office you no longer hold. */
+export async function tidyShelves(held: { federation: string; office: string }[]): Promise<void> {
+	const keep = new Set(held.map((h) => shelfName(h.federation, h.office)));
+	for (const s of await shelves().catch(() => [])) if (!keep.has(s)) await shelfClear(s);
+	const m = keyMap();
+	for (const k of Object.keys(m)) {
+		const [federation, office] = k.split('|');
+		if (!held.some((h) => h.federation === federation && h.office === office)) forgetOfficeKey(federation, office);
 	}
 }

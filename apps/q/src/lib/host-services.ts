@@ -77,6 +77,13 @@ export const HOST_SERVICES: {
 	},
 	{ id: 'own', called: 'Q’s own', what: 'Sending sign-in codes to people who aren’t signed in yet.', from: 'Made on this computer', settings: [{ name: 'Q_SERVICE_SEED', secret: true }, { name: 'Q_OTP_SECRET', secret: true }] },
 	{
+		id: 'registry',
+		called: 'Registry',
+		what: 'Incubator only: the key that countersigns hosts registering with it (ADR-Q-021). Its DID goes on the node as GATE_REGISTRAR.',
+		from: 'Made on this computer',
+		settings: [{ name: 'Q_REGISTRAR_SEED', secret: true }]
+	},
+	{
 		id: 'federations',
 		called: 'Federations',
 		what: 'Let your members found their own clubs inside your host. Off: your host is a single site with its own membership.',
@@ -136,7 +143,7 @@ export const SETTABLE = new Set(HOST_SERVICES.flatMap((s) => s.settings.map((x) 
 export const isSecret = (name: string) => HOST_SERVICES.some((s) => s.settings.some((x) => x.name === name && x.secret));
 
 /** Settings Q makes for you: random, so nobody has to invent one. */
-export const MADE_FOR_YOU = new Set(['Q_SERVICE_SEED', 'Q_OTP_SECRET', 'Q_TURN_SECRET', 'Q_MINT_SEED']);
+export const MADE_FOR_YOU = new Set(['Q_SERVICE_SEED', 'Q_OTP_SECRET', 'Q_TURN_SECRET', 'Q_MINT_SEED', 'Q_REGISTRAR_SEED']);
 
 /*
  * A service record (ADR-Q-018 §4): "Email: Resend · ending 4f2a · set 2 Oct by

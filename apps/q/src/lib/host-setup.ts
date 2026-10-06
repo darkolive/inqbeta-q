@@ -175,7 +175,7 @@ export async function setService(identity: Identity, host: string, service: stri
 
 /** A random value for a setting Q makes for you: 32 bytes for the seed, 48 for the sign-in secret, base64url. */
 export function madeForYou(setting: string): string {
-	const bytes = crypto.getRandomValues(new Uint8Array(setting === 'Q_SERVICE_SEED' || setting === 'Q_MINT_SEED' ? 32 : 48));
+	const bytes = crypto.getRandomValues(new Uint8Array(setting === 'Q_SERVICE_SEED' || setting === 'Q_MINT_SEED' || setting === 'Q_REGISTRAR_SEED' ? 32 : 48));
 	return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 

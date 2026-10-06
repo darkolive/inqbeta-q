@@ -22,6 +22,7 @@
 	import { checkInvitation, checkMembership, isAppointment, isInvitation, isJoining, isNotice, isOfficeEnded, unpack, type Packet } from '@inqbeta/q-core/membership';
 	import { checkAppointment, officeKind } from '@inqbeta/q-core/offices';
 	import { readHome } from '$lib/home';
+	import HostTrust from '$lib/components/HostTrust.svelte';
 	import {
 		isFederationRecord,
 		isMembershipRecord,
@@ -253,6 +254,7 @@
 	{:else if !packet}
 		<p class="opacity-60">Reading the link…</p>
 	{:else if !identity}
+		{#if isInvitation(packet)}<div class="mb-6"><HostTrust federation={packet.founding.federation} name={packet.founding.name} /></div>{/if}
 		<SignIn />
 	{:else}
 		{#if said}
@@ -288,6 +290,7 @@
 						{/if}
 						<p class="text-2xl font-bold">{inv.founding.name}</p>
 						<p class="text-lg">{c.purpose}</p>
+						<HostTrust federation={inv.founding.federation} name={inv.founding.name} />
 						<p>{JOIN_POLICIES.find((p) => p.id === c.joinPolicy)?.means}{inv.offer.for ? ` This invitation was made for ${inv.offer.for}.` : ''} It runs out on {onDay(new Date(inv.offer.exp * 1000).toISOString())}.</p>
 						<p>We’ll go through what joining means one thing at a time — {steps.length} {steps.length === 1 ? 'thing' : 'things'} to agree to, then how you’d like to be known. Nothing is signed until the end.</p>
 						<div class="flex flex-wrap gap-3">

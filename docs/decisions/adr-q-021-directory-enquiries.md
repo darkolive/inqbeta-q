@@ -1,6 +1,6 @@
 ---
 status: proposed
-implementation: none
+implementation: registration and a first directory, 6 October 2026
 updated: 2026-10-03
 ---
 
@@ -311,4 +311,41 @@ but we can always be found somewhere."
   page always shows the latest, and its history.
 - Listing (§1–2) then reads the registration's visibility: only **public**
   registrations appear in Find and in the directory releases.
+
+### As built, 6 October 2026 (night): registration, the receipt page, a first directory
+
+- **q-core `registration.ts`**: the **federation card**
+  (`inqbeta.federation-card/1`): name, purpose, logo, site, **visibility**
+  (public; only its people; unlisted), the Q it runs, the card before it;
+  signed by the federation's key **and** its founder. The **registration**
+  (`inqbeta.federation-registered/1`): Incubator's countersignature, by its
+  **registrar key**, saying what it checked; 90 days; renewing is
+  registering again. `latestCard` follows the chain of versions.
+- **Incubator's `/api/registry`**: takes a card from any host's console,
+  fetches the live site's own `incubator.json`, checks its two-signature
+  founding and that the card is from that federation and that founder, then
+  countersigns and files it on Incubator's node. Open to other origins.
+- **The gate keeps `/registry/<federation>`** (the whole history) and
+  `/registry` (public, running, newest per federation); only the registrar
+  (`GATE_REGISTRAR`) adds.
+- **The receipt page** `/registered/<federation>`, open to anyone: the card,
+  "Registered with Incubator until …", visibility, the Q it runs, what was
+  checked, **Go to site**, its QR code, and its history. Every check is
+  done on the reader's device.
+- **`/directory`**: the public, running registrations, each checked.
+- **The console**: Settings → **Registered with Incubator** (in role as
+  caretaker, on your own host): who can find you, your live address, **Sign
+  and register** / **Sign and update**, then your receipt page and its code.
+- **Proved end to end** in a rig: a new host's site, the gate, Incubator.
+  An impostor founder and a site serving another federation were refused;
+  an unlisted registration stayed out of the directory; updating to public
+  put it in, with both versions in its history.
+- **To switch it on**: on Incubator's localhost, Services → **Registry** →
+  make `Q_REGISTRAR_SEED`, send it to the live site; put its DID on the node
+  as `GATE_REGISTRAR`; update the gate. Copies send to `https://inqbeta.com`
+  (`PUBLIC_INCUBATOR` points elsewhere for testing).
+- **Not yet**: "only its people" is recorded, but the page doesn't yet hide
+  details from non-members; the core check (ADR-Q-019 §3a: is the code
+  unchanged) isn't part of registering yet; renewal reminders; Find by
+  place and kind.
 

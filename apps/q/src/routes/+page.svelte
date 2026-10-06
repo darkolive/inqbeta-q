@@ -33,6 +33,7 @@
 	import YouNews from '$lib/components/YouNews.svelte';
 	import YourPeople from '$lib/components/YourPeople.svelte';
 	import HowQWorks from '$lib/components/HowQWorks.svelte';
+	import HostTrust from '$lib/components/HostTrust.svelte';
 
 	/* What people use Q for — the home page's uses, in order (29 September). */
 	const USES: { key: string; icon: IconName }[] = [
@@ -161,6 +162,7 @@
 				</div>
 				<a class="btn preset-filled-primary-500 min-h-11" href={home.joinHref}>Read and join</a>
 			</div>
+			<div class="mt-3"><HostTrust federation={home.federation} name={home.name} /></div>
 		{/if}
 
 		<!-- Two columns on a wide screen: news and activity on the left, people

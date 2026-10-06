@@ -32,6 +32,7 @@ import { foundingFacts } from '@inqbeta/q-actions/core/federation-found';
 import { appointFacts, endFacts } from '@inqbeta/q-actions/core/federation-offices';
 import { officePost, newOfficeKeyring, openKeyring, sealKeyring, turnOver, type OfficeKeyring } from '@inqbeta/q-core/offices';
 import { myInbox } from '$lib/messages';
+import { rememberOfficeKey, clearShelf, tidyShelves } from '$lib/office-post';
 import { officeHours } from '$lib/notify';
 import { readHome } from '$lib/home';
 import { appoint, recall, standDown, checkAppointment, checkEnded, hashAppointment, officesHeld, revocationNotice, type Appointed, type Ended, type OfficeHeld, type OfficeId } from '@inqbeta/q-core/offices';
@@ -654,6 +655,7 @@ export async function receiveAppointment(mine: MembershipRecord, a: Appointed, i
 	const others: Appointed[] = [];
 	for (const x of mine.offices ?? []) if ((await hashAppointment(x)) !== h) others.push(x);
 	await keep('federations/memberships', `${short(mine.joining.federation)}.json`, { ...mine, offices: [...others, a], at: new Date().toISOString() });
+	if (a.officeKey) rememberOfficeKey(a.federation, a.office, a.officeKey);
 	return { ok: true, published: identity ? await publishOfficePost(identity, a).catch(() => false) : false };
 }
 
@@ -675,6 +677,8 @@ export async function receiveEndingAsHolder(mine: MembershipRecord, e: Ended): P
 	for (const a of mine.offices ?? []) {
 		if ((await checkEnded(e, a)).ok) {
 			await keep('federations/memberships', `${short(mine.joining.federation)}.json`, { ...mine, officeEndings: [...(mine.officeEndings ?? []), e], at: new Date().toISOString() });
+			/* Recalled: the office's papers stay with the federation; its shelf in your folder is emptied. */
+			await clearShelf(a.federation, a.office).catch(() => {});
 			return { ok: true };
 		}
 	}
@@ -701,3 +705,18 @@ export async function myOffices(did: string, federation: string, o: { own?: Fede
 
 /** Which of the caretaker's office records are still running. */
 export const runningOffice = (o: OfficeRecord, now = Date.now()) => !o.ended && o.appointment.until * 1000 > now;
+
+/**
+ * Empty the shelf of any office you no longer hold (a term run out, a recall
+ * read elsewhere): the office's papers stay with the federation (ADR-Q-038).
+ * From your memberships as the vault holds them.
+ */
+export async function tidyOfficeShelves(items: FolderItem[], did: string): Promise<void> {
+	const held: { federation: string; office: string }[] = [];
+	for (const item of items) {
+		const r = await recordFrom(item);
+		if (!isMembershipRecord(r)) continue;
+		for (const h of await myOffices(did, r.joining.federation, { mine: r })) if (h.office !== 'caretaker') held.push({ federation: r.joining.federation, office: h.office });
+	}
+	await tidyShelves(held);
+}

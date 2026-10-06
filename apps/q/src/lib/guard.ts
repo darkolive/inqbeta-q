@@ -46,9 +46,12 @@ export function isPublicPage(path: string): boolean {
  * reachable by someone who has not signed in — otherwise the link in an email
  * leads to a redirect instead of the receipt.
  */
-export const OPEN_PREFIXES = ['/c/', '/card/', '/verify/', '/channels/', '/federations/join', '/attest', '/legal/', '/shop/', '/offer/', '/stories'];
+export const OPEN_PREFIXES = ['/c/', '/card/', '/verify/', '/channels/', '/federations/join', '/attest', '/registered/', '/directory', '/legal/', '/shop/', '/offer/', '/stories'];
 
 /*
+ * '/registered/' and '/directory' — a federation's registration with Incubator,
+ * and the public list (ADR-Q-021): for anyone, signed in or not.
+ *
  * '/attest' — an evidence report or its verification (ADR-Q-038). Like a
  * federation link, its packet is in the #fragment; a verifier opening it
  * signed out would lose it on a redirect. The page asks for the passkey itself.

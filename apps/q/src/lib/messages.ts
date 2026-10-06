@@ -17,7 +17,7 @@ import { saveLocked } from '@inqbeta/q-core/folder';
 import { readHome } from '$lib/home';
 import { role } from '$lib/role.svelte';
 import { officePostRings } from '$lib/notify';
-import { fileInOfficeRecords, cacheOfficePost } from '$lib/office-post';
+import { fileInOfficeRecords, shelveOfficePost } from '$lib/office-post';
 import { isAgreementStep } from '@inqbeta/q-core/agreements';
 import { connectMqtt } from '$lib/mqtt-ws';
 import { receivePiece, keepFile } from '$lib/attachments';
@@ -76,7 +76,7 @@ export async function sendTo(
 	}
 	/* Calls' handshakes aren't conversation: only real words are kept as yours. What you send for an office goes to its records instead. */
 	if (kept(what.kind) && !what.fromOffice) await keep(signed).catch(() => {});
-	if (what.fromOffice) cacheOfficePost(signed);
+	if (what.fromOffice) await shelveOfficePost(signed).catch(() => {});
 	return { ok: true, signed };
 }
 
@@ -162,7 +162,7 @@ export function collectInbox(): Promise<number> {
 				if (!check.ok || signed.content?.schema !== MESSAGE_SCHEMA || signed.content.to !== me.did) continue;
 				/* Post for an office isn't yours to keep: it's in the office's records on the federation's node (ADR-Q-038). */
 				if (kept(signed.content.kind) && !signed.content.office) await keep(signed);
-				if (signed.content.office) cacheOfficePost(signed);
+				if (signed.content.office) await shelveOfficePost(signed).catch(() => {});
 				/* A piece of a big file: kept until the last one is in, then joined into the file. */
 				if (signed.content.kind === 'piece') await receivePiece(signed.content.piece);
 				/* Small files ride inside: keep them in the vault's files too, so they're found like any other. */
