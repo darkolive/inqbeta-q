@@ -72,18 +72,18 @@ export function costOf(flow: Flow, monthlyPence: number, capacityGB: number): Co
 }
 
 /**
- * A price in credits, and what it means for minting. `perGBHourPence` is the
- * cost chosen (usually the full-use floor plus a margin); `pencePerCredit` the
- * host's current Q_CREDIT_PENCE. Says how many credits a GB-hour should cost,
- * and, the other way round, what a credit should be worth if a GB-day is to
- * cost one credit — a simple anchor people can picture.
+ * A price in credits. `perGBHourPence` is the cost chosen (usually the
+ * full-use floor plus a margin), in minor units of the mint's currency;
+ * `minorPerCredit` is one unit of it (100 for pounds: one credit is £1,
+ * ADR-Q-042 §3). Says how many credits a GB held for an hour, and for a day,
+ * should cost.
  */
-export function priceOf(perGBHourPence: number, pencePerCredit: number, margin = 0.2) {
+export function priceOf(perGBHourPence: number, minorPerCredit: number, margin = 0.2) {
 	const withMargin = perGBHourPence * (1 + margin);
 	return {
 		perGBHourPence: withMargin,
-		creditsPerGBHour: pencePerCredit > 0 ? withMargin / pencePerCredit : null,
-		/** If one credit buys a GB held for a day. */
-		pencePerCreditForGBDay: withMargin * 24
+		creditsPerGBHour: minorPerCredit > 0 ? withMargin / minorPerCredit : null,
+		/** A GB held for a day, in credits. */
+		creditsPerGBDay: minorPerCredit > 0 ? (withMargin * 24) / minorPerCredit : null
 	};
 }

@@ -13,6 +13,7 @@
 import { ACTION_SCHEMA, type ActionDefinition, type Rule } from '../actions';
 import { CEDAR_VERSION } from '../version';
 import { booksOf, spendable, type MintReceipt } from '@inqbeta/q-core/mint';
+import { minorPerCredit } from '@inqbeta/q-core/currency';
 
 type MintAction = 'credits.mint' | 'credits.cashout' | 'credits.burn';
 
@@ -100,12 +101,14 @@ export const MINT_ACTIONS = [CREDITS_MINT, CREDITS_CASHOUT, CREDITS_BURN];
 
 /**
  * Which action a mint step is, and its facts, given the receipts before it.
- * `pencePerCredit` is the mint's published backing. `moneyConfirmed` comes
+ * `currency` is the mint's: one credit is one unit of it. `moneyConfirmed` comes
  * from the payment provider (real money only; test mode never needs it).
  */
-export function mintFacts(prior: { json?: unknown; holds?: string }[], next: MintReceipt, pencePerCredit: number, o: { moneyConfirmed?: boolean; approvedByAI?: boolean } = {}) {
+export function mintFacts(prior: { json?: unknown; holds?: string }[], next: MintReceipt, currency: string, o: { moneyConfirmed?: boolean; approvedByAI?: boolean } = {}) {
 	const c = next.content;
-	const b = booksOf(prior, c.mint, c.mode, pencePerCredit);
+	const b = booksOf(prior, c.mint, c.mode, currency);
+	/* The facts keep the names Pence: minor units of the mint's currency. */
+	const unit = minorPerCredit(currency);
 	const person = (id: string) => ({ __entity: { type: 'Person', id: id || 'nobody' } });
 	const holder = c.kind === 'mint' ? (c.to ?? '') : (c.from ?? '');
 	const asks = prior.map((r) => r.json).filter((j): j is MintReceipt => (j as MintReceipt | undefined)?.content?.kind === 'cashout');
@@ -121,7 +124,7 @@ export function mintFacts(prior: { json?: unknown; holds?: string }[], next: Min
 		credits: c.credits,
 		valueInPence: (c.pence ?? 0) + (c.capital?.pence ?? 0),
 		citesValueIn: !!c.cites?.length,
-		creditsValuePence: c.credits * pencePerCredit,
+		creditsValuePence: c.credits * unit,
 		spendable: canMove,
 		answersAsk: !!ask && ask.did === ask.content.from,
 		askAlreadyPaid: !!c.asks && paid.has(c.asks),

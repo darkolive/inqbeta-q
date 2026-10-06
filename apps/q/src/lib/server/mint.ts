@@ -20,7 +20,8 @@ import { identityFromSeed, type Identity } from '@inqbeta/q-core/passkey';
 import { unb64url } from '@inqbeta/q-core/canonical';
 import { checkReceipt } from '@inqbeta/q-core/seal';
 import { checkInvitation, isInvitation, unpack } from '@inqbeta/q-core/membership';
-import { coinDesignFrom, moneyStateOf, type CoinDesign, type MoneyState } from '@inqbeta/q-core/money';
+import { coinContactFrom, coinDesignFrom, moneyStateOf, publishedCurrency, type CoinDesign, type MoneyState } from '@inqbeta/q-core/money';
+import { currencyFrom } from '@inqbeta/q-core/currency';
 import { booksOf, isMintEvent, type MintMode, type MintReceipt } from '@inqbeta/q-core/mint';
 import { isAgreementStep } from '@inqbeta/q-core/agreements';
 import { MINT_ACTIONS } from '@inqbeta/q-actions/core/mint';
@@ -47,11 +48,14 @@ export function mintIdentity(): Promise<Identity> {
 	});
 }
 
-/** What one credit costs and pays out, in pence (Q_CREDIT_PENCE; £1 if unset). */
-export function pencePerCredit(state?: MoneyState): number {
-	if (state?.publication) return state.publication.pencePerCredit;
-	const n = Number(env.Q_CREDIT_PENCE ?? '100');
-	return Number.isInteger(n) && n > 0 ? n : 100;
+/**
+ * The mint's currency (ADR-Q-042 §3): one credit costs, and cashes out for,
+ * one whole unit of it. Once published, the one signed into the publication,
+ * for good; before that, Q_CURRENCY in Money (pounds if unset).
+ */
+export function currencyOf(state?: MoneyState): string {
+	if (state?.publication) return publishedCurrency(state.publication);
+	return currencyFrom(env.Q_CURRENCY);
 }
 
 /**
@@ -61,6 +65,12 @@ export function pencePerCredit(state?: MoneyState): number {
 export function coinNameOf(state?: MoneyState): string {
 	if (state?.publication) return state.publication.coinName?.trim() ?? '';
 	return (env.Q_COIN_NAME ?? '').trim().slice(0, 40);
+}
+
+/** Who answers for the coin (ADR-Q-037): an office, signed into the publication once live; before that, Q_COIN_CONTACT in Money. Treasurer unless chosen. */
+export function coinContactOf(state?: MoneyState): string {
+	if (state?.publication) return coinContactFrom(state.publication.coinContact);
+	return coinContactFrom(env.Q_COIN_CONTACT);
 }
 
 /** The coin's design: signed into the publication once live; before that, Q_COIN_DESIGN in Money. */
@@ -180,8 +190,8 @@ export async function decideMint(action: string, principal: string, mint: string
 }
 
 /** The mint's books, from its own ledger. */
-export function books(ledger: unknown[], mint: string, mode: MintMode, pence: number) {
-	return booksOf(ledger.map((json) => ({ json })), mint, mode, pence);
+export function books(ledger: unknown[], mint: string, mode: MintMode, currency: string) {
+	return booksOf(ledger.map((json) => ({ json })), mint, mode, currency);
 }
 
 export type { MintReceipt };

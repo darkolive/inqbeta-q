@@ -24,7 +24,8 @@ import { isRelease } from '@inqbeta/q-core/releases';
 import { isCarrierRecord } from '$lib/releases';
 import { isFederationDraft, isLegacyFederation } from '@inqbeta/q-core/federations';
 import { standingAt } from '@inqbeta/q-core/membership';
-import { isFederationRecord, isMembershipRecord, isMemberRecord, isNodeRecord } from '$lib/federations';
+import { isFederationRecord, isMembershipRecord, isMemberRecord, isNodeRecord, isOfficeRecord, runningOffice } from '$lib/federations';
+import { officeKind } from '@inqbeta/q-core/offices';
 
 /** Something a pack recognised in the folder. */
 export interface Found {
@@ -349,6 +350,23 @@ function recogniseFederations(json: unknown, item: FolderItem): Found[] | null {
 						: complete
 						? { text: 'Member', tone: 'good' as const }
 						: { text: 'Waiting', tone: 'waiting' as const },
+				at: content.at,
+				item
+			}
+		];
+	}
+	if (isOfficeRecord(content)) {
+		const ap = content.appointment;
+		const called = officeKind(ap.office)?.called ?? ap.office;
+		return [
+			{
+				feature: 'federations',
+				kind: 'office',
+				key: `office:${content.federation}:${ap.office}:${ap.holder}`,
+				title: `${called}: ${content.called ?? `${ap.holder.slice(0, 16)}…${ap.holder.slice(-6)}`}`,
+				description: ap.says,
+				meta: content.ended ? `Ended ${onDay(content.ended.at)}` : `Until ${onDay(new Date(ap.until * 1000).toISOString())}`,
+				status: runningOffice(content) ? { text: 'Holds office', tone: 'good' as const } : { text: 'Ended', tone: 'plain' as const },
 				at: content.at,
 				item
 			}

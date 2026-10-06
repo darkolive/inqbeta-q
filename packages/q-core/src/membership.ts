@@ -43,6 +43,8 @@ import {
 	type Joined,
 	type JoinedStatement
 } from './federations';
+import { OFFICE_APPOINTED_SCHEMA, OFFICE_ENDED_SCHEMA, type Appointed, type Ended } from './offices';
+import { EVIDENCE_REPORT_SCHEMA, EXTERNAL_VERIFICATION_SCHEMA, type EvidenceReportReceipt, type ExternalVerificationReceipt } from './attestation';
 
 export const FEDERATION_OFFER_SCHEMA = 'inqbeta.federation-offer/1';
 export const FEDERATION_INVITATION_SCHEMA = 'inqbeta.federation-invitation/1';
@@ -528,14 +530,19 @@ async function inflate(bytes: Uint8Array): Promise<string> {
 
 /** What travels in a link: an invitation, a joining, or news of a decision about a member. */
 export type Notice = Removed | Suspended | Lifted;
-export type Packet = Invitation | Joining | Notice;
+/* Offices (offices.ts) travel the same way: an appointment to its holder, an ending to whoever needs to know. */
+export type Packet = Invitation | Joining | Notice | Appointed | Ended | EvidenceReportReceipt | ExternalVerificationReceipt;
 
 const PACKET_SCHEMAS = [
 	FEDERATION_INVITATION_SCHEMA,
 	FEDERATION_JOINED_SCHEMA,
 	FEDERATION_REMOVED_SCHEMA,
 	FEDERATION_SUSPENDED_SCHEMA,
-	FEDERATION_LIFTED_SCHEMA
+	FEDERATION_LIFTED_SCHEMA,
+	OFFICE_APPOINTED_SCHEMA,
+	OFFICE_ENDED_SCHEMA,
+	EVIDENCE_REPORT_SCHEMA,
+	EXTERNAL_VERIFICATION_SCHEMA
 ];
 
 /** Pack an invitation or a joining for a link. */
@@ -546,7 +553,9 @@ export async function pack(p: Packet): Promise<string> {
 export async function unpack(text: string): Promise<Packet | null> {
 	try {
 		const p = JSON.parse(await inflate(unb64url(text.replace(/^#/, '')))) as Packet;
-		return p && PACKET_SCHEMAS.includes(p.schema) ? p : null;
+		/* Sealed receipts (reports, verifications) name their kind inside their content. */
+		const kind = (p as { content?: { schema?: string } })?.content?.schema;
+		return p && (PACKET_SCHEMAS.includes(p.schema) || (!!kind && PACKET_SCHEMAS.includes(kind))) ? p : null;
 	} catch {
 		return null;
 	}
@@ -557,6 +566,18 @@ export function isInvitation(p: unknown): p is Invitation {
 }
 export function isJoining(p: unknown): p is Joining {
 	return (p as Joining)?.schema === FEDERATION_JOINED_SCHEMA;
+}
+export function isEvidenceReport(p: unknown): p is EvidenceReportReceipt {
+	return (p as EvidenceReportReceipt)?.content?.schema === EVIDENCE_REPORT_SCHEMA;
+}
+export function isExternalVerification(p: unknown): p is ExternalVerificationReceipt {
+	return (p as ExternalVerificationReceipt)?.content?.schema === EXTERNAL_VERIFICATION_SCHEMA;
+}
+export function isAppointment(p: unknown): p is Appointed {
+	return (p as Appointed)?.schema === OFFICE_APPOINTED_SCHEMA;
+}
+export function isOfficeEnded(p: unknown): p is Ended {
+	return (p as Ended)?.schema === OFFICE_ENDED_SCHEMA;
 }
 export function isNotice(p: unknown): p is Notice {
 	const s = (p as Notice)?.schema;

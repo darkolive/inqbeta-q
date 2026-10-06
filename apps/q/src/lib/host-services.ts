@@ -90,9 +90,10 @@ export const HOST_SERVICES: {
 		from: 'Your host’s mint',
 		settings: [
 			{ name: 'Q_MINT_SEED', secret: true },
-			{ name: 'Q_CREDIT_PENCE', secret: false },
+			{ name: 'Q_CURRENCY', secret: false },
 			{ name: 'Q_COIN_NAME', secret: false },
-			{ name: 'Q_COIN_DESIGN', secret: false }
+			{ name: 'Q_COIN_DESIGN', secret: false },
+			{ name: 'Q_COIN_CONTACT', secret: false }
 		]
 	},
 	{

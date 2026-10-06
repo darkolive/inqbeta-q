@@ -16,6 +16,8 @@
 	 * on this computer as Q_COIN_NAME and Q_COIN_DESIGN in Money, each signed
 	 * by you (setService), and signed into the publication when you go live.
 	 */
+	import { OFFICES } from '@inqbeta/q-core/offices';
+	const CONTACTS = OFFICES.filter((o) => ['treasurer', 'secretary', 'chair', 'compliance', 'caretaker'].includes(o.id));
 	import { Status } from '@inqbeta/q-ui';
 	import type { Identity } from '@inqbeta/q-core/passkey';
 	import { COIN_COLOURS, COIN_SHAPES, DEFAULT_COIN, coinDesignFingerprint, coinDesignFrom, coinDesignLine, type CoinDesign, type CoinPaint, type CoinShape } from '@inqbeta/q-core/money';
@@ -28,16 +30,19 @@
 	let mint = $state('');
 	let design = $state<CoinDesign>({ ...DEFAULT_COIN });
 	let name = $state('');
+	/* Who answers for the coin (ADR-Q-037): an office, never a person. */
+	let contact = $state('treasurer');
 	let saved = $state('');
 	$effect(() => {
 		void readMint(true).then((m) => {
 			mint = m.view?.mint ?? '';
 			design = coinDesignFrom(m.view?.design ?? DEFAULT_COIN);
 			name = m.view?.name ?? '';
-			saved = JSON.stringify({ design, name });
+			contact = m.view?.contact?.office ?? 'treasurer';
+			saved = JSON.stringify({ design, name, contact });
 		});
 	});
-	const changed = $derived(JSON.stringify({ design, name }) !== saved);
+	const changed = $derived(JSON.stringify({ design, name, contact }) !== saved);
 
 	const SHAPE_SAYS: Record<CoinShape, string> = { circle: 'Circle', square: 'Square', hexagon: 'Hexagon', shield: 'Shield', skull: 'Skull and crossbones', picture: 'Your picture' };
 	const SWATCH: Record<string, string> = {
@@ -85,9 +90,10 @@
 		says = null;
 		const a = await setService(identity, host, 'money', 'Q_COIN_DESIGN', coinDesignLine(design));
 		const b = a.ok && name.trim() ? await setService(identity, host, 'money', 'Q_COIN_NAME', name.trim()) : a;
+		const c = b.ok ? await setService(identity, host, 'money', 'Q_COIN_CONTACT', contact) : b;
 		busy = false;
-		if (!a.ok || !b.ok) return void (says = { good: false, text: (!a.ok ? a : (b as { says: string })).says });
-		saved = JSON.stringify({ design, name });
+		if (!a.ok || !b.ok || !c.ok) return void (says = { good: false, text: (!a.ok ? a : !b.ok ? (b as { says: string }) : (c as { says: string })).says });
+		saved = JSON.stringify({ design, name, contact });
 		says = { good: true, text: 'That’s your coin: saved on this computer and signed by you. Restart Q to see it everywhere; it’s signed into the publication when you go live. A picture goes live with your next release, beside your logo.' };
 		onChanged?.();
 	}
@@ -109,8 +115,18 @@
 		<div class="flex-1 min-w-60 flex flex-col gap-4">
 			<label class="label">
 				<span class="label-text">Its name</span>
-				<input class="input" maxlength="40" placeholder="Incubator credit" bind:value={name} />
+				<input class="input" maxlength="40" bind:value={name} />
 			</label>
+
+			<fieldset class="flex flex-col gap-2">
+				<legend class="label-text">Who answers for it</legend>
+				<p class="text-sm">Questions about the coin go to an office, not a person: whoever holds it at the time.</p>
+				<div class="flex flex-wrap gap-2" role="radiogroup" aria-label="Who answers for it">
+					{#each CONTACTS as k (k.id)}
+						<button type="button" role="radio" aria-checked={contact === k.id} class="btn btn-sm min-h-11 {contact === k.id ? 'preset-filled-primary-500' : 'preset-tonal'}" onclick={() => (contact = k.id)}>{k.called}</button>
+					{/each}
+				</div>
+			</fieldset>
 
 			<fieldset class="flex flex-col gap-2">
 				<legend class="label-text">Its shape</legend>

@@ -46,7 +46,13 @@ export function isPublicPage(path: string): boolean {
  * reachable by someone who has not signed in — otherwise the link in an email
  * leads to a redirect instead of the receipt.
  */
-export const OPEN_PREFIXES = ['/c/', '/card/', '/verify/', '/channels/', '/federations/join', '/legal/', '/shop/', '/offer/', '/stories'];
+export const OPEN_PREFIXES = ['/c/', '/card/', '/verify/', '/channels/', '/federations/join', '/attest', '/legal/', '/shop/', '/offer/', '/stories'];
+
+/*
+ * '/attest' — an evidence report or its verification (ADR-Q-038). Like a
+ * federation link, its packet is in the #fragment; a verifier opening it
+ * signed out would lose it on a redirect. The page asks for the passkey itself.
+ */
 
 /*
  * '/verify/' — where a coin's QR code leads (ADR-Q-035): anyone who scans a

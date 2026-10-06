@@ -26,10 +26,15 @@
  *
  *   circulation  = minted − destroyed
  *   Σ holders    = circulation            (every credit is somewhere)
- *   cash + capital ≥ circulation × pence per credit   (every credit is backed)
+ *   cash + capital ≥ circulation × one unit of the currency   (every credit is backed)
+ *
+ * Amounts (`pence`) are minor units of the mint's currency: pence for a
+ * pound-mint, cents for a euro-mint (ADR-Q-042 §3). The field keeps its name
+ * because receipts already signed carry it.
  *
  * Facts only: Q records pounds paid in and out; it never moves money.
  */
+import { minorPerCredit } from './currency';
 import type { SealedReceipt } from './seal';
 import { isAgreementStep, standingOf, type AgreementReceipt } from './agreements';
 
@@ -94,6 +99,10 @@ export interface Reconciliation {
 	covers: { count: number; latest: string | null };
 	/** Who asked for it: the treasurer, by DID; and their ask, by content hash. */
 	by: string;
+	/** The office they asked in (ADR-Q-038): treasurer, or caretaker. Absent on reconciliations from before offices. */
+	byOffice?: string;
+	/** An interest they declared on taking up the office, if any (ADR-Q-038 §6). */
+	byInterest?: string;
 	asks: string;
 	at: string;
 }
@@ -135,10 +144,11 @@ const add = (m: Map<string, number>, k: string, n: number) => m.set(k, (m.get(k)
 
 /**
  * The books of one mint, in one mode, from receipts (any order, copies fine).
- * `pencePerCredit` is the mint's published backing: what a credit costs and
- * what cashing it out pays.
+ * `currency` is the mint's (ISO 4217): one credit costs, and cashes out for,
+ * one whole unit of it (ADR-Q-042 §3).
  */
-export function booksOf(receipts: { json?: unknown; holds?: string }[], mint: string, mode: MintMode, pencePerCredit: number): Books {
+export function booksOf(receipts: { json?: unknown; holds?: string }[], mint: string, mode: MintMode, currency: string): Books {
+	const unit = minorPerCredit(currency);
 	const b: Books = { mint, mode, minted: 0, destroyed: 0, circulation: 0, cashIn: 0, cashOut: 0, cashReserve: 0, capitalReserve: 0, holders: new Map(), asked: new Map(), reconciled: true, backed: true, problems: [] };
 	const events = new Map<string, MintReceipt>();
 	const steps: AgreementReceipt[] = [];
@@ -160,7 +170,7 @@ export function booksOf(receipts: { json?: unknown; holds?: string }[], mint: st
 			if (!c.to) { reject(r, 'a mint names who receives the credits.'); continue; }
 			const valueIn = (c.pence ?? 0) + (c.capital?.pence ?? 0);
 			if (!c.cites?.length || valueIn <= 0) { reject(r, 'no credit without value in: cite the payment or the capital.'); continue; }
-			if (c.credits * pencePerCredit > valueIn) { reject(r, 'more credits than the value that came in.'); continue; }
+			if (c.credits * unit > valueIn) { reject(r, 'more credits than the value that came in.'); continue; }
 			b.minted += c.credits;
 			b.cashIn += c.pence ?? 0;
 			b.capitalReserve += c.capital?.pence ?? 0;
@@ -201,7 +211,7 @@ export function booksOf(receipts: { json?: unknown; holds?: string }[], mint: st
 		if (!ask) { reject(r, 'a burn answers a holder’s ask to cash out.'); continue; }
 		if (burned.has(ask.contentHash)) { reject(r, 'that ask has already been paid.'); continue; }
 		if (ask.content.from !== c.from || ask.content.credits !== c.credits) { reject(r, 'the burn must match the ask: the same holder, the same credits.'); continue; }
-		if (!c.payout || (c.pence ?? 0) !== c.credits * pencePerCredit) { reject(r, 'a burn records the payout: its reference, and the published value of the credits.'); continue; }
+		if (!c.payout || (c.pence ?? 0) !== c.credits * unit) { reject(r, 'a burn records the payout: its reference, and the published value of the credits.'); continue; }
 		if ((b.holders.get(c.from!) ?? 0) < c.credits) { reject(r, 'the holder doesn’t hold that many credits.'); continue; }
 		if (b.cashIn - b.cashOut < (c.pence ?? 0)) { reject(r, 'the cash reserve can’t pay that out.'); continue; }
 		burned.add(ask.contentHash);
@@ -216,7 +226,7 @@ export function booksOf(receipts: { json?: unknown; holds?: string }[], mint: st
 	for (const [k, v] of b.holders) if (v === 0) b.holders.delete(k);
 	const held = [...b.holders.values()].reduce((n, v) => n + v, 0);
 	b.reconciled = held === b.circulation && [...b.holders.values()].every((v) => v >= 0);
-	b.backed = b.cashReserve + b.capitalReserve >= b.circulation * pencePerCredit;
+	b.backed = b.cashReserve + b.capitalReserve >= b.circulation * unit;
 	if (!b.reconciled) b.problems.push(`The books don’t reconcile: holders have ${held}, but ${b.circulation} are in circulation.`);
 	if (!b.backed) b.problems.push('The reserves don’t cover the credits in circulation.');
 	return b;

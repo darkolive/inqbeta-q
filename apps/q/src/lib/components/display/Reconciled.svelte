@@ -8,6 +8,7 @@
 	 * more), and the words always say how long, who asked, and how much has
 	 * moved since.
 	 */
+	import { officeKind } from '@inqbeta/q-core/offices';
 	import type { ReconciliationReceipt } from '@inqbeta/q-core/mint';
 
 	let { last, movesSince = 0, nameOf = () => undefined }: { last: { at: string; by: string; hash: string; receipt: ReconciliationReceipt } | null | undefined; movesSince?: number; nameOf?: (did: string) => string | undefined } = $props();
@@ -25,7 +26,9 @@
 	});
 	const ago = $derived(!last ? '' : days < 1 ? 'today' : days < 2 ? 'yesterday' : `${Math.floor(days)} days ago`);
 	const short = (d: string) => (d.length > 24 ? `${d.slice(0, 14)}…${d.slice(-6)}` : d);
-	const who = $derived(last ? (nameOf(last.by) ?? short(last.by)) : '');
+	/* Asked for by an office (ADR-Q-038): say which, where it was recorded. */
+	const asOffice = $derived(last?.receipt?.content.byOffice ? (officeKind(last.receipt.content.byOffice)?.called.toLowerCase() ?? last.receipt.content.byOffice) : '');
+	const who = $derived(last ? `${nameOf(last.by) ?? short(last.by)}${asOffice ? `, as ${asOffice}` : ''}` : '');
 </script>
 
 <div class="flex items-start gap-3 text-sm">
@@ -34,6 +37,7 @@
 		{#if last}
 			<p><strong>Last reconciled {ago}</strong>, {new Date(last.at).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })}.</p>
 			<p class="text-surface-700-300">Signed by the bank at the ask of <span title={last.by}>{who}</span>. {movesSince ? `${movesSince} move${movesSince === 1 ? '' : 's'} in its books since.` : 'Nothing has moved in its books since.'}</p>
+			{#if last.receipt?.content.byInterest}<p class="text-sm">They declared an interest: {last.receipt.content.byInterest}</p>{/if}
 			<details>
 				<summary class="cursor-pointer select-none text-surface-700-300">The signed receipt</summary>
 				<dl class="grid gap-1 mt-2">

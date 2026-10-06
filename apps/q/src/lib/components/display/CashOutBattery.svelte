@@ -16,12 +16,12 @@
 		held: number;
 		/** Credits committed to agreements not yet settled. */
 		committed: number;
-		/** Pence one credit cashes out for. */
-		pencePerCredit: number;
+		/** The mint's currency: one credit cashes out for one unit of it. */
+		currency: string;
 		/** Just the battery, small, for a dashboard; the words become its tooltip. */
 		compact?: boolean;
 	}
-	let { held, committed, pencePerCredit, compact = false }: Props = $props();
+	let { held, committed, currency, compact = false }: Props = $props();
 
 	/* Below a quarter: running low. */
 	const LOW = 0.25;
@@ -32,10 +32,8 @@
 
 	const count = (n: number) => Math.round(n).toLocaleString('en-GB');
 	const credits = (n: number) => `${count(n)} credit${Math.round(n) === 1 ? '' : 's'}`;
-	const plain = (pence: number) => {
-		const p = Math.round(pence) / 100;
-		return Number.isInteger(p) ? `£${p.toLocaleString('en-GB')}` : `£${p.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-	};
+	/* Credits as money: one credit is one unit of the currency, so whole credits need no pence. */
+	const plain = (n: number) => new Intl.NumberFormat('en-GB', { style: 'currency', currency, minimumFractionDigits: Number.isInteger(n) ? 0 : undefined }).format(n);
 	/* What full means, said once, plainly. */
 	const full = $derived(committed > 0 ? ` ${level >= 1 ? 'That’s enough. ' : ''}Full is holding twice what’s committed: ${credits(committed * 2)}.` : '');
 	const lockedSays = $derived(locked ? ` ${credits(locked)} ${locked === 1 ? 'is' : 'are'} committed to agreements, so ${locked === 1 ? 'it stays' : 'they stay'} put.` : '');
@@ -44,7 +42,7 @@
 			? 'Empty: you don’t hold any credits, so there’s nothing to cash out.'
 			: !free
 				? `Empty: all ${credits(held)} you hold ${held === 1 ? 'is' : 'are'} committed to agreements. Settle or end one, or get more credits, to charge it back up.${full}`
-				: `${level >= 1 ? 'Full: ' : level < LOW ? 'Running low: ' : ''}${credits(free)} free to cash out, ${plain(free * pencePerCredit)}.${lockedSays}${full}`
+				: `${level >= 1 ? 'Full: ' : level < LOW ? 'Running low: ' : ''}${credits(free)} free to cash out, ${plain(free)}.${lockedSays}${full}`
 	);
 </script>
 
@@ -56,7 +54,7 @@
 			<Battery {level} says={why} present={held > 0} />
 			<!-- the answer, big -->
 			<div>
-				<p class="h3 tabular-nums">{plain(free * pencePerCredit)}</p>
+				<p class="h3 tabular-nums">{plain(free)}</p>
 				<p class="text-sm text-surface-700-300">{free ? 'you can cash out' : 'nothing to cash out'}</p>
 			</div>
 		</div>

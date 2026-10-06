@@ -22,6 +22,7 @@
  * Not charged yet: the receipt records what was agreed and used, and moving
  * the credits through the mint is the next step (plan, "What a story costs").
  */
+import { DEFAULT_CURRENCY, currencyFrom, minorPerCredit } from '@inqbeta/q-core/currency';
 import { error, json, type RequestHandler } from '@sveltejs/kit';
 import { dev } from '$app/environment';
 import { env } from '$env/dynamic/private';
@@ -45,14 +46,15 @@ const modelOf = () => (env.STORY_MODEL ?? '').trim() || MODEL;
 const num = (x: string | undefined, d: number) => (Number.isFinite(Number(x)) && Number(x) > 0 ? Number(x) : d);
 
 async function ratesOf(fetcher: typeof fetch): Promise<Rates> {
-	let pencePerCredit = 100;
+	/* One credit is one unit of the mint's currency. The model's prices are set in pence, so they're only right for a pound-mint: other currencies need a rate (ADR-Q-042 §3a). */
+	let currency = DEFAULT_CURRENCY;
 	try {
-		const m = (await (await fetcher('/api/mint')).json()) as { pencePerCredit?: number };
-		if (m?.pencePerCredit) pencePerCredit = m.pencePerCredit;
+		const m = (await (await fetcher('/api/mint')).json()) as { currency?: string };
+		currency = currencyFrom(m?.currency);
 	} catch {
 		/* no mint here yet: a credit is a pound */
 	}
-	return { inPerM: num(env.STORY_PENCE_PER_M_IN, 240), outPerM: num(env.STORY_PENCE_PER_M_OUT, 1200), pencePerCredit };
+	return { inPerM: num(env.STORY_PENCE_PER_M_IN, 240), outPerM: num(env.STORY_PENCE_PER_M_OUT, 1200), minorPerCredit: minorPerCredit(currency) };
 }
 
 /* The book from the page, made to the rule again: nothing else gets in. */

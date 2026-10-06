@@ -25,9 +25,9 @@ test('what holding costs: at today’s use, and the floor if the node were full'
 	assert.equal(costOf(flowOf([]), 600, 20).perGBHourNow, null, 'no use yet: no figure, not a made-up one');
 });
 
-test('a price in credits, and what a credit would be worth if a GB-day cost one', () => {
+test('a price in credits, for a GB-hour and a GB-day', () => {
 	const p = priceOf(0.05, 1, 0.2);
 	assert.ok(Math.abs(p.perGBHourPence - 0.06) < 1e-12);
 	assert.ok(Math.abs(p.creditsPerGBHour! - 0.06) < 1e-12);
-	assert.ok(Math.abs(p.pencePerCreditForGBDay - 1.44) < 1e-12);
+	assert.ok(Math.abs(p.creditsPerGBDay! - 1.44) < 1e-12);
 });

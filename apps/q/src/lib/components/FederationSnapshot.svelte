@@ -21,7 +21,7 @@
 	import type { Home } from '$lib/home';
 	import { peopleFrom } from '$lib/people';
 	import { creditsCommitted, creditsHeld } from '$lib/agreements';
-	import { readMint, pounds, type MintView } from '$lib/money';
+	import { readMint, type MintView } from '$lib/money';
 	import { syncCloudNow } from '$lib/autosync';
 	import { buy, readShop, type ShopListing, type ShopWindow } from '$lib/shop';
 	import { storeHires } from '$lib/store';

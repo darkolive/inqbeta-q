@@ -8,9 +8,9 @@
 	 *
 	 * Reads the node's daily pass-through totals (nothing about whose), asks
 	 * what the node costs a month and how much space its relay has, and shows
-	 * the sums: what holding a gigabyte for an hour really costs, a price in
-	 * credits, and what a credit would be worth if a gigabyte held for a day
-	 * cost one. It suggests; the host decides (Q_CREDIT_PENCE, in Money).
+	 * the sums: what holding a gigabyte for an hour really costs, and a price
+	 * in credits for an hour and a day. One credit is one unit of the mint's
+	 * currency (ADR-Q-042 §3), so the price is the only thing to choose.
 	 *
 	 * Then, "people could hire by the hour": the host can put the pass-through
 	 * in their shop at a price per GB-hour. Each hire is its own agreement;
@@ -26,6 +26,7 @@
 	import { peopleFrom } from '$lib/people';
 	import { newAgreementId, takeStep } from '$lib/agreements';
 	import { readMint, type MintView } from '$lib/money';
+	import { DEFAULT_CURRENCY, currencyFrom, currencyName, minorPerCredit, money } from '@inqbeta/q-core/currency';
 	import { publishListing } from '$lib/shop';
 	import { goto } from '$app/navigation';
 
@@ -42,7 +43,9 @@
 
 	let days = $state<FlowDay[] | null>(null);
 	let says = $state('');
-	let pencePerCredit = $state(0);
+	/* The mint's currency: costs are typed and shown in it, and one credit is one unit of it. */
+	let currency = $state(DEFAULT_CURRENCY);
+	const unit = $derived(minorPerCredit(currency));
 	$effect(() => {
 		void (async () => {
 			const h = await readHome().catch(() => null);
@@ -56,9 +59,9 @@
 			const st = await fetch(`${storage}/store`).catch(() => null);
 			storeTerms = st?.ok ? ((await st.json().catch(() => null)) as typeof storeTerms) : null;
 			days = (((await r.json()) as { days?: FlowDay[] }).days ?? []).sort((a, b) => a.day.localeCompare(b.day));
-			/* The public mint's rate, so this works on the live site too. */
+			/* The public mint's currency, so this works on the live site too. */
 			const m = await fetch('/api/mint', { cache: 'no-store' }).catch(() => null);
-			pencePerCredit = m?.ok ? Number(((await m.json()) as { pencePerCredit?: number }).pencePerCredit ?? 0) : 0;
+			currency = currencyFrom(m?.ok ? ((await m.json()) as { currency?: string }).currency : undefined);
 		})();
 	});
 
@@ -66,18 +69,19 @@
 	let capacity = $state(20);
 	let margin = $state(20);
 	const flow = $derived(days ? flowOf(days) : null);
-	const cost = $derived(flow ? costOf(flow, Math.max(0, Number(monthly) || 0) * 100, Math.max(0.001, Number(capacity) || 0)) : null);
-	const price = $derived(cost ? priceOf(cost.perGBHourFull, pencePerCredit, Math.max(0, Number(margin) || 0) / 100) : null);
+	const cost = $derived(flow ? costOf(flow, Math.max(0, Number(monthly) || 0) * unit, Math.max(0.001, Number(capacity) || 0)) : null);
+	const price = $derived(cost ? priceOf(cost.perGBHourFull, unit, Math.max(0, Number(margin) || 0) / 100) : null);
 	const GB = 1024 ** 3;
-	const p = (pence: number | null, dp = 2) => (pence === null ? '—' : pence < 100 ? `${pence.toFixed(dp)}p` : `£${(pence / 100).toFixed(2)}`);
+	/* Money in minor units, in the currency; tiny amounts keep their fractions of a penny. */
+	const p = (minor: number | null, dp = 2) => (minor === null ? '—' : minor < unit ? `${(minor / unit).toFixed(dp + 2)} ${currency}` : money(minor, currency));
 	/*
 	 * Credits by default (Darren, 4 October): "So there is no misunderstanding
-	 * that we're talking about money here. We're talking about value." Pounds
-	 * only when asked, at the host's rate.
+	 * that we're talking about money here. We're talking about value." Money
+	 * only when asked: one credit is one unit of the currency.
 	 */
 	let inPounds = $state(false);
 	const sig = (n: number) => (n === 0 ? '0' : n >= 1 ? n.toFixed(n < 10 ? 2 : 1) : n.toPrecision(3));
-	const v = (pence: number | null, dp = 2) => (pence === null ? '—' : inPounds || !pencePerCredit ? p(pence, dp) : `${sig(pence / pencePerCredit)} credits`);
+	const v = (pence: number | null, dp = 2) => (pence === null ? '—' : inPounds ? p(pence, dp) : `${sig(pence / unit)} credits`);
 	const mb = (b: number) => (b >= GB ? `${(b / GB).toFixed(2)} GB` : b >= 1024 ** 2 ? `${(b / 1024 ** 2).toFixed(1)} MB` : `${Math.max(1, Math.round(b / 1024))} KB`);
 	/* Less than a hundredth of a GB-hour is too little to say anything honest about today's cost. */
 	const enough = $derived(!!flow && flow.byteHours / GB >= 0.01);
@@ -174,22 +178,22 @@
 			Over {flow.days === 1 ? 'one day' : `${flow.days} days`}, your node passed through <strong>{flow.files} files</strong> ({mb(flow.bytesIn)}), holding them {flow.meanHours ? `about ${flow.meanHours < 1 ? `${Math.round(flow.meanHours * 60)} minutes` : `${flow.meanHours.toFixed(1)} hours`}` : 'no time'} on average{flow.timedOut ? `; ${flow.timedOut} timed out waiting for a cloud` : ''}. Totals only: nothing about whose.
 		</p>
 		<div class="grid gap-4 sm:grid-cols-3 max-w-2xl">
-			<label class="label"><span class="label-text">What the node costs a month (£)</span><input class="input" type="number" min="0" step="0.01" bind:value={monthly} /></label>
+			<label class="label"><span class="label-text">What the node costs a month ({currency})</span><input class="input" type="number" min="0" step="0.01" bind:value={monthly} /></label>
 			<label class="label"><span class="label-text">Space for the pass-through (GB)</span><input class="input" type="number" min="1" step="1" bind:value={capacity} /></label>
 			<label class="label"><span class="label-text">Margin (%)</span><input class="input" type="number" min="0" step="5" bind:value={margin} /></label>
 		</div>
-		{#if cost && price && pencePerCredit}
+		{#if cost && price}
 			<label class="flex items-center gap-3 min-h-11 self-start">
 				<input type="checkbox" class="checkbox" bind:checked={inPounds} />
-				<span class="text-sm">Show in pounds, at {p(pencePerCredit, 0)} a credit</span>
+				<span class="text-sm">Show as money ({currencyName(currency)}): one credit is one</span>
 			</label>
 		{/if}
 		{#if cost && price}
 			<dl class="grid gap-3 sm:grid-cols-2 max-w-2xl">
 				<div class="card preset-tonal-surface p-3"><dt class="text-sm opacity-70">A GB held for an hour, at today’s use</dt><dd class="h4 tabular-nums">{enough ? v(cost.perGBHourNow) : 'Too little use to say yet'}</dd><dd class="text-xs opacity-70">High while hardly anyone uses it: the node costs the same either way.</dd></div>
 				<div class="card preset-tonal-surface p-3"><dt class="text-sm opacity-70">A GB held for an hour, if the space were full</dt><dd class="h4 tabular-nums">{v(cost.perGBHourFull, 4)}</dd><dd class="text-xs opacity-70">The floor: below this, the node can’t pay for itself.</dd></div>
-				<div class="card preset-tonal-primary p-3"><dt class="text-sm opacity-70">Suggested price, with your margin</dt><dd class="h4 tabular-nums">{v(price.perGBHourPence, 4)}</dd><dd class="text-xs opacity-70">for a GB held for an hour{pencePerCredit ? (inPounds ? `, at ${p(pencePerCredit, 0)} a credit` : '') : ': set your credit’s worth in Money to see it in credits'}.</dd></div>
-				<div class="card preset-tonal-secondary p-3"><dt class="text-sm opacity-70">If a GB held for a day cost one credit</dt><dd class="h4 tabular-nums">{p(price.pencePerCreditForGBDay)}</dd><dd class="text-xs opacity-70">a credit would be worth this: a price for minting people can picture. Set it as Q_CREDIT_PENCE in Money.</dd></div>
+				<div class="card preset-tonal-primary p-3"><dt class="text-sm opacity-70">Suggested price, with your margin</dt><dd class="h4 tabular-nums">{v(price.perGBHourPence, 4)}</dd><dd class="text-xs opacity-70">for a GB held for an hour.</dd></div>
+				<div class="card preset-tonal-secondary p-3"><dt class="text-sm opacity-70">A GB held for a day, at that price</dt><dd class="h4 tabular-nums">{v(price.perGBHourPence * 24)}</dd><dd class="text-xs opacity-70">The same price, for a day: one people can picture.</dd></div>
 			</dl>
 		{/if}
 		{#if relay && identity}

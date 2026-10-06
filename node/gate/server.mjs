@@ -102,6 +102,60 @@ export async function signedReceipt(r) {
 }
 
 /*
+ * ---- Mandates that have ended (ADR-Q-038 step 2; 6 October 2026) ----
+ * An office recalled, or stood down from, before its term ran out. The
+ * federation's own key signs a notice naming the mandates (UCAN CIDs) that no
+ * longer count; anyone may read the list, and the host's servers check it
+ * before trusting someone acting in role. Only federations this node serves.
+ *
+ *   GET  /revoked/<federation DID>   { federation, items: [notice …] }
+ *   POST /revoked/<federation DID>   a notice sealed by that federation's key
+ */
+const MANDATES_REVOKED = 'inqbeta.mandates-revoked/1';
+const REVOKED = /^\/revoked\/(did:key:z[1-9A-HJ-NP-Za-km-z]+)$/;
+const REVOKED_MOST = 2000;
+const revokedPath = (fed) => `${FILER}/revoked/${fed.replace(/[^A-Za-z0-9]/g, '')}.json`;
+/** Whether a notice may go on a federation's list: sealed by that federation's key, naming mandate CIDs. */
+export async function revokedOk(x, fed) {
+	const c = x?.content;
+	return c?.schema === MANDATES_REVOKED && c.federation === fed && x.did === fed && Array.isArray(c.mandates) && c.mandates.length > 0 && c.mandates.length <= 64 && c.mandates.every((m) => typeof m === 'string' && /^z[1-9A-HJ-NP-Za-km-z]{8,120}$/.test(m)) && (await signedReceipt(x));
+}
+const revokedCache = new Map();
+async function revokedItems(fed) {
+	const c = revokedCache.get(fed);
+	if (c && Date.now() - c.at < 30_000) return c.items;
+	const r = await fetch(revokedPath(fed)).catch(() => null);
+	const held = r?.ok ? await r.json().catch(() => null) : null;
+	const items = Array.isArray(held?.items) ? held.items : [];
+	revokedCache.set(fed, { at: Date.now(), items });
+	return items;
+}
+let revokedQueue = Promise.resolve();
+async function revoked(req, res, origin, fed) {
+	if (!FEDERATIONS.has(fed)) return send(res, origin, 404, { says: 'This node doesn’t serve that federation.' });
+	if (req.method === 'GET') return send(res, origin, 200, { schema: 'inqbeta.revoked/1', federation: fed, items: await revokedItems(fed) });
+	if (req.method !== 'POST') return send(res, origin, 405, { says: 'Only GET and POST.' });
+	const raw = await readBody(req, LEDGER_BYTES);
+	let item = null;
+	try { item = JSON.parse(raw ?? ''); } catch { item = null; }
+	if (!(await revokedOk(item, fed))) return send(res, origin, 403, { says: 'Only a notice signed by the federation’s own key goes on its list.' });
+	const run = revokedQueue.then(async () => {
+		const r = await fetch(revokedPath(fed)).catch(() => null);
+		const held = r?.ok ? await r.json().catch(() => null) : null;
+		const items = Array.isArray(held?.items) ? held.items : [];
+		if (!items.some((x) => x.signature === item.signature)) items.push(item);
+		const form = new FormData();
+		form.append('file', new Blob([JSON.stringify({ items: items.slice(-REVOKED_MOST) })], { type: 'application/json' }), 'revoked.json');
+		const kept = await fetch(revokedPath(fed), { method: 'POST', body: form }).catch((e) => ({ ok: false, status: e.message }));
+		revokedCache.delete(fed);
+		return kept.ok ? { status: 200, body: { ok: true, items: items.length } } : { status: 502, body: { says: `Couldn’t keep it: ${kept.status}` } };
+	});
+	revokedQueue = run.catch(() => {});
+	const { status, body } = await run.catch((e) => ({ status: 500, body: { says: e.message } }));
+	return send(res, origin, status, body);
+}
+
+/*
  * ---- The door (ADR-Q-034) ----
  * While the host is in test, only its founder's root, keys linked to that
  * root, and people the root has given a tester pass may act here. Reading
@@ -1081,6 +1135,8 @@ export const server = http.createServer(async (req, res) => {
 	const m = ROUTE.exec(decodeURIComponent(new URL(req.url, 'http://gate').pathname));
 	if (req.method === 'OPTIONS') return send(res, origin, 204);
 	if (new URL(req.url, 'http://gate').pathname === '/door') return door(req, res, origin);
+	const rv = REVOKED.exec(decodeURIComponent(new URL(req.url, 'http://gate').pathname));
+	if (rv) return revoked(req, res, origin, rv[1]);
 	const d = DROP.exec(new URL(req.url, 'http://gate').pathname);
 	if (d) return drops(req, res, origin, d[1]);
 	const ib = INBOX.exec(new URL(req.url, 'http://gate').pathname);

@@ -10,7 +10,7 @@ const seed = (n: number) => new Uint8Array(32).fill(n);
 type Who = Awaited<ReturnType<typeof identityFromSeed>>;
 let clock = Date.parse('2026-10-03T12:00:00Z');
 const tick = () => new Date((clock += 60_000)).toISOString();
-const PENCE = 100; /* one credit = £1 */
+const CURRENCY = 'GBP'; /* one credit = £1 */
 
 async function world() {
 	return { club: await identityFromSeed(seed(51)), ana: await identityFromSeed(seed(52)), ben: await identityFromSeed(seed(53)) };
@@ -34,7 +34,7 @@ async function trade(w: Awaited<ReturnType<typeof world>>, credits: number, id =
 
 test('a new mint is at nothing, and stays at nothing', async () => {
 	const { club } = await world();
-	const b = booksOf([], club.did, 'test', PENCE);
+	const b = booksOf([], club.did, 'test', CURRENCY);
 	assert.equal(b.circulation, 0);
 	assert.equal(b.cashReserve, 0);
 	assert.equal(b.reconciled, true);
@@ -44,22 +44,22 @@ test('a new mint is at nothing, and stays at nothing', async () => {
 test('£100 in, 100 minted; trading moves credits but never the totals; cashing out destroys them, and the books reconcile at every step', async () => {
 	const w = await world();
 	const bought = await ev(w.club, { kind: 'mint', mint: w.club.did, credits: 100, to: w.ana.did, pence: 10_000, cites: ['test-payment-1'] });
-	let b = booksOf(vault(bought), w.club.did, 'test', PENCE);
+	let b = booksOf(vault(bought), w.club.did, 'test', CURRENCY);
 	assert.deepEqual([b.minted, b.circulation, b.cashReserve, b.holders.get(w.ana.did)], [100, 100, 10_000, 100]);
 	assert.ok(b.reconciled && b.backed);
 
 	const swap = await trade(w, 30);
-	b = booksOf(vault(bought, ...swap), w.club.did, 'test', PENCE);
+	b = booksOf(vault(bought, ...swap), w.club.did, 'test', CURRENCY);
 	assert.deepEqual([b.circulation, b.cashReserve, b.holders.get(w.ana.did), b.holders.get(w.ben.did)], [100, 10_000, 70, 30], 'trading changes who holds, not how many');
 	assert.ok(b.reconciled && b.backed);
 
 	const ask = await ev(w.ben, { kind: 'cashout', mint: w.club.did, credits: 20, from: w.ben.did });
-	b = booksOf(vault(bought, ...swap, ask), w.club.did, 'test', PENCE);
+	b = booksOf(vault(bought, ...swap, ask), w.club.did, 'test', CURRENCY);
 	assert.equal(b.circulation, 100, 'an ask alone destroys nothing');
 	assert.equal(spendable(b, w.ben.did), 10, 'but what’s asked for can’t be spent meanwhile');
 
 	const burn = await ev(w.club, { kind: 'burn', mint: w.club.did, credits: 20, from: w.ben.did, pence: 2_000, asks: ask.contentHash, payout: 'test-payout-1' });
-	b = booksOf(vault(burn, ask, ...swap, bought, burn), w.club.did, 'test', PENCE);
+	b = booksOf(vault(burn, ask, ...swap, bought, burn), w.club.did, 'test', CURRENCY);
 	assert.deepEqual([b.minted, b.destroyed, b.circulation, b.cashIn, b.cashOut, b.cashReserve], [100, 20, 80, 10_000, 2_000, 8_000]);
 	assert.equal(b.holders.get(w.ben.did), 10);
 	assert.equal(spendable(b, w.ben.did), 10);
@@ -73,12 +73,12 @@ test('no credit without value in, and no more than the value', async () => {
 	const free = await ev(w.club, { kind: 'mint', mint: w.club.did, credits: 50, to: w.ana.did });
 	const greedy = await ev(w.club, { kind: 'mint', mint: w.club.did, credits: 200, to: w.ana.did, pence: 10_000, cites: ['p'] });
 	const forged = await ev(w.ana, { kind: 'mint', mint: w.club.did, credits: 10, to: w.ana.did, pence: 1_000, cites: ['p'] });
-	const b = booksOf(vault(free, greedy, forged), w.club.did, 'test', PENCE);
+	const b = booksOf(vault(free, greedy, forged), w.club.did, 'test', CURRENCY);
 	assert.equal(b.circulation, 0);
 	assert.equal(b.problems.length, 3);
 
 	const building = await ev(w.club, { kind: 'mint', mint: w.club.did, credits: 500, to: w.club.did, capital: { pence: 50_000, ref: 'the-workshop' }, cites: ['valuation-2026'] });
-	const c = booksOf(vault(building), w.club.did, 'test', PENCE);
+	const c = booksOf(vault(building), w.club.did, 'test', CURRENCY);
 	assert.deepEqual([c.circulation, c.capitalReserve, c.cashReserve], [500, 50_000, 0], 'capital can stand behind credits');
 	assert.ok(c.backed);
 });
@@ -91,20 +91,20 @@ test('a burn holds only with its ask, once, for what’s held, paying the publis
 	const forged = await ev(w.ben, { kind: 'burn', mint: w.club.did, credits: 5, from: w.ana.did, pence: 500, asks: ask.contentHash, payout: 'x' });
 	const short = await ev(w.club, { kind: 'burn', mint: w.club.did, credits: 5, from: w.ana.did, pence: 400, asks: ask.contentHash, payout: 'x' });
 	const noRef = await ev(w.club, { kind: 'burn', mint: w.club.did, credits: 5, from: w.ana.did, pence: 500, asks: ask.contentHash });
-	let b = booksOf(vault(bought, ask, noAsk, forged, short, noRef), w.club.did, 'test', PENCE);
+	let b = booksOf(vault(bought, ask, noAsk, forged, short, noRef), w.club.did, 'test', CURRENCY);
 	assert.equal(b.destroyed, 0);
 	assert.equal(b.problems.length, 4);
 
 	const good = await ev(w.club, { kind: 'burn', mint: w.club.did, credits: 5, from: w.ana.did, pence: 500, asks: ask.contentHash, payout: 'ref-1' });
 	const again = await ev(w.club, { kind: 'burn', mint: w.club.did, credits: 5, from: w.ana.did, pence: 500, asks: ask.contentHash, payout: 'ref-2' });
-	b = booksOf(vault(bought, ask, good, again), w.club.did, 'test', PENCE);
+	b = booksOf(vault(bought, ask, good, again), w.club.did, 'test', CURRENCY);
 	assert.equal(b.destroyed, 5, 'paid once');
 	assert.equal(b.cashReserve, 500);
 	assert.ok(b.reconciled);
 
 	const greedyAsk = await ev(w.ana, { kind: 'cashout', mint: w.club.did, credits: 50, from: w.ana.did });
 	const greedyBurn = await ev(w.club, { kind: 'burn', mint: w.club.did, credits: 50, from: w.ana.did, pence: 5_000, asks: greedyAsk.contentHash, payout: 'r' });
-	b = booksOf(vault(bought, greedyAsk, greedyBurn), w.club.did, 'test', PENCE);
+	b = booksOf(vault(bought, greedyAsk, greedyBurn), w.club.did, 'test', CURRENCY);
 	assert.equal(b.destroyed, 0, 'never more than is held');
 });
 
@@ -113,9 +113,9 @@ test('test and real never mix, and other mints’ credits are other credits', as
 	const other = await identityFromSeed(seed(59));
 	const t = await ev(w.club, { kind: 'mint', mint: w.club.did, credits: 10, to: w.ana.did, pence: 1_000, cites: ['p'] });
 	const elsewhere = await ev(other, { kind: 'mint', mint: other.did, credits: 10, to: w.ana.did, pence: 1_000, cites: ['p'] });
-	assert.equal(booksOf(vault(t, elsewhere), w.club.did, 'test', PENCE).circulation, 10);
-	assert.equal(booksOf(vault(t, elsewhere), w.club.did, 'live', PENCE).circulation, 0);
-	assert.equal(booksOf(vault(t, elsewhere), other.did, 'test', PENCE).circulation, 10);
+	assert.equal(booksOf(vault(t, elsewhere), w.club.did, 'test', CURRENCY).circulation, 10);
+	assert.equal(booksOf(vault(t, elsewhere), w.club.did, 'live', CURRENCY).circulation, 0);
+	assert.equal(booksOf(vault(t, elsewhere), other.did, 'test', CURRENCY).circulation, 10);
 });
 
 test('the gate keeps a mint’s ledger: its own receipts, holders’ own asks, and agreements in its credits — nothing else', async () => {
@@ -148,7 +148,7 @@ test('credits paid for a shop purchase move from buyer to seller', async () => {
 	const entries: Entry[] = [{ from: w.ana.did, to: w.ben.did, value: terms.bGives }];
 	const s1 = await step(w.ana, { agreement: id, step: 'settled', parent: taken.contentHash, entries });
 	const s2 = await step(w.ben, { agreement: id, step: 'settled', parent: s1.contentHash, entries });
-	const b = booksOf(vault(bought, listing, taken, s1, s2), w.club.did, 'test', PENCE);
+	const b = booksOf(vault(bought, listing, taken, s1, s2), w.club.did, 'test', CURRENCY);
 	assert.deepEqual(b.problems, []);
 	assert.equal(b.holders.get(w.ana.did), 5);
 	assert.equal(b.holders.get(w.ben.did), 5);

@@ -146,3 +146,19 @@ history is passed on deliberately and is recorded. This is not yet decided.
 - ADR-Q-035: the federation's bank; Ask the federation.
 - ADR-Q-036: credits held by rule; the grant's office.
 - `q/showing-money.md`: the design language this sits in.
+
+## As built, 6 October 2026 (steps 1–2; job C3)
+
+- **The coin's contact** is an office: `coinContact` on `MoneyPublication`
+  (signed in when published), `Q_COIN_CONTACT` in Money, chosen in the coin
+  designer under "Who answers for it" (treasurer, secretary, chair,
+  compliance officer or caretaker), treasurer unless chosen.
+- **The mint** reports `contact: { office, called, answerer, answererOffice }`.
+  Until office holders are published to the host, the answerer is the
+  caretaker (the founder).
+- **The coin statement's button** says "Ask the treasurer … of Green Space,
+  whoever holds it now", and the coin check says questions go to the office,
+  never to a named person.
+- **Next (step 3)**: publish who holds each office to the host, so the button
+  reaches the holder, not the caretaker.
+

@@ -29,6 +29,8 @@ import {
 	type Joined
 } from '@inqbeta/q-core/federations';
 import { foundingFacts } from '@inqbeta/q-actions/core/federation-found';
+import { appointFacts, endFacts } from '@inqbeta/q-actions/core/federation-offices';
+import { appoint, recall, standDown, checkAppointment, checkEnded, hashAppointment, officesHeld, revocationNotice, type Appointed, type Ended, type OfficeHeld, type OfficeId } from '@inqbeta/q-core/offices';
 import { actionHash, decide } from '$lib/actions/engine';
 import {
 	acceptRequest,
@@ -167,6 +169,10 @@ export interface MembershipRecord {
 	removed?: Removed;
 	suspended?: Suspended;
 	lifted?: Lifted;
+	/** Offices you've been given here (ADR-Q-007 §5), kept once you opened their link. */
+	offices?: Appointed[];
+	/** Offices ended early: you stood down, or the federation recalled one. */
+	officeEndings?: Ended[];
 	at: string;
 }
 export function isMembershipRecord(x: unknown): x is MembershipRecord {
@@ -513,3 +519,146 @@ export async function withdrawNode(node: NodeRecord): Promise<Outcome<{}>> {
 		return { ok: false, says: e instanceof Error ? e.message : String(e) };
 	}
 }
+
+
+/* ---- Offices (ADR-Q-007 §5, ADR-Q-038 step 5), 6 October 2026 ----
+ *
+ * The caretaker gives a member an office — treasurer, secretary, chair,
+ * safeguarding lead, steward — for a term. The appointment is signed by the
+ * federation key and the caretaker, carries the mandates, and travels to the
+ * holder as a link, like any decision about a member. The caretaker keeps an
+ * office record; the holder keeps the appointment with their membership.
+ */
+export const OFFICE_RECORD_SCHEMA = 'inqbeta.office-record/1';
+export interface OfficeRecord {
+	schema: typeof OFFICE_RECORD_SCHEMA;
+	source: 'inqbeta:q/office';
+	federation: string;
+	/** The holder's name, as the caretaker knows them. */
+	called?: string;
+	appointment: Appointed;
+	ended?: Ended;
+	at: string;
+}
+export function isOfficeRecord(x: unknown): x is OfficeRecord {
+	const r = x as OfficeRecord;
+	return !!r && r.schema === OFFICE_RECORD_SCHEMA && typeof r.federation === 'string' && !!r.appointment;
+}
+const officeFile = (a: Appointed) => `${short(a.federation)}-${a.office}-${short(a.holder)}.json`;
+
+/** Give a member an office. Returns the link to send them. */
+export async function appointOffice(
+	identity: Identity,
+	record: FederationRecord,
+	member: MemberRecord,
+	o: { office: OfficeId; months: number; says: string; standingInterest?: string }
+): Promise<Outcome<{ link: string }> | { ok: false; says: string; rules: string[] }> {
+	try {
+		const key = await openFederationKey(record.sealedKey, identity);
+		const a = await appoint(signerFor(key), signerFor(identity), {
+			federation: record.founding.federation,
+			office: o.office,
+			holder: member.joining.member,
+			months: o.months,
+			says: o.says,
+			grant: record.grant,
+			name: record.founding.name,
+			standingInterest: o.standingInterest
+		});
+		const d = await check('office.appoint', identity, record.founding.federation, await appointFacts(a, member.joining));
+		if (!d.holds) return { ok: false, says: d.because.join(' '), rules: d.rules };
+		const kept: OfficeRecord = { schema: OFFICE_RECORD_SCHEMA, source: 'inqbeta:q/office', federation: a.federation, ...(member.called ? { called: member.called } : {}), appointment: a, at: a.at };
+		await keep('federations/offices', officeFile(a), kept);
+		return { ok: true, link: linkFor(await pack(a)) };
+	} catch (e) {
+		return { ok: false, says: e instanceof Error ? e.message : String(e) };
+	}
+}
+
+/**
+ * Tell the federation's storage node the office's mandates have ended, so
+ * servers stop trusting them at once rather than at the end of the term.
+ * Signed by the federation's key. False when there's no node to tell.
+ */
+async function publishEnding(key: Identity, a: Appointed, e: Ended, storage?: string | null): Promise<boolean> {
+	if (!storage) return false;
+	const notice = await revocationNotice(key, a, e);
+	const r = await fetch(`${storage.replace(/\/$/, '')}/revoked/${a.federation}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(notice) }).catch(() => null);
+	return !!r?.ok;
+}
+
+/** Recall an office early, saying why. Returns the link to send its holder, and whether the servers were told. */
+export async function recallOffice(
+	identity: Identity,
+	record: FederationRecord,
+	office: OfficeRecord,
+	says: string,
+	storage?: string | null
+): Promise<Outcome<{ link: string; published: boolean }> | { ok: false; says: string; rules: string[] }> {
+	try {
+		const key = await openFederationKey(record.sealedKey, identity);
+		const e = await recall(signerFor(key), office.appointment, says);
+		const d = await check('office.end', identity, record.founding.federation, await endFacts(e, office.appointment));
+		if (!d.holds) return { ok: false, says: d.because.join(' '), rules: d.rules };
+		await keep('federations/offices', officeFile(office.appointment), { ...office, ended: e, at: e.at });
+		return { ok: true, link: linkFor(await pack(e)), published: await publishEnding(key, office.appointment, e, storage) };
+	} catch (e) {
+		return { ok: false, says: e instanceof Error ? e.message : String(e) };
+	}
+}
+
+/** An appointment arrives for you: check it, and keep it with your membership. */
+export async function receiveAppointment(mine: MembershipRecord, a: Appointed): Promise<Outcome<{}>> {
+	if (a.federation !== mine.joining.federation || a.holder !== mine.joining.member) return { ok: false, says: 'This office is for someone else.' };
+	const c = await checkAppointment(a);
+	if (!c.ok) return { ok: false, says: c.says };
+	const h = await hashAppointment(a);
+	const others: Appointed[] = [];
+	for (const x of mine.offices ?? []) if ((await hashAppointment(x)) !== h) others.push(x);
+	await keep('federations/memberships', `${short(mine.joining.federation)}.json`, { ...mine, offices: [...others, a], at: new Date().toISOString() });
+	return { ok: true };
+}
+
+/** Stand down from an office early. Returns the link to send the caretaker. */
+export async function standDownOffice(identity: Identity, mine: MembershipRecord, a: Appointed, says: string): Promise<Outcome<{ link: string }> | { ok: false; says: string; rules: string[] }> {
+	try {
+		const e = await standDown(signerFor(identity), a, says);
+		const d = await check('office.end', identity, a.federation, await endFacts(e, a));
+		if (!d.holds) return { ok: false, says: d.because.join(' '), rules: d.rules };
+		await keep('federations/memberships', `${short(mine.joining.federation)}.json`, { ...mine, officeEndings: [...(mine.officeEndings ?? []), e], at: e.at });
+		return { ok: true, link: linkFor(await pack(e)) };
+	} catch (e) {
+		return { ok: false, says: e instanceof Error ? e.message : String(e) };
+	}
+}
+
+/** An office ended: as its holder (a recall), keep it with your membership. */
+export async function receiveEndingAsHolder(mine: MembershipRecord, e: Ended): Promise<Outcome<{}>> {
+	for (const a of mine.offices ?? []) {
+		if ((await checkEnded(e, a)).ok) {
+			await keep('federations/memberships', `${short(mine.joining.federation)}.json`, { ...mine, officeEndings: [...(mine.officeEndings ?? []), e], at: new Date().toISOString() });
+			return { ok: true };
+		}
+	}
+	return { ok: false, says: 'It doesn’t end any office you hold here.' };
+}
+
+/** An office ended: as caretaker (someone stood down), mark it on your record, and tell the servers. */
+export async function receiveEndingAsCaretaker(identity: Identity, record: FederationRecord, offices: OfficeRecord[], e: Ended, storage?: string | null): Promise<Outcome<{ published: boolean }>> {
+	for (const o of offices) {
+		if ((await checkEnded(e, o.appointment)).ok) {
+			await keep('federations/offices', officeFile(o.appointment), { ...o, ended: e, at: e.at });
+			const key = await openFederationKey(record.sealedKey, identity);
+			return { ok: true, published: await publishEnding(key, o.appointment, e, storage).catch(() => false) };
+		}
+	}
+	return { ok: false, says: 'It doesn’t end any office you gave.' };
+}
+
+/** The offices you hold in a federation now: caretaker from your founding record, the rest from your membership. */
+export async function myOffices(did: string, federation: string, o: { own?: FederationRecord | null; mine?: MembershipRecord | null }): Promise<OfficeHeld[]> {
+	return officesHeld(did, federation, { grant: o.own?.grant ?? null, appointments: o.mine?.offices ?? [], endings: o.mine?.officeEndings ?? [] });
+}
+
+/** Which of the caretaker's office records are still running. */
+export const runningOffice = (o: OfficeRecord, now = Date.now()) => !o.ended && o.appointment.until * 1000 > now;

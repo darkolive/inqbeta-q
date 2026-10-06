@@ -2,13 +2,16 @@
  * Publishing money (ADR-Q-027 §7). Development only, like the rest of
  * /api/host: the founder does it on their own computer.
  *
- *   GET   the mint, the rate, whether the payout account is set (its last
+ *   GET   the mint, its currency, whether the payout account is set (its last
  *         four only), and test or live
  *   POST  { publication } — signed by this host's founder in the last five
- *         minutes, naming this host, this mint, this rate, this account's last
+ *         minutes, naming this host, this mint, its currency, this account's last
  *         four, and the responsibility accepted. Kept once, in the host's
  *         public record; a second is refused. Then send that record to the
  *         live site with the rest (it's in static/host/services.json).
+ *
+ * Never on the development site (ADR-Q-034 §5): no real money moves there, so
+ * its host can't be published. GET says so; POST refuses.
  */
 import { error, json, type RequestHandler } from '@sveltejs/kit';
 import { dev } from '$app/environment';
@@ -16,7 +19,8 @@ import { checkReceipt } from '@inqbeta/q-core/seal';
 import { MONEY_PUBLISHED_SCHEMA, problemsWithPublication, type MoneyPublicationReceipt } from '@inqbeta/q-core/money';
 import { readEnvFile } from '$lib/server/env-file';
 import { keepMoneyPublication, readMark } from '$lib/server/host';
-import { coinDesignOf, coinNameOf, hostOf, mintIdentity, moneyOf, pencePerCredit, MintRefused } from '$lib/server/mint';
+import { isDevelopmentSite } from '$lib/server/site';
+import { coinContactOf, coinDesignOf, coinNameOf, hostOf, mintIdentity, moneyOf, currencyOf, MintRefused } from '$lib/server/mint';
 
 export const prerender = false;
 const FRESH_MS = 5 * 60 * 1000;
@@ -41,11 +45,12 @@ export const GET: RequestHandler = async ({ request, url }) => {
 	}
 	const state = host ? await moneyOf(url.origin, host) : { mode: 'test' as const };
 	const ends = lastFour();
-	return json({ host: host?.federation ?? null, mint, says, pencePerCredit: pencePerCredit(state), coinName: coinNameOf(), coinDesign: coinDesignOf(), bank: { set: ends.length === 4, ends }, state });
+	return json({ host: host?.federation ?? null, mint, says, currency: currencyOf(state), coinName: coinNameOf(), coinDesign: coinDesignOf(), coinContact: coinContactOf(), bank: { set: ends.length === 4, ends }, state, development: isDevelopmentSite(url.origin) });
 };
 
 export const POST: RequestHandler = async ({ request, url }) => {
 	door(request, url);
+	if (isDevelopmentSite(url.origin)) return json({ ok: false, says: 'This is the development site. No real money moves here, so it can’t be published.' }, { status: 403 });
 	const mark = readMark();
 	if (!mark) return json({ ok: false, says: 'This computer hasn’t set up a host.' }, { status: 409 });
 	const { publication } = (await request.json().catch(() => ({}))) as { publication?: MoneyPublicationReceipt };
@@ -60,7 +65,8 @@ export const POST: RequestHandler = async ({ request, url }) => {
 	} catch (e) {
 		problems.push(e instanceof MintRefused ? e.message : 'The mint isn’t ready: restart Q after making its key.');
 	}
-	if (c.pencePerCredit !== pencePerCredit()) problems.push('The rate isn’t the one set in Money.');
+	if (c.currency !== currencyOf()) problems.push('The currency isn’t the one set in Money (Q_CURRENCY).');
+	if ((c.coinContact ?? 'treasurer') !== coinContactOf()) problems.push('The coin’s contact office isn’t the one set in Money (Q_COIN_CONTACT).');
 	if ((c.coinName ?? '') !== coinNameOf()) problems.push('The coin’s name isn’t the one set in Money (Q_COIN_NAME).');
 	if (c.coinDesign && JSON.stringify(c.coinDesign) !== JSON.stringify(coinDesignOf())) problems.push('The coin’s design isn’t the one set in Money (Q_COIN_DESIGN).');
 	if (c.bank?.ends !== lastFour()) problems.push('The payout account isn’t the one set on this computer.');

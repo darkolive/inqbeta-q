@@ -14,12 +14,12 @@ const seed = (n: number) => new Uint8Array(32).fill(n);
 type Who = Awaited<ReturnType<typeof identityFromSeed>>;
 let clock = Date.parse('2026-10-03T13:00:00Z');
 const tick = () => new Date((clock += 60_000)).toISOString();
-const PENCE = 100;
+const CURRENCY = 'GBP'; /* one credit = £1 */
 const ev = (who: Who, e: Partial<MintEvent> & Pick<MintEvent, 'kind' | 'credits' | 'mint'>) =>
 	sealWith(who, { schema: MINT_SCHEMA, source: MINT_SOURCE, mode: 'test', at: tick(), ...e } as MintEvent) as Promise<MintReceipt>;
 
 async function decide(prior: MintReceipt[], next: MintReceipt, o: { moneyConfirmed?: boolean; approvedByAI?: boolean } = {}) {
-	const { action, facts } = mintFacts(prior.map((json) => ({ json })), next, PENCE, o);
+	const { action, facts } = mintFacts(prior.map((json) => ({ json })), next, CURRENCY, o);
 	const d = engine.decide((await loaded).get(action)!, { principal: { type: 'Person', id: next.did }, resource: { type: 'Mint', id: next.content.mint }, facts });
 	return { action, ...d };
 }
@@ -40,7 +40,7 @@ test('mint, ask, burn: each allowed, and the books agree with the engine', async
 	const ask = await ev(ana, { kind: 'cashout', mint: club.did, credits: 40, from: ana.did });
 	await add(ask, 'credits.cashout');
 	await add(await ev(club, { kind: 'burn', mint: club.did, credits: 40, from: ana.did, pence: 4_000, asks: ask.contentHash, payout: 'test-payout' }), 'credits.burn');
-	const b = booksOf(chain.map((json) => ({ json })), club.did, 'test', PENCE);
+	const b = booksOf(chain.map((json) => ({ json })), club.did, 'test', CURRENCY);
 	assert.deepEqual([b.circulation, b.cashReserve, b.holders.get(ana.did)], [60, 6_000, 60]);
 	assert.ok(b.reconciled && b.backed && !b.problems.length);
 });

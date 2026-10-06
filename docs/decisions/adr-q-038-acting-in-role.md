@@ -1,7 +1,9 @@
 # ADR-Q-038 — Acting in role: say which hat you're wearing
 
 **Status:** proposed 5 October 2026. Step 1 is built: the switch, with
-caretaker as the only office (`lib/role.svelte.ts`, `RoleSwitch`, `RoleBand`).
+caretaker as the first office (`lib/role.svelte.ts`, `RoleSwitch`, `RoleBand`).
+Step 5, the offices themselves, and step 2, in-role receipts the servers
+check, are built (6 October; see *As built* below).
 The founder's Website, Services and Settings tabs, Invite, Tell your members,
 New this week and Reconcile now show only in role. It builds on offices and
 mandates (ADR-Q-007), must and cannot (ADR-Q-008), messages (ADR-Q-010), cards
@@ -202,3 +204,174 @@ The same page shows **one account at a time**, and the switch decides which:
 - ADR-Q-035: the federation's bank (its Bank tab is open to anyone).
 - ADR-Q-037: ask the office, not the person.
 - ADR-Q-039: working for an organisation; scanning in can take up the role.
+
+## As built, 6 October 2026: offices (step 5; job C1)
+
+- **q-core `offices.ts`**: six offices, each a named slot with a plain-words
+  purpose and a scope of federation commands: caretaker (`/fed`, everything),
+  treasurer (`/fed/money`), secretary (`/fed/admit`, `/fed/announce`,
+  `/fed/minutes`), chair (`/fed/minutes`, `/fed/announce`), safeguarding lead
+  (`/fed/safeguard`), steward (`/fed/services`, `/fed/site`).
+- **`office.appointed`**: signed by the federation key **and** the caretaker,
+  saying how the holder was chosen. It carries one UCAN mandate per command,
+  from the federation key to the holder, each ending with the term (1 to 24
+  months), plus the caretaker's own grant as their authority, so anyone can
+  check it with nothing else to hand.
+- **`office.ended`**: the holder stands down (they sign), or the federation
+  recalls (it signs, saying why). A term that runs out needs no receipt.
+- **The cannots, enforced**: nobody appoints themselves; the caretaker isn't
+  appointed (it comes from the founding, and only the members renew it); no
+  office without a term; only the caretaker, while their own mandate runs,
+  can appoint; offices go to members only. "Not held by an AI" is declared,
+  for the Standing block to check.
+- **Cedar**: `office.appoint` and `office.end` (q-actions
+  `core/federation-offices.ts`), in the core actions every Q loads.
+- **`officesHeld(did, federation, …)`**: the caretaker from the founding grant
+  while it runs, and every sound appointment not run out or ended; one of each
+  office.
+- **The app**: in role as caretaker, the Members tab has **Offices**: who
+  holds what and until when, **Give an office…** (which office, who, how
+  long, how they were chosen) and **Recall…**. The appointment travels as a
+  link; opening it keeps it with the holder's membership. The role switch
+  offers every office you hold (choose one; one at a time). Taking up a
+  non-caretaker office opens its **desk**: what it covers, the term, and
+  **Stand down…**.
+- **Still caretaker-only**: the founder's tools (Website, Services, Settings,
+  Invite, Tell your members, Reconcile) need the federation key, which is
+  sealed to the founder. Other offices get their powers on the servers with
+  in-role receipts (step 2, job C2) and their desk and post (steps 3–4).
+
+## As built, 6 October 2026: in-role receipts the servers check (step 2; job C2)
+
+- **q-core `inrole.ts`**: `role.taken-up` and `role.set-down` receipts,
+  signed by the person without a passkey touch and kept in their vault
+  (`roles/`), so there's a record of when they acted for the federation.
+  Signing out sets the role down.
+- **`acting`**: what an ask made in role carries inside its signed content:
+  the office, its mandates (the caretaker's founding grant, or an
+  appointment's tokens) and the take-up receipt.
+- **`actingCovers(asker, acting, { federation, cmd, founder })`** is the
+  server's check: the take-up is the asker's own, for this federation and
+  office, made before the ask; the office's scope covers the command; a
+  mandate from the federation's key to the asker covers it and is still
+  running. The caretaker can also be proved by the federation's signed
+  founding, for a founder whose vault isn't on this device. Each refusal is
+  one plain sentence ("A secretary can't do money work. Ask the office that
+  can.").
+- **Reconcile asks for the office, not the founder**: `/api/mint` needs
+  `/fed/money/reconcile`, so the treasurer or the caretaker can reconcile,
+  in role. The bank's signed reconciliation records `byOffice`, and the coin
+  statement says "Darren, as treasurer". Reconcile now shows for whoever is
+  in an office that covers it.
+- **Not yet**: a recalled or stood-down office still passes a server until
+  its term ends, unless the server is told (`revoked`). Publishing endings to
+  the host (a revocation list beside the door's) is the next piece. The
+  localhost console (`/api/host/*`) stays the installer's (ADR-Q-018), not
+  an office's.
+
+## Addendum, 6 October 2026: taking up an office is a declaration
+
+Darren: "if you flip that toggle to say you are now looking at this page as an
+officer, that is a point where you make your declaration: I am acting with no
+conflict of interest, or I may have a conflict and declare it, then you sign
+it, then you're able to access that page with role based on your office. So
+we've got a nice, clean, receipted attestation, confirmation, declaration each
+time, which enables the separation of the person from the role. And I think
+that's a lovely thing we can take from the Nolan principles." He sees the same
+applying to compliance positions, verifiers and reviewers: offices of
+responsibility, held in the headspace of no conflict of interest.
+
+**Decided and built:**
+
+- **Every take-up carries a declaration**: "I have no conflict of interest", or
+  "I may have one, and I declare it" with what it is. The switch opens the
+  declaration; only signing it takes the office up. The take-up receipt holds
+  the declaration and the exact words signed, under the **seven principles of
+  public life** (the Nolan principles, Committee on Standards in Public Life,
+  1995: selflessness, integrity, objectivity, accountability, openness,
+  honesty, leadership), shown beneath it.
+- **Servers refuse a take-up with no declaration.** A declared interest
+  doesn't stop you acting: it travels with what you do in role (the bank's
+  reconciliation records it as `byInterest`), and the band shows "interest
+  declared" or "no conflict declared" the whole time.
+- **Three offices of responsibility**: verifier (`/fed/verify`: checks that
+  evidence holds, and signs to say so), reviewer (`/fed/review`) and
+  compliance officer (`/fed/compliance`: that the federation keeps its own
+  rules and the law).
+
+**Next, from §6:** when an action in role touches the declared interest or the
+holder's own DID, the engine asks for a second office holder to sign it.
+
+### Why it matters, and what it leads to (Darren, 6 October 2026)
+
+From his time in local government: declarations of interest became "the seed
+of corruption by being hidden". Here a declaration never locks you out: "it's
+your integrity … your honour of the role, which makes responsibility and
+personal accountability so much more." And because the history records
+everything, even when something goes wrong "the history can at least show that
+it wasn't intentional, or that it was neglectful, or it was incompetence, or
+it was downright intentional, by following the history of the story", so
+others learn from it: the mycelium, where one thing gets infected and everyone
+learns "don't eat that berry".
+
+**Internal compliance, external verification.** An internal compliance
+officer is employed by the organisation, so they carry a standing interest:
+they won't jeopardise their own job. That doesn't stop them working
+diligently and signing off good work. Proper assurance then comes from an
+**external verifier**, who looks at the compliance officer's evidence report
+knowing they're an employee, asks whether it shows any conflict or bias, and
+if not, accepts it as a good and honest answer. "That's amazing empowerment
+for everybody."
+
+**Shape (built the same day; see below):**
+
+- **A standing interest** can be written into an appointment ("employed by the
+  organisation"), so every take-up carries it without retyping, and it can't
+  be left out.
+- **An evidence report** is a receipt signed in role (reviewer or compliance
+  officer), carrying the take-up and its declaration.
+- **An external verification** is a receipt from a verifier outside the
+  federation (another federation's verifier, under a treaty, or an
+  independent one) that cites the report and its author's declaration, and
+  says: accepted; accepted with notes; or not accepted, with the bias or gap
+  found. The verifier makes their own declaration too.
+- **The story view**: any receipt's history, read in order, so intent,
+  neglect or plain error can be seen for what it was.
+
+### As built, 6 October 2026: endings reach the servers at once
+
+A recall, or a stand-down the caretaker notes, now publishes a notice signed by
+the federation's key (`inqbeta.mandates-revoked/1`, q-core `offices.ts`
+`revocationNotice`) to its storage node: the gate keeps
+`/revoked/<federation>`, accepts only notices sealed by a federation it
+serves, and anyone may read it. The host's servers read it (30-second cache,
+`lib/server/revoked.ts`) and refuse a mandate on it: "Your office as treasurer
+has been ended early: recalled, or stood down from." If the node can't be
+asked, the last list read stands, and mandates still end with their terms.
+The gate needs updating on the node to carry it (job A3).
+
+### As built, 6 October 2026: standing interests, evidence reports, external verification
+
+- **A standing interest** on an appointment (`standingInterest`, "Does the
+  office come with an interest?" when giving it) is written into every one of
+  its mandates (`inqbeta/interest` in the UCAN). The switch opens the
+  declaration with it filled in and "no conflict" not offered; servers refuse
+  a take-up that leaves it out ("This office comes with an interest you must
+  declare each time you take it up").
+- **q-core `attestation.ts`** (named so beside the older `assurance.ts`,
+  which is about evidentiary bars and unrelated):
+  `writeReport` / `checkReport`: an evidence report signed in role by a
+  reviewer or compliance officer (what was checked; meets, meets with notes,
+  or doesn't meet; what was found), carrying their acting and declaration.
+  `verifyReport` / `checkVerification`: signed in role by a verifier of
+  **another** federation, copying the author's declaration word for word,
+  with accepted, accepted with notes, or not accepted (and what was found:
+  required unless accepted).
+- **The app**: a reviewer's or compliance officer's desk has **Write a
+  report**; it's kept in the vault (`attestation/`) and sent as a link to
+  `/attest`. There a verifier, in role in their own federation, sees the
+  finding and, first, **what its author declared**, and signs; the
+  verification goes back as a link and is kept with the report.
+- **Not yet**: the story view (a receipt's history read in order); finding
+  verifiers in the directory; reports published to the federation's page.
+

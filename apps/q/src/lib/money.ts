@@ -6,6 +6,8 @@
  * your balance is added up from your own receipts like everything else.
  * In test mode everything works and no money moves.
  */
+import type { Acting as ActingProof } from '@inqbeta/q-core/inrole';
+import { creditsWorth, money } from '@inqbeta/q-core/currency';
 import { sealWith } from '@inqbeta/q-core/seal';
 import type { Identity } from '@inqbeta/q-core/passkey';
 import { saveLocked } from '@inqbeta/q-core/folder';
@@ -19,8 +21,11 @@ export interface MintView {
 	name?: string;
 	/** How the coin looks, as its bank designed it. */
 	design?: CoinDesign;
+	/** Who answers for it (ADR-Q-037): the office, and who holds it today. */
+	contact?: { office: string; called: string; answerer: string; answererOffice: string };
 	mode: 'test' | 'live';
-	pencePerCredit: number;
+	/** The mint's currency (ISO 4217): one credit is one unit of it (ADR-Q-042 §3). */
+	currency: string;
 	publishedId: string | null;
 	/** Just after the latest step in the mint's books. */
 	lastAt?: string;
@@ -87,8 +92,10 @@ export async function cashOut(identity: Identity, mint: MintView, credits: numbe
 }
 
 /* ---- Reconciliation: the treasurer asks, the bank signs its books ---- */
-export async function reconcile(identity: Identity, mint: MintView): Promise<{ ok: true; reconciliation: ReconciliationReceipt } | { ok: false; says: string }> {
-	const ask = await sealWith(identity, { schema: RECONCILE_ASK_SCHEMA, source: MINT_SOURCE, mint: mint.mint, at: new Date().toISOString() });
+export async function reconcile(identity: Identity, mint: MintView, acting: ActingProof | null): Promise<{ ok: true; reconciliation: ReconciliationReceipt } | { ok: false; says: string }> {
+	/* Asked in role (ADR-Q-038): the office, its mandate and the take-up go with the ask, for the bank to check. */
+	if (!acting) return { ok: false, says: 'Take up your office first: reconciling is done for the federation.' };
+	const ask = await sealWith(identity, { schema: RECONCILE_ASK_SCHEMA, source: MINT_SOURCE, mint: mint.mint, acting, at: new Date().toISOString() });
 	const r = await fetch('/api/mint', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ reconcile: ask }) });
 	if (!r.ok) return { ok: false, says: await said(r) };
 	const { reconciliation } = (await r.json()) as { reconciliation: ReconciliationReceipt };
@@ -140,7 +147,7 @@ export async function fileWithMint(receipt: unknown): Promise<boolean> {
 /** Your credits from this mint, from your own vault: what you hold, and what you can spend or cash out now. */
 export function mintBalance(ledger: Ledger | null, mint: MintView | null, did: string) {
 	if (!mint) return { held: 0, spendable: 0 };
-	const b = booksOf(ledger?.receipts ?? [], mint.mint, mint.mode, mint.pencePerCredit);
+	const b = booksOf(ledger?.receipts ?? [], mint.mint, mint.mode, mint.currency);
 	return { held: b.holders.get(did) ?? 0, spendable: spendable(b, did) };
 }
 
@@ -155,4 +162,7 @@ export function mintMoves(ledger: Ledger | null, mint: MintView | null, did: str
 		.sort((a, b) => b.r.content.at.localeCompare(a.r.content.at));
 }
 
-export const pounds = (pence: number) => `£${(pence / 100).toFixed(2)}`;
+/** An amount in the mint's minor units (pence, cents), in its currency: 250 → "£2.50". */
+export const amount = (minor: number, mint: Pick<MintView, 'currency'>) => money(minor, mint.currency);
+/** What some credits are worth: one credit is one unit of the mint's currency. 3 → "£3.00". */
+export const worth = (credits: number, mint: Pick<MintView, 'currency'>) => creditsWorth(credits, mint.currency);

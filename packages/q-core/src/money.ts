@@ -15,6 +15,8 @@
  * credits were always kept apart (mint.ts `mode`).
  */
 import { checkReceipt, type SealedReceipt } from './seal';
+import { isCurrency, currencyFrom } from './currency';
+import { officeKind } from './offices';
 
 export const MONEY_PUBLISHED_SCHEMA = 'inqbeta.money-published/1';
 
@@ -29,12 +31,17 @@ export interface MoneyPublication {
 	host: string;
 	/** The mint's DID: whose credits go live. */
 	mint: string;
-	/** What one credit costs, and pays out, in pence. */
-	pencePerCredit: number;
+	/**
+	 * The mint's currency (ISO 4217), named once and never changed: one credit
+	 * costs, and cashes out for, one whole unit of it (ADR-Q-042 §3).
+	 */
+	currency: string;
 	/** The coin's own name, chosen by the bank when it made its coin (ADR-Q-035): what people call it. */
 	coinName?: string;
 	/** How the coin looks: its shape, its colour, and a mark in the middle (ADR-Q-035). */
 	coinDesign?: CoinDesign;
+	/** Who answers for the coin: an office, never a person (ADR-Q-037). Treasurer unless chosen. */
+	coinContact?: string;
 	/** The payout account, never more than its last four digits. */
 	bank: { ends: string };
 	/** The statement, as read, and that it was accepted. */
@@ -150,10 +157,16 @@ export interface MoneyState {
 	publishedBy?: string;
 }
 
+/** The office that answers for a coin: one Q knows, or the treasurer (ADR-Q-037 §1). */
+export const coinContactFrom = (x: unknown): string => (typeof x === 'string' && officeKind(x.trim()) ? x.trim() : 'treasurer');
+
+/** A published mint's currency. A publication from before 5 October named a rate in pence, not a currency: those were all pounds. */
+export const publishedCurrency = (p: Pick<MoneyPublication, 'currency'> | undefined): string => currencyFrom(p?.currency);
+
 /** What's wrong with a publication before it's signed, each a sentence. */
 export function problemsWithPublication(p: Omit<MoneyPublication, 'schema' | 'source' | 'at' | 'accepted'> & { accepted: boolean }): string[] {
 	const out: string[] = [];
-	if (!Number.isInteger(p.pencePerCredit) || p.pencePerCredit < 1) out.push('Set what one credit costs, in pence: at least 1.');
+	if (!isCurrency(p.currency)) out.push('Name the mint’s currency (GBP, EUR, USD …): one credit is one unit of it.');
 	if (!/^\d{4}$/.test(p.bank.ends)) out.push('Add the payout bank account.');
 	if (p.responsibility !== RESPONSIBILITY) out.push('The statement must be the one shown.');
 	if (!p.accepted) out.push('Tick to accept the responsibility.');

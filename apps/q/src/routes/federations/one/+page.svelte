@@ -37,8 +37,18 @@
 		type NodeRecord,
 		type FederationRecord,
 		type MemberRecord,
-		type MembershipRecord
+		type MembershipRecord,
+		appointOffice,
+		recallOffice,
+		standDownOffice,
+		myOffices,
+		isOfficeRecord,
+		runningOffice,
+		type OfficeRecord
 	} from '$lib/federations';
+	import { APPOINTABLE, OFFICE_MONTHS, hashAppointment, type OfficeHeld, type OfficeId } from '@inqbeta/q-core/offices';
+	import { FINDINGS, type Finding } from '@inqbeta/q-core/attestation';
+	import { report as writeEvidenceReport } from '$lib/attestation';
 	import type { Found } from '$lib/features/registry';
 	import { standingAt } from '@inqbeta/q-core/membership';
 	import { onSecurePage, reachIndex, reachPostOffice, reachStorage, reachSwitchboard, reachThroughFrontDoor, type Reach } from '$lib/node-health';
@@ -82,6 +92,19 @@
 		for (const f of found.filter((f) => f.kind === 'member' && f.key.startsWith(`member:${id}:`)))
 			if (!by.has(f.key) || f.at > by.get(f.key)!.at) by.set(f.key, f);
 		return [...by.values()];
+	});
+
+	/* Offices the caretaker has given (ADR-Q-007 §5): one record per office and holder. */
+	const officeItems = $derived.by(() => {
+		const by = new Map<string, Found>();
+		for (const f of found.filter((f) => f.kind === 'office' && f.key.startsWith(`office:${id}:`)))
+			if (!by.has(f.key) || f.at > by.get(f.key)!.at) by.set(f.key, f);
+		return [...by.values()];
+	});
+	let officeRecords = $state<OfficeRecord[]>([]);
+	$effect(() => {
+		const items = officeItems.map((f) => f.item);
+		void Promise.all(items.map(recordFrom)).then((rs) => (officeRecords = rs.filter(isOfficeRecord)));
 	});
 
 	const nodeItems = $derived.by(() => {
@@ -239,8 +262,39 @@
 	 * things: you take it up first, and set it down to be just you. Until
 	 * offices are built, the only one is caretaker, held by the founder.
 	 */
-	const offices = $derived(own || hostFounder ? ['caretaker'] : []);
-	const acting = $derived(offices.length > 0 && role.isActing(id));
+	let held = $state<OfficeHeld[]>([]);
+	/* Each office's mandates, carried when you take it up, for servers to check (ADR-Q-038 step 2). */
+	let mandates = $state<Record<string, string[]>>({});
+	/* Interests that come with an office, declared every time it's taken up. */
+	let standing = $state<Record<string, string>>({});
+	$effect(() => {
+		const did = identity?.did;
+		const o = { own, mine };
+		if (!did) return void ((held = []), (mandates = {}), (standing = {}));
+		void (async () => {
+			const h = await myOffices(did, id, o);
+			const m: Record<string, string[]> = {};
+			const st: Record<string, string> = {};
+			for (const x of h) {
+				if (x.office === 'caretaker') m.caretaker = o.own?.grant ? [o.own.grant] : [];
+				else
+					for (const a of o.mine?.offices ?? [])
+						if ((await hashAppointment(a)) === x.appointment) {
+							m[x.office] = a.tokens;
+							if (a.standingInterest) st[x.office] = a.standingInterest;
+						}
+			}
+			held = h;
+			mandates = m;
+			standing = st;
+		})();
+	});
+	/* The host's founder is caretaker by the host file's signed founding, even before the vault is brought across. */
+	const offices = $derived([...new Set([...(hostFounder ? ['caretaker'] : []), ...held.map((h) => h.office)])]);
+	/* The founder's tools need the federation key, which only the caretaker holds: they show only in that role. */
+	const acting = $derived(offices.includes('caretaker') && role.isActing(id, 'caretaker'));
+	/* Another office taken up here: its desk (ADR-Q-038 §3). */
+	const desk = $derived(role.acting?.federation === id && role.acting.office !== 'caretaker' ? (held.find((h) => h.office === role.acting!.office) ?? null) : null);
 	/* Setting the role down leaves the office's tabs: back to Home. */
 	$effect(() => {
 		if (!acting && ['website', 'services', 'settings'].includes(tab)) tab = 'home';
@@ -509,6 +563,85 @@
 		await refreshLedger();
 	}
 
+	/* Offices (ADR-Q-007 §5): the caretaker gives one to a member, for a term, saying how they were chosen. */
+	let giving = $state(false);
+	let giveOffice = $state<OfficeId>('treasurer');
+	let giveTo = $state('');
+	let giveMonths = $state(12);
+	let giveWhy = $state('');
+	let giveStanding = $state('');
+	const TERMS = [3, 6, 12, 24].filter((m) => m >= OFFICE_MONTHS.least && m <= OFFICE_MONTHS.most);
+	const canHold = $derived(members.filter((m) => !m.removed && complete(m) && standingAt(m).is !== 'suspended'));
+	const runningOffices = $derived(officeRecords.filter((o) => runningOffice(o)));
+	async function confirmGive() {
+		const member = canHold.find((m) => m.joining.member === giveTo);
+		if (!identity || !own || !member) return;
+		busy = 'appoint';
+		said = null;
+		const out = await appointOffice(identity, own, member, { office: giveOffice, months: giveMonths, says: giveWhy, standingInterest: giveStanding });
+		busy = null;
+		if (!out.ok) return void (said = { tone: 'bad', text: out.says, rules: 'rules' in out ? out.rules : undefined });
+		said = { tone: 'good', text: `${nameOf(member)} is now ${APPOINTABLE.find((o) => o.id === giveOffice)?.called}, until ${onDay(new Date(Date.now() + giveMonths * 30.4375 * 86_400_000).toISOString())}.` };
+		tellThem = { link: out.link, note: `Send this to ${nameOf(member)}. Opening it keeps the office with their membership, and gives them the switch to take it up.` };
+		giving = false;
+		giveWhy = '';
+		giveStanding = '';
+		await refreshLedger();
+	}
+	let recalling = $state<OfficeRecord | null>(null);
+	let recallWhy = $state('');
+	async function confirmRecall() {
+		if (!identity || !own || !recalling) return;
+		busy = 'recall';
+		said = null;
+		const out = await recallOffice(identity, own, recalling, recallWhy, isHome && home?.ok ? home.services.storage : null);
+		busy = null;
+		if (!out.ok) return void (said = { tone: 'bad', text: out.says, rules: 'rules' in out ? out.rules : undefined });
+		said = { tone: 'good', text: `Recalled. The office has ended; what was signed in it stays as it was.${out.published ? ' Your servers have been told, so its mandate stops working now.' : ' Its mandate stops working when its term ends: this club has no storage node to tell the servers sooner.'}` };
+		tellThem = { link: out.link, note: `Send this to ${recalling.called ?? 'them'}, so the office leaves their switch too.` };
+		recalling = null;
+		recallWhy = '';
+		await refreshLedger();
+	}
+	/* A report, from a reviewer's or compliance officer's desk. */
+	let repSubject = $state('');
+	let repFinding = $state<Finding | ''>('');
+	let repSays = $state('');
+	async function confirmReport() {
+		if (!identity || !repFinding) return;
+		busy = 'report';
+		said = null;
+		const out = await writeEvidenceReport(identity, role.proof(id), { subject: repSubject, finding: repFinding, says: repSays });
+		busy = null;
+		if (!out.ok) return void (said = { tone: 'bad', text: out.says });
+		said = { tone: 'good', text: 'Signed and kept. Send it to an external verifier: they’ll see your declaration with it.' };
+		tellThem = { link: out.link, note: 'Send this to a verifier in another federation. Their verification comes back as a link.' };
+		repSubject = '';
+		repFinding = '';
+		repSays = '';
+	}
+
+	/* Standing down, from the office's desk. */
+	let standingDown = $state(false);
+	let downWhy = $state('');
+	async function confirmStandDown() {
+		if (!identity || !mine || !desk?.appointment) return;
+		let a = null;
+		for (const x of mine.offices ?? []) if ((await hashAppointment(x)) === desk.appointment) a = x;
+		if (!a) return;
+		busy = 'stand-down';
+		said = null;
+		const out = await standDownOffice(identity, mine, a, downWhy);
+		busy = null;
+		if (!out.ok) return void (said = { tone: 'bad', text: out.says, rules: 'rules' in out ? out.rules : undefined });
+		await role.setDown();
+		said = { tone: 'good', text: 'You’ve stood down. Back to being just you.' };
+		tellThem = { link: out.link, note: 'Send this to the caretaker, so their record shows the office is free.' };
+		standingDown = false;
+		downWhy = '';
+		await refreshLedger();
+	}
+
 	/* Leaving */
 	let leaving = $state(false);
 	async function confirmLeave() {
@@ -582,7 +715,47 @@
 
 		<!-- Which hat you're wearing (ADR-Q-038). -->
 		{#if offices.length}
-			<div class="mb-6"><RoleSwitch federation={id} name={founding.name} {offices} /></div>
+			<div class="mb-6"><RoleSwitch federation={id} name={founding.name} {offices} {mandates} {standing} /></div>
+		{/if}
+
+		<!-- The office's desk (ADR-Q-038 §3): what it covers, until when, and standing down. -->
+		{#if desk}
+			<section class="card preset-outlined-secondary-500 p-4 mb-6 flex flex-col gap-3" aria-labelledby="desk-title">
+				<h2 id="desk-title" class="h4">{desk.called}’s desk</h2>
+				<p>{desk.does}</p>
+				<p class="text-sm">Your term runs until {onDay(new Date(desk.until * 1000).toISOString())}. It ends on its own; nobody can make it permanent.</p>
+				{#if desk.office === 'reviewer' || desk.office === 'compliance'}
+					<!-- An evidence report, signed in role with your declaration, for an external verifier to weigh. -->
+					<div class="card preset-tonal-surface p-4 flex flex-col gap-3">
+						<p class="font-bold">Write a report</p>
+						<label class="label"><span class="label-text">What you checked</span><input class="input" type="text" bind:value={repSubject} /></label>
+						<div class="flex flex-wrap gap-2" role="radiogroup" aria-label="Your finding">
+							{#each FINDINGS as f (f.id)}
+								<button type="button" role="radio" aria-checked={repFinding === f.id} class="btn min-h-11 {repFinding === f.id ? 'preset-filled-primary-500' : 'preset-tonal'}" onclick={() => (repFinding = f.id)}>{f.called}</button>
+							{/each}
+						</div>
+						<label class="label"><span class="label-text">What you found, in plain words</span><textarea class="textarea" rows="4" bind:value={repSays}></textarea></label>
+						<p class="text-sm">Your declaration goes with it, word for word, so whoever verifies it knows where you stand.</p>
+						<button type="button" class="btn preset-filled-primary-500 min-h-11 self-start" disabled={busy !== null || !repSubject.trim() || !repSays.trim() || !repFinding} onclick={confirmReport}>{busy === 'report' ? 'Signing…' : 'Sign the report'}</button>
+					</div>
+				{:else if desk.office === 'verifier'}
+					<p class="text-sm">When a report comes to you from another federation, open its link. You’ll see who wrote it and what they declared, and can accept it, accept it with notes, or say what you found.</p>
+				{/if}
+				<p class="text-sm opacity-80">The office’s post and its jobs come next.</p>
+				{#if !standingDown}
+					<button type="button" class="btn preset-tonal min-h-11 self-start" onclick={() => (standingDown = true)}>Stand down…</button>
+				{:else}
+					<div class="card preset-tonal-warning p-4 flex flex-col gap-3" role="alertdialog" aria-label="Stand down">
+						<p class="font-bold">Stand down as {desk.called}?</p>
+						<p class="text-sm">The office ends from now. What you signed in it stays valid.</p>
+						<label class="label"><span class="label-text">Why (optional)</span><textarea class="textarea" rows="2" bind:value={downWhy}></textarea></label>
+						<div class="flex flex-wrap gap-3">
+							<button type="button" class="btn preset-filled-warning-500 min-h-11" disabled={busy !== null} onclick={confirmStandDown}>{busy === 'stand-down' ? 'Signing…' : 'Stand down'}</button>
+							<button type="button" class="btn preset-tonal min-h-11" onclick={() => (standingDown = false)}>Keep it</button>
+						</div>
+					</div>
+				{/if}
+			</section>
 		{/if}
 
 		{#if said}
@@ -590,6 +763,9 @@
 				<p>{said.text}</p>
 				{#if said.rules?.length}<p class="role-token text-xs mt-2">{said.rules.join(' · ')}</p>{/if}
 			</div>
+		{/if}
+		{#if tellThem && !(own && acting)}
+			<div class="mb-6"><ShareLink link={tellThem.link} label="Send this" note={tellThem.note} /></div>
 		{/if}
 
 		<Tabs value={tab} onValueChange={(d) => (tab = d.value)}>
@@ -847,6 +1023,73 @@
 										? `Whoever opens this and signs the agreement becomes a member, until ${invitation.until}. Share it only with people you mean.`
 										: `Whoever opens this can ask to join, until ${invitation.until}. You’ll accept each request yourself.`}
 								/>
+							</div>
+						{/if}
+					</Section>
+
+					<Section title="Offices" description="Who does what for the club. Each office has a term, and its powers come as a mandate from the club’s key. Nobody can give one to themselves.">
+						<ul class="flex flex-col gap-2">
+							<li class="card preset-outlined-surface-200-800 p-3 flex flex-wrap items-center gap-3">
+								<Status tone="good">Caretaker</Status><span>You, until {onDay(new Date(own.caretakerUntil * 1000).toISOString())}</span>
+							</li>
+							{#each runningOffices as o (o.appointment.mandates[0])}
+								<li class="card preset-outlined-surface-200-800 p-3 flex flex-wrap items-center gap-3">
+									<Status tone="good">{APPOINTABLE.find((k) => k.id === o.appointment.office)?.called}</Status>
+									<span class="font-bold">{o.called ?? 'A member'}</span>
+									<span class="text-sm opacity-70">until {onDay(new Date(o.appointment.until * 1000).toISOString())} · {o.appointment.says}</span>
+									<button type="button" class="btn btn-sm preset-tonal min-h-11 ml-auto" onclick={() => { recalling = o; giving = false; }}>Recall…</button>
+								</li>
+							{/each}
+						</ul>
+						{#if recalling}
+							<div class="card preset-tonal-warning p-4 mt-4 flex flex-col gap-3" role="alertdialog" aria-label="Recall an office">
+								<p class="font-bold">Recall {APPOINTABLE.find((k) => k.id === recalling!.appointment.office)?.called} from {recalling.called ?? 'this member'}?</p>
+								<p class="text-sm">The office ends from now. Everything signed in it stays valid. The recall is signed by the club and says why.</p>
+								<label class="label"><span class="label-text">Why, in plain words</span><textarea class="textarea" rows="2" bind:value={recallWhy}></textarea></label>
+								<div class="flex flex-wrap gap-3">
+									<button type="button" class="btn preset-filled-error-500 min-h-11" disabled={busy !== null || !recallWhy.trim()} onclick={confirmRecall}>{busy === 'recall' ? 'Recalling…' : 'Recall'}</button>
+									<button type="button" class="btn preset-tonal min-h-11" onclick={() => (recalling = null)}>Keep it</button>
+								</div>
+							</div>
+						{/if}
+						{#if !giving}
+							<button type="button" class="btn preset-filled-primary-500 min-h-11 self-start mt-4" disabled={!canHold.length} onclick={() => { giving = true; recalling = null; giveTo = canHold[0]?.joining.member ?? ''; }}>Give an office…</button>
+							{#if !canHold.length}<p class="text-sm mt-2">Offices go to members. When someone has joined, you can give them one.</p>{/if}
+						{:else}
+							<div class="card preset-tonal-surface p-4 mt-4 flex flex-col gap-4" role="group" aria-label="Give an office">
+								<div class="flex flex-col gap-2">
+									<span class="label-text">Which office</span>
+									<div class="flex flex-wrap gap-2" role="radiogroup" aria-label="Which office">
+										{#each APPOINTABLE as k (k.id)}
+											<button type="button" role="radio" aria-checked={giveOffice === k.id} class="btn min-h-11 {giveOffice === k.id ? 'preset-filled-primary-500' : 'preset-tonal'}" onclick={() => (giveOffice = k.id)}>{k.called}</button>
+										{/each}
+									</div>
+									<p class="text-sm">{APPOINTABLE.find((k) => k.id === giveOffice)?.does}</p>
+								</div>
+								<label class="label">
+									<span class="label-text">Who</span>
+									<select class="select" bind:value={giveTo}>
+										{#each canHold as m (m.joining.member)}<option value={m.joining.member}>{nameOf(m)}</option>{/each}
+									</select>
+								</label>
+								<div class="flex flex-col gap-2">
+									<span class="label-text">For how long</span>
+									<div class="flex flex-wrap gap-2" role="radiogroup" aria-label="For how long">
+										{#each TERMS as t (t)}
+											<button type="button" role="radio" aria-checked={giveMonths === t} class="btn min-h-11 {giveMonths === t ? 'preset-filled-primary-500' : 'preset-tonal'}" onclick={() => (giveMonths = t)}>{t < 12 ? `${t} months` : t === 12 ? 'A year' : 'Two years'}</button>
+										{/each}
+									</div>
+								</div>
+								<label class="label"><span class="label-text">How they were chosen, in plain words</span><textarea class="textarea" rows="2" bind:value={giveWhy}></textarea></label>
+								<label class="label">
+									<span class="label-text">Does the office come with an interest? (optional)</span>
+									<input class="input" type="text" bind:value={giveStanding} />
+									<span class="text-sm">For example, that they’re employed by the club. They’ll declare it every time they take the office up. It doesn’t stop them acting.</span>
+								</label>
+								<div class="flex flex-wrap gap-3">
+									<button type="button" class="btn preset-filled-primary-500 min-h-11" disabled={busy !== null || !giveTo || !giveWhy.trim()} onclick={confirmGive}>{busy === 'appoint' ? 'Signing… touch your passkey' : 'Sign and give the office'}</button>
+									<button type="button" class="btn preset-tonal min-h-11" onclick={() => (giving = false)}>Not now</button>
+								</div>
 							</div>
 						{/if}
 					</Section>

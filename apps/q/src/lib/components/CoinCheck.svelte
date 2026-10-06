@@ -13,7 +13,7 @@
 	import Coin from './display/Coin.svelte';
 	import MintBooks from './display/MintBooks.svelte';
 	import Reconciled from './display/Reconciled.svelte';
-	import { readMint, pounds, type MintView } from '$lib/money';
+	import { readMint, worth, type MintView } from '$lib/money';
 	import { readHome, type Home } from '$lib/home';
 
 	/** here: shown inside the federation's own page (its Bank tab), so no "Visit". */
@@ -59,7 +59,8 @@
 				<Reconciled last={mint.lastReconciled} movesSince={mint.movesSince} nameOf={(d) => (d === bank?.founder ? `${bank.name}’s treasurer` : undefined)} />
 			</div>
 			<MintBooks {mint} />
-			<p class="text-sm max-w-3xl">One coin is worth <strong>{pounds(mint.pencePerCredit)}</strong>: what it costs to buy, and what cashing it out pays.</p>
+			<p class="text-sm max-w-3xl">One coin is worth <strong>{worth(1, mint)}</strong>, one unit of its currency ({mint.currency}): what it costs to buy, and what cashing it out pays.</p>
+			{#if mint.contact}<p class="text-sm max-w-3xl">Questions about it go to its <strong>{mint.contact.called.toLowerCase()}</strong>, whoever holds that office now, never to a named person.</p>{/if}
 		</Section>
 
 		{#if bank && !here}

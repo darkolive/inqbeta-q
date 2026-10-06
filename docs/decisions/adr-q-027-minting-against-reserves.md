@@ -1,7 +1,7 @@
 ---
 status: decided (Darren, 3 October 2026) — every host runs in test mode until its operator publishes
 implementation: test mode working end to end — mint, cashout and burn receipts and the books (q-core mint.ts), publishing (q-core money.ts), the rules in Cedar (q-actions core/mint.ts, server engine node.ts), the host's /api/mint with its ledger at the gate (or mint.local/ on localhost), Buy and Cash out on Credits, agreements in the mint's credits filed with its ledger, Money and Publish on the console, 3 October 2026. Not yet: real payments and payouts
-updated: 2026-10-05
+updated: 2026-10-06
 ---
 
 # ADR-Q-027 — Minting against reserves: credits made when value comes in, destroyed when it goes out
@@ -342,3 +342,27 @@ ordinary running costs no longer come out of the reserve.
 
 Capital backing is still the part most likely to be regulated (§5), and still
 needs advice before it's live.
+
+### As built, 6 October 2026 (job D1): currency replaces the rate
+
+- **q-core `currency.ts`**: `isCurrency`, `currencyFrom` (pounds if unknown),
+  `minorPerCredit` (ISO 4217 minor units from the platform's own Intl data:
+  100 for GBP/EUR/USD, 1 for JPY), `money`, `creditsWorth`, `currencyName`.
+- **The publication** names `currency`, not `pencePerCredit`;
+  `problemsWithPublication` refuses a missing or unknown code;
+  `publishedCurrency` reads any publication from before as pounds.
+- **The books and the rules** (`booksOf`, `mintFacts`) take the mint's
+  currency, not a number, so no caller can pass a rate. Receipt fields
+  (`pence`) and Cedar facts (`…Pence`) keep their names, as receipts already
+  signed carry them; they now mean minor units of the mint's currency.
+- **The host**: `Q_CURRENCY` in Money replaces `Q_CREDIT_PENCE` (now
+  ignored; unset means GBP). The Publish card has a currency picker, saved
+  through the signed service record like the coin's name. `/api/mint` and
+  the console report `currency`.
+- **Every Credits screen** shows money in the mint's currency: "One credit",
+  "Face value", buying, cashing out, the battery, the backing picture, the
+  coin check, the books. Pricing from the flow drops "what a credit would be
+  worth" (no longer a choice) for the price of a GB held for a day.
+- **Not yet**: the story engine's model prices and the node's running costs
+  are set in pence, so they're right for a pound-mint only; other currencies
+  need a rate (ADR-Q-042 §3a).

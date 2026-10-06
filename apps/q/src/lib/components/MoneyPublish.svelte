@@ -12,7 +12,9 @@
 	import { Icon, Status } from '@inqbeta/q-ui';
 	import { sealWith } from '@inqbeta/q-core/seal';
 	import type { Identity } from '@inqbeta/q-core/passkey';
-	import { MONEY_PUBLISHED_SCHEMA, RESPONSIBILITY, type CoinDesign, type MoneyPublication, type MoneyState } from '@inqbeta/q-core/money';
+	import { MONEY_PUBLISHED_SCHEMA, RESPONSIBILITY, publishedCurrency, type CoinDesign, type MoneyPublication, type MoneyState } from '@inqbeta/q-core/money';
+	import { COMMON_CURRENCIES, creditsWorth, currencyName } from '@inqbeta/q-core/currency';
+	import { setService } from '$lib/host-setup';
 
 	let { identity, onChanged }: { identity: Identity; onChanged?: () => void } = $props();
 
@@ -20,11 +22,15 @@
 		host: string | null;
 		mint: string | null;
 		says?: string;
-		pencePerCredit: number;
+		/** The mint's currency: one credit is one unit of it (ADR-Q-042 §3). */
+		currency: string;
 		coinName?: string;
 		coinDesign?: CoinDesign;
+		coinContact?: string;
 		bank: { set: boolean; ends: string };
 		state: MoneyState;
+		/** The development site: test mode for good, never published (ADR-Q-034 §5). */
+		development?: boolean;
 	}
 	let view = $state<View | null>(null);
 	async function load() {
@@ -37,7 +43,19 @@
 	let sure = $state(false);
 	let busy = $state(false);
 	let says = $state<{ good: boolean; text: string } | null>(null);
-	const pounds = (p: number) => `£${(p / 100).toFixed(2)}`;
+	/* One credit is one unit of the currency, so naming the currency is the whole choice. Saved as Q_CURRENCY in Money. */
+	const oneCredit = (c: string) => `One credit is ${creditsWorth(1, c)}, one ${currencyName(c)}.`;
+	let currencySays = $state('');
+	async function chooseCurrency(c: string) {
+		if (!view?.host || c === view.currency) return;
+		currencySays = 'Saving…';
+		const out = await setService(identity, view.host, 'money', 'Q_CURRENCY', c);
+		currencySays = out.ok ? '' : out.says;
+		if (out.ok) {
+			await load();
+			onChanged?.();
+		}
+	}
 	let copied = $state(false);
 	async function copyMint() {
 		if (!view?.mint) return;
@@ -60,9 +78,10 @@
 			source: 'inqbeta:q/host',
 			host: view.host,
 			mint: view.mint,
-			pencePerCredit: view.pencePerCredit,
+			currency: view.currency,
 			...(view.coinName ? { coinName: view.coinName } : {}),
 			...(view.coinDesign ? { coinDesign: view.coinDesign } : {}),
+			...(view.coinContact ? { coinContact: view.coinContact } : {}),
 			bank: { ends: view.bank.ends },
 			responsibility: RESPONSIBILITY,
 			accepted: true,
@@ -88,17 +107,19 @@
 <section class="card preset-outlined-surface-200-800 p-4 sm:p-5 flex flex-col gap-4 mt-6" aria-labelledby="money-mode">
 	<div class="flex items-center gap-3">
 		<h3 id="money-mode" class="h5 flex-1">Money: test mode, then published</h3>
-		{#if view}<Status tone={view.state.mode === 'live' ? 'good' : 'needs-you'}>{view.state.mode === 'live' ? 'Published' : 'Test mode'}</Status>{/if}
+		{#if view?.development}<Status tone="plain">Test only</Status>{:else if view}<Status tone={view.state.mode === 'live' ? 'good' : 'needs-you'}>{view.state.mode === 'live' ? 'Published' : 'Test mode'}</Status>{/if}
 	</div>
 
 	{#if !view}
 		<p class="opacity-60">Reading the money settings…</p>
+	{:else if view.development}
+		<p class="text-sm">This is the development site. Everything works in test mode — minting, buying, agreements, shops, cashing out — but no real money moves here, so it can’t be published.</p>
 	{:else if view.state.mode === 'live'}
 		<p>Real money is live on this host. It can’t be changed back, or published again.</p>
 		<dl class="grid gap-2 text-sm sm:grid-cols-2">
 			<div><dt class="opacity-70">Published ID</dt><dd class="role-token text-xs break-all">{view.state.publishedId}</dd></div>
 			<div><dt class="opacity-70">Published</dt><dd>{view.state.publication ? new Date(view.state.publication.at).toLocaleString('en-GB') : ''}</dd></div>
-			<div><dt class="opacity-70">One credit</dt><dd>{pounds(view.state.publication?.pencePerCredit ?? 0)}</dd></div>
+			<div><dt class="opacity-70">One credit</dt><dd>{creditsWorth(1, publishedCurrency(view.state.publication))} ({publishedCurrency(view.state.publication)})</dd></div>
 			<div><dt class="opacity-70">Payout account</dt><dd>ending {view.state.publication?.bank.ends}</dd></div>
 		</dl>
 	{:else}
@@ -107,13 +128,20 @@
 			<li class="flex items-start gap-3">
 				<Status tone={view.mint ? 'good' : 'needs-you'}>{view.mint ? 'Ready' : 'Needed'}</Status>
 				<span class="text-sm flex flex-col gap-2 min-w-0">
-					<span><strong>The mint.</strong> {view.mint ? `Its key is made. One credit is ${pounds(view.pencePerCredit)} (Q_CREDIT_PENCE). ${view.coinName ? `Its coin is called “${view.coinName}” (Q_COIN_NAME), signed in when you publish.` : 'Its coin has no name yet: give it one as Q_COIN_NAME in Money.'}` : (view.says ?? 'Make the mint’s key in Money, above.')}</span>
+					<span><strong>The mint.</strong> {view.mint ? `Its key is made. ${oneCredit(view.currency)} ${view.coinName ? `Its coin is called “${view.coinName}” (Q_COIN_NAME), signed in when you publish.` : 'Its coin has no name yet: give it one as Q_COIN_NAME in Money.'}` : (view.says ?? 'Make the mint’s key in Money, above.')}</span>
 					{#if view.mint}
 						<!-- The node keeps only the ledgers of mints it's told about (GATE_MINTS): the line to give it. -->
 						<span>Your node keeps its books once its <code>.env</code> has this line:</span>
 						<code class="code break-all">GATE_MINTS={view.mint}</code>
 						<button type="button" class="btn btn-sm preset-tonal min-h-11 self-start" onclick={() => void copyMint()}>{copied ? 'Copied' : 'Copy the line'}</button>
 					{/if}
+					<label class="label flex flex-col gap-1 max-w-xs">
+						<span><strong>Its currency.</strong> Chosen once: it can't change after you publish.</span>
+						<select class="select" value={view.currency} disabled={currencySays === 'Saving…'} onchange={(e) => void chooseCurrency(e.currentTarget.value)}>
+							{#each [...new Set([view.currency, ...COMMON_CURRENCIES])] as c (c)}<option value={c}>{c}: {currencyName(c)}</option>{/each}
+						</select>
+					</label>
+					{#if currencySays}<span aria-live="polite">{currencySays}</span>{/if}
 				</span>
 			</li>
 			<li class="flex items-start gap-3">

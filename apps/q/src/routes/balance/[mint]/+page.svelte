@@ -29,9 +29,10 @@
 	import { peopleFrom } from '$lib/people';
 	import type { Names } from '$lib/receipt-read';
 	import type { ReceiptEntry } from '$lib/receipts';
-	import { readMint, buyCredits, cashOut, mintBalance, pounds, reconcile, payoutAccountOf, type MintView } from '$lib/money';
+	import { readMint, buyCredits, cashOut, mintBalance, amount, worth, reconcile, payoutAccountOf, type MintView } from '$lib/money';
 	import Reconciled from '$lib/components/display/Reconciled.svelte';
 	import { role } from '$lib/role.svelte';
+	import { OFFICE_COMMANDS, officeMay } from '@inqbeta/q-core/offices';
 
 	let identity = $state<Identity | null>(null);
 	let ledger = $state<Ledger | null>(null);
@@ -46,6 +47,9 @@
 	let home = $state<Home | null>(null);
 	$effect(() => void readHome().then((h) => (home = h)));
 	const bank = $derived(home?.ok ? home : null);
+	/* The mint, as read (loadMint, below). */
+	let mint = $state<MintView | null>(null);
+	let mintSays = $state('');
 	/* The coin's own name, as its bank named it; until it has one, the house's name. */
 	const coinName = $derived(mint?.name || (bank ? `${bank.name} credit` : 'Credits'));
 	const ours = $derived(!!mint && mint.mint === asked);
@@ -64,8 +68,6 @@
 		drawerOpen = true;
 	}
 
-	let mint = $state<MintView | null>(null);
-	let mintSays = $state('');
 	async function loadMint(fresh = false) {
 		const m = await readMint(fresh);
 		mint = m.view;
@@ -99,7 +101,7 @@
 		if (!identity || !mint) return;
 		busy = 'reconcile';
 		said = null;
-		const out = await reconcile(identity, mint);
+		const out = await reconcile(identity, mint, bank ? role.proof(bank.federation) : null);
 		busy = '';
 		said = out.ok ? { tone: 'good', text: `Reconciled: the bank signed its books (${out.reconciliation.content.covers.count} receipts).` } : { tone: 'bad', text: out.says };
 		if (out.ok) await loadMint(true);
@@ -115,7 +117,7 @@
 		said = null;
 		const out = await cashOut(identity, mint, n, ledger);
 		busy = '';
-		said = out.ok ? { tone: 'good', text: `${n} credits cashed out and destroyed. ${live ? `${pounds(out.burned.content.pence ?? 0)} is on its way.` : `${pounds(out.burned.content.pence ?? 0)} would have been paid: test mode, no money moves.`}` } : { tone: 'bad', text: out.says };
+		said = out.ok ? { tone: 'good', text: `${n} credits cashed out and destroyed. ${live ? `${amount(out.burned.content.pence ?? 0, mint)} is on its way.` : `${amount(out.burned.content.pence ?? 0, mint)} would have been paid: test mode, no money moves.`}` } : { tone: 'bad', text: out.says };
 		if (out.ok) await loadMint(true);
 	}
 	const when = (at: string) => new Date(at).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
@@ -164,9 +166,13 @@
 					<p class="text-sm opacity-70">{bank ? `A coin of ${bank.name}` : 'Your host’s coin'}{live ? '' : ' · test'}</p>
 				</div>
 				{#if bank}
-					<a class="btn preset-tonal-primary min-h-11" href="/messages/{encodeURIComponent(bank.founder)}" title={linked ? undefined : 'You’re not linked with them yet: their page says how.'}>
-						<Icon name="message" size={18} /> Ask {bank.name}
-					</a>
+					<!-- Ask the office, not the person (ADR-Q-037): it reaches whoever holds it now. -->
+					<div class="flex flex-col items-end gap-1">
+						<a class="btn preset-tonal-primary min-h-11" href="/messages/{encodeURIComponent(mint.contact?.answerer ?? bank.founder)}" title={linked ? undefined : 'You’re not linked with them yet: their page says how.'}>
+							<Icon name="message" size={18} /> Ask the {(mint.contact?.called ?? 'Treasurer').toLowerCase()}
+						</a>
+						<span class="text-xs opacity-70">of {bank.name}, whoever holds it now</span>
+					</div>
 				{/if}
 			</div>
 			<dl class="grid gap-3 sm:grid-cols-3 text-sm">
@@ -177,7 +183,7 @@
 			<!-- When the bank last signed its books: green today, red at a month. -->
 			<div class="flex flex-wrap items-start justify-between gap-3">
 				<Reconciled last={mint.lastReconciled} movesSince={mint.movesSince} nameOf={(d) => (d === bank?.founder ? `${bank.name}’s treasurer` : names.nameOf(d))} />
-				{#if bank && me === bank.founder && role.isActing(bank.federation)}
+				{#if bank && role.isActing(bank.federation) && officeMay(role.acting!.office, `${OFFICE_COMMANDS.money}/reconcile`)}
 					<button type="button" class="btn btn-sm preset-tonal-primary" disabled={!!busy} onclick={() => void reconcileNow()}>{busy === 'reconcile' ? 'Reconciling…' : 'Reconcile now'}</button>
 				{:else if bank && me === bank.founder}
 					<a class="text-sm anchor" href="/federations/one?id={encodeURIComponent(bank.federation)}">Take up your office to reconcile</a>
@@ -209,12 +215,12 @@
 			</div>
 			<div class="card preset-outlined-surface-200-800 bg-surface-50-950 p-6 space-y-1">
 				<p class="text-sm">One credit</p>
-				<p class="h2">{pounds(mint.pencePerCredit)}</p>
-				<p class="text-sm text-surface-700-300">What a credit costs, and what cashing one out pays. Set by your host.</p>
+				<p class="h2">{worth(1, mint)}</p>
+				<p class="text-sm text-surface-700-300">One unit of its currency ({mint.currency}): what a credit costs, and what cashing one out pays.</p>
 			</div>
 			<div class="card preset-outlined-surface-200-800 bg-surface-50-950 p-6 space-y-1">
 				<p class="text-sm">Face value</p>
-				<p class="h2 tabular-nums">{pounds(mine.spendable * mint.pencePerCredit)}</p>
+				<p class="h2 tabular-nums">{worth(mine.spendable, mint)}</p>
 				<p class="text-sm text-surface-700-300">Your credits at one credit’s price.</p>
 			</div>
 		</div>
@@ -230,12 +236,12 @@
 			</Section>
 		{/if}
 
-		<Section title="Buy credits" description={live ? 'Paid in pounds. The credits are minted to you when the payment is confirmed.' : 'Test mode: buying works end to end, and no money is taken.'}>
+		<Section title="Buy credits" description={live ? `Paid in ${mint.currency}, one unit a credit.` + ' The credits are minted to you when the payment is confirmed.' : 'Test mode: buying works end to end, and no money is taken.'}>
 			<div class="flex flex-wrap gap-4">
 				{#each PACKS as n (n)}
 					<div class="card preset-outlined-surface-200-800 bg-surface-50-950 p-5 flex flex-col gap-3 min-w-48">
 						<p class="h4">{n} credits</p>
-						<p class="text-sm text-surface-700-300">{pounds(n * mint.pencePerCredit)}{live ? '' : ' · test, nothing taken'}</p>
+						<p class="text-sm text-surface-700-300">{worth(n, mint)}{live ? '' : ' · test, nothing taken'}</p>
 						<button type="button" class="btn preset-filled-primary-500 min-h-11" disabled={!!busy} onclick={() => void buy(n)}>
 							<Icon name="wallet" size={18} />{busy === `buy-${n}` ? 'Minting…' : 'Buy'}
 						</button>
@@ -244,9 +250,9 @@
 			</div>
 		</Section>
 
-		<Section title="Cash out" description="Credits back into pounds. Cashing out destroys the credits, so the books always balance.">
+		<Section title="Cash out" description="Credits back into {mint.currency}, one unit each. Cashing out destroys the credits, so the books always balance.">
 			<div class="card preset-outlined-surface-200-800 bg-surface-50-950 p-5 flex flex-col gap-4 max-w-xl">
-				<CashOutBattery held={mine.spendable} {committed} pencePerCredit={mint.pencePerCredit} />
+				<CashOutBattery held={mine.spendable} {committed} currency={mint.currency} />
 				{#if account}
 					<p class="text-sm">Paid by standing order to your account ending <strong>{account.content.ends}</strong>, set {new Date(account.content.at).toLocaleDateString('en-GB', { dateStyle: 'medium' })}. <a class="anchor" href="/settings#cashing-out">Change it in Settings</a>.</p>
 				{:else}
@@ -257,7 +263,7 @@
 						<span class="label-text">How many credits (up to {canCashOut})</span>
 						<input class="input max-w-40" type="number" min="1" max={canCashOut} step="1" bind:value={outCredits} />
 					</label>
-					<p>You’ll be paid <strong>{pounds(Math.max(0, Math.trunc(Number(outCredits) || 0)) * mint.pencePerCredit)}</strong>{live ? `, on today’s standing order to the account ending ${account.content.ends}.` : '. Test mode: no money moves.'}</p>
+					<p>You’ll be paid <strong>{worth(Math.max(0, Math.trunc(Number(outCredits) || 0)), mint)}</strong>{live ? `, on today’s standing order to the account ending ${account.content.ends}.` : '. Test mode: no money moves.'}</p>
 					<button type="button" class="btn preset-filled-secondary-500 min-h-11 self-start" disabled={!!busy || !(outCredits >= 1 && outCredits <= canCashOut)} onclick={() => void cash()}>
 						<Icon name="balance" size={18} />{busy === 'cash' ? 'Cashing out…' : 'Cash out'}
 					</button>

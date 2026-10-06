@@ -19,13 +19,20 @@
 	import { JOIN_POLICIES, KNOWN_AS, consentSteps, type KnownAs } from '@inqbeta/q-core/federations';
 	import { CARD_PICTURE_MOST } from '@inqbeta/q-core/membership';
 	import { answersFrom } from '$lib/answers';
-	import { checkInvitation, checkMembership, isInvitation, isJoining, isNotice, unpack, type Packet } from '@inqbeta/q-core/membership';
+	import { checkInvitation, checkMembership, isAppointment, isInvitation, isJoining, isNotice, isOfficeEnded, unpack, type Packet } from '@inqbeta/q-core/membership';
+	import { checkAppointment, officeKind } from '@inqbeta/q-core/offices';
+	import { readHome } from '$lib/home';
 	import {
 		isFederationRecord,
 		isMembershipRecord,
 		joinFromInvitation,
 		receiveJoining,
 		receiveNotice,
+		receiveAppointment,
+		receiveEndingAsHolder,
+		receiveEndingAsCaretaker,
+		isOfficeRecord,
+		type OfficeRecord,
 		recordFrom,
 		takeHome,
 		type FederationRecord,
@@ -49,9 +56,36 @@
 		if (!packet) return void (unreadable = true);
 		if (isInvitation(packet)) check = await checkInvitation(packet);
 		else if (isJoining(packet)) membership = await checkMembership(packet);
+		else if (isAppointment(packet)) check = await checkAppointment(packet);
 	});
 
-	const fed = $derived(packet ? (isInvitation(packet) ? packet.founding.federation : packet.federation) : '');
+	/* Offices (ADR-Q-007 §5): an appointment for you, or an office ended. */
+	let officeRecords = $state<OfficeRecord[]>([]);
+	$effect(() => {
+		const items = found.filter((f) => f.kind === 'office' && f.key.startsWith(`office:${fed}:`)).map((f) => f.item);
+		void Promise.all(items.map(recordFrom)).then((rs) => (officeRecords = rs.filter(isOfficeRecord)));
+	});
+	async function keepOffice() {
+		if (!identity || !packet || !(isAppointment(packet) || isOfficeEnded(packet))) return;
+		busy = true;
+		said = null;
+		const out = isAppointment(packet)
+			? mine
+				? await receiveAppointment(mine, packet)
+				: { ok: false as const, says: 'Your membership isn’t in this folder.' }
+			: own
+				? await receiveEndingAsCaretaker(identity, own, officeRecords, packet, await readHome().then((h) => (h.ok && h.federation === own!.founding.federation ? (h.services.storage ?? null) : null)).catch(() => null))
+				: mine
+					? await receiveEndingAsHolder(mine, packet)
+					: { ok: false as const, says: 'Nothing here for this to change.' };
+		busy = false;
+		if (!out.ok) return void (said = { tone: 'bad', text: out.says });
+		done = true;
+		await refreshLedger();
+		said = { tone: 'good', text: isAppointment(packet) ? 'Kept with your membership. Its switch is on the federation’s page.' : 'Noted: the office has ended.' };
+	}
+
+	const fed = $derived(packet ? (isInvitation(packet) ? packet.founding.federation : 'federation' in packet ? packet.federation : 'federation' in packet.content ? packet.content.federation : packet.content.reportFederation) : '');
 	const found = $derived(ledger?.state === 'ready' ? ledger.found : []);
 	const newest = <T extends { at: string }>(xs: T[]) => [...xs].sort((a, b) => b.at.localeCompare(a.at))[0] ?? null;
 	const ownItem = $derived(newest(found.filter((f) => f.feature === 'federations' && f.key === `federation:${fed}`)));
@@ -335,6 +369,32 @@
 					</div>
 				{/if}
 			{/if}
+		{:else if isAppointment(packet)}
+			{@const a = packet}
+			{#if mine && a.holder === identity.did}
+				<div class="card preset-outlined-surface-200-800 p-4 flex flex-col gap-3">
+					<p class="font-bold">{mine.founding.name} has made you {officeKind(a.office)?.called ?? a.office}.</p>
+					<p>{officeKind(a.office)?.does}</p>
+					<p class="text-sm">Until {onDay(new Date(a.until * 1000).toISOString())}. “{a.says}” You can stand down at any time.</p>
+					{#if check && !check.ok}<p class="card preset-tonal-error p-3">{check.says}</p>{/if}
+					{#if !done && check?.ok}
+						<button type="button" class="btn preset-filled-primary-500 min-h-11 self-start" disabled={busy} onclick={keepOffice}>{busy ? 'Keeping…' : 'Keep this with my membership'}</button>
+					{/if}
+				</div>
+			{:else if own}
+				<p class="card preset-tonal p-4">This is an office you gave. Send it to the member it’s for.</p>
+			{:else}
+				<Empty icon="federations" title="This link is for someone else" description="It gives an office to a member whose membership isn't in your folder here." />
+			{/if}
+		{:else if isOfficeEnded(packet)}
+			{@const e = packet}
+			<div class="card preset-outlined-surface-200-800 p-4 flex flex-col gap-3">
+				<p class="font-bold">{e.how === 'stood-down' ? 'An office holder has stood down' : 'An office has been recalled'}: {officeKind(e.office)?.called ?? e.office}.</p>
+				<p>{e.says}</p>
+				{#if (own || (mine && e.holder === identity.did)) && !done}
+					<button type="button" class="btn preset-filled-primary-500 min-h-11 self-start" disabled={busy} onclick={keepOffice}>{busy ? 'Keeping…' : 'Note it'}</button>
+				{/if}
+			</div>
 		{:else if isNotice(packet)}
 			{@const n = packet}
 			{#if mine && n.member === identity.did}

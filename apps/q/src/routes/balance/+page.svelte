@@ -17,7 +17,7 @@
 	import { watchLedger, type Ledger } from '$lib/ledger';
 	import { balanceOf } from '@inqbeta/q-core/credits';
 	import { creditsCommitted } from '$lib/agreements';
-	import { readMint, mintBalance, pounds, type MintView } from '$lib/money';
+	import { readMint, mintBalance, worth, type MintView } from '$lib/money';
 	import { readHome, type Home } from '$lib/home';
 
 	let identity = $state<Identity | null>(null);
@@ -44,7 +44,7 @@
 		if (!mint) return [];
 		const held = mintBalance(ledger, mint, me).spendable;
 		const committed = creditsCommitted(ledger, me, mint.mode);
-		return [{ mint, name: mint.name || (bank ? `${bank.name} credit` : 'Credits'), of: bank?.name ?? 'your host', held, committed, worth: held * mint.pencePerCredit }];
+		return [{ mint, name: mint.name || (bank ? `${bank.name} credit` : 'Credits'), of: bank?.name ?? 'your host', held, committed, worth: worth(held, mint) }];
 	});
 	const olderTest = $derived(balanceOf(ledger?.receipts ?? [], me, 'test'));
 </script>
@@ -75,9 +75,9 @@
 							</span>
 							<span class="text-right">
 								<span class="block h3 tabular-nums">{c.held}</span>
-								<span class="block text-sm text-surface-700-300">{pounds(c.worth)} face value</span>
+								<span class="block text-sm text-surface-700-300">{c.worth} face value</span>
 							</span>
-							<CashOutBattery held={c.held} committed={c.committed} pencePerCredit={c.mint.pencePerCredit} compact />
+							<CashOutBattery held={c.held} committed={c.committed} currency={c.mint.currency} compact />
 							<Icon name="expand" size={18} class="opacity-60" />
 						</a>
 					</li>

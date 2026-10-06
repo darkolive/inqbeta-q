@@ -149,6 +149,7 @@
 	const canForward = $derived(scale !== 'all' && back > 0);
 	/* The window in words: "in the last 24 hours", or its own dates once you've stepped back. */
 	const fmtAt = (d: Date) => d.toLocaleString('en-GB', scale === 'hour' || scale === 'hours4' || scale === 'day' ? { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' } : { day: 'numeric', month: 'short', year: scale === 'year' ? 'numeric' : undefined });
+	const IN_WINDOW: Record<ScaleKey, string> = { hour: 'in the last hour', hours4: 'in the last 4 hours', day: 'in the last 24 hours', week: 'in the last week', month: 'in the last month', quarter: 'in the last 3 months', year: 'in the last year', all: 'since your first receipt' };
 	const windowSays = $derived(back === 0 ? IN_WINDOW[scale] : `from ${fmtAt(span.start)} to ${fmtAt(span.end)}`);
 
 	const points = $derived.by((): Point[] => {
@@ -211,7 +212,6 @@
 	 * those blocks is relevant to what the tab is showing"): received and
 	 * spent within it, and committed now, with how it moved within it.
 	 */
-	const IN_WINDOW: Record<ScaleKey, string> = { hour: 'in the last hour', hours4: 'in the last 4 hours', day: 'in the last 24 hours', week: 'in the last week', month: 'in the last month', quarter: 'in the last 3 months', year: 'in the last year', all: 'since your first receipt' };
 	const inWindow = $derived.by(() => {
 		const from = span.start.toISOString();
 		const to = span.end.toISOString();

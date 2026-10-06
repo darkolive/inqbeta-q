@@ -24,7 +24,7 @@
 		: { pounds: lerp(15, 65, f.scene === 5 ? f.p : 1), credits: lerp(100, 150, f.scene === 5 ? f.p : 1) }}
 	<svg viewBox="0 0 640 320" class="w-full h-auto" aria-hidden="true">
 		<!-- the stacks and the gauge: the same display as the Credits page -->
-		<BackingGraphic pounds={v.pounds} credits={v.credits} minRatio={0.2} gauge={f.scene >= 2 && f.scene <= 5} unit={UNIT} />
+		<BackingGraphic held={v.pounds} credits={v.credits} minRatio={0.2} gauge={f.scene >= 2 && f.scene <= 5} unit={UNIT} />
 
 		<!-- 6: the trust levels -->
 		<g class="{f.fade} {f.on(6)}">

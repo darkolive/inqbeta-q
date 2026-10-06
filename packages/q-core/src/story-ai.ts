@@ -241,16 +241,16 @@ export const ASK_ROOM = BRIEF_MOST * (ANSWER_MOST + 300);
 export const tokensOf = (text: string) => Math.ceil(text.length / 4);
 
 export interface Rates {
-	/** Pence for a million tokens in, and out. */
+	/** Minor units of the mint's currency (pence for pounds) for a million tokens in, and out. */
 	inPerM: number;
 	outPerM: number;
-	/** Pence a credit is worth (the mint's rate). */
-	pencePerCredit: number;
+	/** One credit, in minor units: one unit of the mint's currency (100 for pounds). */
+	minorPerCredit: number;
 }
 /** Credits for this many tokens, rounded up to a hundredth, never less than 0.01. */
 export function creditsFor(tokensIn: number, tokensOut: number, r: Rates): number {
 	const pence = (tokensIn * r.inPerM + tokensOut * r.outPerM) / 1e6;
-	return Math.max(0.01, Math.ceil((pence / Math.max(1, r.pencePerCredit)) * 100) / 100);
+	return Math.max(0.01, Math.ceil((pence / Math.max(1, r.minorPerCredit)) * 100) / 100);
 }
 /** The most a job can cost, agreed before it runs: everything in, and the most that can come out. */
 export function upToFor(t: StoryTask, r: Rates): number {
