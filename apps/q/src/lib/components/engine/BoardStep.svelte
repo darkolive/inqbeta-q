@@ -6,7 +6,7 @@
 	 * own history and touches nothing else.
 	 */
 	import { Icon } from '@inqbeta/q-ui';
-	import { setStory, uniqueSlideId, historyOf, SLIDES_MOST, type Book, type BookStep, type Story, type Slide } from '@inqbeta/q-core/storybook';
+	import { setStory, uniqueSlideId, historyOf, markShowIt, SLIDES_MOST, type Book, type BookStep, type Story, type Slide } from '@inqbeta/q-core/storybook';
 	import StoryList from './StoryList.svelte';
 	import SlideCard from './SlideCard.svelte';
 	import SlideForm from './SlideForm.svelte';
@@ -46,7 +46,13 @@
 				<div>
 					<p class="text-xs opacity-70">Story {at + 1} of {book.stories.length}</p>
 					<h2 class="h4 font-normal">{story.title}</h2>
-					<p class="text-surface-700-300">How does it unfold, slide by slide? Add slides until it feels complete.</p>
+					{#if story.recap}
+						<p class="text-surface-700-300">The recap: one slide for each thing they’ve learned, said again in a row so nothing has to be remembered. Q makes it from the others, and remakes a slide when its story changes.</p>
+					{:else if book.course}
+						<p class="text-surface-700-300">One thing they’ll learn. Start with why it matters. End with a Show it: one small thing they make or do, and keep as evidence.</p>
+					{:else}
+						<p class="text-surface-700-300">How does it unfold, slide by slide? Add slides until it feels complete.</p>
+					{/if}
 				</div>
 
 				{#each story.slides as slide, i (slide.id)}
@@ -56,6 +62,7 @@
 						<SlideCard {slide} n={i + 1} look={book.style}>
 							{#snippet actions()}
 								<button type="button" class="btn preset-tonal min-h-11" onclick={() => (form = slide.id)}>Change</button>
+								{#if book.course && !story.recap && !slide.show}<button type="button" class="btn preset-tonal min-h-11" onclick={() => save(markShowIt(story, slide.id), 'Make this the Show it?', slide.title)}>Make this the Show it</button>{/if}
 								<button type="button" class="btn-icon preset-tonal min-h-11 min-w-11" aria-label="Move slide {i + 1} up" disabled={i === 0} onclick={() => move(i, -1)}><span aria-hidden="true">↑</span></button>
 								<button type="button" class="btn-icon preset-tonal min-h-11 min-w-11" aria-label="Move slide {i + 1} down" disabled={i === story.slides.length - 1} onclick={() => move(i, 1)}><span aria-hidden="true">↓</span></button>
 								<button type="button" class="btn preset-tonal min-h-11" onclick={() => slides((all) => all.filter((x) => x.id !== slide.id), 'Take this slide out?', slide.title || 'an empty slide')}>Take out</button>
@@ -64,7 +71,9 @@
 					{/if}
 				{/each}
 
-				{#if form === 'add'}
+				{#if story.recap}
+					<!-- The recap is made from the outcomes: its words can be changed, but slides aren't added by hand. -->
+				{:else if form === 'add'}
 					<SlideForm first={!story.slides.length} onsave={async (s, asks) => (await slides((all) => [...all, { id: uniqueSlideId(story), ...s, piece: null, draft: false }], asks, s), (form = null))} oncancel={() => (form = null)} />
 				{:else if story.slides.length < SLIDES_MOST}
 					<div class="flex flex-wrap gap-3">

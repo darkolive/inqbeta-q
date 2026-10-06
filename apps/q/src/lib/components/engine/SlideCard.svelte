@@ -28,6 +28,7 @@
 			<p class="text-surface-700-300">{slide.subtext}</p>
 		{/if}
 		{#if slide.scene}<p class="text-sm italic opacity-80"><span class="not-italic opacity-70">Picture:</span> {slide.scene}</p>{/if}
+		{#if slide.show}<span class="badge bg-tertiary-700 text-white self-start">Show it: the evidence they keep</span>{/if}
 		{#if slide.draft}<span class="badge preset-tonal-secondary self-start">Draft: not kept yet</span>{/if}
 		{#if slide.draft && (onkeep || onreject)}
 			<div class="flex flex-wrap gap-2 mt-2">

@@ -1,7 +1,7 @@
 ---
 status: accepted (the player); first draft built (the engine)
 implementation: the player built 4 October 2026 (lib/components/decks: StoryDeck, words.ts, voice.svelte.ts, frame.ts; routes/stories). The engine's first draft built the same night (q-core storybook.ts and story-ai.ts; api/story; routes/stories/make; components/engine; decks/MadeDeck).
-updated: 2026-10-04
+updated: 2026-10-06
 ---
 
 # ADR-Q-033 — The story player, and the engine that writes for it
@@ -256,3 +256,69 @@ the storyboard imagined scene by scene; accepted; played; and the whole
 practice path on a phone-sized screen. Next: **making the pictures** from
 the scenes (an image model through the same gateway, cost agreed first),
 then recording.
+
+## The storyboard for courses (6 October 2026, decided)
+
+Darren: "from a learning management system and writing courses … this is
+all part of how the course is written, is mapping out what you're going to
+learn when you're studying this unit. And being able to explain that from
+an ADHD artist who's delivering a course." Built on its own branch,
+`story/courses`. Six choices, asked one at a time:
+
+1. **The unit's shape.** A book can be a **course unit**: title = the unit,
+   subtext = its aim. Each story is **one learning outcome**, in the order
+   you'll learn it. A small **unit card** sits with it: level, time to
+   study, what you need first. No separate assessment field: assessment is
+   each outcome's *Show it* (5).
+2. **Q's questions, through a course writer's lens.** The AI still picks
+   the one question that most improves the unit (up to six), but thinks as
+   a course writer would: who it's for, what they can already do, what
+   they'll be able to do afterwards, how they'll show it, what usually
+   trips people up. Practice asks those five, in that order.
+3. **The teacher's voice: described first, recorded later.** The maker says
+   or types how they teach ("I start with why. I draw it before I name
+   it."). It goes into the prompt as the voice every slide is written in.
+   The maker records the finished lines in their own voice later, through
+   the recording the player already has.
+4. **ADHD-first, as house rules for a unit** (on top of one idea per
+   slide): **why it matters first** (each outcome's first slide); **the
+   picture carries the idea** (you could get it with the sound off; the
+   words name what the picture shows); **nothing to remember across
+   slides** (no "as we saw"; say it again in a few words); **a recap story
+   at the end**, one slide per outcome, made from the others and updated
+   when they change.
+5. **Show it.** Each outcome's last slide is *Show it*: one small, concrete
+   thing to make or do. In the player it offers *Keep my evidence* (a
+   photo, a file, or words said), receipted against the unit and outcome.
+   This is how a unit is assessed, and how the storyboard joins DoStudy.
+6. **The first real unit**: Dark Olive's **How to storyboard**, written
+   start to finish with the real model, cost agreed first.
+
+The one rule holds: a recap story is still a title; a *Show it* slide is
+still a title and a subtext (+ a scene). Changing one outcome changes only
+that outcome and the recap's one slide for it.
+
+**Built the same day, on `story/courses`.** q-core `storybook.ts`: `Unit`
+(level, time, need first, voice) on the book's head (`setCourse`); a slide's
+`show` (one per story, always last, enforced by `storyOf`; `markShowIt`);
+the recap (`recap: true`, id `recap`) kept by `syncRecap` after every
+change, remaking only the changed outcome's slide and only when its words
+differ; at most 8 outcomes; `problemsOf` asks for a Show it on every
+outcome; practice drafts *Why it matters · What it is · Show it* and asks
+the course writer's five (`COURSE_QUESTIONS`); `evidenceOf` records a Show
+it's evidence (words, a file's SHA-256, never the file), hashed, not yet
+sealed. `story-ai.ts`: `COURSE_RULES` added to the standing prompt for a
+unit; `<unit>` and `<teacher_voice>` in the brief (fenced); the ask,
+outline, draft, redo and ripple jobs through the course lens; the AI never
+sees or writes the recap; its `show` is kept and put last. App: the first
+question is *What are you making?*; the unit card and *How do you teach
+it?* one at a time; the rail reads *The unit* and *What you'll learn*;
+*Make this the Show it* on the storyboard; a Show it badge; the recap can't
+be redone; under the player each outcome's Show it card, *Keep my
+evidence* (`q.evidence`, declared in storage.ts). Checklist
+`open-stories-make` gained seven course checks. Proved in the cloud copy
+(12 new q-core tests; the whole practice path for *How to storyboard* in
+Playwright at 1280 and 390 wide, no console errors; an ordinary book
+unchanged). **Not yet:** the real model (the first unit is to be written
+with it, cost agreed first); evidence sealed into the vault; DoStudy
+reading units from here.

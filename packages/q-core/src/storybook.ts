@@ -85,12 +85,20 @@ export interface Slide {
 	scene?: string;
 	/** Written by the AI (or the practice drafter) and not yet kept by the person. */
 	draft: boolean;
+	/**
+	 * In a course unit: this is the outcome's "Show it", one small concrete
+	 * thing the learner makes or does and keeps as evidence (6 October 2026).
+	 * Still a title and a subtext; always a story's last slide (storyOf moves it).
+	 */
+	show?: true;
 }
 export interface Story {
 	id: string;
 	/** A story is its title only. */
 	title: string;
 	slides: Slide[];
+	/** In a course unit: the recap at the end, made from the outcomes (one slide each). */
+	recap?: true;
 }
 export interface Book {
 	id: string;
@@ -117,7 +125,70 @@ export interface Book {
 	brief: BriefAnswer[];
 	/** How the storyboard looks: a preset, or the person's own words. Null until chosen. */
 	style: Style | null;
+	/**
+	 * When the book is a course unit (6 October 2026): the title is the unit,
+	 * the subtext its aim, each story one learning outcome, and this the
+	 * unit card. Null for an ordinary book.
+	 */
+	course: Unit | null;
 }
+
+/* ------------------------------------------------------------- a course unit */
+
+/*
+ * The storyboard for courses (ADR-Q-033, 6 October 2026). Darren: "this is
+ * all part of how the course is written, is mapping out what you're going to
+ * learn when you're studying this unit. And being able to explain that from
+ * an ADHD artist who's delivering a course."
+ *
+ *   the book     the unit: its title, and its aim as the subtext
+ *   a story      one learning outcome, in the order it's learned; its first
+ *                slide says why it matters, its last is "Show it"
+ *   the recap    the last story, made from the outcomes, one slide each
+ *
+ * The unit card is small on purpose: how it's assessed is each outcome's
+ * Show it, not another field.
+ */
+export interface Unit {
+	/** "Level 2", "Beginners": however the maker says it. */
+	level: string;
+	/** About how long it takes to study: "About two hours". */
+	time: string;
+	/** What you need first: things to have, or know. */
+	needFirst: string;
+	/**
+	 * How the teacher teaches, in their own words, typed or said ("I start
+	 * with why. I draw it before I name it."). Every slide is written in it;
+	 * the lines are recorded in their real voice later.
+	 */
+	voice: string;
+}
+export const UNIT_MOST = 120;
+export const VOICE_MOST = 1200;
+/** The recap story's fixed id, and the title it starts with. */
+export const RECAP_ID = 'recap';
+export const RECAP_TITLE = 'What you’ve learned';
+
+/** A unit card made safe to keep. */
+export function unitOf(x: Partial<Unit> | null | undefined): Unit {
+	return { level: tidy(x?.level, UNIT_MOST), time: tidy(x?.time, UNIT_MOST), needFirst: tidy(x?.needFirst, UNIT_MOST), voice: (typeof x?.voice === 'string' ? x.voice : '').trim().slice(0, VOICE_MOST) };
+}
+/** The learning outcomes: every story but the recap (an ordinary book: every story). */
+export const outcomesOf = (book: Book) => book.stories.filter((s) => !s.recap);
+/** A course unit's outcomes can each have a recap slide, so there are at most as many as a story has slides. */
+export const OUTCOMES_MOST = SLIDES_MOST;
+
+/**
+ * The recap's slide for one outcome: the outcome's title, and its own lines
+ * said again in a row, so nothing has to be remembered. Its first picture.
+ * A draft until the person keeps it.
+ */
+export function recapSlideOf(outcome: Story): Slide {
+	const lines = outcome.slides.filter((s) => !s.show && s.title).map((s) => s.title.replace(/[.!?…]+$/, ''));
+	const first = outcome.slides.find((s) => s.scene || s.piece);
+	return slideOf({ title: outcome.title, subtext: lines.length ? `${lines.join('. ')}.` : '', scene: first?.scene, piece: first?.piece ?? null, draft: true }, `${RECAP_ID}.${outcome.id}`);
+}
+const sameWords = (a: Slide, b: Slide) => a.title === b.title && a.subtext === b.subtext && (a.scene ?? '') === (b.scene ?? '') && a.piece === b.piece;
 
 /* ------------------------------------------------------------------ the brief */
 
@@ -244,21 +315,30 @@ export function slideOf(x: Partial<Slide> & { id?: string }, id: string): Slide 
 		subtext: tidy(x.subtext, SUBTEXT_MOST),
 		piece: isPiece(x.piece) ? x.piece : null,
 		...(scene ? { scene } : {}),
-		draft: !!x.draft
+		draft: !!x.draft,
+		...(x.show === true ? { show: true as const } : {})
 	};
 }
 
 /** A story made to the rule: a title, and at most SLIDES_MOST slides. Anything else is dropped. */
-export function storyOf(x: { id: string; title?: unknown; slides?: unknown }): Story {
-	const slides = Array.isArray(x.slides) ? x.slides : [];
-	return {
-		id: x.id,
-		title: tidy(x.title, TITLE_MOST),
-		slides: slides.slice(0, SLIDES_MOST).map((s, i) => slideOf((s ?? {}) as Partial<Slide>, `${x.id}.${i + 1}`))
-	};
+export function storyOf(x: { id: string; title?: unknown; slides?: unknown; recap?: unknown }): Story {
+	const recap = x.recap === true;
+	const list = Array.isArray(x.slides) ? x.slides : [];
+	let slides = list.slice(0, SLIDES_MOST).map((s, i) => slideOf((s ?? {}) as Partial<Slide>, `${x.id}.${i + 1}`));
+	/* One Show it at most, and always last: the last one marked wins. A recap has none. */
+	let show = -1;
+	if (!recap) slides.forEach((s, i) => s.show && (show = i));
+	slides = slides.map(({ show: _, ...s }, i) => (i === show ? { ...s, show: true as const } : s));
+	if (show >= 0 && show !== slides.length - 1) slides = [...slides.slice(0, show), ...slides.slice(show + 1), slides[show]];
+	return { id: x.id, title: tidy(x.title, TITLE_MOST), slides, ...(recap ? { recap: true as const } : {}) };
 }
 
-export const emptyBook = (id: string): Book => ({ id, title: '', subtext: '', open: false, ready: false, stories: [], refs: [], brief: [], style: null });
+/** Make one slide the story's Show it (and no other), moved to the end. */
+export function markShowIt(story: Story, slideId: string | null): Story {
+	return storyOf({ ...story, slides: story.slides.map((s) => ({ ...s, show: s.id === slideId ? (true as const) : undefined })) });
+}
+
+export const emptyBook = (id: string): Book => ({ id, title: '', subtext: '', open: false, ready: false, stories: [], refs: [], brief: [], style: null, course: null });
 
 /** A slide still waiting for words. */
 export const isEmptySlide = (s: Slide) => !s.title && !s.subtext;
@@ -276,13 +356,14 @@ export function problemsOf(book: Book): string[] {
 		if (empty) out.push(`${name} has ${empty === 1 ? 'a slide' : `${empty} slides`} with no words yet.`);
 		const drafts = s.slides.filter((x) => x.draft && !isEmptySlide(x)).length;
 		if (drafts) out.push(`${name} has ${drafts === 1 ? 'a draft slide' : `${drafts} draft slides`} not kept yet.`);
+		if (book.course && !s.recap && s.slides.length && !s.slides.at(-1)?.show) out.push(`${name} needs a Show it slide at the end.`);
 	}
 	return out;
 }
 
 /** The stories that still need slides or words: what a first draft would write. */
 export function needingWork(book: Book): Story[] {
-	return book.stories.filter((s) => s.slides.length < 3 || s.slides.some(isEmptySlide));
+	return book.stories.filter((s) => !s.recap && (s.slides.length < 3 || s.slides.some(isEmptySlide) || (!!book.course && !s.slides.some((x) => x.show))));
 }
 
 /* ----------------------------------------------------------------- the steps */
@@ -296,6 +377,10 @@ export type StepKind =
 	| 'brief'
 	/** The storyboard's look. */
 	| 'style'
+	/** A course unit's card (or the book made ordinary again). */
+	| 'course'
+	/** The recap made again from the outcomes. */
+	| 'recap'
 	/** Stories suggested by the AI (or practice), before the person uses them. */
 	| 'outline'
 	/** A draft slide put back as it was, or taken out. */
@@ -343,7 +428,7 @@ export interface BookStep {
 	/** What they answered (words, choices), as given. */
 	answer: unknown;
 	/** On the book's chain: the book's own fields after this step. */
-	head?: { title: string; subtext: string; open: boolean; ready: boolean; order: string[]; refs?: Ref[]; brief?: BriefAnswer[]; style?: Style | null };
+	head?: { title: string; subtext: string; open: boolean; ready: boolean; order: string[]; refs?: Ref[]; brief?: BriefAnswer[]; style?: Style | null; course?: Unit | null };
 	/** On a story's chain: the story after this step; null when it was taken out. */
 	story?: Story | null;
 	cost?: Cost;
@@ -391,6 +476,7 @@ export function bookFrom(steps: BookStep[], id = steps[0]?.book ?? ''): Book {
 			book.refs = s.head.refs ?? [];
 			book.brief = s.head.brief ?? [];
 			book.style = s.head.style ?? null;
+			book.course = s.head.course ?? null;
 		} else if (s.chain !== BOOK_CHAIN && s.story !== undefined) {
 			if (s.story === null) stories.delete(s.chain);
 			else stories.set(s.chain, s.story);
@@ -403,7 +489,7 @@ export function bookFrom(steps: BookStep[], id = steps[0]?.book ?? ''): Book {
 /** One story's history (or the book's own, with 'book'), oldest first. */
 export const historyOf = (steps: BookStep[], chain: string) => steps.filter((s) => s.chain === chain);
 
-const headOf = (b: Book, order = b.stories.map((s) => s.id)) => ({ title: b.title, subtext: b.subtext, open: b.open, ready: b.ready, order, refs: b.refs, brief: b.brief, style: b.style });
+const headOf = (b: Book, order = b.stories.map((s) => s.id)) => ({ title: b.title, subtext: b.subtext, open: b.open, ready: b.ready, order, refs: b.refs, brief: b.brief, style: b.style, ...(b.course ? { course: b.course } : {}) });
 
 /** Make a fresh id for a story or book (short, random, URL-safe). */
 export function freshId(prefix: string): string {
@@ -430,7 +516,9 @@ export async function setStories(steps: BookStep[], bookId: string, list: { id?:
 	const now = new Map(b.stories.map((s) => [s.id, s]));
 	let out = steps;
 	const order: string[] = [];
-	for (const item of list.slice(0, STORIES_MOST)) {
+	/* The recap is Q's to keep in place: it is never set here, and a unit has at most OUTCOMES_MOST outcomes. */
+	const recap = b.stories.find((s) => s.recap);
+	for (const item of list.filter((x) => x.id !== RECAP_ID).slice(0, b.course ? OUTCOMES_MOST : STORIES_MOST)) {
 		const title = tidy(item.title, TITLE_MOST);
 		if (!title) continue;
 		const had = item.id ? now.get(item.id) : undefined;
@@ -440,8 +528,10 @@ export async function setStories(steps: BookStep[], bookId: string, list: { id?:
 		const story: Story = had ? { ...had, title } : { id, title, slides: [] };
 		out = await addStep(out, { book: bookId, chain: id, kind: 'stories', asks, answer: { title }, story });
 	}
+	if (recap) order.push(recap.id);
 	for (const s of b.stories) if (!order.includes(s.id)) out = await addStep(out, { book: bookId, chain: s.id, kind: 'stories', asks, answer: { removed: s.title }, story: null });
-	return addStep(out, { book: bookId, chain: BOOK_CHAIN, kind: 'stories', asks, answer: list.map((x) => x.title), head: { ...headOf(b, order), ready: false } });
+	out = await addStep(out, { book: bookId, chain: BOOK_CHAIN, kind: 'stories', asks, answer: list.filter((x) => x.id !== RECAP_ID).map((x) => x.title), head: { ...headOf(b, order), ready: false } });
+	return syncRecap(out, bookId);
 }
 
 /**
@@ -453,6 +543,52 @@ export async function setStory(steps: BookStep[], bookId: string, story: Story, 
 	let out = await addStep(steps, { book: bookId, chain: story.id, kind: step.kind, asks: step.asks, answer: step.answer, story: clean, cost: step.cost });
 	const b = bookFrom(out, bookId);
 	if (b.ready) out = await addStep(out, { book: bookId, chain: BOOK_CHAIN, kind: step.kind, asks: 'A story changed, so the book is checked again.', answer: null, head: { ...headOf(b), ready: false } });
+	/* An outcome changed: only the recap's one slide for it is made again. */
+	return clean.recap ? out : syncRecap(out, bookId, [clean.id]);
+}
+
+/**
+ * The book as a course unit (a card), or an ordinary book again (null). A
+ * unit gains its recap at the end; an ordinary book loses it (its history
+ * stays). Not ready until checked again.
+ */
+export async function setCourse(steps: BookStep[], bookId: string, unit: Partial<Unit> | null, asks: string): Promise<BookStep[]> {
+	const b = bookFrom(steps, bookId);
+	const course = unit ? unitOf(unit) : null;
+	const head = { ...headOf(b), ready: false };
+	if (course) head.course = course;
+	else delete (head as { course?: Unit }).course;
+	const out = await addStep(steps, { book: bookId, chain: BOOK_CHAIN, kind: 'course', asks, answer: course ?? 'an ordinary book', head });
+	return syncRecap(out, bookId);
+}
+
+/**
+ * Keep a course unit's recap in step with its outcomes: one slide each, in
+ * their order, always the last story. A slide is made again only for an
+ * outcome named in `changed` (or one that has none yet), and only when its
+ * words would differ, so a recap slide the person kept stays kept. Nothing is
+ * written when nothing changed. An ordinary book has no recap.
+ */
+export async function syncRecap(steps: BookStep[], bookId: string, changed?: string[]): Promise<BookStep[]> {
+	const b = bookFrom(steps, bookId);
+	const had = b.stories.find((s) => s.recap) ?? null;
+	const outcomes = outcomesOf(b);
+	let out = steps;
+	if (!b.course || !outcomes.length) {
+		if (!had) return steps;
+		out = await addStep(out, { book: bookId, chain: had.id, kind: 'recap', asks: b.course ? 'No outcomes yet, so no recap.' : 'An ordinary book has no recap.', answer: null, story: null });
+		return addStep(out, { book: bookId, chain: BOOK_CHAIN, kind: 'recap', asks: 'The recap is taken out.', answer: null, head: headOf(b, outcomes.map((s) => s.id)) });
+	}
+	const before = new Map((had?.slides ?? []).map((s) => [s.id, s]));
+	const slides = outcomes.slice(0, OUTCOMES_MOST).map((o) => {
+		const made = recapSlideOf(o);
+		const was = before.get(made.id);
+		return was && was.title === made.title && (!changed?.includes(o.id) || sameWords(was, made)) ? was : made;
+	});
+	const recap: Story = storyOf({ id: RECAP_ID, title: had?.title || RECAP_TITLE, slides, recap: true });
+	if (!had || canonical(had) !== canonical(recap)) out = await addStep(out, { book: bookId, chain: RECAP_ID, kind: 'recap', asks: 'The recap, made again from the outcomes.', answer: changed ?? 'all', story: recap });
+	const order = [...outcomes.map((s) => s.id), RECAP_ID];
+	if (b.stories.map((s) => s.id).join() !== order.join()) out = await addStep(out, { book: bookId, chain: BOOK_CHAIN, kind: 'recap', asks: 'The recap goes last.', answer: null, head: headOf(bookFrom(out, bookId), order) });
 	return out;
 }
 
@@ -584,15 +720,28 @@ const PRACTICE: { title: string; subtext: (story: string) => string; piece: Piec
 
 /** A first draft, by practice: fills empty slides, and brings each story to three. Slides the person wrote are untouched. */
 export function practiceDraft(book: Book): Story[] {
+	const lines = book.course ? PRACTICE_COURSE : PRACTICE;
 	return needingWork(book).map((story) => {
-		const slides = story.slides.map((s, i) => (isEmptySlide(s) ? { ...s, ...draftLine(story.title, i), draft: true } : s));
-		while (slides.length < 3) slides.push({ id: uniqueSlideId({ ...story, slides }), ...draftLine(story.title, slides.length), draft: true });
-		return { ...story, slides };
+		const slides: Slide[] = story.slides.map((s, i) => (isEmptySlide(s) ? { ...s, ...draftLine(lines, story.title, i), draft: true } : s));
+		while (slides.length < 3) slides.push({ id: uniqueSlideId({ ...story, slides }), ...draftLine(lines, story.title, slides.length), draft: true });
+		/* A course outcome always ends with its Show it. */
+		if (book.course && !slides.some((s) => s.show)) {
+			const show = { ...draftLine(lines, story.title, 2), draft: true, show: true as const };
+			if (slides.length < SLIDES_MOST) slides.push({ id: uniqueSlideId({ ...story, slides }), ...show });
+			else slides[slides.length - 1] = { ...slides[slides.length - 1], show: true };
+		}
+		return storyOf({ ...story, slides });
 	});
 }
-function draftLine(story: string, i: number): Pick<Slide, 'title' | 'subtext' | 'piece' | 'scene'> {
-	const p = PRACTICE[i % PRACTICE.length];
-	return { title: p.title, subtext: p.subtext(story), piece: p.piece, scene: `A picture for “${p.title}”: describe what the reader would see.` };
+/* For a course outcome: why it matters first, what it is, then Show it (the ADHD-first house rules). */
+const PRACTICE_COURSE: typeof PRACTICE = [
+	{ title: 'Why it matters', subtext: (s) => `Say why someone would want to “${s.toLowerCase()}”, before any how.`, piece: 'heart' },
+	{ title: 'What it is', subtext: (s) => `Show “${s.toLowerCase()}” in one picture, and name what it shows.`, piece: 'search' },
+	{ title: 'Show it', subtext: (s) => `One small thing to make or do that shows you can “${s.toLowerCase()}”.`, piece: 'tick' }
+];
+function draftLine(lines: typeof PRACTICE, story: string, i: number): Pick<Slide, 'title' | 'subtext' | 'piece' | 'scene'> & { show?: true } {
+	const p = lines[i % lines.length];
+	return { title: p.title, subtext: tidy(p.subtext(story), SUBTEXT_MOST), piece: p.piece, scene: `A picture for “${p.title}”: describe what the reader would see.`, ...(lines === PRACTICE_COURSE && i % lines.length === 2 ? { show: true as const } : {}) };
 }
 
 /*
@@ -607,14 +756,26 @@ const PRACTICE_QUESTIONS: { asks: string; why: string; options: string[] }[] = [
 	{ asks: 'Is there anything it must say, or must never say?', why: 'So nothing important is missed, and nothing wrong slips in.', options: [] },
 	{ asks: 'Anything else Q should know?', why: 'Last chance before Q starts.', options: [] }
 ];
+/*
+ * A course writer's five (6 October 2026), asked in this order when the
+ * book is a course unit. The AI asks its own through the same lens.
+ */
+export const COURSE_QUESTIONS: { asks: string; why: string; options: string[] }[] = [
+	{ asks: 'Who is this unit for?', why: 'So it starts where they are.', options: ['Complete beginners', 'Some experience', 'Confident already'] },
+	{ asks: 'What can they already do before they start?', why: 'So nothing is explained twice, or skipped.', options: [] },
+	{ asks: 'When they finish, what will they be able to do?', why: 'Each one becomes a story.', options: [] },
+	{ asks: 'How will they show they can do it?', why: 'Each story ends with a Show it.', options: ['Make something', 'Do it and film it', 'Explain it out loud', 'Write a short note'] },
+	{ asks: 'What usually trips people up?', why: 'So the unit gets there first.', options: [] }
+];
 /** The next question, by practice, or null when the brief has enough. */
 export function practiceAsk(book: Book): { asks: string; why: string; options: string[] } | null {
 	const asked = new Set(book.brief.map((a) => a.asks));
-	return PRACTICE_QUESTIONS.find((q) => !asked.has(q.asks)) ?? null;
+	return (book.course ? COURSE_QUESTIONS : PRACTICE_QUESTIONS).find((q) => !asked.has(q.asks)) ?? null;
 }
 
-/** Suggested stories, by practice: six plain parts any book can start from. */
+/** Suggested stories, by practice: six plain parts any book can start from; for a unit, five outcomes. */
 export function practiceOutline(book: Book): string[] {
+	if (book.course) return ['Know what it’s for', 'See how it works', 'Try it once', 'Fix what trips you up', 'Make it your own'];
 	const about = book.title ? `: ${book.title}` : '';
 	return ['Where it starts', 'The problem', 'Why it matters', 'A better way', 'What it takes', 'What to do next'].map((t, i) => (i === 0 ? tidy(t + about, TITLE_MOST) : t));
 }
@@ -633,7 +794,7 @@ export function practiceRedo(story: Story, answers: RedoAnswers): Story {
 export function practiceRipple(book: Book, changed: string): Suggestion[] {
 	const i = book.stories.findIndex((s) => s.id === changed);
 	const next = book.stories[i + 1];
-	if (i < 0 || !next) return [];
+	if (i < 0 || !next || next.recap) return [];
 	const first = next.slides[0];
 	if (first?.subtext.startsWith('Following on from')) return [];
 	return [
@@ -647,4 +808,55 @@ export function practiceRipple(book: Book, changed: string): Suggestion[] {
 			why: `“${book.stories[i].title}” changed, so the next story picks up where it now ends.`
 		}
 	];
+}
+
+/* ------------------------------------------------- Show it: the learner's evidence */
+
+/*
+ * What a learner keeps for an outcome's Show it (6 October 2026): their own
+ * words (typed or said) and/or a file (a photo, a drawing, a clip), recorded
+ * against the unit and the outcome. A file is kept by its fingerprint, so the
+ * record says exactly which file it was without carrying it. Hashed, not yet
+ * signed: when evidence moves into the vault, each record is sealed as a
+ * receipt (seal.ts) with this same content, as books' steps will be.
+ */
+export interface EvidenceFile {
+	name: string;
+	type: string;
+	size: number;
+	/** SHA-256 of the file's bytes, hex. */
+	sha256: string;
+}
+export interface Evidence {
+	schema: 'inqbeta.evidence/1';
+	/** This record's content address. */
+	id: string;
+	book: string;
+	/** The unit's title, as it was. */
+	unit: string;
+	outcome: string;
+	outcomeTitle: string;
+	/** The Show it, as the learner saw it. */
+	asked: { title: string; subtext: string };
+	words?: string;
+	file?: EvidenceFile;
+	at: string;
+}
+export const EVIDENCE_WORDS_MOST = 2000;
+
+/** A Show it's evidence, made safe and addressed. Throws when there's nothing to keep, or the story has no Show it. */
+export async function evidenceOf(book: Book, outcome: Story, kept: { words?: string; file?: EvidenceFile }, at = new Date().toISOString()): Promise<Evidence> {
+	const show = outcome.slides.find((s) => s.show);
+	if (!show) throw new Error('This story has no Show it.');
+	const words = (typeof kept.words === 'string' ? kept.words : '').trim().slice(0, EVIDENCE_WORDS_MOST);
+	const f = kept.file;
+	const file = f && /^[0-9a-f]{64}$/.test(f.sha256) ? { name: tidy(f.name, 200) || 'A file', type: tidy(f.type, 100), size: Math.max(0, Math.floor(f.size) || 0), sha256: f.sha256 } : undefined;
+	if (!words && !file) throw new Error('Add some words or a file first.');
+	const body: Omit<Evidence, 'id'> = { schema: 'inqbeta.evidence/1', book: book.id, unit: book.title, outcome: outcome.id, outcomeTitle: outcome.title, asked: { title: show.title, subtext: show.subtext }, ...(words ? { words } : {}), ...(file ? { file } : {}), at };
+	return { ...body, id: await sha256(canonical(body)) };
+}
+/** Whether an evidence record is as it was made. */
+export async function evidenceHolds(e: Evidence): Promise<boolean> {
+	const { id, ...body } = e;
+	return id === (await sha256(canonical(body)));
 }

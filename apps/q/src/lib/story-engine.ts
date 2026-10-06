@@ -101,7 +101,7 @@ export async function run(job: StoryTask, agreed: number | 'practice'): Promise<
 		const base = { upTo: 0, used: 0, by: 'practice' as const };
 		if (job.task === 'ask') {
 			const q = practiceAsk(job.book);
-			return { ...base, next: { understood: job.book.title ? `A book called “${job.book.title}”${job.book.subtext ? `: ${job.book.subtext}` : ''}` : '', question: q?.asks ?? null, why: q?.why ?? '', options: q?.options ?? [] } };
+			return { ...base, next: { understood: job.book.title ? `${job.book.course ? 'A unit' : 'A book'} called “${job.book.title}”${job.book.subtext ? `: ${job.book.subtext}` : ''}` : '', question: q?.asks ?? null, why: q?.why ?? '', options: q?.options ?? [] } };
 		}
 		if (job.task === 'outline') return { ...base, outline: practiceOutline(job.book).map((title) => ({ title, why: '' })) };
 		if (job.task === 'draft') return { ...base, stories: practiceDraft(job.book) };

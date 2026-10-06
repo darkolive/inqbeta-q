@@ -50,6 +50,8 @@ import {
 	isEmptySlide,
 	isPiece,
 	needingWork,
+	outcomesOf,
+	RECAP_TITLE,
 	refsForAi,
 	slideOf,
 	storyOf,
@@ -116,6 +118,21 @@ Every slide has a scene: what its picture shows, in one or two sentences (at mos
 Answer with JSON only, in exactly the shape the task asks for. No other text.
 </output>`;
 
+/*
+ * When the book is a course unit (6 October 2026): what a course is, and the
+ * ADHD-first house rules Darren chose for explaining one. Added to the
+ * standing part, so it holds for every job on a unit.
+ */
+export const COURSE_RULES = `<course>
+This book is a course unit. Its title is the unit; its subtext is the unit's aim. Each story is one learning outcome: something the learner will be able to do afterwards, in the order they'll learn it. The person who made it teaches it; you write in their voice (see <teacher_voice>).
+The last story, "${RECAP_TITLE}", is a recap Q makes from the outcomes. Never write, change or suggest changes to it.
+For every outcome:
+- The first slide says why this matters to the learner, before any how.
+- The picture carries the idea. Someone watching with the sound off should still get it; the words name what the picture shows.
+- Nothing has to be remembered from an earlier slide. Never write "as we saw", "remember" or "earlier". If an earlier idea is needed, say it again in a few words.
+- The last slide is the outcome's Show it: one small, concrete thing the learner makes or does that shows they can, and keeps as evidence. Doable in minutes, with what they have. Mark it with "show": true. Only that slide.
+</course>`;
+
 /* ------------------------------------------------------------- the book's brief */
 
 const fence = (text: string, tag: string) => text.replace(new RegExp(`</?${tag}\\b[^>]*>`, 'gi'), '');
@@ -130,6 +147,16 @@ export function briefText(book: Book): string {
 				.map((a) => `<q>${fence(a.asks, 'conversation')}</q>\n<a>${a.free ? '(You decide: free rein.)' : fence(a.answer.slice(0, ANSWER_MOST), 'conversation') || '(no answer)'}</a>`)
 				.join('\n')}\n</conversation>`
 		);
+	if (book.course) {
+		const u = book.course;
+		const card = [u.level && `<level>${fence(u.level, 'unit')}</level>`, u.time && `<time_to_study>${fence(u.time, 'unit')}</time_to_study>`, u.needFirst && `<need_first>${fence(u.needFirst, 'unit')}</need_first>`].filter(Boolean).join('\n');
+		out.push(`<unit note="The unit card.">\n${card || '(not filled in yet)'}\n</unit>`);
+		out.push(
+			u.voice
+				? `<teacher_voice note="How the person who teaches this unit explains things, in their own words. Write every slide as they would say it in the room: their way in, their rhythm, their kind of example. Never quote this back, never make fun of it.">\n${fence(fence(u.voice, 'teacher_voice'), 'unit')}\n</teacher_voice>`
+				: `<teacher_voice>Not described yet: write as a warm, lively artist who teaches by showing, gets to the point, and makes it feel doable.</teacher_voice>`
+		);
+	}
 	const style = book.style;
 	out.push(`<style name=${JSON.stringify(style ? (style.key === 'own' ? 'their own' : STYLES[style.key].name) : 'not chosen yet: Q’s own icons')} draws="${drawsItself(style) ? 'Q draws icons itself; give each slide a piece as well as a scene' : 'pictures to be made from each scene'}">\n${fence(directionOf(style), 'style')}\n</style>`);
 	const refs = refsForAi(book.refs ?? []);
@@ -144,23 +171,28 @@ export function briefText(book: Book): string {
 
 /** The book as it stands, as the AI sees it: the words, with ids so it can point back. */
 function bookNow(book: Book): string {
-	const stories = book.stories.map((s) => ({
+	const stories = outcomesOf(book).map((s) => ({
 		id: s.id,
 		title: s.title,
-		slides: s.slides.map((x) => ({ id: x.id, title: x.title, subtext: x.subtext, scene: x.scene || undefined, piece: x.piece || undefined, written_by: x.draft ? 'draft' : isEmptySlide(x) ? 'empty' : 'person' }))
+		slides: s.slides.map((x) => ({ id: x.id, title: x.title, subtext: x.subtext, scene: x.scene || undefined, piece: x.piece || undefined, show: x.show || undefined, written_by: x.draft ? 'draft' : isEmptySlide(x) ? 'empty' : 'person' }))
 	}));
 	return `<book_now>\n${JSON.stringify({ stories }, null, 1)}\n</book_now>`;
 }
 
 const SLIDE_SHAPE = `{"id":"<id, or leave out for a new slide>","title":"…","subtext":"…","scene":"…","piece":"<piece key, for Q's own icons>"}`;
+const COURSE_SLIDE_SHAPE = `{"id":"<id, or leave out for a new slide>","title":"…","subtext":"…","scene":"…","piece":"<piece key, for Q's own icons>","show":<true on the Show it slide only>}`;
+const shapeFor = (book: Book) => (book.course ? COURSE_SLIDE_SHAPE : SLIDE_SHAPE);
 
 /** What one job asks for. */
 function taskText(t: StoryTask): string {
 	if (t.task === 'ask') {
 		const n = t.book.brief.length;
+		const lens = t.book.course
+			? `Ask the single question whose answer would most improve this unit, thinking as a course writer would: who it's for; what they can already do; what they'll be able to do afterwards (each becomes a story); how they'll show it (each story's Show it); what usually trips people up. Or anything else a good course writer would need: the teacher's way of explaining, an example only they know.`
+			: `Ask the single question whose answer would most improve this book: about who it's for, what they should feel or do, the heart of it, what must or mustn't be said, the tone, an example only the person knows.`;
 		return [
 			'Before anything is written, you get to ask the person questions: one at a time, each one chosen from everything you know so far. You are perfecting your own brief.',
-			`Ask the single question whose answer would most improve this book: about who it's for, what they should feel or do, the heart of it, what must or mustn't be said, the tone, an example only the person knows. Never ask what the material or earlier answers already tell you. Keep it short and friendly, the way you'd ask a friend. Offer up to four short likely answers they can tap (or none, when only they can know).`,
+			`${lens} Never ask what the material or earlier answers already tell you. Keep it short and friendly, the way you'd ask a friend. Offer up to four short likely answers they can tap (or none, when only they can know).`,
 			`Also say, in one plain line, what you understand the book to be so far, so they can see you've listened.`,
 			n >= BRIEF_MOST ? 'You have asked enough: say done.' : n >= 2 ? 'If you already have enough to make something wonderful, say done instead of asking.' : 'Ask at least this one.',
 			`Answer as {"understood":"…","question":"…","why":"<why it matters, a few words>","options":["…"],"done":false} or {"understood":"…","done":true}.`
@@ -174,7 +206,9 @@ function taskText(t: StoryTask): string {
 					? `The stories the book has now (they may want them changed): ${JSON.stringify(t.book.stories.map((s) => s.title))}`
 					: '',
 			t.more ? `<just_added note="What the person has just said, in their own words.">\n${fence(tidy(t.more, 4000), 'just_added')}\n</just_added>` : '',
-			`Find the shape of this book: ${OUTLINE_LEAST} or ${OUTLINE_MOST} stories, in order, that together cover everything and flow from one to the next, like the chapters of a short series. Each is a title only: a few plain words (at most 8). Give each a one-line "why": what that story does for the reader.`,
+			t.book.course
+				? `Find the learning outcomes of this unit: three to ${OUTLINE_MOST}, in the order they're best learned, each building on the last, together covering the aim. Each is a title only: what the learner will be able to do, in a few plain words (at most 8), starting with a verb. Leave out the recap: Q adds it. Give each a one-line "why": what it does for the learner.`
+				: `Find the shape of this book: ${OUTLINE_LEAST} or ${OUTLINE_MOST} stories, in order, that together cover everything and flow from one to the next, like the chapters of a short series. Each is a title only: a few plain words (at most 8). Give each a one-line "why": what that story does for the reader.`,
 			`Answer as {"stories":[{"title":"…","why":"…"}]}.`
 		]
 			.filter(Boolean)
@@ -185,8 +219,11 @@ function taskText(t: StoryTask): string {
 		return [
 			`Storyboard these stories: ${JSON.stringify(ids)}. Read the whole book first, so each story knows what comes before and after it.`,
 			'For each: keep every slide written_by "person" with its words exactly as they are, in its place, with its id (you may give it a scene, and a piece, if it has none). Fill each "empty" slide, keeping its id. Add slides (no id) until the story feels complete: three to six in all.',
-			`Answer as {"stories":[{"id":"<story id>","slides":[${SLIDE_SHAPE}]}]}. At most ${SLIDES_MOST} slides a story.`
-		].join('\n\n');
+			t.book.course ? 'Each story is a learning outcome: why it matters first, the Show it last (marked "show": true). If the person already wrote a Show it, keep it.' : '',
+			`Answer as {"stories":[{"id":"<story id>","slides":[${shapeFor(t.book)}]}]}. At most ${SLIDES_MOST} slides a story.`
+		]
+			.filter(Boolean)
+			.join('\n\n');
 	}
 	if (t.task === 'redo') {
 		const story = t.book.stories.find((s) => s.id === t.story);
@@ -195,16 +232,22 @@ function taskText(t: StoryTask): string {
 			`Redo one story only: "${story?.title ?? t.story}" (id ${t.story}).`,
 			`<redo note="The person's four answers about it.">\n${answers}\n</redo>`,
 			'Keep what they are happy with and what must not change, word for word where you can. Change what must change. Fix what isn’t right. Keep the ids of slides you keep or rewrite; leave the id out for a new slide.',
-			`Answer as {"slides":[${SLIDE_SHAPE}]}. At most ${SLIDES_MOST} slides.`
-		].join('\n\n');
+			t.book.course ? 'It is a learning outcome: why it matters first, the Show it last (marked "show": true).' : '',
+			`Answer as {"slides":[${shapeFor(t.book)}]}. At most ${SLIDES_MOST} slides.`
+		]
+			.filter(Boolean)
+			.join('\n\n');
 	}
 	const changed = t.book.stories.find((s) => s.id === t.changed);
 	return [
 		`The story "${changed?.title ?? t.changed}" (id ${t.changed}) has just been redone. Read the whole book again, in order.`,
+		t.book.course ? 'Never suggest changes to the recap; keep every outcome’s Show it last.' : '',
 		'Suggest changes to the OTHER stories only where they are now needed so the book flows, makes sense, is clear and covers everything: a slide that now repeats, contradicts, or no longer leads on. Never the story that was redone. Few is better than many; none is fine.',
 		'Each suggestion either rewrites one slide (give its "slide" id) or adds a slide at the end of a story ("slide": null), with a one-line "why".',
 		`Answer as {"suggestions":[{"story":"<story id>","slide":"<slide id or null>","title":"…","subtext":"…","scene":"…","piece":"<piece key>","why":"…"}]}. At most 5.`
-	].join('\n\n');
+	]
+		.filter(Boolean)
+		.join('\n\n');
 }
 
 /** The messages for one job: the standing part, then the book's brief, the book as it stands, and the task. */
@@ -214,7 +257,7 @@ export function messagesFor(t: StoryTask): { role: 'system' | 'user'; content: s
 	else if (t.book.stories.length && t.task === 'outline') parts.push(bookNow(t.book));
 	parts.push(`<task>\n${taskText(t)}\n</task>`);
 	return [
-		{ role: 'system', content: HOUSE_RULES },
+		{ role: 'system', content: t.book.course ? `${HOUSE_RULES}\n\n${COURSE_RULES}` : HOUSE_RULES },
 		{ role: 'user', content: parts.join('\n\n') }
 	];
 }
@@ -268,7 +311,7 @@ export function jsonIn(text: string): unknown {
 	return JSON.parse(body.slice(start, end + 1));
 }
 
-type Loose = { id?: unknown; title?: unknown; subtext?: unknown; piece?: unknown; scene?: unknown };
+type Loose = { id?: unknown; title?: unknown; subtext?: unknown; piece?: unknown; scene?: unknown; show?: unknown };
 
 /**
  * A story as the AI rewrote it, made to the rule: the person's own slides
@@ -285,11 +328,11 @@ export function storyFromReply(old: Story, slides: unknown, keepPersons: boolean
 		if (was && used.has(was.id)) continue;
 		if (was && keepPersons && !was.draft && !isEmptySlide(was)) {
 			/* Their words stay exactly; the AI may give it a picture it hadn't got. */
-			out.slides.push(slideOf({ ...was, scene: was.scene || (x?.scene as string), piece: was.piece ?? (isPiece(x?.piece) ? x.piece : null) }, was.id));
+			out.slides.push(slideOf({ ...was, scene: was.scene || (x?.scene as string), piece: was.piece ?? (isPiece(x?.piece) ? x.piece : null), show: was.show || (x?.show === true ? true : undefined) }, was.id));
 			used.add(was.id);
 			continue;
 		}
-		const s = slideOf({ title: x?.title as string, subtext: x?.subtext as string, scene: (x?.scene as string) || was?.scene, piece: isPiece(x?.piece) ? x.piece : (was?.piece ?? null), draft: true }, was?.id ?? uniqueSlideId({ ...out, slides: [...out.slides, ...old.slides] }));
+		const s = slideOf({ title: x?.title as string, subtext: x?.subtext as string, scene: (x?.scene as string) || was?.scene, piece: isPiece(x?.piece) ? x.piece : (was?.piece ?? null), draft: true, show: x?.show === true ? true : undefined }, was?.id ?? uniqueSlideId({ ...out, slides: [...out.slides, ...old.slides] }));
 		if (!s.title && !s.subtext) continue;
 		out.slides.push(s);
 		used.add(s.id);
@@ -327,7 +370,7 @@ export function rippleFromReply(book: Book, changed: string, reply: unknown): Su
 	const out: Suggestion[] = [];
 	for (const x of (Array.isArray(list) ? list : []).slice(0, 5)) {
 		const story = book.stories.find((s) => s.id === x?.story);
-		if (!story || story.id === changed) continue;
+		if (!story || story.id === changed || story.recap) continue;
 		const slide = typeof x.slide === 'string' && story.slides.some((s) => s.id === x.slide) ? x.slide : null;
 		const title = tidy(x.title, TITLE_MOST);
 		const subtext = tidy(x.subtext, SUBTEXT_MOST);

@@ -11,7 +11,7 @@
 	 * it's made. A story's own slides are never touched here.
 	 */
 	import { Icon } from '@inqbeta/q-ui';
-	import { setStories, setRefs, noteOutline, freshId, STORIES_MOST, TITLE_MOST, type Book, type BookStep } from '@inqbeta/q-core/storybook';
+	import { setStories, setRefs, noteOutline, freshId, outcomesOf, OUTCOMES_MOST, STORIES_MOST, TITLE_MOST, type Book, type BookStep } from '@inqbeta/q-core/storybook';
 	import { run, type AiState } from '$lib/story-engine';
 	import CostAgree from './CostAgree.svelte';
 	import Dictate from './Dictate.svelte';
@@ -53,12 +53,14 @@
 		offered = n;
 	};
 	const losing = $derived(offered ? book.stories.filter((s) => s.slides.length && !offered!.some((o) => o.title.trim().toLowerCase() === s.title.toLowerCase())) : []);
-	const ASK = 'What are the parts of your book, in order?';
+	/* A course unit: each story is one thing they'll learn; the recap at the end is Q's, so it isn't listed here. */
+	const ASK = $derived(book.course ? 'What will they learn, in order?' : 'What are the parts of your book, in order?');
+	const MOST = $derived(book.course ? OUTCOMES_MOST : STORIES_MOST);
 	let adding = $state('');
 	let renaming = $state<string | null>(null);
 	let renamed = $state('');
 	const id = $props.id();
-	const list = $derived(book.stories.map((s) => ({ id: s.id, title: s.title })));
+	const list = $derived(outcomesOf(book).map((s) => ({ id: s.id, title: s.title })));
 	async function save(next: { id?: string; title: string }[]) {
 		commit(await setStories(steps, book.id, next, ASK));
 	}
@@ -79,13 +81,17 @@
 <div class="flex flex-col gap-6">
 	<div>
 		<h2 class="h4 font-normal">{ASK}</h2>
-		<p class="text-surface-700-300">Just a title for each, like chapters. Five or six is plenty. You can change them later.</p>
+		{#if book.course}
+			<p class="text-surface-700-300">One thing for each: what they’ll be able to do, in a few words. Three to six is plenty. Q adds a recap at the end.</p>
+		{:else}
+			<p class="text-surface-700-300">Just a title for each, like chapters. Five or six is plenty. You can change them later.</p>
+		{/if}
 	</div>
 
 	{#if offered}
 		<!-- Q's suggestions: change any title, move them, take one out; or say more and ask again. -->
 		<section class="card preset-outlined-secondary-500 p-4 sm:p-6 flex flex-col gap-4" aria-label="Suggested stories">
-			<h3 class="h5 font-normal">Q suggests these stories</h3>
+			<h3 class="h5 font-normal">{book.course ? 'Q suggests these things to learn' : 'Q suggests these stories'}</h3>
 			<ol class="flex flex-col gap-2">
 				{#each offered as o, i (i)}
 					<li class="flex flex-wrap items-start gap-3">
@@ -103,7 +109,7 @@
 					</li>
 				{/each}
 			</ol>
-			{#if offered.length < STORIES_MOST}<div><button type="button" class="btn preset-tonal min-h-11" onclick={() => (offered = [...offered!, { title: '', why: '' }])}><Icon name="plus" size={18} /> Add one</button></div>{/if}
+			{#if offered.length < MOST}<div><button type="button" class="btn preset-tonal min-h-11" onclick={() => (offered = [...offered!, { title: '', why: '' }])}><Icon name="plus" size={18} /> Add one</button></div>{/if}
 
 			{#if asking}
 				<div class="flex flex-col gap-3 border-t border-surface-200-800 pt-4">
@@ -125,8 +131,8 @@
 		</section>
 	{:else}
 		<section class="card preset-tonal p-4 flex flex-col gap-3" aria-label="Let Q suggest the stories">
-			<p>Q can suggest five or six stories from your idea{book.refs.length ? ` and the ${book.refs.length === 1 ? 'thing' : `${book.refs.length} things`} you gave it to read` : ''}. You change them, or tell it more, until they’re right.</p>
-			<CostAgree {ai} job={() => ({ task: 'outline', book })} what="suggest five or six stories for your book" onrun={suggest} />
+			<p>Q can suggest {book.course ? 'what they’ll learn, in order,' : 'five or six stories'} from your idea{book.refs.length ? ` and the ${book.refs.length === 1 ? 'thing' : `${book.refs.length} things`} you gave it to read` : ''}. You change them, or tell it more, until they’re right.</p>
+			<CostAgree {ai} job={() => ({ task: 'outline', book })} what={book.course ? 'suggest what your unit will teach, in order' : 'suggest five or six stories for your book'} onrun={suggest} />
 		</section>
 	{/if}
 
@@ -156,7 +162,7 @@
 		</ol>
 	{/if}
 
-	{#if list.length < STORIES_MOST && !offered}
+	{#if list.length < MOST && !offered}
 		<form class="flex flex-col gap-3" onsubmit={add}>
 			<label for="{id}-add" class="h5 font-normal">{list.length ? 'What comes next?' : 'Or write your own: what comes first?'}</label>
 			<div class="flex flex-wrap gap-2">

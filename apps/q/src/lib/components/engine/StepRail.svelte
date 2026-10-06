@@ -1,16 +1,18 @@
 <script lang="ts" module>
 	export const STEPS = ['The idea', 'Q’s questions', 'The stories', 'The look', 'Storyboard', 'Review', 'Play'] as const;
+	/* A course unit's stories are what you'll learn (ADR-Q-033, 6 October 2026). */
+	export const COURSE_STEPS = ['The unit', 'Q’s questions', 'What you’ll learn', 'The look', 'Storyboard', 'Review', 'Play'] as const;
 </script>
 
 <script lang="ts">
 	/* Where you are in making the book: seven big steps, the one you're on lit, the ones done ticked. Any can be opened. */
 	import { Icon } from '@inqbeta/q-ui';
-	let { at, done, onchoose }: { at: number; done: boolean[]; onchoose: (n: number) => void } = $props();
+	let { at, done, onchoose, course = false }: { at: number; done: boolean[]; onchoose: (n: number) => void; course?: boolean } = $props();
 </script>
 
 <nav aria-label="Making the book">
 	<ol class="flex flex-wrap gap-2">
-		{#each STEPS as label, i (label)}
+		{#each course ? COURSE_STEPS : STEPS as label, i (label)}
 			{@const on = i === at}
 			<li>
 				<button

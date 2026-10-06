@@ -12,6 +12,7 @@
 	import { carryOnNext } from '../decks/StoryDeck.svelte';
 	import { storyVoice, setStoryVoice } from '../decks/voice.svelte';
 	import StoryList from './StoryList.svelte';
+	import ShowIt from './ShowIt.svelte';
 	let { book, steps, commit }: { book: Book; steps: BookStep[]; commit: (s: BookStep[]) => void } = $props();
 
 	let chosen = $state<string | null>(null);
@@ -72,7 +73,7 @@
 				<StoryList stories={book.stories} {chosen} onchoose={(id) => (chosen = id)} />
 			</div>
 			<div class="flex flex-col items-center min-w-0">
-				{#if story}{#key story.id}<MadeDeck {story} look={book.style} />{/key}{/if}
+				{#if story}{#key story.id}<MadeDeck {story} look={book.style} />{#if book.course && !story.recap}<div class="mt-6 w-full flex justify-center"><ShowIt {book} {story} /></div>{/if}{/key}{/if}
 			</div>
 		</div>
 	{/if}

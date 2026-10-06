@@ -4206,13 +4206,13 @@
 			},
 			{
 				"id": "new",
-				"says": "Press 'Start a new book' and check the seven steps show (The idea to Play) with The idea lit, an 'All books' button, and the address gains ?book=.",
+				"says": "Press 'Start a new book' and check the seven steps show (The idea to Play) with The idea lit, an 'All books' button, and the address gains ?book=. Check the first question asks 'What are you making?' with 'A story book' and 'A course unit'.",
 				"how": "ai",
 				"area": "works"
 			},
 			{
 				"id": "idea",
-				"says": "Answer the title and 'what it's about' questions and check each shows as a chip you can press to change.",
+				"says": "Choose 'A story book', answer the title and 'what it's about' questions and check each shows as a chip you can press to change.",
 				"how": "both",
 				"area": "works"
 			},
@@ -4263,6 +4263,48 @@
 				"says": "Away from your own computer, check the line under the shelf says why drafts are not written by the host's AI; on your own computer, check it names the AI model.",
 				"how": "human",
 				"area": "words"
+			},
+			{
+				"id": "course-card",
+				"says": "Start a new book and choose 'A course unit'. Check the steps row now says 'The unit' and 'What you'll learn', and the questions come one at a time: the unit's name, its aim, its level, time to study, what they need first (each can be skipped), then 'How do you teach it?' with a Say it button. Check each answer shows as a chip.",
+				"how": "both",
+				"area": "works"
+			},
+			{
+				"id": "course-questions",
+				"says": "On Q's questions for a course unit (practice), check the five are a course writer's: who it's for, what they can already do, what they'll be able to do, how they'll show it, what trips people up.",
+				"how": "ai",
+				"area": "words"
+			},
+			{
+				"id": "course-outcomes",
+				"says": "On What you'll learn, ask Q to suggest (practice) and use them. Check a recap story 'What you've learned' appears last in the Storyboard list, isn't listed on What you'll learn, and has one slide for each thing to learn.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "course-draft",
+				"says": "Mock up the storyboard (practice) and check each thing to learn starts with 'Why it matters' and ends with a slide badged 'Show it'. On a slide that isn't the Show it, press 'Make this the Show it' and check it moves to the end with the badge.",
+				"how": "both",
+				"area": "works"
+			},
+			{
+				"id": "course-recap",
+				"says": "Change a slide's line in one thing to learn, then open the recap: check only that thing's recap slide changed and is a draft again; the others stay as they were.",
+				"how": "ai",
+				"area": "works"
+			},
+			{
+				"id": "course-evidence",
+				"says": "On Play, choose a thing to learn: check a 'Show it' card under the player with 'Keep my evidence'. Type a few words (or choose a photo), press Keep it, and check it's listed under 'Kept for this' with the time. The recap has no Show it card.",
+				"how": "both",
+				"area": "works"
+			},
+			{
+				"id": "course-prompt",
+				"says": "For a course unit, open 'What Q tells the AI' and check it holds the unit card, 'How you teach' as the teacher's voice, and the course rules (why first, the picture carries the idea, nothing to remember, Show it last).",
+				"how": "ai",
+				"area": "works"
 			}
 		]
 	},

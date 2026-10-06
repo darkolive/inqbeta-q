@@ -158,7 +158,11 @@
 								<button type="button" class="btn preset-filled-primary-500 min-h-11" onclick={() => keepOne()}><Icon name="check" size={18} /> Accept all</button>
 								<button type="button" class="btn preset-tonal min-h-11" onclick={() => rejectOne()}><Icon name="close" size={18} /> Reject all</button>
 							{/if}
-							<button type="button" class="btn preset-tonal-primary min-h-11" onclick={startRedo}><Icon name="repeat" size={18} /> Redo this story</button>
+							{#if story.recap}
+								<p class="text-surface-700-300">Q makes the recap from the other stories: change one of them, and its slide here is made again.</p>
+							{:else}
+								<button type="button" class="btn preset-tonal-primary min-h-11" onclick={startRedo}><Icon name="repeat" size={18} /> Redo this story</button>
+							{/if}
 						</div>
 					{/if}
 

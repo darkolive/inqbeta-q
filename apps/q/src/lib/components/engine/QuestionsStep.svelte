@@ -132,6 +132,6 @@
 	{#if said}<p class="text-error-700-300" role="alert">{said}</p>{/if}
 
 	<div class="flex flex-wrap gap-3 border-t border-surface-200-800 pt-4">
-		<button type="button" class="btn preset-filled-primary-500 min-h-11" onclick={ondone}>{finished || !current?.question ? 'Next: the stories' : 'That’s enough, go on'} <Icon name="arrowRight" size={18} /></button>
+		<button type="button" class="btn preset-filled-primary-500 min-h-11" onclick={ondone}>{finished || !current?.question ? (book.course ? 'Next: what you’ll learn' : 'Next: the stories') : 'That’s enough, go on'} <Icon name="arrowRight" size={18} /></button>
 	</div>
 </div>

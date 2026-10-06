@@ -131,7 +131,7 @@
 				<button type="button" class="btn preset-tonal min-h-11" onclick={close}>All books</button>
 				{#if book.title}<p class="text-lg font-light flex-1 min-w-0">{book.title}</p>{/if}
 			</div>
-			<StepRail {at} {done} onchoose={go} />
+			<StepRail {at} {done} onchoose={go} course={!!book.course} />
 			{#if unsaved}<p class="card preset-tonal-error p-3" role="alert">This browser isn’t keeping your book (a private window, or it’s full). Keep a copy from Play before you leave.</p>{/if}
 			<div id="engine-step" tabindex="-1" class="outline-none">
 				{#if at === 0}<div class="max-w-2xl"><IdeaStep {book} {steps} {commit} ondone={() => go(1)} /></div>
