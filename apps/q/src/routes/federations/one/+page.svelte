@@ -50,7 +50,9 @@
 	import { APPOINTABLE, OFFICE_MONTHS, hashAppointment, type OfficeHeld, type OfficeId } from '@inqbeta/q-core/offices';
 	import { FINDINGS, type Finding } from '@inqbeta/q-core/attestation';
 	import { report as writeEvidenceReport } from '$lib/attestation';
-	import { officeThreads, sendTo } from '$lib/messages';
+	import { officeThreads, sendTo, type Signed } from '$lib/messages';
+	import { readOfficeRecords, fileInOfficeRecords, cachedOfficePost } from '$lib/office-post';
+	import { openKeyring } from '@inqbeta/q-core/offices';
 	import { peopleFrom } from '$lib/people';
 	import type { Found } from '$lib/features/registry';
 	import { standingAt } from '@inqbeta/q-core/membership';
@@ -581,7 +583,7 @@
 		if (!identity || !own || !member) return;
 		busy = 'appoint';
 		said = null;
-		const out = await appointOffice(identity, own, member, { office: giveOffice, months: giveMonths, says: giveWhy, standingInterest: giveStanding });
+		const out = await appointOffice(identity, own, member, { office: giveOffice, months: giveMonths, says: giveWhy, standingInterest: giveStanding }, officeRecords);
 		busy = null;
 		if (!out.ok) return void (said = { tone: 'bad', text: out.says, rules: 'rules' in out ? out.rules : undefined });
 		said = { tone: 'good', text: `${nameOf(member)} is now ${APPOINTABLE.find((o) => o.id === giveOffice)?.called}, until ${onDay(new Date(Date.now() + giveMonths * 30.4375 * 86_400_000).toISOString())}.` };
@@ -597,7 +599,7 @@
 		if (!identity || !own || !recalling) return;
 		busy = 'recall';
 		said = null;
-		const out = await recallOffice(identity, own, recalling, recallWhy, isHome && home?.ok ? home.services.storage : null);
+		const out = await recallOffice(identity, own, recalling, recallWhy, isHome && home?.ok ? home.services.storage : null, officeRecords);
 		busy = null;
 		if (!out.ok) return void (said = { tone: 'bad', text: out.says, rules: 'rules' in out ? out.rules : undefined });
 		said = { tone: 'good', text: `Recalled. The office has ended; what was signed in it stays as it was.${out.published ? ' Your servers have been told, so its mandate stops working now.' : ' Its mandate stops working when its term ends: this club has no storage node to tell the servers sooner.'}` };
@@ -620,7 +622,23 @@
 	});
 
 	/* The office's post (ADR-Q-038 §5): what was asked of it, seen only in role, answered as the office. */
-	const post = $derived(desk && identity ? officeThreads(ledger?.receipts ?? [], identity.did, id, desk.office) : []);
+	/* The office's records (ADR-Q-038): read from the federation's node with every key the office has had, plus this device's working copy. */
+	let records = $state<Signed[]>([]);
+	let recordsSay = $state('');
+	$effect(() => {
+		const d = desk;
+		const me = identity;
+		const m = mine;
+		if (!d?.appointment || !me || !m) return void (records = []);
+		void (async () => {
+			let a = null;
+			for (const x of m.offices ?? []) if ((await hashAppointment(x)) === d.appointment) a = x;
+			const ring = a?.sealedKeys ? await openKeyring(a.sealedKeys, me) : null;
+			recordsSay = ring ? '' : 'This appointment came without the keys to the office’s records, so only post that reached you here shows.';
+			records = [...(ring ? await readOfficeRecords(ring).catch(() => []) : []), ...cachedOfficePost()];
+		})();
+	});
+	const post = $derived(desk && identity ? officeThreads([...(ledger?.receipts ?? []), ...records.map((json) => ({ json }))], identity.did, id, desk.office) : []);
 	const deskPeople = $derived(peopleFrom(ledger, identity?.did ?? ''));
 	const whoIs = (did: string) => deskPeople.find((p) => p.did === did)?.name ?? members.find((m) => m.joining.member === did)?.called ?? `${did.slice(0, 14)}…${did.slice(-6)}`;
 	let replies = $state<Record<string, string>>({});
@@ -634,6 +652,11 @@
 		const out = await sendTo({ did: them, inbox: lastIn.content.replyTo }, { kind: 'message', text, fromOffice: { federation: id, office: desk.office, ...(founding?.name ? { name: founding.name } : {}) } });
 		busy = null;
 		if (!out.ok) return void (said = { tone: 'bad', text: out.says });
+		/* The answer goes in the office's records too, for whoever holds it next. */
+		let key: string | undefined;
+		for (const x of mine?.offices ?? []) if ((await hashAppointment(x)) === desk.appointment) key = x.officeKey;
+		if (key) await fileInOfficeRecords({ federation: id, office: desk.office, officeKey: key }, out.signed).catch(() => false);
+		records = [...records, out.signed];
 		replies = { ...replies, [them]: '' };
 		await refreshLedger();
 	}
@@ -781,8 +804,9 @@
 					<p class="font-bold">Post for the office</p>
 					{#if !post.length}
 						<p class="text-sm">Nothing yet. Questions people send to the {desk.called.toLowerCase()} wait here, for whoever holds the office.</p>
-					{:else}
-						{#each post as t (t.them)}
+					{/if}
+					<p class="text-xs opacity-70">These are the office’s records, kept by {founding.name} on its own storage: whoever holds the office, now or later, reads them all.{recordsSay ? ` ${recordsSay}` : ''}</p>
+					{#each post as t (t.them)}
 							<div class="card preset-outlined-surface-200-800 p-3 flex flex-col gap-2">
 								<p class="font-semibold">{whoIs(t.them)}</p>
 								{#each t.messages as m (m.signature)}
@@ -792,7 +816,6 @@
 								<button type="button" class="btn btn-sm preset-filled-primary-500 min-h-11 self-start" disabled={busy !== null || !(replies[t.them] ?? '').trim()} onclick={() => void replyAsOffice(t.them)}>{busy === 'reply' ? 'Sending…' : 'Send'}</button>
 							</div>
 						{/each}
-					{/if}
 				</div>
 				{#if !standingDown}
 					<button type="button" class="btn preset-tonal min-h-11 self-start" onclick={() => (standingDown = true)}>Stand down…</button>

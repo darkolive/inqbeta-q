@@ -51,6 +51,7 @@ export const STORED_KEYS: StoredKey[] = [
 	{ key: 'q-vault-exported', where: 'local', kind: 'identity', holds: 'when the vault was last taken out of this browser' },
 	{ key: 'q.announcements.read', where: 'local', kind: 'identity', holds: 'which federation announcements the person has opened (their ids only)' },
 	{ key: 'q.notify', where: 'local', kind: 'identity', holds: 'the notifications card: what rings, what is quiet, what is off (ADR-Q-016 §6)' },
+	{ key: 'q.office-cache', where: 'local', kind: 'identity', holds: 'a working copy of post for offices you hold, the latest 200: the record itself is in each office’s archive on the federation’s node (ADR-Q-038); never in your vault' },
 	{ key: 'q.notify.hours', where: 'local', kind: 'identity', holds: 'office hours for post to an office you hold: days, hours and time zone (ADR-Q-038); also carried in your signed office-post notices' },
 	{ key: 'q.plugins', where: 'local', kind: 'identity', holds: 'which installed plugins show in the menu, and in what order — also kept in the vault' },
 	{ key: 'q.call.choice', where: 'local', kind: 'device', holds: 'which camera and microphone this browser uses for calls — a preference' },

@@ -30,7 +30,7 @@ import {
 } from '@inqbeta/q-core/federations';
 import { foundingFacts } from '@inqbeta/q-actions/core/federation-found';
 import { appointFacts, endFacts } from '@inqbeta/q-actions/core/federation-offices';
-import { officePost } from '@inqbeta/q-core/offices';
+import { officePost, newOfficeKeyring, openKeyring, sealKeyring, turnOver, type OfficeKeyring } from '@inqbeta/q-core/offices';
 import { myInbox } from '$lib/messages';
 import { officeHours } from '$lib/notify';
 import { readHome } from '$lib/home';
@@ -542,6 +542,8 @@ export interface OfficeRecord {
 	called?: string;
 	appointment: Appointed;
 	ended?: Ended;
+	/** Every key the office has had, sealed to the caretaker: the newest record of an office holds the ring in use. */
+	keyring?: SealedToPeople;
 	at: string;
 }
 export function isOfficeRecord(x: unknown): x is OfficeRecord {
@@ -550,14 +552,27 @@ export function isOfficeRecord(x: unknown): x is OfficeRecord {
 }
 const officeFile = (a: Appointed) => `${short(a.federation)}-${a.office}-${short(a.holder)}.json`;
 
-/** Give a member an office. Returns the link to send them. */
+/**
+ * The office's keyring, as the caretaker holds it: from the newest record of
+ * that office, or a new one for its first appointment (ADR-Q-038, the
+ * office's records).
+ */
+async function keyringOf(identity: Identity, federation: string, office: OfficeId, records: OfficeRecord[]): Promise<OfficeKeyring> {
+	const newest = records.filter((r) => r.federation === federation && r.appointment.office === office && r.keyring).sort((a, b) => b.at.localeCompare(a.at))[0];
+	const opened = newest?.keyring ? await openKeyring(newest.keyring, identity) : null;
+	return opened ?? (await newOfficeKeyring(federation, office));
+}
+
+/** Give a member an office, with the keys to its records. Returns the link to send them. */
 export async function appointOffice(
 	identity: Identity,
 	record: FederationRecord,
 	member: MemberRecord,
-	o: { office: OfficeId; months: number; says: string; standingInterest?: string }
+	o: { office: OfficeId; months: number; says: string; standingInterest?: string },
+	records: OfficeRecord[] = []
 ): Promise<Outcome<{ link: string }> | { ok: false; says: string; rules: string[] }> {
 	try {
+		const keyring = await keyringOf(identity, record.founding.federation, o.office, records);
 		const key = await openFederationKey(record.sealedKey, identity);
 		const a = await appoint(signerFor(key), signerFor(identity), {
 			federation: record.founding.federation,
@@ -567,11 +582,12 @@ export async function appointOffice(
 			says: o.says,
 			grant: record.grant,
 			name: record.founding.name,
-			standingInterest: o.standingInterest
+			standingInterest: o.standingInterest,
+			keyring
 		});
 		const d = await check('office.appoint', identity, record.founding.federation, await appointFacts(a, member.joining));
 		if (!d.holds) return { ok: false, says: d.because.join(' '), rules: d.rules };
-		const kept: OfficeRecord = { schema: OFFICE_RECORD_SCHEMA, source: 'inqbeta:q/office', federation: a.federation, ...(member.called ? { called: member.called } : {}), appointment: a, at: a.at };
+		const kept: OfficeRecord = { schema: OFFICE_RECORD_SCHEMA, source: 'inqbeta:q/office', federation: a.federation, ...(member.called ? { called: member.called } : {}), appointment: a, keyring: await sealKeyring(keyring, [identity.did]), at: a.at };
 		await keep('federations/offices', officeFile(a), kept);
 		return { ok: true, link: linkFor(await pack(a)) };
 	} catch (e) {
@@ -597,14 +613,17 @@ export async function recallOffice(
 	record: FederationRecord,
 	office: OfficeRecord,
 	says: string,
-	storage?: string | null
+	storage?: string | null,
+	records: OfficeRecord[] = []
 ): Promise<Outcome<{ link: string; published: boolean }> | { ok: false; says: string; rules: string[] }> {
 	try {
 		const key = await openFederationKey(record.sealedKey, identity);
 		const e = await recall(signerFor(key), office.appointment, says);
 		const d = await check('office.end', identity, record.founding.federation, await endFacts(e, office.appointment));
 		if (!d.holds) return { ok: false, says: d.because.join(' '), rules: d.rules };
-		await keep('federations/offices', officeFile(office.appointment), { ...office, ended: e, at: e.at });
+		/* The key turns over: new post goes to a key the holder who left never receives. */
+		const ring = await turnOver(await keyringOf(identity, office.federation, office.appointment.office, [...records, office]));
+		await keep('federations/offices', officeFile(office.appointment), { ...office, ended: e, keyring: await sealKeyring(ring, [identity.did]), at: e.at });
 		return { ok: true, link: linkFor(await pack(e)), published: await publishEnding(key, office.appointment, e, storage) };
 	} catch (e) {
 		return { ok: false, says: e instanceof Error ? e.message : String(e) };
@@ -666,7 +685,8 @@ export async function receiveEndingAsHolder(mine: MembershipRecord, e: Ended): P
 export async function receiveEndingAsCaretaker(identity: Identity, record: FederationRecord, offices: OfficeRecord[], e: Ended, storage?: string | null): Promise<Outcome<{ published: boolean }>> {
 	for (const o of offices) {
 		if ((await checkEnded(e, o.appointment)).ok) {
-			await keep('federations/offices', officeFile(o.appointment), { ...o, ended: e, at: e.at });
+			const ring = await turnOver(await keyringOf(identity, o.federation, o.appointment.office, offices));
+			await keep('federations/offices', officeFile(o.appointment), { ...o, ended: e, keyring: await sealKeyring(ring, [identity.did]), at: e.at });
 			const key = await openFederationKey(record.sealedKey, identity);
 			return { ok: true, published: await publishEnding(key, o.appointment, e, storage).catch(() => false) };
 		}

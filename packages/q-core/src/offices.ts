@@ -31,7 +31,8 @@
  */
 import { canonical, b64url, unb64url, sha256 } from './canonical';
 import { publicKeyFrom, toDid } from './did';
-import { checkReceipt, sealWith, type Signer, type SealedReceipt } from './seal';
+import { checkReceipt, sealWith, sealTo, openWith, type Signer, type SealedReceipt, type SealedToPeople, type Opener } from './seal';
+import { identityFromSeed } from './passkey';
 import type { Identity } from './passkey';
 import { delegate, readDelegation, type Delegation, type UcanSigner } from './ucan/token';
 import { CARETAKER_MONTHS, FEDERATION_COMMANDS } from './federations';
@@ -131,9 +132,13 @@ export interface AppointedStatement {
 	standingInterest?: string;
 	/** The mandates, by CID, in scope order. */
 	mandates: string[];
+	/** The office's own key now (its DID): post for the office is sealed to it, and filed in the office's archive. */
+	officeKey?: string;
 	at: string;
 }
 export type Appointed = Signed<AppointedStatement> & {
+	/** Every key the office has had, sealed to the holder: the whole archive opens with them. */
+	sealedKeys?: SealedToPeople;
 	/** The mandates themselves: UCAN bytes, base64url, matching `mandates`. */
 	tokens: string[];
 	/** The appointer's caretaker grant: UCAN bytes, base64url, matching `authority`. */
@@ -169,13 +174,13 @@ async function verify(did: string, doc: unknown, signature: string): Promise<boo
 async function signedBy(x: { signatures: Signature[] }, by: string, did: string): Promise<boolean> {
 	const s = x.signatures?.find((s) => s.by === by);
 	if (!s || s.did !== did) return false;
-	const { tokens: _t, authorityToken: _a, ...rest } = x as { tokens?: unknown; authorityToken?: unknown; signatures: Signature[] };
+	const { tokens: _t, authorityToken: _a, sealedKeys: _k, ...rest } = x as { tokens?: unknown; authorityToken?: unknown; sealedKeys?: unknown; signatures: Signature[] };
 	return verify(did, unsigned(rest as { signatures: Signature[] }), s.signature);
 }
 
 /** An appointment's identity: the hash of its signed part. */
 export async function hashAppointment(a: Appointed): Promise<string> {
-	const { tokens: _t, authorityToken: _a, ...rest } = a;
+	const { tokens: _t, authorityToken: _a, sealedKeys: _k, ...rest } = a;
 	return `receipt:sha256:${await sha256(canonical(rest))}`;
 }
 
@@ -188,7 +193,7 @@ export async function hashAppointment(a: Appointed): Promise<string> {
 export async function appoint(
 	federation: UcanSigner,
 	by: Signer,
-	o: { federation: string; office: OfficeId; holder: string; months: number; says: string; grant: string; name?: string; standingInterest?: string },
+	o: { federation: string; office: OfficeId; holder: string; months: number; says: string; grant: string; name?: string; standingInterest?: string; keyring?: OfficeKeyring },
 	now = new Date()
 ): Promise<Appointed> {
 	if (toDid(federation.did) !== o.federation) throw new Error('Only the federation’s own key can give a mandate.');
@@ -225,6 +230,7 @@ export async function appoint(
 		says: o.says.trim(),
 		...(standing ? { standingInterest: standing } : {}),
 		mandates: delegations.map((d) => d.cid.toString()),
+		...(o.keyring?.keys.length ? { officeKey: o.keyring.keys.at(-1)!.did } : {}),
 		at: now.toISOString()
 	};
 	return {
@@ -234,7 +240,8 @@ export async function appoint(
 			{ by: 'appointer', did: appointer, signature: await by.signCanonical(statement) }
 		],
 		tokens: delegations.map((d) => b64url(d.bytes)),
-		authorityToken: o.grant
+		authorityToken: o.grant,
+		...(o.keyring?.keys.length ? { sealedKeys: await sealKeyring(o.keyring, [holder]) } : {})
 	};
 }
 
@@ -499,6 +506,8 @@ export interface OfficeAddress {
 	inbox: string;
 	until: number;
 	hours?: OfficeHours;
+	/** The office's key now: post is sealed to it and filed in its archive. */
+	officeKey?: string;
 }
 
 /* ---- Office hours (Darren, 6 October: "between which hours … and if those hours are out of hours, then some kind of out-of-hours message") ---- */
@@ -561,7 +570,115 @@ export async function officeAddresses(items: unknown[], federation: string, o: {
 		if (!(await checkReceipt(r)).ok || !(await checkAppointment(a, now)).ok) continue;
 		if (a.until * 1000 <= now.getTime() || a.mandates.some((m) => o.revoked?.has(m))) continue;
 		const key = `${a.office}|${a.holder}`;
-		if (!best.has(key) || best.get(key)!.at < c.at) best.set(key, { at: c.at, addr: { office: a.office, holder: a.holder, inbox: c.inbox, until: a.until, ...(c.hours && hoursOk(c.hours) ? { hours: c.hours } : {}) } });
+		if (!best.has(key) || best.get(key)!.at < c.at) best.set(key, { at: c.at, addr: { office: a.office, holder: a.holder, inbox: c.inbox, until: a.until, ...(c.hours && hoursOk(c.hours) ? { hours: c.hours } : {}), ...(a.officeKey ? { officeKey: a.officeKey } : {}) } });
 	}
 	return [...best.values()].map((b) => b.addr);
+}
+
+/* ---- The office's own keys (ADR-Q-038, the office's records; 6 October 2026) ----
+ *
+ * An office's post belongs to the federation, not to whoever held the office
+ * that year. Each office has its own key, made like a federation's; post to
+ * and from it is sealed to that key and filed in the office's archive on the
+ * federation's storage node. Each holder receives every key the office has
+ * had, sealed to them with their appointment, so the whole archive opens for
+ * whoever holds it. When someone leaves, the key turns over: new post is
+ * sealed to the next one, which they never receive.
+ */
+export const OFFICE_KEYRING_SCHEMA = 'inqbeta.office-keyring/1';
+
+export interface OfficeKey {
+	generation: number;
+	/** The key's DID: what post is sealed to. */
+	did: string;
+	/** Its seed, base64url. Only ever kept sealed. */
+	seed: string;
+}
+export interface OfficeKeyring {
+	schema: typeof OFFICE_KEYRING_SCHEMA;
+	federation: string;
+	office: OfficeId;
+	/** Every key, oldest first; the last is the one in use. */
+	keys: OfficeKey[];
+}
+
+async function freshKey(generation: number): Promise<OfficeKey> {
+	const raw = crypto.getRandomValues(new Uint8Array(32));
+	const id = await identityFromSeed(raw);
+	const k = { generation, did: id.did, seed: b64url(raw) };
+	raw.fill(0);
+	return k;
+}
+
+/** An office's first key. */
+export async function newOfficeKeyring(federation: string, office: OfficeId): Promise<OfficeKeyring> {
+	return { schema: OFFICE_KEYRING_SCHEMA, federation, office, keys: [await freshKey(1)] };
+}
+
+/** Turn the key over (after a recall or a stand-down): the old keys stay, for the history; new post goes to the new one. */
+export async function turnOver(ring: OfficeKeyring): Promise<OfficeKeyring> {
+	return { ...ring, keys: [...ring.keys, await freshKey((ring.keys.at(-1)?.generation ?? 0) + 1)] };
+}
+
+export const currentOfficeKey = (ring: OfficeKeyring): OfficeKey | undefined => ring.keys.at(-1);
+
+/** Seal the keyring to people: the caretaker (to keep) or a holder (with their appointment). */
+export async function sealKeyring(ring: OfficeKeyring, dids: string[]): Promise<SealedToPeople> {
+	return (await sealTo(ring, dids, `The keys to the ${officeKind(ring.office)?.called.toLowerCase() ?? ring.office}’s records`)).sealed;
+}
+
+/** Open a sealed keyring with your own key. Null if it isn't yours or isn't one. */
+export async function openKeyring(sealed: SealedToPeople, owner: Opener | { did: string; opening: CryptoKey }): Promise<OfficeKeyring | null> {
+	const opened = 'open' in owner ? await owner.open(sealed) : await openWith(sealed, owner);
+	if (!opened.ok) return null;
+	const r = opened.body as OfficeKeyring;
+	return r?.schema === OFFICE_KEYRING_SCHEMA && Array.isArray(r.keys) && r.keys.every((k) => typeof k.seed === 'string' && typeof k.did === 'string') ? r : null;
+}
+
+/** Each of the office's keys, open, to read its archive with. */
+export async function officeIdentities(ring: OfficeKeyring): Promise<Identity[]> {
+	const out: Identity[] = [];
+	for (const k of ring.keys) {
+		const id = await identityFromSeed(unb64url(k.seed));
+		if (id.did === k.did) out.push(id);
+	}
+	return out;
+}
+
+/* ---- The office's archive (ADR-Q-038, the office's records) ----
+ * Every letter to or from an office, sealed to its key now, signed by its
+ * sender, kept on the federation's storage node (the gate's
+ * /archive/<federation>/<office key>). Whoever holds the office opens the lot.
+ */
+export const OFFICE_ARCHIVE_SCHEMA = 'inqbeta.office-archive/1';
+export interface OfficeArchiveItem {
+	schema: typeof OFFICE_ARCHIVE_SCHEMA;
+	source: 'inqbeta:q/offices';
+	federation: string;
+	office: OfficeId;
+	/** The office key it's sealed to. */
+	officeKey: string;
+	sealed: SealedToPeople;
+	at: string;
+}
+export type OfficeArchiveReceipt = SealedReceipt & { content: OfficeArchiveItem };
+
+/** File a letter in an office's records: sealed to its key (and anyone else named), signed by the sender. */
+export async function archiveItem(sender: Pick<Identity, 'did' | 'publicKey' | 'signing'>, o: { federation: string; office: OfficeId; officeKey: string; body: unknown; also?: string[] }, now = new Date()): Promise<OfficeArchiveReceipt> {
+	const { sealed } = await sealTo(o.body, [o.officeKey, ...(o.also ?? [])], `The ${officeKind(o.office)?.called.toLowerCase() ?? o.office}’s records`, { zip: true });
+	return (await sealWith(sender, { schema: OFFICE_ARCHIVE_SCHEMA, source: 'inqbeta:q/offices', federation: o.federation, office: o.office, officeKey: o.officeKey, sealed, at: now.toISOString() } satisfies OfficeArchiveItem)) as OfficeArchiveReceipt;
+}
+
+/** Open an office's records with its keys: each letter, and who filed it. Ones that don't open, or aren't signed, are passed over. */
+export async function readArchive(items: unknown[], keys: Identity[]): Promise<{ filedBy: string; at: string; body: unknown }[]> {
+	const out: { filedBy: string; at: string; body: unknown }[] = [];
+	for (const x of items ?? []) {
+		const r = x as OfficeArchiveReceipt;
+		if (r?.content?.schema !== OFFICE_ARCHIVE_SCHEMA || !(await checkReceipt(r)).ok) continue;
+		const key = keys.find((k) => r.content.sealed.recipients.some((p) => p.did === k.did));
+		if (!key) continue;
+		const opened = await openWith(r.content.sealed, key);
+		if (opened.ok) out.push({ filedBy: r.did, at: r.content.at, body: opened.body });
+	}
+	return out.sort((a, b) => a.at.localeCompare(b.at));
 }

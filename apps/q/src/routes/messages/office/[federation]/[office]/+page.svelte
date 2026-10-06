@@ -111,6 +111,7 @@
 				<p class="card preset-tonal-warning p-3 text-sm" role="status">Out of hours. The {called.toLowerCase()}’s hours are {hoursInWords(holders[0].hours!)}. Leave your message: it’ll be waiting for them.</p>
 			{/if}
 			<div class="flex flex-col gap-2">
+				<p class="text-xs opacity-70">This goes to the office’s records: whoever holds the office, now or later, can read it.</p>
 				<label class="label"><span class="label-text">{outOfHours ? 'Leave a message' : `Write to the ${called.toLowerCase()}`}</span><textarea class="textarea" rows="3" bind:value={text}></textarea></label>
 				<button type="button" class="btn preset-filled-primary-500 min-h-11 self-end" disabled={busy || !text.trim()} onclick={() => void send()}>{busy ? 'Sending…' : outOfHours ? 'Leave it' : 'Send'}</button>
 				{#if said}<p class="text-sm card p-2 {said.good ? 'preset-tonal-success' : 'preset-tonal-error'}" aria-live="polite">{said.text}</p>{/if}

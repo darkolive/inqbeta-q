@@ -10,7 +10,7 @@
 	import { officeHref } from '$lib/office-post';
 	import { hoursInWords, inHours, type OfficeHours } from '@inqbeta/q-core/offices';
 
-	let { federation, office, called, of, holders = [], fallbackHref }: { federation: string; office: string; called: string; of: string; holders?: { holder: string; inbox: string; hours?: OfficeHours }[]; fallbackHref: string } = $props();
+	let { federation, office, called, of, holders = [], fallbackHref }: { federation: string; office: string; called: string; of: string; holders?: { holder: string; inbox: string; hours?: OfficeHours; officeKey?: string }[]; fallbackHref: string } = $props();
 
 	/* Out of hours, said before sending: the message waits for them. */
 	const outOfHours = $derived(!!holders.length && holders.every((h) => !inHours(h.hours)));
@@ -43,6 +43,7 @@
 	{#if open}
 		<div class="card preset-tonal-surface p-3 mt-2 w-full max-w-md flex flex-col gap-2">
 			{#if outOfHours}<p class="card preset-tonal-warning p-2 text-sm">Out of hours. Their hours are {hoursInWords(holders[0].hours!)}. Leave your message: it’ll be waiting for them.</p>{/if}
+			<p class="text-xs opacity-70">This goes to the office’s records: whoever holds the office, now or later, can read it.</p>
 			<label class="label"><span class="label-text">Your question</span><textarea class="textarea" rows="3" bind:value={text}></textarea></label>
 			<button type="button" class="btn preset-filled-primary-500 min-h-11 self-end" disabled={busy || !text.trim()} onclick={() => void send()}>{busy ? 'Sending…' : 'Send'}</button>
 		</div>

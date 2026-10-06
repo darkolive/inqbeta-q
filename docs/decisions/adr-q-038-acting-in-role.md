@@ -454,3 +454,57 @@ federation would appear as the federation and the officer responding."
   an automatic reply *sent back* out of hours (not needed while the asker is
   told before sending).
 
+## Addendum, 6 October 2026 (night): the office's records belong to the federation
+
+Darren: "where the files of a federation are stored. So messages on a
+federation sent and received should not be stored on the user's local host,
+except in the hottest sense, but should be synced to the federation's storage
+directory. And then it's available for any officer to read a receipt and
+access conversations two, three years ago without having been the person, but
+your office allows you to access."
+
+**Decided:**
+
+1. **Each office has its own key**, made like a federation's key (a DID from a
+   seed). The caretaker makes it with the office's first appointment; each
+   holder receives it sealed to them, with their appointment.
+2. **Post to and from an office is sealed to the office**, not to the person,
+   and filed in the **office's archive on the federation's storage node**. The
+   holder's device keeps only a working copy (the cache), never the record.
+3. **Whoever holds the office reads the whole archive**, years back, without
+   having been there: the office gives the access, not the person.
+4. **The key turns over when someone leaves.** After a recall or a
+   stand-down, new post is sealed to the office's next key; the next holder
+   receives every key, so the history stays whole. A former holder keeps
+   only what they had already seen: receipts can't make anyone forget, and Q
+   says so rather than pretending.
+5. **The asker is told before sending**: "This goes to the office's records:
+   whoever holds the office, now or later, can read it."
+6. **How long the archive is kept** is the federation's rule (and the law's),
+   set in its constitution; opening sealed records for an auditor or a
+   regulator follows ADR-Q-041.
+
+**Built the same night:**
+
+- **q-core**: `OfficeKeyring` (`newOfficeKeyring`, `turnOver`, `sealKeyring`,
+  `openKeyring`, `officeIdentities`); an appointment names the office's key
+  (`officeKey`, signed) and carries every key sealed to the holder
+  (`sealedKeys`); `archiveItem` / `readArchive` for the records. Proved: a
+  letter to the treasurer in 2026 opens for the treasurer of 2028; the one
+  who left can't open what came after.
+- **The gate** keeps `/archive/<federation>/<office key>`: items signed by
+  their sender and sealed to that office key; it can't read them.
+- **The app**: the caretaker keeps each office's keyring in its office
+  records, sealed to them; gives it with each appointment; turns it over on
+  a recall or a noted stand-down. Asking an office files the letter in its
+  records; answering from the desk does too. The desk reads the records with
+  every key, plus this device's working copy (`q.office-cache`, latest 200,
+  cleared on sign-out). Office post no longer goes into anyone's personal
+  vault. The asker is told: "This goes to the office's records: whoever
+  holds the office, now or later, can read it."
+- **Not yet**: retention set by the federation's constitution; several
+  holders of one office at once each need the new key on a turnover (today
+  the next appointment carries it); records for federations other than the
+  host's (only the host's node keeps them); appointments made before tonight
+  carry no keys, and the desk says so.
+

@@ -4,7 +4,8 @@
  * and name, and the office — never the face of whoever holds it.
  */
 import { MESSAGE_SCHEMA } from '@inqbeta/q-core/inbox';
-import { officeAddresses, revokedSet, type OfficeAddress } from '@inqbeta/q-core/offices';
+import { archiveItem, officeAddresses, officeIdentities, readArchive, revokedSet, type OfficeAddress, type OfficeId, type OfficeKeyring } from '@inqbeta/q-core/offices';
+import { current } from '@inqbeta/q-core/passkey';
 import { readHome } from '$lib/home';
 import type { Signed } from '$lib/messages';
 
@@ -57,4 +58,60 @@ export async function officeHoldersNow(federation: string, office: string): Prom
 	};
 	const [posts, revoked] = await Promise.all([get('offices'), get('revoked')]);
 	return (await officeAddresses(posts, federation, { revoked: await revokedSet(revoked, federation) })).filter((a) => a.office === office);
+}
+
+/* ---- The office's records (ADR-Q-038): kept by the federation, read by whoever holds the office ---- */
+
+async function storageFor(federation: string): Promise<string | undefined> {
+	const h = await readHome().catch(() => null);
+	return h?.ok && h.federation === federation ? h.services.storage?.replace(/\/$/, '') : undefined;
+}
+
+/** File a letter in the office's records on the federation's node: sealed to the office's key, signed by you. */
+export async function fileInOfficeRecords(o: { federation: string; office: string; officeKey: string }, letter: Signed): Promise<boolean> {
+	const me = current();
+	const storage = await storageFor(o.federation);
+	if (!me || !storage) return false;
+	const item = await archiveItem(me, { federation: o.federation, office: o.office as OfficeId, officeKey: o.officeKey, body: letter });
+	const r = await fetch(`${storage}/archive/${o.federation}/${o.officeKey}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(item) }).catch(() => null);
+	return !!r?.ok;
+}
+
+/** The office's records, opened with every key it has had: all its letters, years back. Only signed letters about this office count. */
+export async function readOfficeRecords(ring: OfficeKeyring): Promise<Signed[]> {
+	const storage = await storageFor(ring.federation);
+	if (!storage) return [];
+	const items: unknown[] = [];
+	for (const k of ring.keys) {
+		const r = await fetch(`${storage}/archive/${ring.federation}/${k.did}`, { signal: AbortSignal.timeout(15_000) }).catch(() => null);
+		if (r?.ok) items.push(...((((await r.json().catch(() => null)) as { items?: unknown[] } | null)?.items) ?? []));
+	}
+	const out: Signed[] = [];
+	for (const x of await readArchive(items, await officeIdentities(ring))) {
+		const m = x.body as Signed;
+		if (m?.content?.schema !== MESSAGE_SCHEMA || m.did !== x.filedBy) continue;
+		const about = m.content.office ?? m.content.fromOffice;
+		if (about?.federation === ring.federation && about.office === ring.office) out.push(m);
+	}
+	return out;
+}
+
+/* ---- The working copy: post for an office, on this device only, until the archive has it ---- */
+const CACHE = 'q.office-cache';
+const CACHE_MOST = 200;
+export function cacheOfficePost(m: Signed): void {
+	try {
+		const all = JSON.parse(localStorage.getItem(CACHE) ?? '[]') as Signed[];
+		if (all.some((x) => x.signature === m.signature)) return;
+		localStorage.setItem(CACHE, JSON.stringify([...all, m].slice(-CACHE_MOST)));
+	} catch {
+		/* no room: the archive still has it */
+	}
+}
+export function cachedOfficePost(): Signed[] {
+	try {
+		return JSON.parse(localStorage.getItem(CACHE) ?? '[]') as Signed[];
+	} catch {
+		return [];
+	}
 }

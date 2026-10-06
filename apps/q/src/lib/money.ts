@@ -23,7 +23,7 @@ export interface MintView {
 	/** How the coin looks, as its bank designed it. */
 	design?: CoinDesign;
 	/** Who answers for it (ADR-Q-037): the office, and who holds it today. */
-	contact?: { office: string; called: string; answerer: string; answererOffice: string; holders?: { holder: string; inbox: string; hours?: OfficeHours }[] };
+	contact?: { office: string; called: string; answerer: string; answererOffice: string; holders?: { holder: string; inbox: string; hours?: OfficeHours; officeKey?: string }[] };
 	mode: 'test' | 'live';
 	/** The mint's currency (ISO 4217): one credit is one unit of it (ADR-Q-042 §3). */
 	currency: string;

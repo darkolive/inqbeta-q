@@ -17,6 +17,7 @@ import { saveLocked } from '@inqbeta/q-core/folder';
 import { readHome } from '$lib/home';
 import { role } from '$lib/role.svelte';
 import { officePostRings } from '$lib/notify';
+import { fileInOfficeRecords, cacheOfficePost } from '$lib/office-post';
 import { isAgreementStep } from '@inqbeta/q-core/agreements';
 import { connectMqtt } from '$lib/mqtt-ws';
 import { receivePiece, keepFile } from '$lib/attachments';
@@ -73,8 +74,9 @@ export async function sendTo(
 	} catch {
 		return { ok: false, says: 'The storage didn’t answer. Try again in a moment.' };
 	}
-	/* Calls' handshakes aren't conversation: only real words are kept as yours. */
-	if (kept(what.kind)) await keep(signed).catch(() => {});
+	/* Calls' handshakes aren't conversation: only real words are kept as yours. What you send for an office goes to its records instead. */
+	if (kept(what.kind) && !what.fromOffice) await keep(signed).catch(() => {});
+	if (what.fromOffice) cacheOfficePost(signed);
 	return { ok: true, signed };
 }
 
@@ -158,7 +160,9 @@ export function collectInbox(): Promise<number> {
 				const signed = opened.body as Signed;
 				const check = await checkReceipt(signed);
 				if (!check.ok || signed.content?.schema !== MESSAGE_SCHEMA || signed.content.to !== me.did) continue;
-				if (kept(signed.content.kind)) await keep(signed);
+				/* Post for an office isn't yours to keep: it's in the office's records on the federation's node (ADR-Q-038). */
+				if (kept(signed.content.kind) && !signed.content.office) await keep(signed);
+				if (signed.content.office) cacheOfficePost(signed);
 				/* A piece of a big file: kept until the last one is in, then joined into the file. */
 				if (signed.content.kind === 'piece') await receivePiece(signed.content.piece);
 				/* Small files ride inside: keep them in the vault's files too, so they're found like any other. */
@@ -252,15 +256,21 @@ export function officeThreads(receipts: { json?: unknown }[], me: string, federa
  * their own copy, tagged with the office so it waits on their desk. Your own
  * signed copy is kept, so you see what you asked.
  */
-export async function askOffice(to: { holder: string; inbox: string }[], office: { federation: string; office: string }, text: string): Promise<{ ok: true; reached: number } | { ok: false; says: string }> {
+export async function askOffice(to: { holder: string; inbox: string; officeKey?: string }[], office: { federation: string; office: string }, text: string): Promise<{ ok: true; reached: number; filed: boolean } | { ok: false; says: string }> {
 	if (!to.length) return { ok: false, says: 'Nobody holds that office just now.' };
 	if (!text.trim()) return { ok: false, says: 'Write your question first.' };
 	let reached = 0;
 	let says = '';
+	let letter: Signed | null = null;
 	for (const h of to) {
 		const out = await sendTo({ did: h.holder, inbox: h.inbox }, { kind: 'message', text: text.trim(), office });
-		if (out.ok) reached++;
-		else says = out.says;
+		if (out.ok) {
+			reached++;
+			letter ??= out.signed;
+		} else says = out.says;
 	}
-	return reached ? { ok: true, reached } : { ok: false, says };
+	/* And in the office's records, kept by the federation for whoever holds it, now or later (ADR-Q-038). */
+	const key = to.find((h) => h.officeKey)?.officeKey;
+	const filed = letter && key ? await fileInOfficeRecords({ ...office, officeKey: key }, letter).catch(() => false) : false;
+	return reached ? { ok: true, reached, filed } : { ok: false, says };
 }

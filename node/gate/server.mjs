@@ -203,6 +203,55 @@ async function officePosts(req, res, origin, fed) {
 }
 
 /*
+ * ---- An office's records (ADR-Q-038; 6 October 2026) ----
+ * Post to and from an office belongs to the federation: each item is sealed
+ * to the office's key and kept here, in the office's archive, for whoever
+ * holds the office now or later. The gate can't read any of it; it checks the
+ * sender's signature, that it's sealed to that office key, and its size.
+ *
+ *   GET  /archive/<federation DID>/<office key DID>   { items: [item …] }, oldest first
+ *   POST /archive/<federation DID>/<office key DID>   an item, signed by its sender
+ */
+const OFFICE_ARCHIVE = 'inqbeta.office-archive/1';
+const ARCHIVE = /^\/archive\/(did:key:z[1-9A-HJ-NP-Za-km-z]+)\/(did:key:z[1-9A-HJ-NP-Za-km-z]+)$/;
+const ARCHIVE_BYTES = 1024 * 1024;
+const ARCHIVE_MOST = 5000;
+const archiveDir = (fed, key) => `${FILER}/archive/${fed.replace(/[^A-Za-z0-9]/g, '')}/${key.replace(/[^A-Za-z0-9]/g, '')}/`;
+export async function archiveItemOk(x, fed, key) {
+	const c = x?.content;
+	return c?.schema === OFFICE_ARCHIVE && c.federation === fed && c.officeKey === key && Array.isArray(c.sealed?.recipients) && c.sealed.recipients.some((r) => r?.did === key) && (await signedReceipt(x));
+}
+async function archives(req, res, origin, fed, key) {
+	if (!FEDERATIONS.has(fed)) return send(res, origin, 404, { says: 'This node doesn’t serve that federation.' });
+	if (req.method === 'GET') {
+		const r = await fetch(archiveDir(fed, key), { headers: { accept: 'application/json' } }).catch(() => null);
+		const j = r?.ok ? await r.json().catch(() => ({})) : {};
+		const names = (j.Entries ?? []).map((e) => String(e.FullPath ?? '').split('/').pop()).filter((n) => n.endsWith('.json')).slice(-ARCHIVE_MOST);
+		const items = [];
+		for (const n of names) {
+			const f = await fetch(`${archiveDir(fed, key)}${n}`).catch(() => null);
+			const x = f?.ok ? await f.json().catch(() => null) : null;
+			if (x) items.push(x);
+		}
+		items.sort((a, b) => String(a?.content?.at ?? '').localeCompare(String(b?.content?.at ?? '')));
+		return send(res, origin, 200, { schema: 'inqbeta.archive/1', federation: fed, officeKey: key, items });
+	}
+	if (req.method !== 'POST') return send(res, origin, 405, { says: 'Only GET and POST.' });
+	if (tooMany(`archive:${req.socket.remoteAddress ?? ''}`, Date.now(), 120)) return send(res, origin, 429, { says: 'Too many at once. Try again in a while.' });
+	const raw = await readBody(req, ARCHIVE_BYTES);
+	if (raw === null) return send(res, origin, 413, { says: 'Too big.' });
+	let item = null;
+	try { item = JSON.parse(raw); } catch { item = null; }
+	if (!(await archiveItemOk(item, fed, key))) return send(res, origin, 403, { says: 'Only a signed item sealed to this office goes in its records.' });
+	const name = String(item.contentHash ?? '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 64);
+	if (!name) return send(res, origin, 400, { says: 'It has no content hash.' });
+	const form = new FormData();
+	form.append('file', new Blob([JSON.stringify(item)], { type: 'application/json' }), `${name}.json`);
+	const r = await fetch(`${archiveDir(fed, key)}${name}.json`, { method: 'POST', body: form }).catch((e) => ({ ok: false, status: e.message }));
+	return r.ok ? send(res, origin, 200, { ok: true }) : send(res, origin, 502, { says: `Couldn’t keep it: ${r.status}` });
+}
+
+/*
  * ---- The door (ADR-Q-034) ----
  * While the host is in test, only its founder's root, keys linked to that
  * root, and people the root has given a tester pass may act here. Reading
@@ -1208,6 +1257,8 @@ export const server = http.createServer(async (req, res) => {
 	if (rv) return revoked(req, res, origin, rv[1]);
 	const op = OFFICES_PATH.exec(decodeURIComponent(new URL(req.url, 'http://gate').pathname));
 	if (op) return officePosts(req, res, origin, op[1]);
+	const ar = ARCHIVE.exec(decodeURIComponent(new URL(req.url, 'http://gate').pathname));
+	if (ar) return archives(req, res, origin, ar[1], ar[2]);
 	const d = DROP.exec(new URL(req.url, 'http://gate').pathname);
 	if (d) return drops(req, res, origin, d[1]);
 	const ib = INBOX.exec(new URL(req.url, 'http://gate').pathname);
