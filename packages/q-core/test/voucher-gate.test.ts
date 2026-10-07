@@ -5,7 +5,8 @@ import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { identityFromSeed } from '../src/passkey';
 import { sealWith } from '../src/seal';
-import { makeVoucher } from '../src/vouchers';
+import { acceptRedeem, askRedeem, editionOf, issueCopy, makeVoucher, receive, type Redemption, type VoucherHeld } from '../src/vouchers';
+import { signerFor } from '../src/passkey';
 import { listingTerms } from '../src/voucher-sales';
 import { AGREEMENT_SCHEMA, AGREEMENT_SOURCE } from '../src/agreements';
 
@@ -58,6 +59,28 @@ test('a voucher kept by its issuer, read with what’s left in the shop; others�
 		assert.equal((await fetch(`${gate}/shop/${shop.did}`, { method: 'POST', body: JSON.stringify({ receipt: listing, about: { name: 'Olive' } }) })).status, 200);
 		got = (await (await fetch(at)).json()) as typeof got;
 		assert.equal(got.listing?.left, 50);
+
+		/* A copy: signed by the issuer, then the holder's signature joins it; then redeemed by both. */
+		const ana = await identityFromSeed(seed(3));
+		const copy = await issueCopy(signerFor(shop), v, { number: 1, holder: ana.did, via: 'shop-1.ana' }, NOW);
+		assert.equal((await put({ ...copy, signatures: [] }, `${at}/copy`)).status, 403, 'unsigned');
+		assert.equal((await put({ ...copy, signatures: [{ ...copy.signatures[0], did: eve.did }] }, `${at}/copy`)).status, 403, 'signed by the wrong person');
+		assert.equal((await put(copy, `${at}/copy`)).status, 200);
+		const held = await receive(copy, signerFor(ana));
+		assert.equal((await put({ ...held, signatures: held.signatures.filter((g) => g.by === 'holder') }, `${at}/copy`)).status, 403, 'the holder alone can’t start a copy');
+		assert.equal((await put(held, `${at}/copy`)).status, 200);
+		let all = (await (await fetch(at)).json()) as typeof got & { copies: VoucherHeld[]; redemptions: Redemption[] };
+		assert.equal(all.copies.length, 1, 'the holder’s signature joins the copy, not a second one');
+		assert.equal(all.copies[0].signatures.length, 2);
+		const e = await editionOf(v, all.copies);
+		assert.deepEqual(e.problems, []);
+		assert.equal(e.holdings[0].holder, ana.did);
+		const asked = await askRedeem(e.holdings[0], signerFor(ana), { redeemer: shop.did, forKind: 'itself' }, NOW);
+		assert.equal((await put(asked, `${at}/redeemed`)).status, 200);
+		assert.equal((await put(await acceptRedeem(asked, signerFor(shop)), `${at}/redeemed`)).status, 200);
+		all = (await (await fetch(at)).json()) as typeof all;
+		assert.equal(all.redemptions.length, 1);
+		assert.equal((await editionOf(v, all.copies, all.redemptions)).holdings[0].redeemed, true);
 	} finally {
 		server.close();
 		filer.close();

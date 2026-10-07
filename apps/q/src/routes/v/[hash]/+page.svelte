@@ -16,7 +16,8 @@
 	import { creditsCommitted, creditsHeld } from '$lib/agreements';
 	import { readMint, type MintView } from '$lib/money';
 	import { buy } from '$lib/shop';
-	import { readVoucher, voucherLink, type VoucherView } from '$lib/vouchers';
+	import { askToRedeem, handOut, honour, readVoucher, release, salesOf, signFor, voucherLink, waitingForMe, type SaleView, type VoucherView } from '$lib/vouchers';
+	import { Section, Status } from '@inqbeta/q-ui';
 
 	let identity = $state<Identity | null>(null);
 	let ledger = $state<Ledger | null>(null);
@@ -50,6 +51,24 @@
 	const mode = $derived(mint?.mode ?? 'test');
 	const available = $derived(me ? creditsHeld(ledger, me, mode, mint) - creditsCommitted(ledger, me, mode) : 0);
 	const sameMint = $derived(!!view && !!mint && view.voucher.content.price.paid && view.voucher.content.price.mint === mint.mint);
+
+	/* Step 5: handing out, signing for, redeeming, releasing. */
+	const sales = $derived(view ? salesOf(view, ledger) : []);
+	const myCopies = $derived(view ? view.edition.holdings.filter((h) => h.holder === me) : []);
+	const toSignFor = $derived(view && me ? waitingForMe(view, me) : []);
+	const nameOf = (did: string) => people.find((p) => p.did === did)?.name ?? 'Someone';
+	let acting = $state('');
+	let actSays = $state<{ good: boolean; text: string } | null>(null);
+	async function act(key: string, run: () => Promise<{ ok: boolean; says: string }>) {
+		acting = key;
+		actSays = null;
+		const out = await run();
+		acting = '';
+		actSays = { good: out.ok, text: out.says };
+		if (out.ok) await load();
+	}
+	const saleFor = (n: number) => sales.find((x) => x.sale.holding?.number === n) ?? null;
+	const releaseWaiting = (x: SaleView) => x.agreement.standing.pending?.by === me;
 
 	let busy = $state(false);
 	let says = $state('');
@@ -100,6 +119,67 @@
 			<p class="text-sm">It isn’t on sale just now.</p>
 		{/if}
 		{#if says}<p class="text-sm card preset-tonal-warning p-3" aria-live="polite">{says}</p>{/if}
+
+		{#if identity && (toSignFor.length || myCopies.length)}
+			<Section title="Yours" description="The copies you hold: sign for them, then redeem them when you get what they promise.">
+				<ul class="flex flex-col gap-3">
+					{#each toSignFor as c (c.number)}
+						<li class="card preset-tonal-warning p-4 flex flex-col gap-2">
+							<p>Copy {c.number} has been handed to you. Sign to say you have it.</p>
+							<button type="button" class="btn preset-filled-primary-500 min-h-11 self-start" disabled={!!acting} onclick={() => void act(`sign-${c.number}`, () => signFor(identity!, view!, c))}>{acting === `sign-${c.number}` ? 'Signing…' : 'Sign for it'}</button>
+						</li>
+					{/each}
+					{#each myCopies as h (h.number)}
+						{@const sv = saleFor(h.number)}
+						<li class="card preset-outlined-surface-200-800 p-4 flex flex-col gap-2">
+							<div class="flex flex-wrap items-center gap-3">
+								<span class="font-bold flex-1">Copy {h.number}{view.edition.of ? ` of ${view.edition.of}` : ''}</span>
+								<Status tone={h.redeemed ? 'plain' : h.asked ? 'waiting' : 'good'}>{h.redeemed ? 'Redeemed' : h.asked ? 'Asked to redeem' : 'Held'}</Status>
+							</div>
+							{#if sv}<p class="text-sm">{sv.sale.says}</p>{/if}
+							{#if !h.redeemed && !h.asked && !mine}
+								<p class="text-sm">When you’ve got what it promises, redeem it. The credits held for it are released to the issuer only then.</p>
+								<button type="button" class="btn preset-filled-primary-500 min-h-11 self-start" disabled={!!acting} onclick={() => void act(`ask-${h.number}`, () => askToRedeem(identity!, view!, h))}>{acting === `ask-${h.number}` ? 'Signing…' : 'I have it: redeem'}</button>
+							{:else if h.asked}
+								<p class="text-sm">Waiting for {issuerName || 'the issuer'} to sign too.</p>
+							{:else if sv?.sale.state === 'redeemed'}
+								{#if releaseWaiting(sv)}<p class="text-sm">You’ve signed the settlement. It waits for the other side.</p>
+								{:else}<button type="button" class="btn preset-tonal min-h-11 self-start" disabled={!!acting} onclick={() => void act(`rel-${h.number}`, () => release(identity!, ledger, people, mint, sv))}>{acting === `rel-${h.number}` ? 'Signing…' : sv.agreement.standing.pending ? 'Confirm the settlement' : 'Settle: release the credits held'}</button>{/if}
+							{/if}
+						</li>
+					{/each}
+				</ul>
+			</Section>
+		{/if}
+
+		{#if mine && sales.length}
+			<Section title="Sales" description="Each one holds the buyer’s credits until it’s redeemed. Hand out their copy, honour it when they have it, then settle.">
+				<ul class="flex flex-col gap-3">
+					{#each sales as x (x.agreement.id)}
+						{@const h = x.sale.holding}
+						<li class="card preset-outlined-surface-200-800 p-4 flex flex-col gap-2">
+							<div class="flex flex-wrap items-center gap-3">
+								<span class="font-bold flex-1">{nameOf(x.sale.buyer)}{h ? ` · copy ${h.number}` : ''}</span>
+								<Status tone={x.sale.state === 'released' ? 'good' : x.sale.state === 'cancelled' ? 'plain' : x.sale.state === 'refund-due' ? 'needs-you' : 'waiting'}>{x.sale.credits} credits</Status>
+							</div>
+							<p class="text-sm">{x.sale.says}</p>
+							{#if x.sale.state === 'taken'}
+								<button type="button" class="btn preset-filled-primary-500 min-h-11 self-start" disabled={!!acting} onclick={() => void act(`out-${x.agreement.id}`, () => handOut(identity!, view!, x))}>{acting === `out-${x.agreement.id}` ? 'Signing…' : 'Hand out their copy'}</button>
+							{:else if h?.asked}
+								<p class="text-sm">{nameOf(x.sale.buyer)} says they have it. Sign if they do.</p>
+								<button type="button" class="btn preset-filled-primary-500 min-h-11 self-start" disabled={!!acting} onclick={() => void act(`hon-${x.agreement.id}`, () => honour(identity!, view!, h.asked!))}>{acting === `hon-${x.agreement.id}` ? 'Signing…' : 'Honour it: sign the redemption'}</button>
+							{:else if x.sale.state === 'redeemed'}
+								{#if releaseWaiting(x)}<p class="text-sm">You’ve signed the settlement. It waits for {nameOf(x.sale.buyer)}.</p>
+								{:else}<button type="button" class="btn preset-tonal min-h-11 self-start" disabled={!!acting} onclick={() => void act(`rel-${x.agreement.id}`, () => release(identity!, ledger, people, mint, x))}>{acting === `rel-${x.agreement.id}` ? 'Signing…' : x.agreement.standing.pending ? 'Confirm the settlement' : 'Settle: release the credits'}</button>{/if}
+							{:else if x.sale.state === 'refund-due'}
+								<a class="btn preset-tonal min-h-11 self-start" href="/agreements/{encodeURIComponent(x.agreement.id)}">Cancel the sale, so nothing moves</a>
+							{/if}
+						</li>
+					{/each}
+				</ul>
+			</Section>
+		{/if}
+		{#if actSays}<p class="card p-3 text-sm {actSays.good ? 'preset-tonal-success' : 'preset-tonal-error'}" aria-live="polite">{actSays.text}</p>{/if}
 		<p class="text-sm text-surface-700-300">Buying is signed by you and checked by the agreement rules. It’s a record of what you both agree, not legal advice.</p>
 	{/if}
 </Page>

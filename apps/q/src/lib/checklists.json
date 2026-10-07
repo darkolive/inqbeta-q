@@ -3406,6 +3406,42 @@
 				"says": "Change one letter of the address: it says there’s no voucher by that name.",
 				"how": "human",
 				"area": "safety"
+			},
+			{
+				"id": "hand-out",
+				"says": "As the seller, the page shows Sales with the buyer and “Hand out their copy”. Do it: it says the copy is handed out, and they sign for it next.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "sign-for",
+				"says": "As the buyer, “Yours” shows the copy handed to you. Sign for it: it shows “Held”, and the credits still held.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "redeem",
+				"says": "As the buyer, “I have it: redeem”: it shows “Asked to redeem”.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "honour",
+				"says": "As the seller, “Honour it: sign the redemption”: it says redeemed, and to settle.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "release",
+				"says": "Either side settles; the other confirms. The sale shows the credits paid to the seller, and the buyer’s held credits are gone.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "bound",
+				"says": "A bound voucher has no way to pass it on anywhere on the page.",
+				"how": "human",
+				"area": "safety"
 			}
 		]
 	},

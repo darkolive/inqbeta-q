@@ -327,3 +327,32 @@ The buyer's credits are then **held by agreement** (`committedBy`), not paid.
 - Issuing the copy and redeeming from the app (the core and rules are done).
 - Buying across banks: a voucher priced in another bank's credits waits for
   treaties to trade.
+
+## Addendum, 7 October 2026: handing out, redeeming and releasing, in the app
+
+On the voucher's page (`/v/<voucher>`):
+
+- **The seller (Sales).** Each sale of the voucher in the seller's own
+  agreements shows where it stands. The seller can:
+  - hand out the buyer's copy: the next free number, naming the sale, checked
+    by `voucher.issue`;
+  - honour a redemption the buyer has asked for, checked by `voucher.redeem`;
+  - settle once it's redeemed.
+- **The buyer (Yours).** The buyer can:
+  - sign for a copy handed to them;
+  - redeem it when they have what it promises;
+  - settle, or confirm the seller's settlement. The held credits are paid
+    over only then.
+- **The node** keeps each copy and redemption at `/voucher/<hash>/copy` and
+  `/voucher/<hash>/redeemed`, by the hash of the statement. A second
+  signature joins the first rather than making another copy. Only signatures
+  by the people the statement names are kept. Anyone can read them, and each
+  reader checks the chain for itself (`editionOf`).
+- **A redemption counts only when both have signed.** One signed by the holder
+  alone is an ask (`Holding.asked`).
+
+Not yet:
+
+- Redeeming with a provider in a realm (only with the issuer).
+- Passing on, and selling on, between holders.
+- Showing vouchers in the wallet (step 5 of the build order).

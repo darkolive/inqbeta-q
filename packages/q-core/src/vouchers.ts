@@ -230,7 +230,10 @@ export interface Holding {
 	/** The newest copy of this number. */
 	latest: VoucherHeld;
 	chain: VoucherHeld[];
+	/** Redeemed: signed by both the holder and whoever honoured it. */
 	redeemed: boolean;
+	/** Asked by the holder, waiting for the redeemer to sign. */
+	asked: Redemption | null;
 }
 export interface EditionState {
 	of: number | null;
@@ -282,8 +285,14 @@ export async function editionOf(v: VoucherReceipt, copies: VoucherHeld[], redemp
 			chain.push(n);
 		}
 		const latest = chain.at(-1)!;
-		const redeemed = redemptions.some((r) => r.voucher === v.contentHash && r.number === first.number);
-		holdings.push({ number: first.number, holder: latest.holder, latest, chain, redeemed });
+		const mine = redemptions.filter((r) => r?.voucher === v.contentHash && r.number === first.number && r.holder === latest.holder);
+		let redeemed = false;
+		let asked: Redemption | null = null;
+		for (const r of mine) {
+			if (await redemptionSigned(r)) redeemed = true;
+			else if (await redemptionAsked(r)) asked = r;
+		}
+		holdings.push({ number: first.number, holder: latest.holder, latest, chain, redeemed, asked: redeemed ? null : asked });
 	}
 	const issued = holdings.length;
 	return { of: v.content.of, issued, left: v.content.of === null ? null : Math.max(0, v.content.of - issued), holdings, problems };
@@ -331,6 +340,11 @@ export async function askRedeem(holding: Holding, holder: Signer, o: { redeemer:
 export async function acceptRedeem(r: Redemption, redeemer: Signer): Promise<Redemption> {
 	if (toDid(redeemer.did) !== r.redeemer) throw new Error('Only the named redeemer accepts it.');
 	return { ...r, signatures: [...r.signatures.filter((s) => s.by === 'holder'), { by: 'redeemer', did: r.redeemer, signature: await redeemer.signCanonical(unsigned(r)) }] };
+}
+/** Signed by its holder, at least: an ask to redeem. */
+export async function redemptionAsked(r: Redemption): Promise<boolean> {
+	const h = r.signatures?.find((s) => s.by === 'holder' && s.did === r.holder);
+	return !!h && (await verify(h.did, unsigned(r), h.signature));
 }
 export async function redemptionSigned(r: Redemption): Promise<boolean> {
 	const st = unsigned(r);

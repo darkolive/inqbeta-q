@@ -889,7 +889,8 @@ async function shops(req, res, origin, did) {
  * counts what's left.
  */
 const VOUCHER_BYTES = 64 * 1024;
-const VOUCHER_PATH = /^\/voucher\/([A-Za-z0-9_-]{43})$/;
+const VOUCHER_PATH = /^\/voucher\/([A-Za-z0-9_-]{43})(?:\/(copy|redeemed))?$/;
+const VOUCHER_MOVES = 2000;
 const voucherFile = (hash) => `${FILER}/voucher/${hash}.json`;
 /** Why this isn't a voucher its issuer signed, or null. */
 export async function voucherProblemAtGate(v) {
@@ -901,20 +902,82 @@ export async function voucherProblemAtGate(v) {
 }
 /** Does this shop listing sell this voucher? Its terms name it: "Voucher: <title> (<hash>)". */
 export const listingSells = (offer, hash) => typeof offer?.content?.terms?.aGives?.thing === 'string' && offer.content.terms.aGives.thing.endsWith(`(${hash})`);
+/*
+ * A voucher's copies and redemptions (step 5): each a statement with
+ * signatures — who passed it on and who received it; who holds it and who
+ * honoured it. Kept by the hash of the statement, so a second signature joins
+ * the first rather than making another. Anyone can read them: the edition is
+ * counted in the open, and each reader checks the chain for itself.
+ */
+const unsignedOf = (x) => { const { signatures: _s, ...rest } = x; return rest; };
+const statementName = async (x) => b64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonical(unsignedOf(x)))));
+const voucherDir = (hash, kind) => `${FILER}/voucher/${hash}/${kind}/`;
+/** Keep only signatures that hold, by the people the statement names for each role. */
+export async function voucherSigs(x, kind) {
+	const who = kind === 'copy' ? { from: x.from, holder: x.holder } : { holder: x.holder, redeemer: x.redeemer };
+	const st = unsignedOf(x);
+	const out = [];
+	for (const g of Array.isArray(x.signatures) ? x.signatures : []) {
+		if (typeof g?.by !== 'string' || !(g.by in who) || g.did !== who[g.by] || out.some((o) => o.by === g.by)) continue;
+		if (await sigHolds(g.did, st, g.signature)) out.push({ by: g.by, did: g.did, signature: g.signature });
+	}
+	return out;
+}
+async function voucherMoves(hash, kind) {
+	const r = await fetch(voucherDir(hash, kind), { headers: { accept: 'application/json' } }).catch(() => null);
+	const j = r?.ok ? await r.json().catch(() => ({})) : {};
+	const names = (j.Entries ?? []).map((e) => String(e.FullPath ?? '').split('/').pop()).filter((n) => n.endsWith('.json')).slice(0, VOUCHER_MOVES);
+	const out = [];
+	for (const n of names) {
+		const f = await fetch(`${voucherDir(hash, kind)}${n}`).catch(() => null);
+		const x = f?.ok ? await f.json().catch(() => null) : null;
+		if (x) out.push(x);
+	}
+	return out;
+}
+async function keepVoucherMove(hash, kind, x) {
+	const schema = kind === 'copy' ? 'inqbeta.voucher-held/1' : 'inqbeta.voucher-redeemed/1';
+	if (x?.schema !== schema || x.voucher !== hash || !Number.isInteger(x.number) || x.number < 1) return { status: 400, says: `That isn’t a ${kind === 'copy' ? 'copy' : 'redemption'} of this voucher.` };
+	const master = await fetch(voucherFile(hash)).catch(() => null);
+	if (!master?.ok) return { status: 404, says: 'No voucher by that name is kept here.' };
+	const sigs = await voucherSigs(x, kind);
+	const first = kind === 'copy' ? 'from' : 'holder';
+	if (!sigs.some((g) => g.by === first)) return { status: 403, says: kind === 'copy' ? 'A copy is signed by whoever passes it on.' : 'A redemption is signed by its holder.' };
+	const name = `${await statementName(x)}.json`;
+	const was = await fetch(`${voucherDir(hash, kind)}${name}`).catch(() => null);
+	const prev = was?.ok ? await was.json().catch(() => null) : null;
+	const merged = { ...unsignedOf(x), signatures: [...sigs, ...((prev?.signatures ?? []).filter((g) => !sigs.some((s) => s.by === g.by)))] };
+	const form = new FormData();
+	form.append('file', new Blob([JSON.stringify(merged)], { type: 'application/json' }), name);
+	const r = await fetch(`${voucherDir(hash, kind)}${name}`, { method: 'POST', body: form }).catch((e) => ({ ok: false, status: e.message }));
+	return r.ok ? { status: 200, kept: merged } : { status: 502, says: `Couldn’t keep it: ${r.status}` };
+}
 async function keepVoucher(v) {
 	const form = new FormData();
 	form.append('file', new Blob([JSON.stringify(v)], { type: 'application/json' }), `${v.contentHash}.json`);
 	const r = await fetch(voucherFile(v.contentHash), { method: 'POST', body: form }).catch((e) => ({ ok: false, status: e.message }));
 	return r.ok ? null : `Couldn’t keep it: ${r.status}`;
 }
-async function vouchers(req, res, origin, hash) {
+async function vouchers(req, res, origin, hash, kind) {
+	if (kind) {
+		if (req.method !== 'POST') return send(res, origin, 405, { says: 'Only POST.' });
+		if (tooMany(`voucher:${req.socket.remoteAddress ?? ''}`, Date.now(), SHOP_POSTS_PER_HOUR)) return send(res, origin, 429, { says: 'Too many at once. Try again in a while.' });
+		const raw = await readBody(req, VOUCHER_BYTES);
+		if (raw === null) return send(res, origin, 413, { says: 'Too big.' });
+		let x;
+		try { x = JSON.parse(raw); } catch { return send(res, origin, 400, { says: 'That isn’t JSON.' }); }
+		const shut = await doorSays((Array.isArray(x?.signatures) ? x.signatures.at(-1) : null)?.did);
+		if (shut) return send(res, origin, 403, { says: shut, door: 'closed' });
+		const out = await keepVoucherMove(hash, kind, x);
+		return send(res, origin, out.status, out.kept ? { ok: true, kept: out.kept } : { says: out.says });
+	}
 	if (req.method === 'GET') {
 		const r = await fetch(voucherFile(hash)).catch(() => null);
 		const v = r?.ok ? await r.json().catch(() => null) : null;
 		if (!v) return send(res, origin, 404, { says: 'No voucher by that name is kept here.' });
 		const held = await shopHeld(v.content.issuer);
 		const listing = shopWindow(held).find((l) => listingSells(l.offer, hash)) ?? null;
-		return send(res, origin, 200, { voucher: v, listing: listing ? { offer: listing.offer, left: listing.left } : null, about: held?.about ?? {} });
+		return send(res, origin, 200, { voucher: v, listing: listing ? { offer: listing.offer, left: listing.left } : null, about: held?.about ?? {}, copies: await voucherMoves(hash, 'copy'), redemptions: await voucherMoves(hash, 'redeemed') });
 	}
 	if (req.method !== 'POST') return send(res, origin, 405, { says: 'Only GET and POST.' });
 	if (tooMany(`voucher:${req.socket.remoteAddress ?? ''}`, Date.now(), SHOP_POSTS_PER_HOUR)) return send(res, origin, 429, { says: 'Too many at once. Try again in a while.' });
@@ -1500,7 +1563,7 @@ export const server = http.createServer(async (req, res) => {
 	const sh = SHOP.exec(decodeURIComponent(new URL(req.url, 'http://gate').pathname));
 	if (sh) return shops(req, res, origin, sh[1]);
 	const vo = VOUCHER_PATH.exec(new URL(req.url, 'http://gate').pathname);
-	if (vo) return vouchers(req, res, origin, vo[1]);
+	if (vo) return vouchers(req, res, origin, vo[1], vo[2]);
 	const rl = RELAY.exec(new URL(req.url, 'http://gate').pathname);
 	if (rl) return relays(req, res, origin, rl[1], rl[2]);
 	const st = STORE.exec(new URL(req.url, 'http://gate').pathname);
