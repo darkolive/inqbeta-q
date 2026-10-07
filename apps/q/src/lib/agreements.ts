@@ -35,7 +35,7 @@ import { agreementFacts, type Wallets } from '@inqbeta/q-actions/core/agreements
 import { actionHash, decide } from '$lib/actions/engine';
 import { keepStep, sendTo } from '$lib/messages';
 import { refreshLedger, type Ledger } from '$lib/ledger';
-import type { Person } from '$lib/people';
+import { replyTos, type Person } from '$lib/people';
 import { fileWithMint, mintBalance, mintMoves, type MintView } from '$lib/money';
 
 export interface AgreementView {
@@ -221,7 +221,9 @@ export async function takeStep(
 		const terms: Terms | null | undefined = content.terms ?? standingOf(prior).terms;
 		const them = terms ? (terms.a === identity.did ? terms.b : terms.a) : '';
 		/* An open offer you've just made has nobody to send to yet: you share it by link. */
-		const person = people.find((p) => p.did === them);
+		/* Someone who bought from your shop may not be one of your people: answer them where their step came from. */
+		const learned = them ? replyTos(ledger, identity.did).get(them) : undefined;
+		const person = people.find((p) => p.did === them && p.inbox) ?? (learned ? { did: them, inbox: learned } : people.find((p) => p.did === them));
 		let sent = false;
 		let says: string | undefined;
 		if (!them) says = undefined;

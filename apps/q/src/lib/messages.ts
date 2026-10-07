@@ -51,6 +51,13 @@ export async function keepStep(step: SealedReceipt & { content: { agreement: str
 	await saveLocked('agreements', `agreement-${step.content.agreement.slice(0, 8)}-${step.content.step}-${step.contentHash.slice(0, 12)}.json`, JSON.stringify(step, null, 2), 'application/json');
 }
 
+/** Where someone's answers go, learned from a message they sent you: their inbox, signed by you as a note to yourself. */
+export const REPLY_TO_SCHEMA = 'inqbeta.reply-to/1';
+async function keepReplyTo(me: Identity, did: string, inbox: string) {
+	const note = await sealWith(me, { schema: REPLY_TO_SCHEMA, source: 'inqbeta:q/message', with: did, inbox, at: new Date().toISOString() });
+	await saveLocked('contacts', `reply-to-${did.slice(-16)}.json`, JSON.stringify(note, null, 2), 'application/json');
+}
+
 /** Write to someone you're linked with. Your signed copy is kept in your vault. */
 export async function sendTo(
 	to: { did: string; inbox?: string },
@@ -170,7 +177,11 @@ export function collectInbox(): Promise<number> {
 				/* An agreement step (ADR-Q-025): kept as its own receipt, if it's signed by whoever sent it. */
 				if (signed.content.kind === 'agreement') {
 					const step = signed.content.step;
-					if (isAgreementStep(step) && step.did === signed.did && (await checkReceipt(step)).ok) await keepStep(step);
+					if (isAgreementStep(step) && step.did === signed.did && (await checkReceipt(step)).ok) {
+						await keepStep(step);
+						/* Where to answer them: a buyer from your shop may not be one of your people yet (7 October 2026). */
+						if (signed.content.replyTo) await keepReplyTo(me, signed.did, signed.content.replyTo).catch(() => {});
+					}
 				}
 				/* Custody passes: it's in your vault now, so the storage can let its copy go. */
 				await fetch(`${storage}/inbox/${mine.id}/${pid}`, { method: 'DELETE', headers: head }).catch(() => {});

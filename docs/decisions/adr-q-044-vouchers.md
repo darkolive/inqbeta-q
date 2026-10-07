@@ -356,3 +356,27 @@ Not yet:
 - Redeeming with a provider in a realm (only with the issuer).
 - Passing on, and selling on, between holders.
 - Showing vouchers in the wallet (step 5 of the build order).
+
+## Addendum, 7 October 2026: first test, and step 5 begun
+
+**First test (Darren, two people).** A voucher was made, found by its link,
+bought (credits held), settled, and paid to the shop. Three things came out of
+it:
+
+- **The buyer's credits stayed held after settling.** The shop owner's last
+  signature never reached the buyer's inbox. Every step is also in the bank's
+  public ledger, so Q now reads that ledger for the steps of your open
+  agreements and keeps any it's missing, signed and checked
+  (`lib/catch-up.ts`). It waits for the vault to load before it asks.
+- **Why the signature didn't arrive.** The shop owner didn't have the buyer's
+  inbox. Now a step's message carries where to answer it, and Q keeps that as
+  a note to itself (`inqbeta.reply-to/1`). The shop owner can then answer a
+  buyer they've never linked with.
+- **It was clunky.** The voucher's page now starts with **Next:** and one
+  button for the one thing to do. Each sale shows where it stands: Bought,
+  Handed out, Signed for, Redeemed, Paid.
+
+**Step 5 begun: Vouchers beside Credits.** A Vouchers page (`/v`) is in the
+menu under Credits. It lists what you've bought (with who from, and whether
+the credits are still held) and what you sell. Credits links to it. Issuer
+liabilities on the balance sheet are still to come.

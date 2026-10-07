@@ -212,3 +212,31 @@ export async function release(identity: Identity, ledger: Ledger | null, people:
 	const out = await takeStep(identity, ledger, s.agreement.id, { step: 'settled', parent: st.pending?.hash ?? st.lastHash ?? null, entries }, people, mint);
 	return out.ok ? { ok: true, says: st.pending ? 'Settled: the credits held are paid over.' : 'Signed. It waits for the other side to sign the same.' } : { ok: false, says: out.says };
 }
+
+/* ---- Your vouchers, from your own agreements (step 5) ---- */
+
+export interface MyVoucher {
+	hash: string;
+	title: string;
+	as: 'bought' | 'selling';
+	/** The other side: who you bought it from. */
+	with: string;
+	agreement: string;
+	at: string;
+	/** Bought: still held for it (agreed), settled (complete) or cancelled (ended). */
+	phase: string;
+}
+
+/** The vouchers you've bought, and the ones you sell in your shop: read from your agreements, newest first. */
+export function myVouchers(ledger: Ledger | null, me: string): MyVoucher[] {
+	const out: MyVoucher[] = [];
+	for (const a of agreementsFrom(ledger)) {
+		const t = a.standing.terms;
+		const thing = t && 'thing' in t.aGives ? t.aGives.thing : '';
+		const m = /^Voucher: (.*) \(([A-Za-z0-9_-]{43})\)$/.exec(thing);
+		if (!t || !m) continue;
+		if (a.listing && t.a === me) out.push({ hash: m[2], title: m[1], as: 'selling', with: '', agreement: a.id, at: a.at, phase: a.standing.phase });
+		else if (!a.listing && t.b === me) out.push({ hash: m[2], title: m[1], as: 'bought', with: t.a, agreement: a.id, at: a.at, phase: a.standing.phase });
+	}
+	return out.sort((x, y) => y.at.localeCompare(x.at));
+}

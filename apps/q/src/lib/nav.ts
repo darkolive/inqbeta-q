@@ -67,7 +67,8 @@ export const SECTIONS: NavGroup[] = [
 			{ href: '/contacts', label: 'Address book', icon: 'contacts' },
 			{ href: '/communication', label: 'Communication', icon: 'message', also: ['/messages', '/call'] },
 			{ href: '/agreements', label: 'Agreements', icon: 'documents' },
-			{ href: '/balance', label: 'Credits', icon: 'wallet' }
+			{ href: '/balance', label: 'Credits', icon: 'wallet' },
+			{ href: '/v', label: 'Vouchers', icon: 'ticket' }
 		]
 	},
 	{

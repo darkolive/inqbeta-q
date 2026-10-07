@@ -89,6 +89,10 @@
 		</Section>
 	{/if}
 
+	<Section title="Vouchers" description="The coin says what pays; a voucher says what you get.">
+		<a href="/v" class="btn preset-tonal min-h-11 self-start"><Icon name="ticket" size={18} /> Your vouchers</a>
+	</Section>
+
 	<Section title="How credits work" description="Six pictures. Play them, or step through.">
 		<CreditsStory />
 	</Section>

@@ -3314,6 +3314,51 @@
 		]
 	},
 	{
+		"id": "vouchers",
+		"page": "/v",
+		"title": "Your vouchers",
+		"group": "market",
+		"needs": "Signed in. For the lists: a voucher you’ve bought, and one you sell.",
+		"checks": [
+			{
+				"id": "nav",
+				"says": "Vouchers is in the menu, under Credits, and opens this page. Credits has a “Your vouchers” button too.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "empty",
+				"says": "With none, it says so, and offers Sell a voucher.",
+				"how": "human",
+				"area": "words"
+			},
+			{
+				"id": "bought",
+				"says": "A voucher you bought is under Yours, with who it’s from and “Credits held” until it’s settled, then “Settled”.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "selling",
+				"says": "A voucher you sell is under You sell, “In your shop”.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "next",
+				"says": "Open one with something to do: the page starts with “Next:” and one button for it.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "progress",
+				"says": "Each sale shows where it is: Bought, Handed out, Signed for, Redeemed, Paid, with ticks so far.",
+				"how": "human",
+				"area": "words"
+			}
+		]
+	},
+	{
 		"id": "voucher-new",
 		"page": "/v/new",
 		"title": "Sell a voucher",

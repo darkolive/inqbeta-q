@@ -70,6 +70,7 @@ export const icons = {
 	languages: '<path d="m5 8 6 6"/><path d="m4 14 6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/>',
 	/* check */
 	check: '<path d="M20 6 9 17l-5-5"/>',
+	ticket: '<path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2"/><path d="M13 17v2"/><path d="M13 11v2"/>',
 	/* x */
 	close: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
 	/* bell */

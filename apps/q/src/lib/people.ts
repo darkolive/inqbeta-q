@@ -45,5 +45,20 @@ export function peopleFrom(ledger: Ledger | null, me = ''): Person[] {
 			else if (by.has(j.did) && c.replyTo && !by.get(j.did)!.inbox) by.get(j.did)!.inbox = c.replyTo;
 		}
 	}
+	/* An inbox learned from an agreement step they sent (a buyer from your shop): only for people you know, and only if there's none yet. */
+	for (const [did, inbox] of replyTos(ledger, me)) if (by.has(did) && !by.get(did)!.inbox) by.get(did)!.inbox = inbox;
 	return [...by.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+/** Inboxes learned from messages people sent you, newest first: who to answer, and where. Only your own signed notes count. */
+export function replyTos(ledger: Ledger | null, me: string): Map<string, string> {
+	const out = new Map<string, { inbox: string; at: string }>();
+	for (const r of ledger?.receipts ?? []) {
+		const j = r.json as { did?: string; content?: { schema?: string; with?: string; inbox?: string; at?: string } } | undefined;
+		const c = j?.content;
+		if (c?.schema !== 'inqbeta.reply-to/1' || j?.did !== me || !c.with || !c.inbox) continue;
+		const had = out.get(c.with);
+		if (!had || (c.at ?? '') > had.at) out.set(c.with, { inbox: c.inbox, at: c.at ?? '' });
+	}
+	return new Map([...out].map(([d, x]) => [d, x.inbox]));
 }
