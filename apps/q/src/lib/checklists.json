@@ -1649,6 +1649,12 @@
 				"says": "As the treasurer acting in role, press 'Reconcile now': it says the bank signed its books.",
 				"how": "human",
 				"area": "money"
+			},
+			{
+				"id": "committed-now",
+				"says": "The amber Committed card’s big number is what’s held now. After a sale settles it goes back to 0, and underneath says how much was committed and released in the window.",
+				"how": "human",
+				"area": "money"
 			}
 		]
 	},

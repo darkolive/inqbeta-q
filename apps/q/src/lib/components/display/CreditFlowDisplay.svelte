@@ -224,7 +224,9 @@
 			moved: scale === 'all' ? committedEnd : committedEnd - committedThen,
 			committedEnd,
 			/* credits newly committed to agreements within the window */
-			committedIn: commits.filter((c) => c.at > from && c.at <= to && c.delta > 0).reduce((n, c) => n + c.delta, 0)
+			committedIn: commits.filter((c) => c.at > from && c.at <= to && c.delta > 0).reduce((n, c) => n + c.delta, 0),
+			/* and released from them: settled, cancelled or run out */
+			releasedIn: commits.filter((c) => c.at > from && c.at <= to && c.delta < 0).reduce((n, c) => n - c.delta, 0)
 		};
 	});
 	/* The receipts for the open card, in the window. */
@@ -274,8 +276,9 @@
 			</button>
 			<button type="button" class="card preset-filled-warning-600-400 p-4 text-left col-span-2 sm:col-span-1 {showing === 'committed' ? 'ring-4 ring-warning-300-700' : ''}" aria-expanded={showing === 'committed'} aria-controls="credit-receipts" onclick={() => toggle('committed')}>
 				<p class="text-sm font-semibold flex justify-between gap-2">Committed <span aria-hidden="true">{showing === 'committed' ? '▴' : '▾'}</span></p>
-				<p class="h3 tabular-nums {inWindow.committedIn ? '' : 'opacity-60'}" style="color: inherit">{count(inWindow.committedIn)}</p>
-				<p class="text-xs opacity-80">{inWindow.committedIn ? windowSays : `nothing ${windowSays}`} · {count(inWindow.committedEnd)} committed {back === 0 ? 'now' : 'then'}</p>
+				<!-- Committed is what's held now (or at the window's end), not a total: Darren read "4" as held when all 4 had been released (7 October 2026). -->
+				<p class="h3 tabular-nums {inWindow.committedEnd ? '' : 'opacity-60'}" style="color: inherit">{count(inWindow.committedEnd)}</p>
+				<p class="text-xs opacity-80">held {back === 0 ? 'now' : 'then'} · {inWindow.committedIn || inWindow.releasedIn ? `${count(inWindow.committedIn)} committed, ${count(inWindow.releasedIn)} released ${windowSays}` : `nothing moved ${windowSays}`}</p>
 			</button>
 		</div>
 		{#snippet list()}
