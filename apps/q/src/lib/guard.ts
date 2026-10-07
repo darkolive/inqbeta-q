@@ -46,7 +46,7 @@ export function isPublicPage(path: string): boolean {
  * reachable by someone who has not signed in — otherwise the link in an email
  * leads to a redirect instead of the receipt.
  */
-export const OPEN_PREFIXES = ['/c/', '/card/', '/verify/', '/channels/', '/federations/join', '/attest', '/registered/', '/directory', '/legal/', '/shop/', '/offer/', '/stories', '/testing'];
+export const OPEN_PREFIXES = ['/c/', '/card/', '/verify/', '/channels/', '/federations/join', '/attest', '/registered/', '/directory', '/legal/', '/shop/', '/v/', '/offer/', '/stories', '/testing'];
 
 /*
  * '/registered/' and '/directory' — a federation's registration with Incubator,

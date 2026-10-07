@@ -9,6 +9,8 @@ import { checkActionDefinition, type ActionDefinition } from '../src/actions';
 import { createEngine, type CedarModule } from '../src/engine';
 import { VOUCHER_ACTIONS, VOUCHER_ISSUE, VOUCHER_MOVE, VOUCHER_REDEEM, voucherIssueFacts, voucherMoveFacts, voucherRedeemFacts } from '../src/core/vouchers';
 import { CORE_ACTIONS } from '../src/index';
+import { listingTerms } from '@inqbeta/q-core/voucher-sales';
+import type { Standing } from '@inqbeta/q-core/agreements';
 
 const engine = createEngine(cedar as unknown as CedarModule);
 const NOW = new Date('2026-10-07T12:00:00Z');
@@ -29,6 +31,8 @@ async function decide(action: ActionDefinition, did: string, v: VoucherReceipt, 
 	const h = await engine.load([action]);
 	return engine.decide(h, { principal: { type: 'Person', id: did }, resource: { type: 'Voucher', id: v.contentHash }, facts });
 }
+/* A sale taken from the shop, as standingOf would read it: agreed, the buyer as b. */
+const saleTo = (v: VoucherReceipt, buyer: string, agreement = `shop.${buyer.slice(-6)}`): Standing => ({ agreement, phase: 'agreed', terms: { ...listingTerms(v, 'test'), b: buyer }, settled: [], evidence: [], problems: [], takenFrom: { agreement: 'shop', hash: 'h' } });
 const broke = (d: { rules: string[] }, slug: string) => d.rules.some((r) => r.endsWith(slug));
 
 test('the voucher actions are well formed, and loaded with the core', () => {
@@ -36,14 +40,19 @@ test('the voucher actions are well formed, and loaded with the core', () => {
 	for (const a of VOUCHER_ACTIONS) assert.ok(CORE_ACTIONS.includes(a), a.id);
 });
 
-test('issue: within the edition holds; the third of two, a number twice, someone else’s, refused', async () => {
+test('issue: within the edition holds; the third of two, a number twice, someone else’s, unpaid, refused', async () => {
 	const shop = await identityFromSeed(seed(1));
 	const ana = await identityFromSeed(seed(2));
 	const v = await makeVoucher(shop, shirt, NOW);
-	const one = await issueCopy(signerFor(shop), v, { number: 1, holder: ana.did }, NOW);
-	const ok = await decide(VOUCHER_ISSUE, shop.did, v, await voucherIssueFacts(v, one, [], { by: shop.did, now: NOW }));
+	const sale = saleTo(v, ana.did);
+	const one = await issueCopy(signerFor(shop), v, { number: 1, holder: ana.did, via: sale.agreement }, NOW);
+	const ok = await decide(VOUCHER_ISSUE, shop.did, v, await voucherIssueFacts(v, one, [], { by: shop.did, sales: [sale], now: NOW }));
 	assert.equal(ok.holds, true, ok.because.join(' '));
 	assert.ok(ok.declared.some((x) => x.includes('AI')));
+	const unpaid = await decide(VOUCHER_ISSUE, shop.did, v, await voucherIssueFacts(v, one, [], { by: shop.did, now: NOW }));
+	assert.ok(broke(unpaid, 'must/paid'), 'no sale, no copy');
+	const toOther = await decide(VOUCHER_ISSUE, shop.did, v, await voucherIssueFacts(v, one, [], { by: shop.did, sales: [saleTo(v, shop.did, sale.agreement)], now: NOW }));
+	assert.ok(broke(toOther, 'must/paid'), 'the copy goes to whoever bought it');
 	const had = [await receive(one, signerFor(ana))];
 	const again = await decide(VOUCHER_ISSUE, shop.did, v, await voucherIssueFacts(v, one, had, { by: shop.did, now: NOW }));
 	assert.equal(again.holds, false);

@@ -11,6 +11,8 @@
  */
 import { ACTION_SCHEMA, type ActionDefinition } from '../actions';
 import { CEDAR_VERSION } from '../version';
+import { paidFor } from '@inqbeta/q-core/voucher-sales';
+import type { Standing } from '@inqbeta/q-core/agreements';
 import { checkVoucher, editionOf, hashHeld, heldSignedBy, passesTitle, redemptionSigned, voucherProblem, type Redemption, type VoucherHeld, type VoucherReceipt } from '@inqbeta/q-core/vouchers';
 
 const on = (id: string) => `principal, action == Action::"${id}", resource`;
@@ -45,20 +47,25 @@ export const VOUCHER_ISSUE: ActionDefinition = {
 	by: 'q:core',
 	says: 'The issuer hands out a numbered copy of its voucher to someone, who signs to receive it.',
 	engine: { cedar: CEDAR_VERSION },
-	facts: facts('voucher.issue', ['masterSigned', 'termsHold', 'byIssuer', 'signedByIssuer', 'withinEdition', 'numberFree', 'titleRight', 'notEnded', 'eligible']),
+	facts: facts('voucher.issue', ['masterSigned', 'termsHold', 'byIssuer', 'signedByIssuer', 'withinEdition', 'numberFree', 'titleRight', 'notEnded', 'eligible', 'paidFor']),
 	rules: {
 		...rule('voucher.issue', 'may', 'issue', 'Hand out a copy of a voucher you signed, on terms the core allows', 'context.masterSigned && context.termsHold && context.byIssuer && context.signedByIssuer'),
 		...rule('voucher.issue', 'cannot', 'past-edition', 'Hand out more than the edition: no 51st of 50', '!context.withinEdition'),
 		...rule('voucher.issue', 'cannot', 'twice', 'Hand out the same number twice', '!context.numberFree'),
 		...rule('voucher.issue', 'cannot', 'title', 'Pass title with anything but an original: a copy of a copyable or an edition is yours, the work isn’t', '!context.titleRight'),
 		...rule('voucher.issue', 'cannot', 'ended', 'Hand out a voucher after it has ended', '!context.notEnded'),
+		...rule('voucher.issue', 'must', 'paid', 'Hand out a paid voucher only to its buyer, naming the sale they took from the shop: one sale, one copy', '!context.paidFor'),
 		...rule('voucher.issue', 'must', 'eligible', 'Give a given voucher only to someone eligible under its programme, shown by attestation, never by the reason', '!context.eligible'),
 		...NO_AI('voucher.issue')
 	}
 };
 
-/** Facts for voucher.issue. `existing` are the copies already out; `eligible` is whether the holder's attestation for `eligibleUnder` checked (ignored for paid vouchers). */
-export async function voucherIssueFacts(v: VoucherReceipt, copy: VoucherHeld, existing: VoucherHeld[], o: { by: string; eligible?: boolean; now?: Date }) {
+/**
+ * Facts for voucher.issue. `existing` are the copies already out; `eligible` is
+ * whether the holder's attestation for `eligibleUnder` checked (given vouchers);
+ * `sales` are the agreements taken from the voucher's shop offer (paid ones).
+ */
+export async function voucherIssueFacts(v: VoucherReceipt, copy: VoucherHeld, existing: VoucherHeld[], o: { by: string; eligible?: boolean; sales?: Standing[]; now?: Date }) {
 	const now = o.now ?? new Date();
 	const e = await editionOf(v, existing);
 	return {
@@ -70,7 +77,8 @@ export async function voucherIssueFacts(v: VoucherReceipt, copy: VoucherHeld, ex
 		numberFree: !e.holdings.some((h) => h.number === copy.number),
 		titleRight: copy.title === passesTitle(v.content),
 		notEnded: !ended(v, now),
-		eligible: v.content.price.paid || !v.content.eligibleUnder || o.eligible === true
+		eligible: v.content.price.paid || !v.content.eligibleUnder || o.eligible === true,
+		paidFor: paidFor(v, copy, o.sales ?? [], existing)
 	};
 }
 

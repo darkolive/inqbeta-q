@@ -20,6 +20,7 @@
 	import { readMint, type MintView } from '$lib/money';
 	import { syncCloudNow } from '$lib/autosync';
 	import { buy, readShop, shopLink, type ShopListing, type ShopWindow } from '$lib/shop';
+	import { voucherIn } from '$lib/vouchers';
 
 	let identity = $state<Identity | null>(null);
 	let ledger = $state<Ledger | null>(null);
@@ -81,6 +82,7 @@
 	{#snippet actions()}
 		{#if mine}
 			<a href="/agreements/new?with=shop" class="btn preset-filled-primary-500 min-h-11"><Icon name="plus" size={18} /> Add something</a>
+			<a href="/v/new" class="btn preset-tonal min-h-11"><Icon name="plus" size={18} /> Sell a voucher</a>
 		{/if}
 	{/snippet}
 
@@ -122,6 +124,9 @@
 						{#if t.when || t.where}<p class="text-sm">{[t.when, t.where].filter(Boolean).join(' · ')}</p>{/if}
 						{#if t.doneWhen}<p class="text-sm opacity-80">Done when: {t.doneWhen}</p>{/if}
 						{#if l.offer.content.until}<p class="text-sm opacity-80">On offer until {new Date(l.offer.content.until).toLocaleDateString('en-GB', { day: 'numeric', month: 'long' })}</p>{/if}
+						{#if voucherIn(l)}
+							<a class="anchor text-sm min-h-11 inline-flex items-center" href="/v/{encodeURIComponent(voucherIn(l)!)}">See the voucher: its terms, and its code</a>
+						{/if}
 						{#if mine}
 							<a class="btn preset-tonal min-h-11 mt-auto" href="/agreements/{encodeURIComponent(l.offer.content.agreement)}">See sales</a>
 						{:else}

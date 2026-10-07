@@ -3314,6 +3314,102 @@
 		]
 	},
 	{
+		"id": "voucher-new",
+		"page": "/v/new",
+		"title": "Sell a voucher",
+		"group": "market",
+		"needs": "Signed in, on a host in test, with its bank set up.",
+		"checks": [
+			{
+				"id": "labels",
+				"says": "Every box has its question above it, and none has words inside it.",
+				"how": "human",
+				"area": "words"
+			},
+			{
+				"id": "digital-kinds",
+				"says": "Choose “Something digital”: only Copyable and Consumable are offered.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "copyable-licence",
+				"says": "Choose Copyable with no licence: it says a copyable thing comes with a licence, and the sign button stays off.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "no-price",
+				"says": "With no price, it says to say what it costs.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "sell",
+				"says": "Fill in an edition of 10 at 5 credits and sign: it opens the voucher’s own page, “Real”, with “10 left”.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "in-shop",
+				"says": "Your shop shows it, with “See the voucher”.",
+				"how": "human",
+				"area": "works"
+			}
+		]
+	},
+	{
+		"id": "voucher-page",
+		"page": "/v/[hash]",
+		"title": "A voucher’s page",
+		"group": "market",
+		"needs": "A voucher on sale (from Sell a voucher), and a second person with test credits.",
+		"checks": [
+			{
+				"id": "signed-out",
+				"says": "Signed out, the page opens: what you get, the price, the terms, the code, and “Sign in to buy it”.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "qr",
+				"says": "Scan the code with a phone: it opens this same page.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "terms-words",
+				"says": "Each term reads as a sentence: what you get, how many, passing it on, exchanged for, ends, your protection.",
+				"how": "human",
+				"area": "words"
+			},
+			{
+				"id": "buy",
+				"says": "As the second person, Buy: it opens the agreement, and the credits show as held, not paid.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "left",
+				"says": "Back on the page, it shows one fewer left.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "short",
+				"says": "With fewer credits than the price, Buy stays off and it says how many you need.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "not-found",
+				"says": "Change one letter of the address: it says there’s no voucher by that name.",
+				"how": "human",
+				"area": "safety"
+			}
+		]
+	},
+	{
 		"id": "publishing-sites",
 		"page": "/sites",
 		"title": "Sites",

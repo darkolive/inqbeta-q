@@ -1,6 +1,6 @@
 ---
 status: proposed (Darren, 7 October 2026)
-implementation: steps 1–2 — q-core `vouchers.ts` and q-actions `voucher.issue`, `.move`, `.redeem`, tested; capacity gifts are vouchers; nothing on a page yet
+implementation: steps 1–4 — q-core `vouchers.ts` and `voucher-sales.ts`; q-actions `voucher.issue`, `.move`, `.redeem`; the node keeps masters; `/v/<voucher>` and `/v/new`. Issuing and redeeming in the app next
 updated: 2026-10-07
 ---
 
@@ -285,3 +285,45 @@ approved by an AI (declared).
    keep what they paid for (the white paper's promise that bought credits
    never expire). Given from credits returns to the giver; given from
    capacity lapses back to idle.
+
+## Addendum, 7 October 2026: steps 3 and 4 as built
+
+**Step 3, buying** (q-core `voucher-sales.ts`, tested with real agreement
+receipts). A paid voucher is sold through its issuer's **shop** (ADR-Q-026):
+a shop offer whose terms are the voucher one way (named by its hash) and its
+price the other, as many times as the edition allows. Taking it is the trade.
+The buyer's credits are then **held by agreement** (`committedBy`), not paid.
+
+- Each sale reads as one of: taken, issued, received, redeemed, released,
+  cancelled, or refund due (`saleOf`).
+- **The issuer hands out a copy only to the buyer, naming the sale**: one
+  sale, one copy. This is a new rule in Cedar, `voucher.issue/must/paid`.
+- **The credits are released only once it's redeemed** (`releaseProblem`).
+  Both sign the settlement for exactly what was agreed, and the credits go to
+  the issuer.
+- **Refunds:** if the issuer can't deliver, or a paid voucher ends unredeemed,
+  the issuer cancels the sale before anything is settled. Nothing ever moved,
+  so the credits are the buyer's again.
+
+**Step 4, the voucher's page and code.**
+
+- **The node keeps the master** at `/voucher/<hash>`. It must be signed by its
+  issuer and match its hash, so it can't be changed once kept. Anyone can read
+  it, with its shop offer and how many are left.
+- **`/v/<voucher>`** is open to anyone. It shows "Real", the voucher card
+  (`VoucherCard.svelte`: what you get, how many, passing it on, exchanged for,
+  ends, your protection) and its QR code. It has the shop's own Buy.
+- **`/v/new`**: sell a voucher. Say what it is (physical, digital or a
+  service), what the buyer gets, how many, the licence, the price, whether it
+  can be passed on, the resale limit and when it ends. It's signed, kept at
+  the node and put in your shop.
+- The shop links each voucher listing to its page.
+- Checklists `voucher-new` and `voucher-page`.
+
+**Not yet:**
+
+- Pictures: the voucher names each picture by its hash. Until pictures are
+  kept at the node, their words stand in for them.
+- Issuing the copy and redeeming from the app (the core and rules are done).
+- Buying across banks: a voucher priced in another bank's credits waits for
+  treaties to trade.

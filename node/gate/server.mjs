@@ -882,6 +882,55 @@ async function shops(req, res, origin, did) {
 }
 
 /*
+ * Vouchers (ADR-Q-044, 7 October 2026): the master, held publicly so its page
+ * and QR code (/v/<voucher>) open for anyone. Signed by its issuer, named by
+ * its content hash, so it can't be changed once kept. A paid voucher is sold
+ * through its issuer's shop: the listing names the voucher, and the shop
+ * counts what's left.
+ */
+const VOUCHER_BYTES = 64 * 1024;
+const VOUCHER_PATH = /^\/voucher\/([A-Za-z0-9_-]{43})$/;
+const voucherFile = (hash) => `${FILER}/voucher/${hash}.json`;
+/** Why this isn't a voucher its issuer signed, or null. */
+export async function voucherProblemAtGate(v) {
+	if (v?.content?.schema !== 'inqbeta.voucher/1') return 'That isn’t a voucher.';
+	if (!(await signedReceipt(v))) return 'The voucher isn’t signed.';
+	if (v.did !== v.content.issuer) return 'Only its issuer signs a voucher.';
+	const hash = b64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(canonical(v.content))));
+	return hash === v.contentHash ? null : 'The voucher’s name doesn’t match what it says.';
+}
+/** Does this shop listing sell this voucher? Its terms name it: "Voucher: <title> (<hash>)". */
+export const listingSells = (offer, hash) => typeof offer?.content?.terms?.aGives?.thing === 'string' && offer.content.terms.aGives.thing.endsWith(`(${hash})`);
+async function keepVoucher(v) {
+	const form = new FormData();
+	form.append('file', new Blob([JSON.stringify(v)], { type: 'application/json' }), `${v.contentHash}.json`);
+	const r = await fetch(voucherFile(v.contentHash), { method: 'POST', body: form }).catch((e) => ({ ok: false, status: e.message }));
+	return r.ok ? null : `Couldn’t keep it: ${r.status}`;
+}
+async function vouchers(req, res, origin, hash) {
+	if (req.method === 'GET') {
+		const r = await fetch(voucherFile(hash)).catch(() => null);
+		const v = r?.ok ? await r.json().catch(() => null) : null;
+		if (!v) return send(res, origin, 404, { says: 'No voucher by that name is kept here.' });
+		const held = await shopHeld(v.content.issuer);
+		const listing = shopWindow(held).find((l) => listingSells(l.offer, hash)) ?? null;
+		return send(res, origin, 200, { voucher: v, listing: listing ? { offer: listing.offer, left: listing.left } : null, about: held?.about ?? {} });
+	}
+	if (req.method !== 'POST') return send(res, origin, 405, { says: 'Only GET and POST.' });
+	if (tooMany(`voucher:${req.socket.remoteAddress ?? ''}`, Date.now(), SHOP_POSTS_PER_HOUR)) return send(res, origin, 429, { says: 'Too many at once. Try again in a while.' });
+	const raw = await readBody(req, VOUCHER_BYTES);
+	if (raw === null) return send(res, origin, 413, { says: 'Too big.' });
+	let v;
+	try { v = JSON.parse(raw); } catch { return send(res, origin, 400, { says: 'That isn’t JSON.' }); }
+	const shut = await doorSays(v?.did);
+	if (shut) return send(res, origin, 403, { says: shut, door: 'closed' });
+	const why = (await voucherProblemAtGate(v)) ?? (v.contentHash === hash ? null : 'That voucher has another name.');
+	if (why) return send(res, origin, 403, { says: why });
+	const kept = await keepVoucher(v);
+	return kept ? send(res, origin, 502, { says: kept }) : send(res, origin, 200, { ok: true, hash });
+}
+
+/*
  * The relay (ADR-Q-028, 3 October 2026): a pass-through, never a copy.
  *
  * A sealed vault file waits here only while its owner's cloud can't take it.
@@ -1450,6 +1499,8 @@ export const server = http.createServer(async (req, res) => {
 	if (lg) return ledgers(req, res, origin, lg[1], lg[2]);
 	const sh = SHOP.exec(decodeURIComponent(new URL(req.url, 'http://gate').pathname));
 	if (sh) return shops(req, res, origin, sh[1]);
+	const vo = VOUCHER_PATH.exec(new URL(req.url, 'http://gate').pathname);
+	if (vo) return vouchers(req, res, origin, vo[1]);
 	const rl = RELAY.exec(new URL(req.url, 'http://gate').pathname);
 	if (rl) return relays(req, res, origin, rl[1], rl[2]);
 	const st = STORE.exec(new URL(req.url, 'http://gate').pathname);
