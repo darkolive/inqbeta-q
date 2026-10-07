@@ -106,23 +106,27 @@ export function creditFlow(ledger: Ledger | null, mint: MintView | null, did: st
 		out.push({ at: m.r.content.at, n: m.n, hash: m.r.contentHash, kind: m.n > 0 ? 'bought' : 'cashed', says: m.n > 0 ? `Bought ${m.n} credits` : `Cashed out ${-m.n} credits` });
 	}
 	for (const a of agreementsFrom(ledger)) {
-		const kept = new Set(a.standing.settled.map((e) => JSON.stringify(e)));
-		const hashes = new Map(a.steps.map((s) => [s.contentHash, s]));
-		/* A confirmation: a settlement answering the other's, with the same entries — and not itself answered as one. */
-		const confirmations = new Set<string>();
-		for (const s of a.steps) {
-			const c = s.content;
-			const first = c.step === 'settled' && c.parent ? hashes.get(c.parent) : undefined;
-			if (!first || first.content.step !== 'settled' || confirmations.has(first.contentHash) || first.did === s.did) continue;
-			if (!c.entries || JSON.stringify(c.entries) !== JSON.stringify(first.content.entries) || !kept.has(JSON.stringify(c.entries))) continue;
-			confirmations.add(s.contentHash);
-			let n = 0;
-			for (const e of c.entries) {
-				if (!('credits' in e.value) || e.value.mode !== mint.mode || (e.value.mint ?? '') !== mint.mint) continue;
-				if (e.to === did) n += e.value.credits;
-				if (e.from === did) n -= e.value.credits;
+		/*
+		 * Read the agreement as it stood after each step, the same way
+		 * Committed is read: a settlement counts at the step that made it hold
+		 * (the second signature). Spotting confirmations by comparing their
+		 * text missed a voucher sale's spend that Committed had released
+		 * (Darren, 7 October 2026).
+		 */
+		let had = 0;
+		for (let k = 1; k <= a.steps.length; k++) {
+			const st = standingOf(a.steps.slice(0, k), Date.parse(a.steps[k - 1].content.at));
+			for (const entries of st.settled.slice(had)) {
+				let n = 0;
+				for (const e of entries) {
+					if (!('credits' in e.value) || e.value.mode !== mint.mode || (e.value.mint ?? '') !== mint.mint) continue;
+					if (e.to === did) n += e.value.credits;
+					if (e.from === did) n -= e.value.credits;
+				}
+				const s = a.steps[k - 1];
+				if (n) out.push({ at: s.content.at, n, hash: s.contentHash, kind: n > 0 ? 'received' : 'spent', says: n > 0 ? `Received ${n} credits in an agreement` : `Spent ${-n} credits in an agreement` });
 			}
-			if (n) out.push({ at: c.at, n, hash: s.contentHash, kind: n > 0 ? 'received' : 'spent', says: n > 0 ? `Received ${n} credits in an agreement` : `Spent ${-n} credits in an agreement` });
+			had = Math.max(had, st.settled.length);
 		}
 	}
 	return out.sort((x, y) => x.at.localeCompare(y.at));
