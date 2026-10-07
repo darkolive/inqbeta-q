@@ -2572,6 +2572,82 @@
 		]
 	},
 	{
+		"id": "federations-one-treaties",
+		"page": "/federations/one",
+		"tab": "bank",
+		"title": "Federation: treaties, in role",
+		"group": "federations",
+		"needs": "Two federations on two hosts, both registered with Incubator, both in test, each with its banking card signed. The caretaker of one; the treasurer or caretaker of the other.",
+		"checks": [
+			{
+				"id": "only-in-role",
+				"says": "Out of role, there’s no Treaties section on the Bank tab; in role as treasurer or caretaker, “Treaties” appears below the federation’s own account.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "no-card",
+				"says": "With no banking card signed, Propose a treaty says to set the banking card first, and the sign button stays off.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "partners",
+				"says": "“With” lists the federations registered with Incubator, not this one. Choosing one shows its name, currency and test or live.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "purpose",
+				"says": "With nothing in shared, brings or looks for, it says to say why, and the sign button stays off.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "propose",
+				"says": "As caretaker, sign and propose: it says “Proposed”, shows a link with a Copy button, and the treaty appears as “Proposed”, waiting for the other to sign.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "link-not-in-role",
+				"says": "Open the link on the other host signed in but not in role: it says a treaty proposal is waiting, and to take up your role.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "agree",
+				"says": "On the other host, in role, the proposal shows its terms in plain words. Agree and sign: it says it’s in force and filed by both banks.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "both-see",
+				"says": "Back on the first host, the treaty shows “In force” with the next settlement date.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "unreconciled",
+				"says": "If either bank hasn’t been reconciled, the treaty shows “Suspended” and says why, in words.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "notice",
+				"says": "Give notice with a reason: it shows “Ending” on both hosts, with the last day 30 days on.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "plain-words",
+				"says": "Every state reads as a sentence; nothing relies on colour alone.",
+				"how": "human",
+				"area": "words"
+			}
+		]
+	},
+	{
 		"id": "federations-one-members",
 		"page": "/federations/one",
 		"title": "Federation: Members",

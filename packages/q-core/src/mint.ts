@@ -127,7 +127,8 @@ export function isMintEvent(x: unknown): x is MintReceipt {
  * federation) and the same credits, as with a member's own ask.
  */
 export const FED_MONEY_SCHEMA = 'inqbeta.mint-federation/1';
-export type FedMoneyKind = 'bank-card' | 'decision' | 'asked' | 'agreed';
+/** A treaty (ADR-Q-042) is filed by each side's mint as it's proposed and agreed; a notice to end it, likewise. */
+export type FedMoneyKind = 'bank-card' | 'decision' | 'asked' | 'agreed' | 'treaty' | 'treaty-notice';
 export interface FedMoneyEntry {
 	schema: typeof FED_MONEY_SCHEMA;
 	source: typeof MINT_SOURCE;
@@ -145,7 +146,7 @@ export interface FedMoneyEntry {
 export type FedMoneyReceipt = SealedReceipt & { content: FedMoneyEntry };
 export function isFedMoney(x: unknown): x is FedMoneyReceipt {
 	const c = (x as FedMoneyReceipt | null)?.content;
-	return c?.schema === FED_MONEY_SCHEMA && typeof c.mint === 'string' && typeof c.federation === 'string' && ['bank-card', 'decision', 'asked', 'agreed'].includes(c.kind);
+	return c?.schema === FED_MONEY_SCHEMA && typeof c.mint === 'string' && typeof c.federation === 'string' && ['bank-card', 'decision', 'asked', 'agreed', 'treaty', 'treaty-notice'].includes(c.kind);
 }
 
 export interface Books {

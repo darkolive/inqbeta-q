@@ -373,3 +373,37 @@ Tests: q-core 613 pass; q-actions 65 pass.
 rate fetched from the named source; trade receipts that record the rate on
 the day; treaties on the federation's page and the first treaty, Incubator
 and Dark Olive CIC, in test (E5).
+
+## Addendum, 7 October 2026: E5, treaties on the federation's page
+
+In role, on the Bank tab, below the federation's own account
+(`FederationTreaties.svelte`, `/api/treaties`).
+
+- **Proposing.** A money office holder chooses a federation from Incubator's
+  registry. Its side (bank, currency, test or live, banking card) is read from
+  its registration and its own bank, never typed in. The caretaker signs with
+  the federation's key and in role; this bank files it (`inqbeta.mint-federation/1`,
+  kind `treaty`) with the holder's office proof, and gives a link to send.
+- **Agreeing.** The link opens the partner's federation page. Out of role it
+  says a proposal is waiting; in role it shows the terms in plain words. The
+  partner signs twice. Its bank reads what the proposer filed, checks both
+  holders by `treaty.agree` (side A's holder as at the proposal, side B's
+  now), files it, and sends it to the proposer's bank, which checks the same
+  and files it. Each bank holds the whole treaty.
+- **Standing.** `federationTreaties` (q-core `federation-money.ts`) reads each
+  treaty from the books: proposed, in force, suspended (a partner's books
+  short or unreconciled), ending, ended. A partner's health is read from its
+  published bank.
+- **Notice.** Either side signs notice with the federation's key; both banks
+  file it (kind `treaty-notice`), and it ends 30 days on.
+- **Accepted providers.** `inTreatyWith` gives the federations in treaty now,
+  in force or ending: the providers a voucher's realm accepts by treaty
+  (ADR-Q-044 §5).
+
+Not yet: trades and settlements under a treaty (no money moves here); a
+partner's revoked mandates aren't read when its holder is checked; a varied
+treaty. Checklist `federations-one-treaties`.
+
+The first treaty, Incubator and Dark Olive CIC in test, needs Dark Olive CIC
+to be a federation on its own host, registered with Incubator, with its
+banking card signed.

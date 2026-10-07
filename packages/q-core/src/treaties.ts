@@ -424,6 +424,13 @@ export async function giveNotice(treaty: Treaty, side: 'a' | 'b', federation: Si
 	return { ...st, did: treaty[side].federation, signature: await federation.signCanonical(st) } as Ending;
 }
 
+/** Is this notice signed by the federation on the side it says, for this treaty? */
+export async function noticeSigned(e: Ending, treaty: Treaty): Promise<boolean> {
+	if (e?.schema !== TREATY_END_SCHEMA || (e.by !== 'a' && e.by !== 'b') || e.did !== treaty[e.by].federation || e.treaty !== (await hashTreaty(treaty))) return false;
+	const { signature, did: _d, ...st } = e;
+	return verify(e.did, st, signature);
+}
+
 export type TreatyState = 'proposed' | 'in-force' | 'suspended' | 'ending' | 'ended';
 export interface Standing {
 	state: TreatyState;

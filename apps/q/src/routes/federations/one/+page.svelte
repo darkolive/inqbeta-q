@@ -76,6 +76,7 @@
 	import RegisterHost from '$lib/components/RegisterHost.svelte';
 	import PutForward from '$lib/components/PutForward.svelte';
 	import FederationAccount from '$lib/components/FederationAccount.svelte';
+	import FederationTreaties from '$lib/components/FederationTreaties.svelte';
 	import { readPutForwardHash } from '$lib/registry';
 	import TesterPasses from '$lib/components/TesterPasses.svelte';
 	import { role } from '$lib/role.svelte';
@@ -874,7 +875,13 @@
 			{#if isHome && home?.ok}
 				<Tabs.Content value="bank">
 					<!-- In role, the federation's own account (ADR-Q-038 §8): its statement, banking card, decisions and cash-outs. -->
-					{#if identity && role.proof(id)}<FederationAccount {identity} acting={role.proof(id)!} record={own} name={founding.name} />{/if}
+					{#if identity && role.proof(id)}
+						<FederationAccount {identity} acting={role.proof(id)!} record={own} name={founding.name} />
+						<!-- Treaties with other federations (ADR-Q-042; E5). -->
+						<FederationTreaties {identity} acting={role.proof(id)!} record={own} federation={id} name={founding.name} />
+					{:else if page.url.searchParams.get('treaty')}
+						<p class="card preset-tonal-warning p-4 mb-6">A treaty proposal is waiting for {founding.name}. Take up your role, as treasurer or caretaker, to read it and sign.</p>
+					{/if}
 					<FederationBank name={founding.name} {identity} />
 				</Tabs.Content>
 			{/if}

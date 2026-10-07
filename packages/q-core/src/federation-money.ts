@@ -9,7 +9,7 @@
 import { isFedMoney, spendable, type Books, type FedMoneyReceipt, type MintMode } from './mint';
 import { hashCosigned, type Cosigned } from './cosign';
 import type { DecisionReceipt } from './decisions';
-import type { BankingCardReceipt } from './treaties';
+import { hashTreaty, noticeSigned, treatyParts, treatyStanding, type BankingCardReceipt, type Ending, type PartnerHealth, type Side, type Standing, type Treaty, type TreatyParts } from './treaties';
 
 export interface FederationAccount {
 	federation: string;
@@ -49,3 +49,54 @@ export async function federationAccount(ledger: unknown[], b: Books, o: { mint: 
 	const asked = waiting.reduce((n, w) => n + w.credits, 0);
 	return { federation: o.federation, holds, spendable: Math.max(0, spendable(b, o.federation) - asked), card, decisions, waiting, done };
 }
+
+/* ---- Treaties (ADR-Q-042; 7 October 2026, E5) ---- */
+
+export interface TreatyOnFile {
+	hash: string;
+	treaty: Treaty;
+	/** Which side this federation is. */
+	side: 'a' | 'b';
+	partner: Side;
+	/** Each holder's office proof, as filed: checked by the mint that filed it. */
+	actingA: unknown;
+	actingB: unknown;
+	parts: TreatyParts;
+	/** When it was first filed here, and when it was filed signed by both. */
+	filed: string;
+	inForceSince: string | null;
+	ending: Ending | null;
+	standing: Standing;
+}
+
+/** Every treaty this federation's mint has filed: the latest record of each, the further-signed one first, with its standing. */
+export async function federationTreaties(ledger: unknown[], o: { mint: string; mode: MintMode; federation: string; health?: Record<string, PartnerHealth>; now?: Date }): Promise<TreatyOnFile[]> {
+	const mine = ledger.filter((x): x is FedMoneyReceipt => isFedMoney(x) && x.did === o.mint && x.content.mint === o.mint && x.content.mode === o.mode && x.content.federation === o.federation).sort((a, b) => a.content.at.localeCompare(b.content.at));
+	const byHash = new Map<string, { treaty: Treaty; actingA: unknown; actingB: unknown; parts: TreatyParts; filed: string; inForceSince: string | null }>();
+	for (const x of mine.filter((m) => m.content.kind === 'treaty')) {
+		const r = x.content.record as { treaty?: Treaty; actingA?: unknown; actingB?: unknown };
+		if (!r?.treaty) continue;
+		const t = r.treaty;
+		if (t.a?.federation !== o.federation && t.b?.federation !== o.federation) continue;
+		const hash = await hashTreaty(t);
+		const parts = await treatyParts(t);
+		const was = byHash.get(hash);
+		const both = parts.signedByA && parts.signedByB;
+		if (was && !(both && !was.inForceSince)) continue;
+		byHash.set(hash, { treaty: t, actingA: r.actingA ?? was?.actingA ?? null, actingB: r.actingB ?? was?.actingB ?? null, parts, filed: was?.filed ?? x.content.at, inForceSince: both ? x.content.at : null });
+	}
+	const notices = mine.filter((m) => m.content.kind === 'treaty-notice').map((m) => m.content.record as Ending);
+	const out: TreatyOnFile[] = [];
+	for (const [hash, f] of byHash) {
+		const side = f.treaty.a.federation === o.federation ? 'a' : 'b';
+		let ending: Ending | null = null;
+		for (const n of notices) if (n?.treaty === hash && (await noticeSigned(n, f.treaty)) && (!ending || n.on < ending.on)) ending = n;
+		const health = { a: o.health?.[f.treaty.a.federation], b: o.health?.[f.treaty.b.federation] };
+		const standing = treatyStanding(f.treaty, f.parts, { inForceSince: f.inForceSince ?? f.filed, settlements: [], health, ending }, o.now);
+		out.push({ hash, treaty: f.treaty, side, partner: side === 'a' ? f.treaty.b : f.treaty.a, actingA: f.actingA, actingB: f.actingB, parts: f.parts, filed: f.filed, inForceSince: f.inForceSince, ending, standing });
+	}
+	return out.sort((a, b) => b.filed.localeCompare(a.filed));
+}
+
+/** The federations this one is in treaty with now: providers its vouchers' realms accept by treaty (ADR-Q-044 §5). */
+export const inTreatyWith = (ts: TreatyOnFile[]) => ts.filter((t) => t.standing.state === 'in-force' || t.standing.state === 'ending').map((t) => t.partner.federation);
