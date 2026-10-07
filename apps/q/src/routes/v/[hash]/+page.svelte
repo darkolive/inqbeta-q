@@ -38,11 +38,14 @@
 			view = out.view;
 			problem = '';
 		} else problem = out.says;
-		/* A step the other side took may be in the bank's ledger before it reaches your inbox. */
-		void import('$lib/catch-up').then((m) => m.catchUpFromMint(ledger, true));
 	}
 	$effect(() => {
 		if (hash) void load();
+	});
+	/* A step the other side took may be in the bank's ledger before it reaches your inbox: once your vault has loaded, look. */
+	$effect(() => {
+		const l = ledger;
+		if (l?.loadedAt) void import('$lib/catch-up').then((m) => m.catchUpFromMint(l));
 	});
 
 	const me = $derived(identity?.did ?? '');

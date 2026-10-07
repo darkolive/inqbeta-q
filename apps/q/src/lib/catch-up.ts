@@ -22,23 +22,33 @@ import { readMint } from '$lib/money';
 import { refreshLedger, type Ledger } from '$lib/ledger';
 
 let running: Promise<number> | null = null;
+/* What was last asked of the bank, and when: the same open agreements aren't asked about again within a minute. */
+let lastKey = '';
 let lastAt = 0;
 const EVERY_MS = 60_000;
 
-/** Keep the steps of your own agreements that the bank has and your vault hasn't. Returns how many. At most once a minute unless `now`. */
+/**
+ * Keep the steps of your own open agreements that the bank has and your vault
+ * hasn't. Returns how many. Waits for your vault to have loaded: a first pass
+ * on a half-read vault must not stop the next one (7 October 2026, Darren's
+ * buyer still showed held credits because of exactly that).
+ */
 export function catchUpFromMint(ledger: Ledger | null, now = false): Promise<number> {
-	if (!running && !now && Date.now() - lastAt < EVERY_MS) return Promise.resolve(0);
-	running ??= (async () => {
-		lastAt = Date.now();
-		const me = current();
-		if (!me || !ledger) return 0;
-		const mine = agreementsFrom(ledger).filter((a) => !a.listing && a.standing.terms && (a.standing.terms.a === me.did || a.standing.terms.b === me.did) && a.standing.phase === 'agreed');
-		if (!mine.length) return 0;
+	const me = current();
+	if (!me || !ledger?.loadedAt) return Promise.resolve(0);
+	const mine = agreementsFrom(ledger).filter((a) => !a.listing && a.standing.terms && (a.standing.terms.a === me.did || a.standing.terms.b === me.did) && a.standing.phase === 'agreed');
+	if (!mine.length) return Promise.resolve(0);
+	const key = mine.map((a) => `${a.id}:${a.standing.lastHash ?? ''}`).sort().join('|');
+	if (running) return running;
+	if (!now && key === lastKey && Date.now() - lastAt < EVERY_MS) return Promise.resolve(0);
+	lastKey = key;
+	lastAt = Date.now();
+	running = (async () => {
 		const { view } = await readMint();
 		const h = await readHome().catch(() => null);
 		const storage = h?.ok && h.services.storage ? h.services.storage.replace(/\/$/, '') : null;
 		if (!view || !storage) return 0;
-		const r = await fetch(`${storage}/mint/${view.mint}/${view.mode}`, { signal: AbortSignal.timeout(15_000) }).catch(() => null);
+		const r = await fetch(`${storage}/mint/${view.mint}/${view.mode}`, { cache: 'no-store', signal: AbortSignal.timeout(15_000) }).catch(() => null);
 		const book = r?.ok ? ((await r.json().catch(() => ({}))) as { receipts?: unknown[] }) : {};
 		const ids = new Set(mine.map((a) => a.id));
 		const have = new Set(mine.flatMap((a) => a.steps.map((s) => s.contentHash)));
@@ -46,10 +56,17 @@ export function catchUpFromMint(ledger: Ledger | null, now = false): Promise<num
 		for (const x of book.receipts ?? []) {
 			if (!isAgreementStep(x) || !ids.has(x.content.agreement) || have.has(x.contentHash)) continue;
 			if (!(await checkReceipt(x as AgreementReceipt)).ok) continue;
-			await keepStep(x as AgreementReceipt);
-			have.add(x.contentHash);
-			kept++;
+			try {
+				await keepStep(x as AgreementReceipt);
+				have.add(x.contentHash);
+				kept++;
+			} catch {
+				/* the vault couldn't take it just now: the next pass tries again */
+				lastKey = '';
+			}
 		}
+		/* One line in the browser's console, to see it working: open agreements asked about, steps the bank had, steps kept. */
+		console.info('[Q catch-up]', { open: mine.length, bank: r?.status ?? 'no answer', kept });
 		if (kept) await refreshLedger();
 		return kept;
 	})().finally(() => (running = null));
