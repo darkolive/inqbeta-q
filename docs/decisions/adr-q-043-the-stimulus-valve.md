@@ -1,7 +1,7 @@
 ---
 status: proposed (Darren, 5 October 2026; written 6 October 2026)
 implementation: the valve, the queues and the capacity gift in q-core `stimulus.ts`, tested; nothing on a page yet
-updated: 2026-10-06
+updated: 2026-10-07
 ---
 
 # ADR-Q-043 — The stimulus valve: idle capacity, given
@@ -218,3 +218,17 @@ battery), ADR-Q-036 (credits held by rule; attestations), ADR-Q-042
 `origins/white-paper-2025-12.md`.
 
 Not legal, financial or tax advice.
+
+## Addendum, 7 October 2026: the gift is a voucher (ADR-Q-044)
+
+The capacity gift is no longer its own receipt (`inqbeta.capacity-gift/1`).
+`giveCapacity` now issues a **voucher given from capacity**: consumable,
+bound, for itself only, lapsing at the end of its window, naming the
+capacity, how it's held, and the valve's figures. The recipient's copy is a
+numbered voucher held, which they sign to receive. `giftUsable` reads it the
+same way as before: its person, its capacity, its federation, its window.
+
+So `capacity.use` is `voucher.redeem` with the issuer as redeemer: refused
+across a treaty, after its window, or by anyone else. `capacity.give` still
+needs its own rule for what only the valve knows (no more than it releases,
+settings signed).

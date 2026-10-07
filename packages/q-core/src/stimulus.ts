@@ -4,7 +4,8 @@
  * Idle capacity, released free, smoothly: the valve is shut at the target
  * use and opens as use falls, never snapping. What it releases is a capacity
  * gift, not a credit: no pound behind it, never cashed out, never handed on,
- * never across a treaty, gone with its window (ADR-Q-042 §10).
+ * never across a treaty, gone with its window (ADR-Q-042 §10). Since ADR-Q-044 it
+ * is a voucher: given, backed by capacity, bound, consumable, lapsing.
  *
  *   I        = capacity − used            idle in the booking window
  *   gap      = max(0, U* − U)             how far use is below target
@@ -18,8 +19,8 @@
  *
  * Pure: no storage, no window. Not legal, financial or tax advice.
  */
-import { checkReceipt, sealWith, type SealedReceipt } from './seal';
-import type { Identity } from './passkey';
+import { signerFor, type Identity } from './passkey';
+import { checkVoucher, issueCopy, makeVoucher, redeemProblem, type VoucherHeld, type VoucherReceipt } from './vouchers';
 
 /** Settings a federation signs, like the safety valve's. Defaults proposed, to confirm. */
 export interface ValveSettings {
@@ -107,50 +108,52 @@ export function allocate(release: number, programmes: Programme[], costPerUnit: 
 /** The queue after a round: those served go to the back, so it spreads before it repeats. */
 export const nextQueue = (queue: string[], served: string[]) => [...queue.filter((q) => !served.includes(q)), ...served];
 
-/* ---- The capacity gift (ADR-Q-042 §10) ---- */
+/* ---- The capacity gift: a voucher (ADR-Q-044), backed by capacity, not credits ---- */
 
-export const GIFT_SCHEMA = 'inqbeta.capacity-gift/1';
 export type GiftKind = 'used' | 'passing' | 'held';
 export interface CapacityGift {
-	schema: typeof GIFT_SCHEMA;
-	source: 'inqbeta:q/stimulus';
-	federation: string;
-	/** What capacity: "storage", "the studio", "evening class seats". */
-	capacity: string;
-	kind: GiftKind;
-	amount: number;
-	unit: string;
-	recipient: string;
-	programme: string;
-	/** "Eligible under programme P" only: never the characteristic behind it. */
-	eligibleUnder: string;
-	/** The window it can be used in; it lapses at the end. Held gifts have a term and notice. */
-	from: string;
-	to: string;
-	noticeDays?: number;
-	/** The figures the valve was worked from, so anyone can check it opened no further than the rule. */
-	valve: ValveReading & ValveSettings;
-	at: string;
+	voucher: VoucherReceipt;
+	/** The copy for the recipient: they sign to receive it. */
+	held: VoucherHeld;
 }
-export type CapacityGiftReceipt = SealedReceipt & { content: CapacityGift };
 
-export async function giveCapacity(federation: Pick<Identity, 'did' | 'publicKey' | 'signing'>, g: Omit<CapacityGift, 'schema' | 'source' | 'federation' | 'at'>, now = new Date()): Promise<CapacityGiftReceipt> {
+/** The federation gives idle capacity: a bound, consumable voucher with nothing behind it in credits, ending with its window. */
+export async function giveCapacity(
+	federation: Pick<Identity, 'did' | 'publicKey' | 'signing'>,
+	g: { capacity: string; kind: GiftKind; amount: number; unit: string; recipient: string; programme: string; eligibleUnder: string; from: string; to: string; noticeDays?: number; valve: ValveReading & ValveSettings },
+	now = new Date()
+): Promise<CapacityGift> {
 	if (!(g.amount > 0)) throw new Error('A gift is of something.');
 	if (Date.parse(g.to) <= Date.parse(g.from)) throw new Error('A gift has a window it ends with.');
-	if (g.kind === 'held' && !(g.noticeDays && g.noticeDays > 0)) throw new Error('A held gift gives notice before it ends.');
-	return (await sealWith(federation, { schema: GIFT_SCHEMA, source: 'inqbeta:q/stimulus', federation: federation.did, ...g, at: now.toISOString() } satisfies CapacityGift)) as CapacityGiftReceipt;
+	const voucher = await makeVoucher(
+		federation,
+		{
+			title: `${g.amount} ${g.unit} of ${g.capacity}`,
+			words: `A gift of idle capacity, under ${g.programme}, from ${g.from.slice(0, 10)} to ${g.to.slice(0, 10)}.`,
+			pictures: [],
+			medium: 'capacity',
+			kind: 'consumable',
+			of: 1,
+			price: { paid: false, from: 'capacity', worth: g.amount, unit: g.unit },
+			moves: 'bound',
+			realm: { kinds: 'itself', accepted: [] },
+			ends: { at: g.to, then: 'lapse' },
+			eligibleUnder: g.eligibleUnder,
+			capacity: { what: g.capacity, held: g.kind, ...(g.noticeDays ? { noticeDays: g.noticeDays } : {}), valve: { ...g.valve } as unknown as Record<string, number> }
+		},
+		now
+	);
+	return { voucher, held: await issueCopy(signerFor(federation as Identity), voucher, { number: 1, holder: g.recipient, via: g.programme }, now) };
 }
 
 /** May this gift be used now, by this person, for this capacity? It is never a coin: no transfer, no cash-out, no treaty. */
-export async function giftUsable(x: unknown, o: { by: string; federation: string; capacity: string; now?: Date }): Promise<{ ok: true } | { ok: false; says: string }> {
-	const r = x as CapacityGiftReceipt;
-	const c = r?.content;
-	const now = (o.now ?? new Date()).getTime();
-	if (c?.schema !== GIFT_SCHEMA) return { ok: false, says: 'This isn’t a capacity gift.' };
-	if (r.did !== c.federation || !(await checkReceipt(r)).ok) return { ok: false, says: 'The federation didn’t sign this gift.' };
-	if (c.federation !== o.federation) return { ok: false, says: 'A gift is used only where it was given: it never crosses to another federation.' };
-	if (c.recipient !== o.by) return { ok: false, says: 'A gift is for the person it was given to: it can’t be handed on.' };
-	if (c.capacity !== o.capacity) return { ok: false, says: `This gift is for ${c.capacity} only.` };
-	if (now < Date.parse(c.from) || now >= Date.parse(c.to)) return { ok: false, says: 'This gift’s window has passed: unused gifts go back to idle capacity.' };
-	return { ok: true };
+export async function giftUsable(gift: CapacityGift, o: { by: string; federation: string; capacity: string; now?: Date }): Promise<{ ok: true } | { ok: false; says: string }> {
+	const v = gift.voucher;
+	if (!(await checkVoucher(v)).ok || v.content.medium !== 'capacity') return { ok: false, says: 'This isn’t a capacity gift.' };
+	if (v.content.issuer !== o.federation) return { ok: false, says: 'A gift is used only where it was given: it never crosses to another federation.' };
+	if (gift.held.voucher !== v.contentHash || gift.held.holder !== o.by) return { ok: false, says: 'A gift is for the person it was given to: it can’t be handed on.' };
+	if (v.content.capacity?.what !== o.capacity) return { ok: false, says: `This gift is for ${v.content.capacity?.what} only.` };
+	if ((o.now ?? new Date()).getTime() < Date.parse(gift.held.at)) return { ok: false, says: 'This gift hasn’t started yet.' };
+	const why = redeemProblem(v.content, { redeemer: o.federation, forKind: 'itself', now: o.now });
+	return why ? { ok: false, says: why.includes('ended') ? 'This gift’s window has passed: unused gifts go back to idle capacity.' : why } : { ok: true };
 }

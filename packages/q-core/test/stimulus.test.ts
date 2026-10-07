@@ -29,9 +29,11 @@ test('a release shared: the grant by its budget, the open programme takes the re
 	assert.deepEqual(causes[0].served, ['scouts', 'toddlers']);
 });
 
-test('a capacity gift: for its person, its capacity, its federation, its window', async () => {
+test('a capacity gift is a voucher: for its person, its capacity, its federation, its window', async () => {
 	const fed = await identityFromSeed(new Uint8Array(32).fill(5));
-	const g = await giveCapacity(fed, { capacity: 'storage', kind: 'passing', amount: 1, unit: 'GB', recipient: 'did:key:zAna', programme: 'open', eligibleUnder: 'open', from: '2026-10-06T00:00:00Z', to: '2026-10-13T00:00:00Z', valve: { ...valveRelease(30, 10), target: 0.8, k: 3, slackShare: 0.2 } });
+	const g = await giveCapacity(fed, { capacity: 'storage', kind: 'passing', amount: 1, unit: 'GB', recipient: 'did:key:zAna', programme: 'open', eligibleUnder: 'open', from: '2026-10-06T00:00:00Z', to: '2026-10-13T00:00:00Z', valve: { ...valveRelease(30, 10), target: 0.8, k: 3, slackShare: 0.2 } }, new Date('2026-10-06T00:00:00Z'));
+	assert.equal(g.voucher.content.moves, 'bound');
+	assert.equal(g.voucher.content.price.paid, false);
 	const when = new Date('2026-10-07T00:00:00Z');
 	const use = (o: Partial<Parameters<typeof giftUsable>[1]>) => giftUsable(g, { by: 'did:key:zAna', federation: fed.did, capacity: 'storage', now: when, ...o });
 	assert.ok((await use({})).ok);
@@ -39,5 +41,5 @@ test('a capacity gift: for its person, its capacity, its federation, its window'
 	assert.match(((await use({ federation: 'did:key:zOther' })) as { says: string }).says, /another federation/);
 	assert.match(((await use({ capacity: 'rooms' })) as { says: string }).says, /storage only/);
 	assert.match(((await use({ now: new Date('2026-10-14T00:00:00Z') })) as { says: string }).says, /window has passed/);
-	await assert.rejects(giveCapacity(fed, { ...g.content, kind: 'held' }), /notice/);
+	await assert.rejects(giveCapacity(fed, { ...{ capacity: 'storage', kind: 'held' as const, amount: 5, unit: 'GB', recipient: 'did:key:zAna', programme: 'open', eligibleUnder: 'open', from: '2026-10-06T00:00:00Z', to: '2027-01-06T00:00:00Z', valve: { ...valveRelease(30, 10), target: 0.8, k: 3, slackShare: 0.2 } } }), /notice/);
 });
