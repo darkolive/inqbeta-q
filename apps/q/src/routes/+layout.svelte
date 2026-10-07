@@ -394,6 +394,8 @@
 			if (!view) return;
 			const held = mintBalance(l, view, id.did).spendable;
 			const committed = creditsCommitted(l, id.did, view.mode);
+			/* Credits still held for an agreement: the bank's ledger may have its settlement before your inbox does. */
+			if (committed > 0) void import('$lib/catch-up').then((m) => m.catchUpFromMint(l));
 			const notice = batteryNotice(id.did, view.mint, view.name || 'credits', enoughLevel(held, committed), held);
 			if (notice) battery = notice;
 		});
