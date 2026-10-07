@@ -7,11 +7,14 @@
  * shop offer whose terms name it. Buying is the shop's own Buy: the credits
  * are held by agreement until the voucher is redeemed (voucher-sales.ts).
  */
-import { checkReceipt } from '@inqbeta/q-core/seal';
+import { checkReceipt, sealWith } from '@inqbeta/q-core/seal';
+import { saveLocked } from '@inqbeta/q-core/folder';
+import { toBase64 } from '@inqbeta/q-core/attachments';
 import { isAgreementStep } from '@inqbeta/q-core/agreements';
-import { acceptRedeem, askRedeem, checkVoucher, editionOf, issueCopy, makeVoucher, nextNumber, receive, type EditionState, type Holding, type Redemption, type Voucher, type VoucherHeld, type VoucherReceipt } from '@inqbeta/q-core/vouchers';
+import { acceptRedeem, askRedeem, checkVoucher, editionOf, hashHeld, issueCopy, makeVoucher, nextNumber, passOn, receive, type EditionState, type Holding, type Redemption, type Voucher, type VoucherHeld, type VoucherReceipt } from '@inqbeta/q-core/vouchers';
 import { isSaleOf, listingLimit, listingTerms, releaseProblem, saleOf, type Sale } from '@inqbeta/q-core/voucher-sales';
-import { voucherIssueFacts, voucherRedeemFacts } from '@inqbeta/q-actions/core/vouchers';
+import { voucherIssueFacts, voucherMoveFacts, voucherRedeemFacts } from '@inqbeta/q-actions/core/vouchers';
+import { sendTo } from '$lib/messages';
 import { signerFor, type Identity } from '@inqbeta/q-core/passkey';
 import { actionHash, decide } from '$lib/actions/engine';
 import { readHome } from '$lib/home';
@@ -38,11 +41,37 @@ export function voucherIn(listing: Pick<ShopListing, 'offer'>): string | null {
 	return m?.[1] ?? null;
 }
 
-export async function publishVoucher(v: VoucherReceipt): Promise<{ ok: true } | { ok: false; says: string }> {
+/** A picture for a voucher, ready to sign in: made smaller if it's big, as WebP, named by its SHA-256. */
+export interface PreparedPicture {
+	hash: string;
+	type: string;
+	bytes: Uint8Array;
+	/** For showing it before it's kept: an object URL. */
+	preview: string;
+}
+const MOST_SIDE = 1600;
+export async function preparePicture(file: File): Promise<PreparedPicture> {
+	if (!file.type.startsWith('image/')) throw new Error('That isn’t a picture.');
+	const bitmap = await createImageBitmap(file);
+	const scale = Math.min(1, MOST_SIDE / Math.max(bitmap.width, bitmap.height));
+	const canvas = document.createElement('canvas');
+	canvas.width = Math.round(bitmap.width * scale);
+	canvas.height = Math.round(bitmap.height * scale);
+	canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+	const blob = await new Promise<Blob | null>((ok) => canvas.toBlob(ok, 'image/webp', 0.82));
+	if (!blob) throw new Error('That picture couldn’t be read.');
+	const bytes = new Uint8Array(await blob.arrayBuffer());
+	if (bytes.length > 2 * 1024 * 1024) throw new Error('That picture is still over 2 MB once made smaller. Try another.');
+	const hash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', bytes))].map((b) => b.toString(16).padStart(2, '0')).join('');
+	return { hash, type: blob.type || 'image/webp', bytes, preview: URL.createObjectURL(blob) };
+}
+
+export async function publishVoucher(v: VoucherReceipt, pictures: PreparedPicture[] = []): Promise<{ ok: true } | { ok: false; says: string }> {
 	const where = await storage();
 	if (!where) return { ok: false, says: 'Q can’t find the storage just now. Try again in a moment.' };
 	try {
-		const r = await fetch(`${where}/voucher/${encodeURIComponent(v.contentHash)}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(v), signal: AbortSignal.timeout(15_000) });
+		const body = pictures.length ? { voucher: v, pictures: Object.fromEntries(pictures.map((p) => [p.hash, toBase64(p.bytes)])) } : v;
+		const r = await fetch(`${where}/voucher/${encodeURIComponent(v.contentHash)}`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body), signal: AbortSignal.timeout(60_000) });
 		const out = (await r.json().catch(() => ({}))) as { ok?: boolean; says?: string };
 		return r.ok && out.ok ? { ok: true } : { ok: false, says: out.says ?? `The storage said ${r.status}.` };
 	} catch (e) {
@@ -52,10 +81,14 @@ export async function publishVoucher(v: VoucherReceipt): Promise<{ ok: true } | 
 
 export interface VoucherView {
 	voucher: VoucherReceipt;
+	/** Where its pictures are: add the picture's hash. */
+	pictureBase: string;
 	/** Every copy and redemption the storage holds, as given; `edition` is what holds of them, checked here. */
 	copies: VoucherHeld[];
 	redemptions: Redemption[];
 	edition: EditionState;
+	/** Copies passed on and not yet signed for, by number: the holder waits for the receiver. */
+	passing: Record<number, VoucherHeld>;
 	/** Its shop offer, checked here, with how many are left; null if it isn't on sale. */
 	listing: ShopListing | null;
 	shop: ShopWindow | null;
@@ -78,7 +111,13 @@ export async function readVoucher(hash: string): Promise<{ ok: true; view: Vouch
 		const copies = (raw.copies ?? []).filter((x) => x?.voucher === hash);
 		const redemptions = (raw.redemptions ?? []).filter((x) => x?.voucher === hash);
 		const edition = await editionOf(v, copies, redemptions);
-		return { ok: true, view: { voucher: v, copies, redemptions, edition, listing, shop: listing ? { seller: v.content.issuer, about: raw.about ?? {}, listings: [listing] } : null } };
+		const passing: Record<number, VoucherHeld> = {};
+		for (const h of edition.holdings) {
+			const latest = await hashHeld(h.latest);
+			const next = copies.find((c) => c.previous === latest && c.number === h.number && !c.signatures.some((g) => g.by === 'holder'));
+			if (next) passing[h.number] = next;
+		}
+		return { ok: true, view: { voucher: v, passing, pictureBase: `${where}/voucher/${encodeURIComponent(hash)}/picture/`, copies, redemptions, edition, listing, shop: listing ? { seller: v.content.issuer, about: raw.about ?? {}, listings: [listing] } : null } };
 	} catch {
 		return { ok: false, says: 'The voucher couldn’t be read just now.' };
 	}
@@ -88,7 +127,7 @@ export async function readVoucher(hash: string): Promise<{ ok: true; view: Vouch
  * Sell a voucher: sign it, keep it at the storage, and put it in your shop at
  * its price, as many times as the edition allows (or `limit` for open ones).
  */
-export async function sellVoucher(identity: Identity, ledger: Ledger | null, people: Person[], mint: MintView, draft: VoucherDraft, limit?: number): Promise<{ ok: true; hash: string; says?: string } | { ok: false; says: string }> {
+export async function sellVoucher(identity: Identity, ledger: Ledger | null, people: Person[], mint: MintView, draft: VoucherDraft, limit?: number, pictures: PreparedPicture[] = []): Promise<{ ok: true; hash: string; says?: string } | { ok: false; says: string }> {
 	let v: VoucherReceipt;
 	let count: number;
 	try {
@@ -97,7 +136,7 @@ export async function sellVoucher(identity: Identity, ledger: Ledger | null, peo
 	} catch (e) {
 		return { ok: false, says: e instanceof Error ? e.message : String(e) };
 	}
-	const kept = await publishVoucher(v);
+	const kept = await publishVoucher(v, pictures);
 	if (!kept.ok) return kept;
 	const id = newAgreementId();
 	const out = await takeStep(identity, ledger, id, { step: 'proposed', parent: null, terms: listingTerms(v, mint.mode), limit: count }, people, mint);
@@ -170,7 +209,11 @@ export async function handOut(identity: Identity, view: VoucherView, s: SaleView
 export async function signFor(identity: Identity, view: VoucherView, copy: VoucherHeld): Promise<Done> {
 	try {
 		const out = await postMove(view.voucher.contentHash, 'copy', await receive(copy, signerFor(identity)));
-		return out.ok ? { ok: true, says: `Copy ${copy.number} is yours.` } : out;
+		if (!out.ok) return out;
+		/* A note in your vault, so it's under Your vouchers even when it came as a gift, with no agreement behind it. */
+		const note = await sealWith(identity, { schema: HELD_NOTE_SCHEMA, source: 'inqbeta:q/vouchers', voucher: view.voucher.contentHash, title: view.voucher.content.title, number: copy.number, from: copy.from, at: new Date().toISOString() });
+		await saveLocked('vouchers', `held-${view.voucher.contentHash.slice(0, 16)}-${copy.number}.json`, JSON.stringify(note, null, 2), 'application/json').catch(() => null);
+		return { ok: true, says: `Copy ${copy.number} is yours.` };
 	} catch (e) {
 		return { ok: false, says: e instanceof Error ? e.message : String(e) };
 	}
@@ -213,12 +256,14 @@ export async function release(identity: Identity, ledger: Ledger | null, people:
 	return out.ok ? { ok: true, says: st.pending ? 'Settled: the credits held are paid over.' : 'Signed. It waits for the other side to sign the same.' } : { ok: false, says: out.says };
 }
 
-/* ---- Your vouchers, from your own agreements (step 5) ---- */
+/* ---- Your vouchers, from your own agreements and notes (step 5) ---- */
+
+export const HELD_NOTE_SCHEMA = 'inqbeta.voucher-held-note/1';
 
 export interface MyVoucher {
 	hash: string;
 	title: string;
-	as: 'bought' | 'selling';
+	as: 'bought' | 'selling' | 'given';
 	/** The other side: who you bought it from. */
 	with: string;
 	agreement: string;
@@ -238,5 +283,29 @@ export function myVouchers(ledger: Ledger | null, me: string): MyVoucher[] {
 		if (a.listing && t.a === me) out.push({ hash: m[2], title: m[1], as: 'selling', with: '', agreement: a.id, at: a.at, phase: a.standing.phase });
 		else if (!a.listing && t.b === me) out.push({ hash: m[2], title: m[1], as: 'bought', with: t.a, agreement: a.id, at: a.at, phase: a.standing.phase });
 	}
+	/* Copies given to you: your own signed note, kept when you signed for one. Bought ones are already listed. */
+	for (const r of ledger?.receipts ?? []) {
+		const j = r.json as { did?: string; content?: { schema?: string; voucher?: string; title?: string; from?: string; at?: string } } | undefined;
+		const c = j?.content;
+		if (c?.schema !== HELD_NOTE_SCHEMA || j?.did !== me || !c.voucher || out.some((x) => x.hash === c.voucher)) continue;
+		out.push({ hash: c.voucher, title: c.title ?? 'A voucher', as: 'given', with: c.from ?? '', agreement: `note-${c.voucher}`, at: c.at ?? '', phase: 'held' });
+	}
 	return out.sort((x, y) => y.at.localeCompare(x.at));
+}
+
+/** Give your copy to someone you know: signed by you, checked by voucher.move; they sign for it, and Q tells them where. */
+export async function giveTo(identity: Identity, view: VoucherView, h: Holding, to: Person): Promise<Done> {
+	const v = view.voucher;
+	try {
+		const next = await passOn(h.latest, v, signerFor(identity), { to: to.did, how: 'given' });
+		const facts = await voucherMoveFacts(v, next, view.copies, view.redemptions, { by: identity.did });
+		const no = refused(await decide(await actionHash('voucher.move'), { principal: { type: 'Person', id: identity.did }, resource: { type: 'Voucher', id: v.contentHash }, facts }));
+		if (no) return { ok: false, says: no };
+		const out = await postMove(v.contentHash, 'copy', next);
+		if (!out.ok) return out;
+		const told = to.inbox ? await sendTo(to, { kind: 'message', text: `I’ve given you a voucher: ${v.content.title}. Open it to sign for it: ${voucherLink(v.contentHash)}` }) : null;
+		return { ok: true, says: `Given to ${to.name}. It’s theirs once they sign for it${told?.ok ? ': Q has told them.' : '. Send them the voucher’s link.'}` };
+	} catch (e) {
+		return { ok: false, says: e instanceof Error ? e.message : String(e) };
+	}
 }

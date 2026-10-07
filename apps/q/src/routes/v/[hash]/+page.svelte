@@ -16,7 +16,7 @@
 	import { creditsCommitted, creditsHeld } from '$lib/agreements';
 	import { readMint, type MintView } from '$lib/money';
 	import { buy } from '$lib/shop';
-	import { askToRedeem, handOut, honour, readVoucher, release, salesOf, signFor, voucherLink, waitingForMe, type SaleView, type VoucherView } from '$lib/vouchers';
+	import { askToRedeem, giveTo, handOut, honour, readVoucher, release, salesOf, signFor, voucherLink, waitingForMe, type SaleView, type VoucherView } from '$lib/vouchers';
 	import { Section, Status } from '@inqbeta/q-ui';
 
 	let identity = $state<Identity | null>(null);
@@ -74,6 +74,9 @@
 	}
 	const saleFor = (n: number) => sales.find((x) => x.sale.holding?.number === n) ?? null;
 	const releaseWaiting = (x: SaleView) => x.agreement.standing.pending?.by === me;
+	/* Giving it on: to people in your address book, not yourself or its issuer. */
+	const givable = $derived(people.filter((p) => p.did !== me && p.did !== view?.voucher.content.issuer));
+	let giveTo_ = $state<Record<number, string>>({});
 
 	/* One thing to do next, at the top: Darren found the steps clunky spread down the page (7 October 2026). */
 	type Next = { says: string; button: string; key: string; run: () => Promise<{ ok: boolean; says: string }> };
@@ -96,7 +99,7 @@
 			const sv = saleFor(h.number);
 			if (sv?.sale.state === 'redeemed' && !releaseWaiting(sv)) return { says: `Copy ${h.number} is redeemed.`, button: sv.agreement.standing.pending ? 'Confirm the settlement' : 'Settle: release the credits held', key: `rel-${h.number}`, run: () => release(id, ledger, people, mint, sv) };
 		}
-		const held = myCopies.find((h) => !h.redeemed && !h.asked);
+		const held = myCopies.find((h) => !h.redeemed && !h.asked && !v.passing[h.number]);
 		if (held) return { says: `You hold copy ${held.number}. When you have what it promises:`, button: 'I have it: redeem', key: `ask-${held.number}`, run: () => askToRedeem(id, v, held) };
 		return null;
 	});
@@ -150,7 +153,7 @@
 				<button type="button" class="btn preset-filled-primary-500 min-h-11 self-start" disabled={!!acting} onclick={() => void act(next!.key, next!.run)}>{acting === next.key ? 'Signing…' : next.button}</button>
 			</div>
 		{/if}
-		<VoucherCard voucher={view.voucher} link={voucherLink(hash, page.url.origin)} left={view.listing?.left ?? null} {issuerName} />
+		<VoucherCard voucher={view.voucher} link={voucherLink(hash, page.url.origin)} left={view.listing?.left ?? null} {issuerName} pictureBase={view.pictureBase} />
 
 		{#if view.listing}
 			{#if mine}
@@ -192,9 +195,29 @@
 								<Status tone={h.redeemed ? 'plain' : h.asked ? 'waiting' : 'good'}>{h.redeemed ? 'Redeemed' : h.asked ? 'Asked to redeem' : 'Held'}</Status>
 							</div>
 							{#if sv}{@render progress(sv.sale.state)}<p class="text-sm">{sv.sale.says}</p>{/if}
-							{#if !h.redeemed && !h.asked && !mine}
+							{#if view.passing[h.number]}
+								<p class="text-sm">Given to {nameOf(view.passing[h.number].holder)}. It’s theirs once they sign for it.</p>
+							{:else if !h.redeemed && !h.asked && !mine}
 								<p class="text-sm">When you’ve got what it promises, redeem it. The credits held for it are released to the issuer only then.</p>
 								<button type="button" class="btn preset-filled-primary-500 min-h-11 self-start" disabled={!!acting} onclick={() => void act(`ask-${h.number}`, () => askToRedeem(identity!, view!, h))}>{acting === `ask-${h.number}` ? 'Signing…' : 'I have it: redeem'}</button>
+								{#if view.voucher.content.moves !== 'bound'}
+									<details class="card preset-outlined-surface-200-800 p-3">
+										<summary class="cursor-pointer min-h-11 flex items-center text-sm font-bold">Give it to someone</summary>
+										<div class="flex flex-col gap-3 mt-2">
+											{#if !givable.length}
+												<p class="text-sm">Link up with someone first: you can give it to people in your address book.</p>
+											{:else}
+												<label class="label"><span class="label-text">To</span>
+													<select class="select" bind:value={giveTo_[h.number]}>
+														<option value="">Choose someone…</option>
+														{#each givable as p (p.did)}<option value={p.did}>{p.name}</option>{/each}
+													</select>
+												</label>
+												<button type="button" class="btn preset-tonal min-h-11 self-start" disabled={!!acting || !giveTo_[h.number]} onclick={() => void act(`give-${h.number}`, () => giveTo(identity!, view!, h, givable.find((p) => p.did === giveTo_[h.number])!))}>{acting === `give-${h.number}` ? 'Signing…' : 'Sign it over'}</button>
+											{/if}
+										</div>
+									</details>
+								{/if}
 							{:else if h.asked}
 								<p class="text-sm">Waiting for {issuerName || 'the issuer'} to sign too.</p>
 							{:else if sv?.sale.state === 'redeemed'}

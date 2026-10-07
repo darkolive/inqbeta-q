@@ -3361,6 +3361,12 @@
 				"says": "Each sale shows where it is: Bought, Handed out, Signed for, Redeemed, Paid, with ticks so far.",
 				"how": "human",
 				"area": "words"
+			},
+			{
+				"id": "owed",
+				"says": "Under You sell, it says how many sold vouchers you still owe and the credits held until they’re redeemed; each voucher shows how many to deliver.",
+				"how": "human",
+				"area": "money"
 			}
 		]
 	},
@@ -3406,6 +3412,24 @@
 				"says": "Your shop shows it, with “See the voucher”.",
 				"how": "human",
 				"area": "works"
+			},
+			{
+				"id": "pictures",
+				"says": "Add a picture: it shows, with a box for what it shows. Without those words, the sign button stays off.",
+				"how": "human",
+				"area": "words"
+			},
+			{
+				"id": "big-picture",
+				"says": "Add a big photo from a phone: it’s made smaller and still shows sharp on the voucher’s page.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "pictures-shown",
+				"says": "After signing, the voucher’s page shows the pictures, with their words read out by a screen reader.",
+				"how": "human",
+				"area": "words"
 			}
 		]
 	},
@@ -3491,6 +3515,24 @@
 			{
 				"id": "bound",
 				"says": "A bound voucher has no way to pass it on anywhere on the page.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "give",
+				"says": "As a holder of a giftable or sellable voucher, “Give it to someone”: choose someone from your address book and sign it over. It says it’s theirs once they sign for it.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "give-receive",
+				"says": "As the person given it: a message says so, with the link; the page offers “Sign for it”, and then it’s under Your vouchers as “Given to you”.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "give-bound",
+				"says": "A bound voucher has no “Give it to someone”.",
 				"how": "human",
 				"area": "safety"
 			}

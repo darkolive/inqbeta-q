@@ -81,6 +81,21 @@ test('a voucher kept by its issuer, read with what’s left in the shop; others�
 		all = (await (await fetch(at)).json()) as typeof all;
 		assert.equal(all.redemptions.length, 1);
 		assert.equal((await editionOf(v, all.copies, all.redemptions)).holdings[0].redeemed, true);
+
+		/* Pictures come with the voucher that names them by hash. */
+		const bytes = new Uint8Array(300).map((_, i) => (i * 7) % 256);
+		const hex = Buffer.from(await crypto.subtle.digest('SHA-256', bytes)).toString('hex');
+		const pv = await makeVoucher(shop, { title: 'Hill Farm at dusk', words: 'Oil on board.', pictures: [{ hash: hex, type: 'image/png', alt: 'A farm under an orange sky.' }], medium: 'physical', kind: 'original', of: 1, price: { paid: true, credits: 90, mint: 'did:key:zM', currency: 'GBP' }, moves: 'sellable', realm: { kinds: 'itself', accepted: [] } }, NOW);
+		const pat = `${gate}/voucher/${pv.contentHash}`;
+		const b64 = (b: Uint8Array) => Buffer.from(b).toString('base64');
+		assert.equal((await put({ voucher: pv, pictures: { [hex]: b64(bytes.map((x) => x ^ 1)) } }, pat)).status, 403, 'not the picture it signed');
+		assert.equal((await put({ voucher: pv, pictures: { ['0'.repeat(64)]: b64(bytes) } }, pat)).status, 403, 'a picture it doesn’t name');
+		assert.equal((await put({ voucher: pv, pictures: { [hex]: b64(bytes) } }, pat)).status, 200);
+		const pic = await fetch(`${pat}/picture/${hex}`);
+		assert.equal(pic.status, 200);
+		assert.equal(pic.headers.get('content-type'), 'image/png');
+		assert.deepEqual(new Uint8Array(await pic.arrayBuffer()), bytes);
+		assert.equal((await fetch(`${pat}/picture/${'f'.repeat(64)}`)).status, 404);
 	} finally {
 		server.close();
 		filer.close();

@@ -4,14 +4,14 @@
 	 * first, then the terms, and its QR code, which opens its page. Beside the
 	 * coin (Coin.svelte): the coin says what pays; the voucher says what you
 	 * get. Pictures are named by their hash in the signed voucher, so what's
-	 * shown can't change after a sale; until pictures are kept at the storage,
-	 * their words stand in for them.
+	 * shown can't change after a sale; the node keeps them beside it. Without
+	 * them, their words stand in.
 	 */
 	import { QrCode } from '@skeletonlabs/skeleton-svelte';
 	import { Status } from '@inqbeta/q-ui';
 	import { KINDS, MOVES, type VoucherReceipt } from '@inqbeta/q-core/vouchers';
 
-	let { voucher, link, left = null, issuerName = '' }: { voucher: VoucherReceipt; link: string; left?: number | null; issuerName?: string } = $props();
+	let { voucher, link, left = null, issuerName = '', pictureBase = '' }: { voucher: VoucherReceipt; link: string; left?: number | null; issuerName?: string; pictureBase?: string } = $props();
 
 	const v = $derived(voucher.content);
 	const onDay = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
@@ -33,9 +33,16 @@
 	{#if v.words}<p class="text-lg">{v.words}</p>{/if}
 
 	{#if v.pictures.length}
-		<ul class="grid gap-2 sm:grid-cols-2">
+		<ul class="grid gap-3 sm:grid-cols-2">
 			{#each v.pictures as p (p.hash)}
-				<li class="card preset-tonal p-3 text-sm"><span class="font-bold">Picture:</span> {p.alt}</li>
+				<li class="flex flex-col gap-1">
+					{#if pictureBase}
+						<!-- the picture the voucher signed, by its hash: it can't be swapped after the sale -->
+						<img src="{pictureBase}{p.hash}" alt={p.alt} loading="lazy" class="rounded-container w-full h-auto bg-surface-100-900" />
+					{:else}
+						<span class="card preset-tonal p-3 text-sm"><span class="font-bold">Picture:</span> {p.alt}</span>
+					{/if}
+				</li>
 			{/each}
 		</ul>
 	{/if}

@@ -380,3 +380,28 @@ it:
 menu under Credits. It lists what you've bought (with who from, and whether
 the credits are still held) and what you sell. Credits links to it. Issuer
 liabilities on the balance sheet are still to come.
+
+## Addendum, 7 October 2026 (late): pictures, giving, and what's owed
+
+- **Pictures.** On Sell a voucher, up to four pictures. Each is made smaller
+  (1600 px, WebP), named by its SHA-256 in the signed voucher, and needs words
+  for someone who can't see it. They go to the node with the voucher, which
+  keeps each only if it matches a hash the voucher signed (up to 2 MB). The
+  voucher's page shows them from `/voucher/<hash>/picture/<sha256>`. What you
+  see can't be swapped after a sale.
+- **Giving it on.** A holder of a giftable or sellable voucher can give their
+  copy to someone in their address book. It's signed over (`voucher.move`) and
+  Q messages them the link. It's theirs once they sign for it. Until then the
+  giver sees "Given to …" and can't give it twice. A copy given to you is
+  listed under Your vouchers ("Given to you"), from a note Q keeps when you
+  sign for it.
+- **What you owe.** Under You sell, Vouchers says how many sold vouchers you
+  still owe, and the credits held for you until they're redeemed. Each voucher
+  shows how many are still to deliver. This is the issuer's side of the
+  balance sheet, in words. The balance sheet itself (ADR-Q-024) isn't built
+  yet.
+
+**Not yet:** selling a copy on for credits (the rules allow it, within the
+issuer's resale limit; it needs a trade between holders); redeeming with a
+provider in a realm; given vouchers backed by credits (step 6); the market
+(step 7); the test bed (step 8).

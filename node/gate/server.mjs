@@ -889,7 +889,27 @@ async function shops(req, res, origin, did) {
  * counts what's left.
  */
 const VOUCHER_BYTES = 64 * 1024;
-const VOUCHER_PATH = /^\/voucher\/([A-Za-z0-9_-]{43})(?:\/(copy|redeemed))?$/;
+const VOUCHER_PATH = /^\/voucher\/([A-Za-z0-9_-]{43})(?:\/(copy|redeemed)|\/picture\/([0-9a-f]{64}))?$/;
+/* Pictures come with the voucher that names them by hash: what you see can't change after a sale. */
+const VOUCHER_UPLOAD_BYTES = 12 * 1024 * 1024;
+const VOUCHER_PICTURE_BYTES = 2 * 1024 * 1024;
+const PICTURE_TYPES = new Set(['image/webp', 'image/png', 'image/jpeg']);
+const pictureFile = (hash, hex) => `${FILER}/voucher/${hash}/pictures/${hex}`;
+/** Keep the pictures a signed voucher names: each must match its hash, be a picture, and not be too big. Returns why not, or null. */
+export async function keepVoucherPictures(v, pictures, keep) {
+	for (const [hex, data] of Object.entries(pictures ?? {})) {
+		const p = (v.content.pictures ?? []).find((x) => x.hash === hex);
+		if (!p) return 'That picture isn’t in the voucher.';
+		if (!PICTURE_TYPES.has(p.type)) return 'Pictures are WebP, PNG or JPEG.';
+		const bytes = Buffer.from(String(data), 'base64');
+		if (bytes.length > VOUCHER_PICTURE_BYTES) return 'A picture can be up to 2 MB.';
+		const got = Buffer.from(await crypto.subtle.digest('SHA-256', bytes)).toString('hex');
+		if (got !== hex) return 'A picture doesn’t match the hash the voucher signed.';
+		const why = await keep(hex, bytes, p.type);
+		if (why) return why;
+	}
+	return null;
+}
 const VOUCHER_MOVES = 2000;
 const voucherFile = (hash) => `${FILER}/voucher/${hash}.json`;
 /** Why this isn't a voucher its issuer signed, or null. */
@@ -958,7 +978,18 @@ async function keepVoucher(v) {
 	const r = await fetch(voucherFile(v.contentHash), { method: 'POST', body: form }).catch((e) => ({ ok: false, status: e.message }));
 	return r.ok ? null : `Couldn’t keep it: ${r.status}`;
 }
-async function vouchers(req, res, origin, hash, kind) {
+async function vouchers(req, res, origin, hash, kind, picture) {
+	if (picture) {
+		if (req.method !== 'GET') return send(res, origin, 405, { says: 'Only GET.' });
+		const m = await fetch(voucherFile(hash)).catch(() => null);
+		const v = m?.ok ? await m.json().catch(() => null) : null;
+		const p = v?.content?.pictures?.find((x) => x.hash === picture);
+		const f = p ? await fetch(pictureFile(hash, picture)).catch(() => null) : null;
+		if (!p || !f?.ok) return send(res, origin, 404, { says: 'No picture by that name.' });
+		const bytes = Buffer.from(await f.arrayBuffer());
+		res.writeHead(200, { 'content-type': PICTURE_TYPES.has(p.type) ? p.type : 'application/octet-stream', 'cache-control': 'public, max-age=31536000, immutable', 'x-content-type-options': 'nosniff', ...(ORIGINS.has(origin) ? { 'access-control-allow-origin': origin, vary: 'origin' } : {}) });
+		return res.end(bytes);
+	}
 	if (kind) {
 		if (req.method !== 'POST') return send(res, origin, 405, { says: 'Only POST.' });
 		if (tooMany(`voucher:${req.socket.remoteAddress ?? ''}`, Date.now(), SHOP_POSTS_PER_HOUR)) return send(res, origin, 429, { says: 'Too many at once. Try again in a while.' });
@@ -981,14 +1012,27 @@ async function vouchers(req, res, origin, hash, kind) {
 	}
 	if (req.method !== 'POST') return send(res, origin, 405, { says: 'Only GET and POST.' });
 	if (tooMany(`voucher:${req.socket.remoteAddress ?? ''}`, Date.now(), SHOP_POSTS_PER_HOUR)) return send(res, origin, 429, { says: 'Too many at once. Try again in a while.' });
-	const raw = await readBody(req, VOUCHER_BYTES);
+	const raw = await readBody(req, VOUCHER_UPLOAD_BYTES);
 	if (raw === null) return send(res, origin, 413, { says: 'Too big.' });
 	let v;
+	let pictures = null;
 	try { v = JSON.parse(raw); } catch { return send(res, origin, 400, { says: 'That isn’t JSON.' }); }
+	/* With its pictures: { voucher, pictures: { <sha256 hex>: <base64> } }. */
+	if (v?.voucher) {
+		pictures = v.pictures ?? null;
+		v = v.voucher;
+	}
 	const shut = await doorSays(v?.did);
 	if (shut) return send(res, origin, 403, { says: shut, door: 'closed' });
 	const why = (await voucherProblemAtGate(v)) ?? (v.contentHash === hash ? null : 'That voucher has another name.');
 	if (why) return send(res, origin, 403, { says: why });
+	const pics = await keepVoucherPictures(v, pictures, async (hex, bytes, type) => {
+		const form = new FormData();
+		form.append('file', new Blob([bytes], { type }), hex);
+		const r = await fetch(pictureFile(hash, hex), { method: 'POST', body: form }).catch((e) => ({ ok: false, status: e.message }));
+		return r.ok ? null : `Couldn’t keep a picture: ${r.status}`;
+	});
+	if (pics) return send(res, origin, 403, { says: pics });
 	const kept = await keepVoucher(v);
 	return kept ? send(res, origin, 502, { says: kept }) : send(res, origin, 200, { ok: true, hash });
 }
@@ -1563,7 +1607,7 @@ export const server = http.createServer(async (req, res) => {
 	const sh = SHOP.exec(decodeURIComponent(new URL(req.url, 'http://gate').pathname));
 	if (sh) return shops(req, res, origin, sh[1]);
 	const vo = VOUCHER_PATH.exec(new URL(req.url, 'http://gate').pathname);
-	if (vo) return vouchers(req, res, origin, vo[1], vo[2]);
+	if (vo) return vouchers(req, res, origin, vo[1], vo[2], vo[3]);
 	const rl = RELAY.exec(new URL(req.url, 'http://gate').pathname);
 	if (rl) return relays(req, res, origin, rl[1], rl[2]);
 	const st = STORE.exec(new URL(req.url, 'http://gate').pathname);

@@ -5,7 +5,8 @@
 	 * with its own page and QR code, and put in your shop. Each sale holds the
 	 * buyer's credits until the voucher is redeemed.
 	 *
-	 * Pictures come next, once they're kept at the storage by their hash.
+	 * Pictures (up to four) are made smaller, named by their hash in the
+	 * signed voucher, and kept at the node beside it: what you see is what you get.
 	 */
 	import { goto } from '$app/navigation';
 	import { Page, Section } from '@inqbeta/q-ui';
@@ -15,7 +16,7 @@
 	import { watchLedger, type Ledger } from '$lib/ledger';
 	import { peopleFrom } from '$lib/people';
 	import { readMint, type MintView } from '$lib/money';
-	import { sellVoucher, type VoucherDraft } from '$lib/vouchers';
+	import { preparePicture, sellVoucher, type PreparedPicture, type VoucherDraft } from '$lib/vouchers';
 
 	let identity = $state<Identity | null>(null);
 	let ledger = $state<Ledger | null>(null);
@@ -41,6 +42,30 @@
 	let resaleUpTo = $state<number | null>(null);
 	let ends = $state('');
 
+	/* Pictures: up to four, each with words for someone who can't see it. */
+	const MOST_PICTURES = 4;
+	let pictures = $state<(PreparedPicture & { alt: string })[]>([]);
+	let pictureSays = $state('');
+	let preparing = $state(false);
+	async function addPictures(files: FileList | null) {
+		pictureSays = '';
+		preparing = true;
+		for (const f of [...(files ?? [])].slice(0, MOST_PICTURES - pictures.length)) {
+			try {
+				const p = await preparePicture(f);
+				if (!pictures.some((x) => x.hash === p.hash)) pictures = [...pictures, { ...p, alt: '' }];
+			} catch (e) {
+				pictureSays = e instanceof Error ? e.message : String(e);
+			}
+		}
+		preparing = false;
+	}
+	function removePicture(hash: string) {
+		const gone = pictures.find((p) => p.hash === hash);
+		if (gone) URL.revokeObjectURL(gone.preview);
+		pictures = pictures.filter((p) => p.hash !== hash);
+	}
+
 	/* What each medium can be: a digital thing can't be owned outright. */
 	const kindsFor = $derived((Object.keys(KINDS) as VoucherKind[]).filter((k) => (medium === 'digital' ? k === 'copyable' || k === 'consumable' : medium === 'service' ? k === 'consumable' || k === 'edition' : true)));
 	$effect(() => {
@@ -53,7 +78,7 @@
 			? {
 					title: title.trim(),
 					words: words.trim(),
-					pictures: [],
+					pictures: pictures.map((p) => ({ hash: p.hash, type: p.type, alt: p.alt.trim() })),
 					medium,
 					kind,
 					of: kind === 'original' ? 1 : open ? null : of,
@@ -66,7 +91,7 @@
 				}
 			: null
 	);
-	const says = $derived(!mint ? 'Q can’t find your bank just now.' : !credits ? 'Say what it costs.' : draft ? voucherProblem(draft) : null);
+	const says = $derived(!mint ? 'Q can’t find your bank just now.' : !credits ? 'Say what it costs.' : pictures.some((p) => !p.alt.trim()) ? 'Say what each picture shows, for someone who can’t see it.' : draft ? voucherProblem(draft) : null);
 
 	let busy = $state(false);
 	let problem = $state('');
@@ -74,7 +99,7 @@
 		if (!identity || !mint || !draft) return;
 		busy = true;
 		problem = '';
-		const out = await sellVoucher(identity, ledger, peopleFrom(ledger, identity.did), mint, draft, open ? (limit ?? undefined) : undefined);
+		const out = await sellVoucher(identity, ledger, peopleFrom(ledger, identity.did), mint, draft, open ? (limit ?? undefined) : undefined, pictures);
 		busy = false;
 		if (out.ok) void goto(`/v/${encodeURIComponent(out.hash)}${out.says ? `?said=${encodeURIComponent(out.says)}` : ''}`);
 		else problem = out.says;
@@ -111,6 +136,27 @@
 				{#if kind === 'copyable'}
 					<label class="label"><span class="label-text">The licence: what the holder may do with it</span><textarea class="textarea" rows="2" bind:value={licence}></textarea></label>
 				{/if}
+			</div>
+		</Section>
+
+		<Section title="Pictures" description="What you see is what you get: the voucher signs each picture, so it can’t be changed after a sale. Up to four.">
+			<div class="flex flex-col gap-4 max-w-xl">
+				{#each pictures as p (p.hash)}
+					<div class="card preset-outlined-surface-200-800 p-3 flex flex-col sm:flex-row gap-3">
+						<img src={p.preview} alt="" class="w-full sm:w-40 h-auto rounded-container" />
+						<div class="flex-1 flex flex-col gap-2">
+							<label class="label"><span class="label-text">What it shows, for someone who can’t see it</span><input class="input" bind:value={p.alt} /></label>
+							<button type="button" class="btn preset-tonal min-h-11 self-start" onclick={() => removePicture(p.hash)}>Take it out</button>
+						</div>
+					</div>
+				{/each}
+				{#if pictures.length < MOST_PICTURES}
+					<label class="label"><span class="label-text">{pictures.length ? 'Add another picture' : 'Add a picture'}</span>
+						<input class="input" type="file" accept="image/*" multiple disabled={preparing} onchange={(e) => void addPictures((e.currentTarget as HTMLInputElement).files)} />
+					</label>
+				{/if}
+				{#if preparing}<p class="text-sm" aria-live="polite">Getting the picture ready…</p>{/if}
+				{#if pictureSays}<p class="text-sm card preset-tonal-warning p-3">{pictureSays}</p>{/if}
 			</div>
 		</Section>
 
