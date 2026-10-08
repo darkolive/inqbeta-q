@@ -16,7 +16,7 @@
 	import { creditsCommitted, creditsHeld } from '$lib/agreements';
 	import { readMint, type MintView } from '$lib/money';
 	import { buy } from '$lib/shop';
-	import { askToRedeem, giveTo, handOut, honour, readVoucher, release, salesOf, signFor, voucherLink, waitingForMe, type SaleView, type VoucherView } from '$lib/vouchers';
+	import { askToRedeem, giveGrant, givenFromBank, giveTo, handOut, honour, readVoucher, returnUnspent, release, salesOf, signFor, voucherLink, waitingForMe, type SaleView, type VoucherView } from '$lib/vouchers';
 	import { Section, Status } from '@inqbeta/q-ui';
 
 	let identity = $state<Identity | null>(null);
@@ -37,8 +37,12 @@
 		if (out.ok) {
 			view = out.view;
 			problem = '';
+			const p = out.view.voucher.content.price;
+			if (!p.paid && p.from === 'credits') bank = await givenFromBank(hash);
 		} else problem = out.says;
 	}
+	/* A given voucher (a grant): where each copy stands in the bank's books. */
+	let bank = $state<Awaited<ReturnType<typeof givenFromBank>>>(new Map());
 	$effect(() => {
 		if (hash) void load();
 	});
@@ -78,6 +82,18 @@
 	const givable = $derived(people.filter((p) => p.did !== me && p.did !== view?.voucher.content.issuer));
 	let giveTo_ = $state<Record<number, string>>({});
 
+	/* Step 6: a grant. The giver hands copies out; the holder chooses a provider; the provider honours it and is paid. */
+	const given = $derived(!!view && !view.voucher.content.price.paid && view.voucher.content.price.from === 'credits');
+	const ended = $derived(!!view?.voucher.content.ends && Date.parse(view.voucher.content.ends.at) <= Date.now());
+	const realmKinds = $derived(view && view.voucher.content.realm.kinds !== 'itself' ? view.voucher.content.realm.kinds : []);
+	const providers = $derived((view?.voucher.content.realm.accepted ?? []).map((did) => people.find((p) => p.did === did) ?? { did, name: 'A provider', details: {}, cardName: '', at: '', how: '' }));
+	const askedOfMe = $derived(view ? view.edition.holdings.filter((h) => h.asked?.redeemer === me && !h.redeemed) : []);
+	let useFor = $state<Record<number, string>>({});
+	let useWith = $state<Record<number, string>>({});
+	let grantTo = $state('');
+	const grantable = $derived(people.filter((p) => p.did !== me));
+	const holderOf = (n: number) => view?.edition.holdings.find((h) => h.number === n)?.holder ?? view?.copies.find((c) => c.number === n && c.previous === null)?.holder ?? '';
+
 	/* One thing to do next, at the top: Darren found the steps clunky spread down the page (7 October 2026). */
 	type Next = { says: string; button: string; key: string; run: () => Promise<{ ok: boolean; says: string }> };
 	const next = $derived.by<Next | null>(() => {
@@ -86,6 +102,16 @@
 		const v = view;
 		const c = toSignFor[0];
 		if (c) return { says: `Copy ${c.number} has been handed to you.`, button: 'Sign for it', key: `sign-${c.number}`, run: () => signFor(id, v, c) };
+		/* A provider asked to honour it. */
+		const ask = askedOfMe[0];
+		if (ask?.asked) return { says: `${nameOf(ask.holder)} asks to use it for ${ask.asked.for}.`, button: given ? 'I’ve given it: honour it and be paid' : 'Honour it: sign the redemption', key: `hon-${ask.number}`, run: () => honour(id, v, ask.asked!) };
+		if (given) {
+			if (mine && ended) {
+				const left = [...bank].find(([, x]) => x.state === 'held');
+				if (left) return { says: `It has ended. ${left[1].credits} credits are still held behind copy ${left[0]}.`, button: 'Return what’s unspent', key: `ret-${left[0]}`, run: () => returnUnspent(v.voucher.contentHash, left[0]) };
+			}
+			return null;
+		}
 		if (mine) {
 			const asked = sales.find((x) => x.sale.holding?.asked);
 			if (asked) return { says: `${nameOf(asked.sale.buyer)} says they have it.`, button: 'Honour it: sign the redemption', key: `hon-${asked.agreement.id}`, run: () => honour(id, v, asked.sale.holding!.asked!) };
@@ -197,6 +223,8 @@
 							{#if sv}{@render progress(sv.sale.state)}<p class="text-sm">{sv.sale.says}</p>{/if}
 							{#if view.passing[h.number]}
 								<p class="text-sm">Given to {nameOf(view.passing[h.number].holder)}. It’s theirs once they sign for it.</p>
+							{:else if !h.redeemed && !h.asked && !mine && given}
+								<p class="text-sm">Use it below: choose what for, and who with.</p>
 							{:else if !h.redeemed && !h.asked && !mine}
 								<p class="text-sm">When you’ve got what it promises, redeem it. The credits held for it are released to the issuer only then.</p>
 								<button type="button" class="btn preset-filled-primary-500 min-h-11 self-start" disabled={!!acting} onclick={() => void act(`ask-${h.number}`, () => askToRedeem(identity!, view!, h))}>{acting === `ask-${h.number}` ? 'Signing…' : 'I have it: redeem'}</button>
@@ -219,7 +247,7 @@
 									</details>
 								{/if}
 							{:else if h.asked}
-								<p class="text-sm">Waiting for {issuerName || 'the issuer'} to sign too.</p>
+								<p class="text-sm">Waiting for {h.asked.redeemer === view.voucher.content.issuer ? issuerName || 'the issuer' : nameOf(h.asked.redeemer)} to sign too{h.asked.for !== 'itself' ? `, for ${h.asked.for}` : ''}.</p>
 							{:else if sv?.sale.state === 'redeemed'}
 								{#if releaseWaiting(sv)}<p class="text-sm">You’ve signed the settlement. It waits for the other side.</p>
 								{:else}<button type="button" class="btn preset-tonal min-h-11 self-start" disabled={!!acting} onclick={() => void act(`rel-${h.number}`, () => release(identity!, ledger, people, mint, sv))}>{acting === `rel-${h.number}` ? 'Signing…' : sv.agreement.standing.pending ? 'Confirm the settlement' : 'Settle: release the credits held'}</button>{/if}
@@ -227,6 +255,51 @@
 						</li>
 					{/each}
 				</ul>
+			</Section>
+		{/if}
+
+		{#if given && identity && myCopies.some((h) => !h.redeemed && !h.asked)}
+			<Section title="Use it" description="Choose what for, and who with. When they’ve given it to you, they honour it, and the bank pays them from what’s held.">
+				<ul class="flex flex-col gap-3">
+					{#each myCopies.filter((h) => !h.redeemed && !h.asked) as h (h.number)}
+						<li class="card preset-outlined-surface-200-800 p-4 flex flex-col gap-3 max-w-xl">
+							<label class="label"><span class="label-text">What for</span>
+								<select class="select" bind:value={useFor[h.number]}><option value="">Choose…</option>{#each realmKinds as k (k)}<option value={k}>{k}</option>{/each}</select>
+							</label>
+							<label class="label"><span class="label-text">Who with</span>
+								<select class="select" bind:value={useWith[h.number]}><option value="">Choose…</option>{#each providers as p (p.did)}<option value={p.did}>{p.name}</option>{/each}</select>
+							</label>
+							{#if !providers.length}<p class="text-sm">The giver hasn’t named any providers yet.</p>{/if}
+							<button type="button" class="btn preset-filled-primary-500 min-h-11 self-start" disabled={!!acting || !useFor[h.number] || !useWith[h.number]} onclick={() => void act(`use-${h.number}`, () => askToRedeem(identity!, view!, h, { provider: providers.find((p) => p.did === useWith[h.number])!, forKind: useFor[h.number] }))}>{acting === `use-${h.number}` ? 'Signing…' : 'Ask them to honour it'}</button>
+						</li>
+					{/each}
+				</ul>
+			</Section>
+		{/if}
+
+		{#if given && mine}
+			<Section title="Given" description="Each one you hand out holds its worth in your account until it’s used, or comes back when it ends.">
+				{#if !ended}
+					<div class="card preset-outlined-surface-200-800 p-4 flex flex-col gap-3 max-w-xl mb-4">
+						<label class="label"><span class="label-text">Give one to</span>
+							<select class="select" bind:value={grantTo}><option value="">Choose someone…</option>{#each grantable as p (p.did)}<option value={p.did}>{p.name}</option>{/each}</select>
+						</label>
+						<button type="button" class="btn preset-filled-primary-500 min-h-11 self-start" disabled={!!acting || !grantTo} onclick={() => void act('grant', () => giveGrant(identity!, view!, grantable.find((p) => p.did === grantTo)!))}>{acting === 'grant' ? 'Signing…' : 'Give it: they qualify under your programme'}</button>
+					</div>
+				{/if}
+				{#if bank.size}
+					<ul class="flex flex-col gap-2 max-w-xl">
+						{#each [...bank] as [n, x] (n)}
+							<li class="card preset-outlined-surface-200-800 p-3 flex flex-wrap items-center gap-3 text-sm">
+								<span class="flex-1">Copy {n} · {nameOf(holderOf(n))}</span>
+								<Status tone={x.state === 'paid' ? 'good' : x.state === 'returned' ? 'plain' : 'waiting'}>{x.state === 'held' ? `${x.credits} held` : x.state === 'paid' ? `${x.credits} paid to ${nameOf(x.to ?? '')}` : 'Returned to you'}</Status>
+								{#if x.state === 'held' && ended}<button type="button" class="btn btn-sm preset-tonal min-h-11" disabled={!!acting} onclick={() => void act(`ret-${n}`, () => returnUnspent(view!.voucher.contentHash, n))}>Return it</button>{/if}
+							</li>
+						{/each}
+					</ul>
+				{:else}
+					<p class="text-sm">None given yet.</p>
+				{/if}
 			</Section>
 		{/if}
 

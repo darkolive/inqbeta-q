@@ -149,6 +149,51 @@ export function isFedMoney(x: unknown): x is FedMoneyReceipt {
 	return c?.schema === FED_MONEY_SCHEMA && typeof c.mint === 'string' && typeof c.federation === 'string' && ['bank-card', 'decision', 'asked', 'agreed', 'treaty', 'treaty-notice'].includes(c.kind);
 }
 
+/*
+ * Given vouchers (ADR-Q-044 §6–7, step 6; 8 October 2026): a grant's credits
+ * are held behind each copy in the giver's own account, paid to the provider
+ * who honours it, or returned to the giver when it ends. Filed by the mint,
+ * after the rules (voucher.issue, voucher.redeem) and the voucher's own terms.
+ * The holder holds a voucher, never credits: there is nothing for them to cash out.
+ */
+export const VOUCHER_MONEY_SCHEMA = 'inqbeta.mint-voucher/1';
+export type VoucherMoneyKind = 'held' | 'paid' | 'returned';
+export interface VoucherMoneyEntry {
+	schema: typeof VOUCHER_MONEY_SCHEMA;
+	source: typeof MINT_SOURCE;
+	mint: string;
+	mode: MintMode;
+	kind: VoucherMoneyKind;
+	/** The voucher, by content hash, and the copy's number. */
+	voucher: string;
+	number: number;
+	/** Whose credits: the voucher's issuer. */
+	giver: string;
+	credits: number;
+	/** paid: the provider who honoured it. */
+	to?: string;
+	/** The copy handed out (held), or the redemption both signed (paid). */
+	record: unknown;
+	at: string;
+}
+export type VoucherMoneyReceipt = SealedReceipt & { content: VoucherMoneyEntry };
+export function isVoucherMoney(x: unknown): x is VoucherMoneyReceipt {
+	const c = (x as VoucherMoneyReceipt | null)?.content;
+	return c?.schema === VOUCHER_MONEY_SCHEMA && typeof c.voucher === 'string' && Number.isInteger(c.number) && ['held', 'paid', 'returned'].includes(c.kind);
+}
+
+/** Where each given copy of a voucher stands in this mint's books: held behind it, paid to a provider, or returned. */
+export function givenCopies(ledger: unknown[], mint: string, mode: MintMode, voucher: string): Map<number, { state: VoucherMoneyKind; credits: number; to?: string; at: string }> {
+	const out = new Map<number, { state: VoucherMoneyKind; credits: number; to?: string; at: string }>();
+	const mine = ledger.filter((x): x is VoucherMoneyReceipt => isVoucherMoney(x) && x.did === mint && x.content.mint === mint && x.content.mode === mode && x.content.voucher === voucher).sort((a, b) => a.content.at.localeCompare(b.content.at));
+	for (const r of mine) {
+		const c = r.content;
+		const was = out.get(c.number);
+		if (c.kind === 'held' ? !was : was?.state === 'held') out.set(c.number, { state: c.kind, credits: c.credits, ...(c.to ? { to: c.to } : {}), at: c.at });
+	}
+	return out;
+}
+
 export interface Books {
 	mint: string;
 	mode: MintMode;
@@ -164,6 +209,8 @@ export interface Books {
 	holders: Map<string, number>;
 	/** Asks waiting for their burn: credits held back from spending. */
 	asked: Map<string, number>;
+	/** Credits held behind given vouchers, by giver: theirs, but promised. */
+	behind: Map<string, number>;
 	/** Does every credit exist somewhere, and is every credit backed? */
 	reconciled: boolean;
 	backed: boolean;
@@ -186,12 +233,14 @@ const add = (m: Map<string, number>, k: string, n: number) => m.set(k, (m.get(k)
  */
 export function booksOf(receipts: { json?: unknown; holds?: string }[], mint: string, mode: MintMode, currency: string): Books {
 	const unit = minorPerCredit(currency);
-	const b: Books = { mint, mode, minted: 0, destroyed: 0, circulation: 0, cashIn: 0, cashOut: 0, cashReserve: 0, capitalReserve: 0, holders: new Map(), asked: new Map(), reconciled: true, backed: true, drift: 0, problems: [] };
+	const b: Books = { mint, mode, minted: 0, destroyed: 0, circulation: 0, cashIn: 0, cashOut: 0, cashReserve: 0, capitalReserve: 0, holders: new Map(), asked: new Map(), behind: new Map(), reconciled: true, backed: true, drift: 0, problems: [] };
 	const events = new Map<string, MintReceipt>();
 	const steps: AgreementReceipt[] = [];
 	const fedAgreed: FedMoneyReceipt[] = [];
+	const voucherMoney: VoucherMoneyReceipt[] = [];
 	for (const r of receipts) {
 		if (r.holds === 'no') continue;
+		if (isVoucherMoney(r.json) && r.json.did === mint && r.json.content.mint === mint && r.json.content.mode === mode) voucherMoney.push(r.json);
 		if (isFedMoney(r.json) && r.json.content.kind === 'agreed' && r.json.did === mint && r.json.content.mint === mint && r.json.content.mode === mode) fedAgreed.push(r.json);
 		if (isMintEvent(r.json) && r.json.content.mint === mint && r.json.content.mode === mode) events.set(r.json.contentHash, r.json);
 		else if (isAgreementStep(r.json)) steps.push(r.json);
@@ -248,6 +297,37 @@ export function booksOf(receipts: { json?: unknown; holds?: string }[], mint: st
 		}
 	}
 
+	/* Given vouchers: held behind a copy, then paid to its provider or returned; each copy once. */
+	const open = new Map<string, VoucherMoneyEntry>();
+	const closed = new Set<string>();
+	const seenMoney = new Set<string>();
+	for (const r of voucherMoney.sort((x, y) => x.content.at.localeCompare(y.content.at))) {
+		if (seenMoney.has(r.contentHash)) continue;
+		seenMoney.add(r.contentHash);
+		const c = r.content;
+		const key = `${c.voucher}#${c.number}`;
+		const vreject = (why: string) => b.problems.push(`voucher ${c.kind} (${c.at}): ${why}`);
+		if (!Number.isInteger(c.credits) || c.credits < 1) { vreject('it moves no credits.'); continue; }
+		if (c.kind === 'held') {
+			if (open.has(key) || closed.has(key)) { vreject('that copy already has credits held behind it.'); continue; }
+			open.set(key, c);
+			add(b.behind, c.giver, c.credits);
+			continue;
+		}
+		const h = open.get(key);
+		if (!h) { vreject('nothing is held behind that copy.'); continue; }
+		if (h.giver !== c.giver || c.credits > h.credits) { vreject('it doesn’t match what was held.'); continue; }
+		open.delete(key);
+		closed.add(key);
+		add(b.behind, h.giver, -h.credits);
+		if (c.kind === 'paid') {
+			if (!c.to) { vreject('a payment names who honoured it.'); continue; }
+			add(b.holders, h.giver, -c.credits);
+			add(b.holders, c.to, c.credits);
+		}
+	}
+	for (const [k, v] of b.behind) if (v <= 0) b.behind.delete(k);
+
 	for (const r of sorted) {
 		const c = r.content;
 		if (c.kind !== 'burn') continue;
@@ -278,9 +358,9 @@ export function booksOf(receipts: { json?: unknown; holds?: string }[], mint: st
 	return b;
 }
 
-/** What a holder can still spend, offer or cash out: what they hold, less what they've asked to cash out. */
+/** What a holder can still spend, offer or cash out: what they hold, less what they've asked to cash out and what's held behind vouchers they've given. */
 export function spendable(b: Books, did: string): number {
-	return Math.max(0, (b.holders.get(did) ?? 0) - (b.asked.get(did) ?? 0));
+	return Math.max(0, (b.holders.get(did) ?? 0) - (b.asked.get(did) ?? 0) - (b.behind.get(did) ?? 0));
 }
 
 /* ---- Drift and the safety valve (ADR-Q-027 addendum, 5 October 2026; jobs D2, D3) ---- */

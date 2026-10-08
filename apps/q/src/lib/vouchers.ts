@@ -220,10 +220,15 @@ export async function signFor(identity: Identity, view: VoucherView, copy: Vouch
 }
 
 /** The holder asks to redeem it with its issuer. */
-export async function askToRedeem(identity: Identity, view: VoucherView, h: Holding): Promise<Done> {
+export async function askToRedeem(identity: Identity, view: VoucherView, h: Holding, with_?: { provider: Person; forKind: string }): Promise<Done> {
 	try {
-		const out = await postMove(view.voucher.contentHash, 'redeemed', await askRedeem(h, signerFor(identity), { redeemer: view.voucher.content.issuer, forKind: 'itself' }));
-		return out.ok ? { ok: true, says: 'Asked. When you have it, the issuer signs too.' } : out;
+		const redeemer = with_?.provider.did ?? view.voucher.content.issuer;
+		const asked = await askRedeem(h, signerFor(identity), { redeemer, forKind: with_?.forKind ?? 'itself' });
+		const out = await postMove(view.voucher.contentHash, 'redeemed', asked);
+		if (!out.ok) return out;
+		/* A provider under a grant needs to know: tell them where to sign. */
+		if (with_?.provider.inbox) await sendTo(with_.provider, { kind: 'message', text: `I’d like to use a voucher with you for ${with_.forKind}: ${view.voucher.content.title}. Open it to honour it: ${voucherLink(view.voucher.contentHash)}` }).catch(() => null);
+		return { ok: true, says: with_ ? `Asked. When ${with_.provider.name} has given you the ${with_.forKind}, they sign too, and the bank pays them.` : 'Asked. When you have it, the issuer signs too.' };
 	} catch (e) {
 		return { ok: false, says: e instanceof Error ? e.message : String(e) };
 	}
@@ -239,7 +244,13 @@ export async function honour(identity: Identity, view: VoucherView, asked: Redem
 		const no = refused(await decide(await actionHash('voucher.redeem'), { principal: { type: 'Person', id: identity.did }, resource: { type: 'Voucher', id: v.contentHash }, facts }));
 		if (no) return { ok: false, says: no };
 		const out = await postMove(v.contentHash, 'redeemed', r);
-		return out.ok ? { ok: true, says: 'Redeemed. Now settle the sale, and the credits held come to you.' } : out;
+		if (!out.ok) return out;
+		/* A given voucher: the bank pays whoever honoured it from what's held behind it. */
+		if (!v.content.price.paid && v.content.price.from === 'credits') {
+			const paid = await mintVouchers({ pay: r });
+			return paid.ok ? { ok: true, says: `Redeemed. ${paid.says}` } : { ok: false, says: `Redeemed, but the bank didn’t pay yet: ${paid.says} Try again from this page.` };
+		}
+		return { ok: true, says: 'Redeemed. Now settle the sale, and the credits held come to you.' };
 	} catch (e) {
 		return { ok: false, says: e instanceof Error ? e.message : String(e) };
 	}
@@ -263,7 +274,7 @@ export const HELD_NOTE_SCHEMA = 'inqbeta.voucher-held-note/1';
 export interface MyVoucher {
 	hash: string;
 	title: string;
-	as: 'bought' | 'selling' | 'given';
+	as: 'bought' | 'selling' | 'given' | 'giving';
 	/** The other side: who you bought it from. */
 	with: string;
 	agreement: string;
@@ -282,6 +293,13 @@ export function myVouchers(ledger: Ledger | null, me: string): MyVoucher[] {
 		if (!t || !m) continue;
 		if (a.listing && t.a === me) out.push({ hash: m[2], title: m[1], as: 'selling', with: '', agreement: a.id, at: a.at, phase: a.standing.phase });
 		else if (!a.listing && t.b === me) out.push({ hash: m[2], title: m[1], as: 'bought', with: t.a, agreement: a.id, at: a.at, phase: a.standing.phase });
+	}
+	/* Grants you give: your own note, kept when you made it. */
+	for (const r of ledger?.receipts ?? []) {
+		const j = r.json as { did?: string; content?: { schema?: string; voucher?: string; title?: string; at?: string } } | undefined;
+		const c = j?.content;
+		if (c?.schema !== GIVING_NOTE_SCHEMA || j?.did !== me || !c.voucher) continue;
+		out.push({ hash: c.voucher, title: c.title ?? 'A grant', as: 'giving', with: '', agreement: `giving-${c.voucher}`, at: c.at ?? '', phase: 'giving' });
 	}
 	/* Copies given to you: your own signed note, kept when you signed for one. Bought ones are already listed. */
 	for (const r of ledger?.receipts ?? []) {
@@ -309,3 +327,64 @@ export async function giveTo(identity: Identity, view: VoucherView, h: Holding, 
 		return { ok: false, says: e instanceof Error ? e.message : String(e) };
 	}
 }
+
+/* ---- Step 6: given vouchers, a grant (ADR-Q-044 §7) ---- */
+
+async function mintVouchers(body: unknown): Promise<Done> {
+	try {
+		const r = await fetch('/api/vouchers', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+		const out = (await r.json().catch(() => ({}))) as { ok?: boolean; says?: string };
+		return r.ok && out.ok ? { ok: true, says: out.says ?? 'Done.' } : { ok: false, says: out.says ?? `The bank said ${r.status}.` };
+	} catch (e) {
+		return { ok: false, says: e instanceof Error ? e.message : 'The bank didn’t answer.' };
+	}
+}
+
+/** Where each given copy stands in the bank's books: held, paid to a provider, or returned. */
+export async function givenFromBank(hash: string): Promise<Map<number, { state: 'held' | 'paid' | 'returned'; credits: number; to?: string }>> {
+	const r = await fetch(`/api/vouchers?voucher=${encodeURIComponent(hash)}`).catch(() => null);
+	const j = r?.ok ? ((await r.json().catch(() => null)) as { copies?: { number: number; state: 'held' | 'paid' | 'returned'; credits: number; to?: string }[] } | null) : null;
+	return new Map((j?.copies ?? []).map((c) => [c.number, c]));
+}
+
+export const GIVING_NOTE_SCHEMA = 'inqbeta.voucher-giving-note/1';
+
+/** Make a grant: sign the voucher, keep it at the node, and a note in your vault so it's under Your vouchers. No shop: it's given, not sold. */
+export async function makeGrant(identity: Identity, draft: VoucherDraft, pictures: PreparedPicture[] = []): Promise<{ ok: true; hash: string } | { ok: false; says: string }> {
+	let v: VoucherReceipt;
+	try {
+		v = await makeVoucher(identity, draft);
+	} catch (e) {
+		return { ok: false, says: e instanceof Error ? e.message : String(e) };
+	}
+	const kept = await publishVoucher(v, pictures);
+	if (!kept.ok) return kept;
+	const note = await sealWith(identity, { schema: GIVING_NOTE_SCHEMA, source: 'inqbeta:q/vouchers', voucher: v.contentHash, title: v.content.title, at: new Date().toISOString() });
+	await saveLocked('vouchers', `giving-${v.contentHash.slice(0, 16)}.json`, JSON.stringify(note, null, 2), 'application/json').catch(() => null);
+	return { ok: true, hash: v.contentHash };
+}
+
+/** The giver hands a copy to someone who qualifies: the bank holds its worth first, then the copy goes to the node, and Q tells them. */
+export async function giveGrant(identity: Identity, view: VoucherView, to: Person): Promise<Done> {
+	const v = view.voucher;
+	const out0 = view.copies.filter((c) => c.previous === null && c.from === v.content.issuer).map((c) => ({ number: c.number }));
+	const number = nextNumber({ of: view.edition.of, holdings: [...view.edition.holdings, ...out0] as Holding[] });
+	if (number === null) return { ok: false, says: 'They’ve all been given.' };
+	try {
+		const copy = await issueCopy(signerFor(identity), v, { number, holder: to.did, via: 'grant' });
+		const facts = await voucherIssueFacts(v, copy, view.copies, { by: identity.did, eligible: true });
+		const no = refused(await decide(await actionHash('voucher.issue'), { principal: { type: 'Person', id: identity.did }, resource: { type: 'Voucher', id: v.contentHash }, facts }));
+		if (no) return { ok: false, says: no };
+		const held = await mintVouchers({ give: copy });
+		if (!held.ok) return held;
+		const out = await postMove(v.contentHash, 'copy', copy);
+		if (!out.ok) return { ok: false, says: `The bank holds the credits, but the node didn’t take the copy: ${out.says}` };
+		const told = to.inbox ? await sendTo(to, { kind: 'message', text: `You’ve been given a voucher: ${v.content.title}. Open it to sign for it: ${voucherLink(v.contentHash)}` }) : null;
+		return { ok: true, says: `${held.says} Given to ${to.name}${told?.ok ? ': Q has told them.' : '. Send them the voucher’s link.'}` };
+	} catch (e) {
+		return { ok: false, says: e instanceof Error ? e.message : String(e) };
+	}
+}
+
+/** After it ends: what's still held behind a copy goes back to the giver. */
+export const returnUnspent = (hash: string, number: number) => mintVouchers({ return: { voucher: hash, number } });

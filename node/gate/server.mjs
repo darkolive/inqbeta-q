@@ -712,7 +712,12 @@ export async function checkLedgerEntry(r, mint, mode, known = new Set()) {
 		if (c.mint !== mint || c.mode !== mode) return 'It belongs to another mint or mode.';
 		return r.did === mint ? null : 'Only the mint files the federation’s money records.';
 	}
-	return 'That isn’t a mint receipt, a reconciliation, a federation money record or an agreement.';
+	/* Given vouchers (ADR-Q-044 step 6): credits held behind a copy, paid to its provider, or returned. Filed by the mint. */
+	if (c?.schema === 'inqbeta.mint-voucher/1') {
+		if (c.mint !== mint || c.mode !== mode) return 'It belongs to another mint or mode.';
+		return r.did === mint ? null : 'Only the mint files what’s held behind vouchers.';
+	}
+	return 'That isn’t a mint receipt, a reconciliation, a federation money record, a voucher’s credits or an agreement.';
 }
 const ledgerDir = (mint, mode) => `${FILER}/mint/${mint}/${mode}/`;
 async function ledgerNames(mint, mode) {

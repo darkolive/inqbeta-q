@@ -405,3 +405,42 @@ liabilities on the balance sheet are still to come.
 issuer's resale limit; it needs a trade between holders); redeeming with a
 provider in a realm; given vouchers backed by credits (step 6); the market
 (step 7); the test bed (step 8).
+
+## Addendum, 8 October 2026: step 6, grants as vouchers
+
+**Give vouchers** (`/v/give`) asks for:
+
+- what it's worth;
+- what it can be used for (its realm);
+- who may honour it (providers from the giver's address book);
+- who it's for (the programme's name: all it records about why);
+- when it ends.
+
+It's given, bound and consumable. There is no shop.
+
+On the voucher's page:
+
+- **The giver** gives one to someone. Handing it out is the giver's word that
+  they qualify (`voucher.issue`, eligible). The **bank holds its worth in the
+  giver's own account**, as `inqbeta.mint-voucher/1` `held`, filed by the mint.
+  It stays the giver's, but can't be spent or cashed out (`spendable` takes it
+  off). Then the copy goes to the node, and Q messages them.
+- **The holder** chooses what for and who with, from the realm and the named
+  providers, and asks. The provider gets a message.
+- **The provider** honours it. Both signatures, then `voucher.redeem`, then
+  the bank **pays the provider** (`paid`), checked again on the server. From
+  then on they're ordinary credits. Honoured by the giver itself, it's simply
+  `returned`.
+- **When it ends**, the giver returns what's still held (`returned`). Anyone
+  could ask; the bank checks the date.
+
+The holder never holds credits, so there's nothing to cash out (ADR-Q-036 §1,
+withdrawn). The books (`booksOf`) read held, paid and returned once per copy.
+A payment with nothing held, or a copy paid twice, is refused. Checklist
+`voucher-give`.
+
+**Not yet:**
+
+- Attestations by someone other than the giver (ADR-Q-036 §3).
+- Providers accepted by treaty: the realm's own list only for now.
+- Part-spending a copy: it's used whole.

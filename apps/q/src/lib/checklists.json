@@ -3539,6 +3539,75 @@
 		]
 	},
 	{
+		"id": "voucher-give",
+		"page": "/v/give",
+		"title": "Give vouchers (a grant)",
+		"group": "market",
+		"needs": "Three people on one host in test: a giver with test credits, someone to give to, and a provider. All three linked with each other.",
+		"checks": [
+			{
+				"id": "asks",
+				"says": "Each thing it needs is asked for in words: worth, what it can be used for, who may honour it, who it’s for, when it ends. The sign button stays off until all are there.",
+				"how": "human",
+				"area": "words"
+			},
+			{
+				"id": "make",
+				"says": "Sign the grant: it opens the voucher’s page, bound, with what it can be used for and its end date.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "give",
+				"says": "As the giver, “Give one to” someone: it says the credits are held, and it’s given. Your free credits drop by its worth; your balance doesn’t.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "held-not-cash",
+				"says": "As the giver, try to cash out more than your free credits: refused. What’s held behind a voucher can’t be cashed out.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "sign-for",
+				"says": "As the person given it: sign for it. It’s under Your vouchers. You hold no credits for it, and there’s nothing to cash out.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "use",
+				"says": "As the holder: Use it, choose what for and who with, and ask. The provider gets a message with the link.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "not-in-realm",
+				"says": "There’s no way to choose anything it can’t be used for, or a provider the giver didn’t name.",
+				"how": "human",
+				"area": "safety"
+			},
+			{
+				"id": "honour",
+				"says": "As the provider: the page starts with “Next:” asking you to honour it. Do: it says you’re paid, and your credits go up by its worth.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "giver-sees",
+				"says": "As the giver: Given shows the copy paid to the provider.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "return",
+				"says": "After its end date (make one that ends today and wait until tomorrow): Next offers Return what’s unspent; it says the credits are returned, and your free credits go back up.",
+				"how": "human",
+				"area": "money"
+			}
+		]
+	},
+	{
 		"id": "publishing-sites",
 		"page": "/sites",
 		"title": "Sites",

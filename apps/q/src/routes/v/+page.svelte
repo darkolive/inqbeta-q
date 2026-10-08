@@ -21,6 +21,7 @@
 	const all = $derived(me ? myVouchers(ledger, me) : []);
 	const bought = $derived(all.filter((v) => v.as === 'bought' || v.as === 'given'));
 	const selling = $derived(all.filter((v) => v.as === 'selling'));
+	const giving = $derived(all.filter((v) => v.as === 'giving'));
 	const nameOf = (did: string) => people.find((p) => p.did === did)?.name ?? 'someone';
 	/*
 	 * What you owe on what you sell: each copy sold and not yet redeemed is a
@@ -54,13 +55,13 @@
 
 <Page title="Vouchers" lead="What you’ve bought, and what you sell. The coin says what pays; the voucher says what you get.">
 	{#snippet actions()}
-		{#if identity}<a href="/v/new" class="btn preset-filled-primary-500 min-h-11"><Icon name="plus" size={18} /> Sell a voucher</a>{/if}
+		{#if identity}<a href="/v/new" class="btn preset-filled-primary-500 min-h-11"><Icon name="plus" size={18} /> Sell a voucher</a><a href="/v/give" class="btn preset-tonal min-h-11"><Icon name="heart" size={18} /> Give vouchers</a>{/if}
 	{/snippet}
 
 	{#if !identity}
 		<div class="panel"><SignIn stay /></div>
 	{:else if !all.length}
-		<Empty icon="ticket" title="No vouchers yet" description="Buy one from someone’s shop, or sell your own: a thing, a class, a copy of your work." />
+		<Empty icon="ticket" title="No vouchers yet" description="Buy one from someone’s shop, sell your own (a thing, a class, a copy of your work), or give vouchers as a grant." />
 	{:else}
 		{#if bought.length}
 			<Section title="Yours" description="Open one to sign for it, redeem it, or settle.">
@@ -71,6 +72,21 @@
 								<Icon name="ticket" size={22} />
 								<span class="flex-1 min-w-40"><span class="block h5 break-words">{v.title}</span><span class="block text-sm">From {nameOf(v.with)}</span></span>
 								<Status tone={PHASE[v.phase]?.tone ?? 'plain'}>{PHASE[v.phase]?.word ?? v.phase}</Status>
+							</a>
+						</li>
+					{/each}
+				</ul>
+			</Section>
+		{/if}
+		{#if giving.length}
+			<Section title="You give" description="Your grants. Open one to give it to someone, see what’s been used, and take back what’s unspent when it ends.">
+				<ul class="flex flex-col gap-3 max-w-3xl">
+					{#each giving as v (v.agreement)}
+						<li>
+							<a href="/v/{encodeURIComponent(v.hash)}" class="card preset-outlined-surface-200-800 bg-surface-50-950 hover:preset-tonal-surface p-4 flex flex-wrap items-center gap-3 min-h-11">
+								<Icon name="heart" size={22} />
+								<span class="flex-1 min-w-40 h5 break-words">{v.title}</span>
+								<Status tone="plain">A grant</Status>
 							</a>
 						</li>
 					{/each}
