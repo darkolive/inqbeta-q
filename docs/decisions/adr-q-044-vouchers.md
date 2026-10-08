@@ -444,3 +444,22 @@ A payment with nothing held, or a copy paid twice, is refused. Checklist
 - Attestations by someone other than the giver (ADR-Q-036 §3).
 - Providers accepted by treaty: the realm's own list only for now.
 - Part-spending a copy: it's used whole.
+
+## Addendum, 8 October 2026: selling a copy on
+
+A holder of a sellable voucher can put their copy in their own shop, once,
+for credits within the issuer's resale limit (`resaleTerms`; the thing is
+"Voucher: … (hash) #n"). It works the same way as a first sale:
+
+- the buyer's credits are held by the agreement;
+- the seller hands the copy over: passed on as sold, naming the sale, and
+  checked by `voucher.move` (bound, giftable-only and over-limit sales are
+  refused);
+- once the buyer has signed for it, both settle and the credits go to the
+  seller (`resaleOf`, `resaleReleaseProblem`).
+
+On the voucher's page there is **Sell it on** for the holder, and **Next:**
+for each step. **Sold on** shows each copy changing hands: Bought, Handed
+over, Signed for, Paid.
+
+**Not yet:** a resale market across shops (step 7).

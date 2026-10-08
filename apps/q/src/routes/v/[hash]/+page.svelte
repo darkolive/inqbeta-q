@@ -16,6 +16,7 @@
 	import { creditsCommitted, creditsHeld } from '$lib/agreements';
 	import { readMint, type MintView } from '$lib/money';
 	import { buy } from '$lib/shop';
+	import { handOver, releaseResale, resalesOf, sellOn, type ResaleView } from '$lib/vouchers';
 	import { askToRedeem, giveGrant, givenFromBank, giveTo, handOut, honour, readVoucher, returnUnspent, release, salesOf, signFor, voucherLink, waitingForMe, type SaleView, type VoucherView } from '$lib/vouchers';
 	import { Section, Status } from '@inqbeta/q-ui';
 
@@ -82,6 +83,21 @@
 	const givable = $derived(people.filter((p) => p.did !== me && p.did !== view?.voucher.content.issuer));
 	let giveTo_ = $state<Record<number, string>>({});
 
+	/* Selling a copy on: your own, in your shop, within the issuer's limit. */
+	const resales = $derived(view ? resalesOf(view, ledger) : []);
+	const resaleWaiting = (x: ResaleView) => x.agreement.standing.pending?.by === me;
+	let sellFor = $state<Record<number, number | null>>({});
+	let sellLink = $state('');
+	async function putUp(h: (typeof myCopies)[number]) {
+		if (!identity || !view || !mint) return;
+		acting = `sell-${h.number}`;
+		actSays = null;
+		const out = await sellOn(identity, ledger, people, mint, view, h, Number(sellFor[h.number]));
+		acting = '';
+		actSays = { good: out.ok, text: out.says };
+		sellLink = out.ok ? out.link : '';
+	}
+
 	/* Step 6: a grant. The giver hands copies out; the holder chooses a provider; the provider honours it and is paid. */
 	const given = $derived(!!view && !view.voucher.content.price.paid && view.voucher.content.price.from === 'credits');
 	const ended = $derived(!!view?.voucher.content.ends && Date.parse(view.voucher.content.ends.at) <= Date.now());
@@ -102,6 +118,11 @@
 		const v = view;
 		const c = toSignFor[0];
 		if (c) return { says: `Copy ${c.number} has been handed to you.`, button: 'Sign for it', key: `sign-${c.number}`, run: () => signFor(id, v, c) };
+		/* A copy sold on: the seller hands it over; once it's signed for, both settle. */
+		const toHandOver = resales.find((x) => x.resale.seller === me && x.resale.state === 'taken');
+		if (toHandOver) return { says: `${nameOf(toHandOver.resale.buyer)} bought copy ${toHandOver.resale.number}.`, button: 'Hand it over', key: `hand-${toHandOver.agreement.id}`, run: () => handOver(id, v, toHandOver, people) };
+		const resaleToSettle = resales.find((x) => x.resale.state === 'received' && !resaleWaiting(x));
+		if (resaleToSettle) return { says: `Copy ${resaleToSettle.resale.number} has changed hands.`, button: resaleToSettle.agreement.standing.pending ? 'Confirm the settlement' : 'Settle: release the credits', key: `rrel-${resaleToSettle.agreement.id}`, run: () => releaseResale(id, ledger, people, mint, resaleToSettle) };
 		/* A provider asked to honour it. */
 		const ask = askedOfMe[0];
 		if (ask?.asked) return { says: `${nameOf(ask.holder)} asks to use it for ${ask.asked.for}.`, button: given ? 'I’ve given it: honour it and be paid' : 'Honour it: sign the redemption', key: `hon-${ask.number}`, run: () => honour(id, v, ask.asked!) };
@@ -228,6 +249,16 @@
 							{:else if !h.redeemed && !h.asked && !mine}
 								<p class="text-sm">When you’ve got what it promises, redeem it. The credits held for it are released to the issuer only then.</p>
 								<button type="button" class="btn preset-filled-primary-500 min-h-11 self-start" disabled={!!acting} onclick={() => void act(`ask-${h.number}`, () => askToRedeem(identity!, view!, h))}>{acting === `ask-${h.number}` ? 'Signing…' : 'I have it: redeem'}</button>
+								{#if view.voucher.content.moves === 'sellable' && mint}
+									<details class="card preset-outlined-surface-200-800 p-3">
+										<summary class="cursor-pointer min-h-11 flex items-center text-sm font-bold">Sell it on</summary>
+										<div class="flex flex-col gap-3 mt-2">
+											<label class="label"><span class="label-text">Price, in credits{view.voucher.content.resaleUpTo !== undefined ? ` (no more than ${view.voucher.content.resaleUpTo}: the issuer’s limit)` : ''}</span><input class="input" type="number" min="1" max={view.voucher.content.resaleUpTo} inputmode="numeric" bind:value={sellFor[h.number]} /></label>
+											<p class="text-sm">It goes in your shop. The buyer’s credits are held until you’ve handed it over and they’ve signed for it.</p>
+											<button type="button" class="btn preset-tonal min-h-11 self-start" disabled={!!acting || !sellFor[h.number] || (view.voucher.content.resaleUpTo !== undefined && Number(sellFor[h.number]) > view.voucher.content.resaleUpTo)} onclick={() => void putUp(h)}>{acting === `sell-${h.number}` ? 'Signing…' : 'Put it in my shop'}</button>
+										</div>
+									</details>
+								{/if}
 								{#if view.voucher.content.moves !== 'bound'}
 									<details class="card preset-outlined-surface-200-800 p-3">
 										<summary class="cursor-pointer min-h-11 flex items-center text-sm font-bold">Give it to someone</summary>
@@ -331,6 +362,28 @@
 				</ul>
 			</Section>
 		{/if}
+		{#if resales.length}
+			<Section title="Sold on" description="Copies changing hands: credits held until the buyer has signed for it, then both settle.">
+				<ul class="flex flex-col gap-3">
+					{#each resales as x (x.agreement.id)}
+						<li class="card preset-outlined-surface-200-800 p-4 flex flex-col gap-2">
+							<div class="flex flex-wrap items-center gap-3">
+								<span class="font-bold flex-1">Copy {x.resale.number} · {x.resale.seller === me ? `to ${nameOf(x.resale.buyer)}` : `from ${nameOf(x.resale.seller)}`}</span>
+								<Status tone={x.resale.state === 'released' ? 'good' : x.resale.state === 'cancelled' ? 'plain' : 'waiting'}>{x.resale.credits} credits</Status>
+							</div>
+							<ol class="flex flex-wrap gap-x-3 gap-y-1 text-sm" aria-label="Where this sale is">
+								{#each [['taken', 'Bought'], ['handed', 'Handed over'], ['received', 'Signed for'], ['released', 'Paid']] as [st, called], i (st)}
+									{@const at = ['taken', 'handed', 'received', 'released'].indexOf(x.resale.state)}
+									<li class={i <= at ? 'font-bold' : 'opacity-60'} aria-current={i === at ? 'step' : undefined}>{i <= at ? '✓ ' : ''}{called}</li>
+								{/each}
+							</ol>
+							<p class="text-sm">{x.resale.says}</p>
+						</li>
+					{/each}
+				</ul>
+			</Section>
+		{/if}
+		{#if sellLink}<p class="card preset-tonal p-3 text-sm break-all">Your shop: <a class="anchor" href={sellLink}>{sellLink}</a></p>{/if}
 		{#if actSays}<p class="card p-3 text-sm {actSays.good ? 'preset-tonal-success' : 'preset-tonal-error'}" aria-live="polite">{actSays.text}</p>{/if}
 		<p class="text-sm text-surface-700-300">Buying is signed by you and checked by the agreement rules. It’s a record of what you both agree, not legal advice.</p>
 	{/if}

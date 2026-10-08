@@ -12,7 +12,7 @@ import { saveLocked } from '@inqbeta/q-core/folder';
 import { toBase64 } from '@inqbeta/q-core/attachments';
 import { isAgreementStep } from '@inqbeta/q-core/agreements';
 import { acceptRedeem, askRedeem, checkVoucher, editionOf, hashHeld, issueCopy, makeVoucher, nextNumber, passOn, receive, type EditionState, type Holding, type Redemption, type Voucher, type VoucherHeld, type VoucherReceipt } from '@inqbeta/q-core/vouchers';
-import { isSaleOf, listingLimit, listingTerms, releaseProblem, saleOf, type Sale } from '@inqbeta/q-core/voucher-sales';
+import { isSaleOf, listingLimit, listingTerms, releaseProblem, resaleOf, resaleReleaseProblem, resaleTerms, saleOf, type Resale, type Sale } from '@inqbeta/q-core/voucher-sales';
 import { voucherIssueFacts, voucherMoveFacts, voucherRedeemFacts } from '@inqbeta/q-actions/core/vouchers';
 import { sendTo } from '$lib/messages';
 import { signerFor, type Identity } from '@inqbeta/q-core/passkey';
@@ -37,7 +37,8 @@ export const voucherLink = (hash: string, origin = typeof location === 'undefine
 /** The voucher a shop offer sells, by its name in the terms; null if it sells something else. */
 export function voucherIn(listing: Pick<ShopListing, 'offer'>): string | null {
 	const t = listing.offer.content.terms?.aGives;
-	const m = t && 'thing' in t ? /\(([A-Za-z0-9_-]{43})\)$/.exec(t.thing) : null;
+	/* A first sale names the voucher; a copy sold on adds which copy: "… (hash) #7". */
+	const m = t && 'thing' in t ? /\(([A-Za-z0-9_-]{43})\)(?: #\d+)?$/.exec(t.thing) : null;
 	return m?.[1] ?? null;
 }
 
@@ -289,8 +290,10 @@ export function myVouchers(ledger: Ledger | null, me: string): MyVoucher[] {
 	for (const a of agreementsFrom(ledger)) {
 		const t = a.standing.terms;
 		const thing = t && 'thing' in t.aGives ? t.aGives.thing : '';
-		const m = /^Voucher: (.*) \(([A-Za-z0-9_-]{43})\)$/.exec(thing);
+		const m = /^Voucher: (.*) \(([A-Za-z0-9_-]{43})\)( #\d+)?$/.exec(thing);
 		if (!t || !m) continue;
+		/* Your own copy, put up for sale: it's already under Yours. */
+		if (a.listing && m[3]) continue;
 		if (a.listing && t.a === me) out.push({ hash: m[2], title: m[1], as: 'selling', with: '', agreement: a.id, at: a.at, phase: a.standing.phase });
 		else if (!a.listing && t.b === me) out.push({ hash: m[2], title: m[1], as: 'bought', with: t.a, agreement: a.id, at: a.at, phase: a.standing.phase });
 	}
@@ -388,3 +391,64 @@ export async function giveGrant(identity: Identity, view: VoucherView, to: Perso
 
 /** After it ends: what's still held behind a copy goes back to the giver. */
 export const returnUnspent = (hash: string, number: number) => mintVouchers({ return: { voucher: hash, number } });
+
+/* ---- Selling a copy on (ADR-Q-044 §5) ---- */
+
+export interface ResaleView {
+	agreement: AgreementView;
+	resale: Resale;
+}
+
+/** Copies of this voucher sold on, in your own agreements: as seller or buyer. */
+export function resalesOf(view: VoucherView, ledger: Ledger | null): ResaleView[] {
+	return agreementsFrom(ledger)
+		.filter((a) => !a.listing)
+		.map((a) => ({ agreement: a, resale: resaleOf(view.voucher, a.standing, view.copies, view.edition.holdings) }))
+		.filter((x): x is ResaleView => !!x.resale)
+		.sort((x, y) => y.agreement.at.localeCompare(x.agreement.at));
+}
+
+/** Put your copy up for sale in your shop, once, within the issuer's limit. Returns your shop's link to share. */
+export async function sellOn(identity: Identity, ledger: Ledger | null, people: Person[], mint: MintView, view: VoucherView, h: Holding, credits: number): Promise<{ ok: true; says: string; link: string } | { ok: false; says: string }> {
+	try {
+		const terms = resaleTerms(view.voucher, { holder: identity.did, number: h.number, credits, mode: mint.mode, mint: mint.mint });
+		const out = await takeStep(identity, ledger, newAgreementId(), { step: 'proposed', parent: null, terms, limit: 1 }, people, mint);
+		if (!out.ok) return { ok: false, says: out.says };
+		const put = await publishListing(out.signed, ledger);
+		const link = `${location.origin}/shop/${encodeURIComponent(identity.did)}`;
+		return put.ok ? { ok: true, says: `Copy ${h.number} is in your shop for ${credits} credits. Share your shop’s link.`, link } : { ok: false, says: `Kept, but not in your shop yet: ${put.says}` };
+	} catch (e) {
+		return { ok: false, says: e instanceof Error ? e.message : String(e) };
+	}
+}
+
+/** The seller hands the copy over to whoever bought it: passed on, sold, naming the sale; checked by voucher.move. */
+export async function handOver(identity: Identity, view: VoucherView, x: ResaleView, people: Person[]): Promise<Done> {
+	const v = view.voucher;
+	const h = view.edition.holdings.find((k) => k.number === x.resale.number);
+	if (!h || h.holder !== identity.did) return { ok: false, says: 'You don’t hold that copy now.' };
+	try {
+		const next = await passOn(h.latest, v, signerFor(identity), { to: x.resale.buyer, how: 'sold', price: x.resale.credits, via: x.agreement.id });
+		const facts = await voucherMoveFacts(v, next, view.copies, view.redemptions, { by: identity.did });
+		const no = refused(await decide(await actionHash('voucher.move'), { principal: { type: 'Person', id: identity.did }, resource: { type: 'Voucher', id: v.contentHash }, facts }));
+		if (no) return { ok: false, says: no };
+		const out = await postMove(v.contentHash, 'copy', next);
+		if (!out.ok) return out;
+		const buyer = people.find((p) => p.did === x.resale.buyer);
+		if (buyer?.inbox) await sendTo(buyer, { kind: 'message', text: `I’ve handed over the voucher you bought: ${v.content.title}, copy ${x.resale.number}. Open it to sign for it: ${voucherLink(v.contentHash)}` }).catch(() => null);
+		return { ok: true, says: 'Handed over. Once they sign for it, you both settle.' };
+	} catch (e) {
+		return { ok: false, says: e instanceof Error ? e.message : String(e) };
+	}
+}
+
+/** Settle a resale once the buyer has the copy: sign the release, or confirm the other side's. */
+export async function releaseResale(identity: Identity, ledger: Ledger | null, people: Person[], mint: MintView | null, x: ResaleView): Promise<Done> {
+	const st = x.agreement.standing;
+	const entries = st.pending ? st.pending.entries : (x.resale.release ?? []);
+	const why = resaleReleaseProblem(x.resale, entries);
+	if (why) return { ok: false, says: why };
+	if (st.pending?.by === identity.did) return { ok: false, says: 'You’ve signed it: it waits for the other side.' };
+	const out = await takeStep(identity, ledger, x.agreement.id, { step: 'settled', parent: st.pending?.hash ?? st.lastHash ?? null, entries }, people, mint);
+	return out.ok ? { ok: true, says: st.pending ? 'Settled: the credits are paid over.' : 'Signed. It waits for the other side to sign the same.' } : { ok: false, says: out.says };
+}

@@ -3535,6 +3535,30 @@
 				"says": "A bound voucher has no “Give it to someone”.",
 				"how": "human",
 				"area": "safety"
+			},
+			{
+				"id": "sell-on",
+				"says": "As the holder of a sellable voucher, “Sell it on”: a price over the issuer’s limit keeps the button off; within it, it goes in your shop, with your shop’s link to share.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "sell-on-buy",
+				"says": "As someone else, buy it from that shop (See the voucher shows the same voucher): your credits show as held.",
+				"how": "human",
+				"area": "money"
+			},
+			{
+				"id": "hand-over",
+				"says": "As the seller, the voucher’s page says Next: Hand it over. Do: Sold on shows Handed over.",
+				"how": "human",
+				"area": "works"
+			},
+			{
+				"id": "sell-on-receive",
+				"says": "As the buyer, sign for it: it’s yours, and Next offers to settle. Settle, the seller confirms, and the credits are paid.",
+				"how": "human",
+				"area": "money"
 			}
 		]
 	},
