@@ -1,6 +1,7 @@
 # ADR-Q-036 — Credits held by rule: grants that can only be spent on what they're for
 
-**Status:** proposed 5 October 2026, not yet built. It builds on committed credits
+**Status:** proposed 5 October 2026, not yet built. **Its grant mechanism is
+replaced by ADR-Q-044 (vouchers), 7 October 2026: see the addendum at the end.** It builds on committed credits
 (ADR-Q-025), the bank and its coin (ADR-Q-035), treaties as derived actions
 (ADR-Q-023 §4) and the rule engine (ADR-Q-009).
 
@@ -159,3 +160,30 @@ without a record.
 - ADR-Q-027: minting against reserves.
 - ADR-Q-031: crowdfunding and test beds.
 - ADR-Q-035: the federation's bank; the coin; cashing out by standing order.
+- ADR-Q-044: vouchers, which replace this ADR's grant mechanism.
+
+## Addendum, 7 October 2026: a grant is a voucher (ADR-Q-044)
+
+Darren: "If a grant was a voucher and in the voucher you put a condition in a
+type, can it be passed on? Can it be transferred? … this voucher can be
+swapped for storage, it can be swapped for office space … Solves so many
+problems and simplifies it."
+
+**What changes.** The conditions move **off the credits and into a voucher**.
+The foundation issues a *given, bound* voucher whose **realm** lists what it
+can be redeemed for (training, storage, office space). The credits that back it
+stay **held behind the voucher in the foundation's own bank**. The holder holds
+a voucher, not credits.
+
+- §1 **is withdrawn.** There is no "committed by rule" in the holder's wallet.
+  Committed still has one source, agreements (ADR-Q-025), plus credits a
+  giver holds behind its own vouchers.
+- §2 **becomes the voucher's terms**: given; bound; realm; who may hold it;
+  value each; when it returns.
+- §3 (attestation), §5 (settlement is ordinary) and §6 (release is a receipt)
+  **stand**, applied to the voucher.
+- §4 **widens**: a provider is accepted by treaty, or by being on a list the
+  foundation signs.
+- **Build order** steps 1, 2 and 5 are replaced by ADR-Q-044's build order.
+  Steps 3, 4 and 6 stand.
+
